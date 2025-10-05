@@ -1,0 +1,48 @@
+{
+    "paths": {
+        "/jobs/{guid}": {
+            "get": {
+                "description": "Retrieve information about a specific async job",
+                "operationId": "listJobs",
+                "parameters": [
+                    {
+                        "description": "Async job guid",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AsyncJobRequest"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "303": {
+                        "description": "See Other"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/TooManyRequests"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "tags": [
+                    "Async Job"
+                ]
+            }
+        }
+    }
+}

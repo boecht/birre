@@ -1,0 +1,42 @@
+{
+    "paths": {
+        "/knowledge-base/infections/{id}": {
+            "get": {
+                "description": "Retrieve a specific infection on knowledge base",
+                "operationId": "getInfection",
+                "parameters": [
+                    {
+                        "description": "Infection unique identifier",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Infection"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "tags": [
+                    "Knowledge Base"
+                ]
+            }
+        }
+    }
+}

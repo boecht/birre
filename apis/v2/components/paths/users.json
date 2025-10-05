@@ -1,0 +1,599 @@
+{
+    "paths": {
+        "/users": {
+            "get": {
+                "description": "Get information about users for your customer.",
+                "operationId": "getUsers",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the users by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "formal_name",
+                                "last_login_time",
+                                "guid",
+                                "email",
+                                "group.name",
+                                "status",
+                                "joined_time"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by a specific user GUIDs, comma separated",
+                        "in": "query",
+                        "name": "guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by email",
+                        "in": "query",
+                        "name": "email",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by formal name",
+                        "in": "query",
+                        "name": "formal_name_q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by email",
+                        "in": "query",
+                        "name": "email_q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or statuses, comma separated",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more role slugs, comma separated",
+                        "in": "query",
+                        "name": "roles.slug",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "customer_user",
+                                "customer_portfolio_manager",
+                                "customer_group_admin",
+                                "customer_admin",
+                                "vrm_admin",
+                                "vrm_operations",
+                                "vrm_view_only",
+                                "vrm_internal_business_user",
+                                "vulnerability_response_outreach"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more group ids, comma separated",
+                        "in": "query",
+                        "name": "group.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Include or exclude company token users",
+                        "in": "query",
+                        "name": "is_company_api_token",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Include or exclude company users set as contact",
+                        "in": "query",
+                        "name": "is_available_for_contact",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Include or exclude users set as preferred contact",
+                        "in": "query",
+                        "name": "is_preferred_contact",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserResponse"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            },
+            "post": {
+                "description": "Create a user",
+                "operationId": "createUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "user": {
+                                        "$ref": "#/components/schemas/User",
+                                        "description": "The details of the user to create."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/current": {
+            "get": {
+                "description": "Get detailed information about the current requesting User Profile",
+                "operationId": "getCurrentUser",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/User"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            },
+            "patch": {
+                "description": "Edit the current user",
+                "operationId": "editCurrentUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "user": {
+                                        "$ref": "#/components/schemas/User",
+                                        "description": "The details of the user to modify."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "User modified successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/query": {
+            "post": {
+                "description": "Post endpoint to list information about users for your customer.",
+                "operationId": "getUsersQuery",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "guid": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserResponse"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}": {
+            "delete": {
+                "description": "Delete a user profile",
+                "operationId": "deleteUser",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The user profile was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            },
+            "get": {
+                "description": "Get detailed information about a user profile",
+                "operationId": "getUser",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/User"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            },
+            "patch": {
+                "description": "Edit a user",
+                "operationId": "editUser",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "user": {
+                                        "$ref": "#/components/schemas/User",
+                                        "description": "The details of the user to modify."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "User modified successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}/require-mfa": {
+            "post": {
+                "description": "Require MFA for this user",
+                "operationId": "requireMfa",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "The user already has MFA enabled"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}/resend-activation-email": {
+            "post": {
+                "description": "(Re)send an activation email to the user",
+                "operationId": "resendUserActivation",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "The user has already been activated and cannot be sent another activation email"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}/reset-mfa": {
+            "post": {
+                "description": "Reset MFA for this user",
+                "operationId": "resetMfa",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "The user already has MFA disabled"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}/reset-pending-mfa": {
+            "post": {
+                "description": "Reset pending MFA for this user",
+                "operationId": "resetPendingMfa",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "The user already has MFA disabled"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        }
+    }
+}

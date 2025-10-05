@@ -1,0 +1,209 @@
+{
+    "paths": {
+        "/exposed-credentials/affected-companies": {
+            "get": {
+                "description": "List the companies in your portfolio that have been affected by each exposed credentials leak.",
+                "operationId": "listExposedCredentialsAffectedCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Filter companies and leaks with date_added equal to the specified ISO formatted date\n",
+                        "in": "query",
+                        "name": "date_added",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies and leaks with date_added greater or equal to specified ISO formatted date.\n",
+                        "in": "query",
+                        "name": "date_added_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies and leaks with date_added greater than the specified ISO formatted date.\n",
+                        "in": "query",
+                        "name": "date_added_gt",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies and leaks with date_added less than or equal to specified ISO formatted date.\n",
+                        "in": "query",
+                        "name": "date_added_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies and leaks with date_added less than the specified ISO formatted date.\n",
+                        "in": "query",
+                        "name": "date_added_lt",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "count": {
+                                            "description": "The number of results from the query.",
+                                            "type": "integer"
+                                        },
+                                        "links": {
+                                            "$ref": "#/components/schemas/PaginationLinks"
+                                        },
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ExposedCredentialsAffectedCompany"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns affected companies and leaks"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Exposed Credentials"
+                ]
+            }
+        },
+        "/exposed-credentials/data-classes": {
+            "get": {
+                "description": "List all possible data classes that can be exposed from an Exposure Event (Breach)",
+                "operationId": "listExposedCredentialsDataClasses",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/DataLeakType"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns all possible data classes of exposed credentials"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Exposed Credentials"
+                ]
+            }
+        },
+        "/exposed-credentials/leaks": {
+            "get": {
+                "description": "List leaks of exposed credentials that have affected companies in your portfolio.",
+                "operationId": "listExposedCredentialsLeaks",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "count": {
+                                            "description": "The number of results from the query.",
+                                            "type": "integer"
+                                        },
+                                        "links": {
+                                            "$ref": "#/components/schemas/PaginationLinks"
+                                        },
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ExposedCredentialsLeak"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns exposed credentials leaks"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Exposed Credentials"
+                ]
+            }
+        }
+    }
+}

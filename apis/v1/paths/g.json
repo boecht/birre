@@ -1,0 +1,157 @@
+{
+    "paths": {
+        "/geolocation/countries": {
+            "get": {
+                "description": "get a mapping of iso3166 country and sublocation codes and their names",
+                "operationId": "listGeolocationCountries",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ]
+            }
+        },
+        "/idps": {
+            "get": {
+                "description": "Get a List of all SAML IdPs for the current Customer",
+                "operationId": "getSamlIdps",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SamlIdp"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns a List of all SAML IdPs for the current Customer"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "summary": "Get a List of all SAML IdPs for the current Customer",
+                "tags": [
+                    "SAML IdPs"
+                ]
+            },
+            "post": {
+                "description": "Add a SAML IdP to the current Customer",
+                "operationId": "addSamlIdp",
+                "parameters": [
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "idp": {
+                                        "$ref": "#/components/schemas/SamlIdp"
+                                    }
+                                },
+                                "required": [
+                                    "id"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SamlIdp"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns the added IdP"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "summary": "Add a SAML IdP to the current Customer",
+                "tags": [
+                    "SAML IdPs"
+                ]
+            }
+        }
+    }
+}

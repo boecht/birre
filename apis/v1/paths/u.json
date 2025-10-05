@@ -1,0 +1,841 @@
+{
+    "paths": {
+        "/ui-preferences": {
+            "get": {
+                "description": "Retrieves UI preferences for the current user",
+                "operationId": "getUiPreferences",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UiPreferences"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UiPreferences"
+                ]
+            },
+            "patch": {
+                "description": "Update UI preferences for the current user",
+                "operationId": "patchUiPreferences",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UiPreferences"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "errors": {
+                                            "description": "The list of errors",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Error"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UiPreferences"
+                ]
+            }
+        },
+        "/underwriting-guidelines": {
+            "get": {
+                "description": "Retrieves the Underwriting Guidelines for the current user",
+                "operationId": "getUnderwritingGuidelines",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UnderwritingGuidelinesResponse"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Underwriting Guidelines"
+                ]
+            },
+            "post": {
+                "description": "Creates the Underwriting Guidelines for the current user",
+                "operationId": "postUnderwritingGuidelines",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UnderwritingGuidelinesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnderwritingGuidelinesResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "errors": {
+                                            "description": "The list of errors",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Error"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Underwriting Guidelines"
+                ]
+            }
+        },
+        "/underwriting-guidelines/defaults": {
+            "get": {
+                "description": "Retrieves the Default Underwriting Guidelines",
+                "operationId": "getDefaultUnderwritingGuidelines",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/DefaultUnderwritingGuidelinesResponse"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Underwriting Guidelines"
+                ]
+            }
+        },
+        "/underwriting-guidelines/{guid}": {
+            "delete": {
+                "description": "Deletes the Underwriting Guidelines for the current user",
+                "operationId": "deleteUnderwritingGuidelines",
+                "parameters": [
+                    {
+                        "description": "GUID of the underwriting guideline",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "errors": {
+                                            "description": "The list of errors",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Error"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Underwriting Guidelines"
+                ]
+            },
+            "patch": {
+                "description": "Updates the Underwriting Guidelines for the current user",
+                "operationId": "patchUnderwritingGuidelines",
+                "parameters": [
+                    {
+                        "description": "GUID of the underwriting guideline",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UnderwritingGuidelinesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnderwritingGuidelinesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "errors": {
+                                            "description": "The list of errors",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Error"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Underwriting Guidelines"
+                ]
+            }
+        },
+        "/user-behavior/statistics": {
+            "post": {
+                "description": "Computes Risk Type statistics for User Behavior",
+                "operationId": "user-behavior.batch.statistics",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "statistics_args": {
+                                        "$ref": "#/components/schemas/BatchStatisticsArgs"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserBehaviorBatchStatistics"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Statistics"
+                ]
+            }
+        },
+        "/users": {
+            "get": {
+                "description": "Get information about users for your customer.",
+                "operationId": "getUsers",
+                "parameters": [
+                    {
+                        "description": "Include extra user details (only available to Customer Admins and Group Admins).",
+                        "in": "query",
+                        "name": "include_details",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Show all users (only available to Customer Admins and Group Admins). By default, only active users, that are not company API tokens, are shown.",
+                        "in": "query",
+                        "name": "show_all",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Only show users who can view the specified company. If null/empty, users will not be filtered in this way.",
+                        "in": "query",
+                        "name": "view_company",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserDetail"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/current": {
+            "get": {
+                "description": "Get detailed information about the current user profile",
+                "operationId": "getCurrentUser",
+                "parameters": [
+                    {
+                        "description": "Comma delimited list of organization fields to return",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Fields to be excluded from response",
+                        "in": "query",
+                        "name": "exclude_fields",
+                        "required": false,
+                        "schema": {
+                            "example": "formal_name,group",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/current/beta-features": {
+            "get": {
+                "description": "Get a list of toggleable features for the current user",
+                "operationId": "user-profile-features",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserFeature"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            },
+            "post": {
+                "description": "Updates single feature by toggling it",
+                "operationId": "user-profile-features-update",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "feature": {
+                                        "description": "Details of the feature to toggle on or off",
+                                        "properties": {
+                                            "enabled": {
+                                                "description": "Whether the feature should be enabled",
+                                                "type": "boolean"
+                                            },
+                                            "id": {
+                                                "description": "Persistent identifier for the feature",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserFeature"
+                                }
+                            }
+                        },
+                        "description": "Details of the updated feature"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/quota": {
+            "get": {
+                "description": "Get information regarding this customer's active, inactive, and total user counts.",
+                "operationId": "getUserQuota",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UsersQuota"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}": {
+            "get": {
+                "description": "Get detailed information about a user profile",
+                "operationId": "getUser",
+                "parameters": [
+                    {
+                        "description": "User guid",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/User"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/users/{user_guid}/company-views": {
+            "get": {
+                "description": "Get a list of companies view logs for the given user",
+                "operationId": "getUserCompanyViewLogs",
+                "parameters": [
+                    {
+                        "description": "User guid or 'current'",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Number of days look back",
+                        "in": "query",
+                        "name": "days_back",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Number of results returned for each category",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "The guid of folder to filter by",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompaniesViewLog"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    },
+                    "404": {
+                        "description": "Company not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Users"
+                ]
+            }
+        }
+    }
+}

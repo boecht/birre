@@ -1,0 +1,647 @@
+{
+    "paths": {
+        "/alerts": {
+            "get": {
+                "description": "A list of paginated alerts",
+                "operationId": "AlertsList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the alerts by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "guid",
+                                "alert_type",
+                                "alert_date",
+                                "company_name",
+                                "folder_name",
+                                "trigger",
+                                "severity"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified company guid.",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified folder guid.",
+                        "in": "query",
+                        "name": "folder_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert type.",
+                        "in": "query",
+                        "name": "alert_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "PERCENT_CHANGE",
+                                "RATING_THRESHOLD",
+                                "RISK_CATEGORY",
+                                "NIST_CATEGORY",
+                                "INFORMATIONAL",
+                                "SERVICE_PROVIDER",
+                                "VULNERABILITY",
+                                "PUBLIC_DISCLOSURE",
+                                "FP_PUBLIC_DISCLOSURE"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified severity level",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CRITICAL",
+                                "WARN",
+                                "INCREASE",
+                                "INFORMATIONAL",
+                                "CUSTOM"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Comma seperated list of fields to expand. If expand=details is set, include additional alert details. If expand=custom_id is set, include company_custom_id in the response.",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "details",
+                                "custom_id"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert date.",
+                        "in": "query",
+                        "name": "alert_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being less than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being less than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being greater than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being greater than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter entities based on their subscription/folder scope",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Alerts"
+                                }
+                            }
+                        },
+                        "description": "List of paginated alerts"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/customer": {
+            "get": {
+                "description": "A list of paginated customer-wide alerts",
+                "operationId": "CustomerAlertsList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the alerts by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "guid",
+                                "alert_type",
+                                "alert_date",
+                                "company_name",
+                                "folder_name",
+                                "trigger",
+                                "severity"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified company guid.",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified folder guid.",
+                        "in": "query",
+                        "name": "folder_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert type.",
+                        "in": "query",
+                        "name": "alert_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "PERCENT_CHANGE",
+                                "RATING_THRESHOLD",
+                                "RISK_CATEGORY",
+                                "NIST_CATEGORY",
+                                "INFORMATIONAL",
+                                "SERVICE_PROVIDER",
+                                "VULNERABILITY",
+                                "PUBLIC_DISCLOSURE"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified public_disclosure_category or null for non-public disclosure alerts.",
+                        "in": "query",
+                        "name": "public_disclosure_category",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Breach Security Incident",
+                                "General Security Incident",
+                                "Other Disclosure"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified severity level",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CRITICAL",
+                                "WARN",
+                                "INCREASE",
+                                "INFORMATIONAL",
+                                "CUSTOM"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If expand=details is set, include additional alert details",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "details"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert date.",
+                        "in": "query",
+                        "name": "alert_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being less than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being less than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being greater than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being greater than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Alerts"
+                                }
+                            }
+                        },
+                        "description": "List of paginated customer-wide alerts."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/latest": {
+            "get": {
+                "description": "List of the latest Alerts (according to the most recent date of alert generation)",
+                "operationId": "LatestAlertsList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the alerts by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "guid",
+                                "alert_type",
+                                "alert_date",
+                                "company_name",
+                                "folder_name",
+                                "trigger",
+                                "severity"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified company guid.",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified folder guid.",
+                        "in": "query",
+                        "name": "folder_guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert type.",
+                        "in": "query",
+                        "name": "alert_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "PERCENT_CHANGE",
+                                "RATING_THRESHOLD",
+                                "RISK_CATEGORY",
+                                "NIST_CATEGORY",
+                                "INFORMATIONAL",
+                                "SERVICE_PROVIDER",
+                                "VULNERABILITY",
+                                "PUBLIC_DISCLOSURE",
+                                "FP_PUBLIC_DISCLOSURE"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified severity level",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CRITICAL",
+                                "WARN",
+                                "INCREASE",
+                                "INFORMATIONAL",
+                                "CUSTOM"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Comma seperated list of fields to expand. If expand=details is set, include additional alert details. If expand=custom_id is set, include company_custom_id in the response.",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "details",
+                                "custom_id"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert date.",
+                        "in": "query",
+                        "name": "alert_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being less than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being less than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being greater than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being greater than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter entities based on their subscription/folder scope",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Alerts"
+                                }
+                            }
+                        },
+                        "description": "List of paginated alerts"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/{guid}/affected-companies": {
+            "get": {
+                "description": "List of companies that were indirectly affected by a 4th party breach.",
+                "operationId": "AffectedCompaniesList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "numeric GUID of a 4th party public disclosure alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AffectedCompanies"
+                                }
+                            }
+                        },
+                        "description": "List of paginated companies"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Unprocessable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        }
+    }
+}

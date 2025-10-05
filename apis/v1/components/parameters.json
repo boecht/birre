@@ -1,0 +1,287 @@
+{
+    "components": {
+        "parameters": {
+            "BreachGuid": {
+                "description": "the GUID of the breach to use",
+                "in": "path",
+                "name": "breach_guid",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "CompanyGuid": {
+                "description": "the GUID of the company to fetch data for",
+                "in": "path",
+                "name": "company_guid",
+                "required": true,
+                "schema": {
+                    "$ref": "#/x-common-definitions/company_guid"
+                }
+            },
+            "CompanyTreeGuid": {
+                "description": "the GUID of the company to use to fetch a company-tree hierarchy",
+                "in": "query",
+                "name": "company_tree_guid",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "DomainName": {
+                "description": "the name of the domain to get information for",
+                "in": "path",
+                "name": "domain_name",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Fields": {
+                "description": "the fields to return in the response. Field names are simply the name of the field in the response object.  Multiple fields can be specified by comma-separating their names.  Order the fields are specified is not reflected in the response.\n",
+                "in": "query",
+                "name": "fields",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "FolderGuid": {
+                "description": "the GUID of the folder to use for filtering the company set",
+                "in": "query",
+                "name": "folder_guid",
+                "required": false,
+                "schema": {
+                    "$ref": "#/x-common-definitions/folder_guid"
+                }
+            },
+            "FolderGuidPath": {
+                "in": "path",
+                "name": "folder_guid",
+                "required": true,
+                "schema": {
+                    "$ref": "#/x-common-definitions/folder_guid"
+                }
+            },
+            "FourthPartyGuid": {
+                "description": "the GUID of the fourth party relationship to use",
+                "in": "path",
+                "name": "fourth_party_guid",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Limit": {
+                "description": "the maximum number of records to return in a response.\n",
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "Offset": {
+                "description": "the offset in the result set to start returning records from.  The value 0 will cause the results to start with the first record of the result set.\n",
+                "in": "query",
+                "name": "offset",
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "PeerGroupEmployeeSize": {
+                "description": "Filters peers by employee size (omitted: 'any').",
+                "in": "query",
+                "name": "employee_size",
+                "schema": {
+                    "enum": [
+                        "any",
+                        "similar"
+                    ],
+                    "type": "string"
+                }
+            },
+            "PeerGroupIndustrySlugs": {
+                "description": "Filters peers by industry (omitted: company's industry)",
+                "example": "technology",
+                "in": "query",
+                "name": "industry_slugs",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "PeerGroupRatingGte": {
+                "description": "Filters peers by minimum inclusive rating",
+                "example": 300,
+                "in": "query",
+                "name": "rating_gte",
+                "required": false,
+                "schema": {
+                    "type": "integer"
+                }
+            },
+            "PeerGroupRatingLte": {
+                "description": "Filters peers by maximum inclusive rating",
+                "example": 820,
+                "in": "query",
+                "name": "rating_lte",
+                "required": false,
+                "schema": {
+                    "type": "integer"
+                }
+            },
+            "PeerGroupServiceSize": {
+                "description": "Filters peers by service size (omitted: 'any').",
+                "in": "query",
+                "name": "service_size",
+                "schema": {
+                    "enum": [
+                        "any",
+                        "similar"
+                    ],
+                    "type": "string"
+                }
+            },
+            "PeerGroupSubIndustrySlugs": {
+                "description": "Filters peers by sub industry (if set, overrides industry)",
+                "example": "technology",
+                "in": "query",
+                "name": "sub_industry_slugs",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "PeerGroupType": {
+                "description": "Filters peer group type (default peer_comparison).",
+                "in": "query",
+                "name": "group_type",
+                "schema": {
+                    "enum": [
+                        "peer_comparison",
+                        "benchmarking"
+                    ],
+                    "type": "string"
+                }
+            },
+            "ProductGuid": {
+                "description": "the GUID of the product to use",
+                "in": "path",
+                "name": "product_guid",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "ProviderGuid": {
+                "description": "the GUID of the provider to use",
+                "in": "path",
+                "name": "provider_guid",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Query": {
+                "description": "the string to use to search for matching records.  This will perform a full-text search on all searchable fields\n",
+                "in": "query",
+                "name": "q",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "RelationshipType": {
+                "in": "query",
+                "name": "relationship_type",
+                "schema": {
+                    "description": "the type of this fourth-party relationship.  'bitsight' if the relationship came from Bitsight's data, 'self' if the relationship was entered by a user, and 'none' if there is not yet a relationship with this fourth party\n",
+                    "enum": [
+                        "bitsight",
+                        "self",
+                        "none"
+                    ],
+                    "type": "string"
+                }
+            },
+            "RiskTypes": {
+                "description": "The list of risk types (omitted: all risks, including headline)",
+                "example": "headline",
+                "in": "query",
+                "name": "risk_types",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "RiskTypesCompromisedSystems": {
+                "description": "The list of compromised-systems risk types (omitted: all compromised-systems)",
+                "example": "botnet_infections",
+                "in": "query",
+                "name": "risk_types",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "RiskTypesDiligence": {
+                "description": "The list of diligence risk types (omitted: all diligence)",
+                "example": "open_ports",
+                "in": "query",
+                "name": "risk_types",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "RiskTypesUserBehavior": {
+                "description": "The list of user-behavior risk types (omitted: all user-behavior)",
+                "example": "torrent",
+                "in": "query",
+                "name": "risk_types",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "RisksDashboard": {
+                "description": "The list of risks [infections, open_ports] (omitted: all types)",
+                "example": "open_ports",
+                "in": "query",
+                "name": "risks",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Sort": {
+                "description": "the fields to sort the response objects by.  Field names are simply the name of the field in the response object.  Multiple fields can be specified by comma-separating their names. Specifying a field sorts it in ascending order (A->Z).  To sort in reverse (descending) order, place a minus sign (-) immediately before the field name.  Ex, 'product_name,-provider_name' will sort first by product_name ascending, then by provider_name descending (where the product_name is the same)\n",
+                "in": "query",
+                "name": "sort",
+                "schema": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "TierGuid": {
+                "description": "the GUID of the tier to use for filtering the company set",
+                "in": "query",
+                "name": "tier_guid",
+                "required": false,
+                "schema": {
+                    "$ref": "#/x-common-definitions/tier_guid"
+                }
+            },
+            "TierGuidPath": {
+                "in": "path",
+                "name": "tier_guid",
+                "required": true,
+                "schema": {
+                    "$ref": "#/x-common-definitions/tier_guid"
+                }
+            }
+        }
+    }
+}

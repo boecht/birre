@@ -1,0 +1,72 @@
+{
+    "components": {
+        "responses": {
+            "BadData": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Bad data"
+            },
+            "Conflict": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Conflict with current state of target resource"
+            },
+            "InternalServerError": {
+                "description": "Internal Server Error"
+            },
+            "NotFound": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "The specified resource was not found"
+            },
+            "PermissionDenied": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Permission Denied for this action"
+            },
+            "ServiceUnavailable": {
+                "description": "Server is not ready to handle the request"
+            },
+            "Unauthorized": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Unauthorized"
+            },
+            "Unprocessable": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Requested object can not be processed"
+            }
+        }
+    }
+}

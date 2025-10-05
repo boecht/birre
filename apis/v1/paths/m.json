@@ -1,0 +1,387 @@
+{
+    "paths": {
+        "/managed-monitoring/agreement": {
+            "get": {
+                "description": "Retrieve current managed monitoring agreement sign status.",
+                "operationId": "getManagedMonitoringAgreementSign",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringAgreementSign"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            },
+            "patch": {
+                "description": "Sign or unsign managed monitoring agreement. By signing this agreement a user is taking responsability on behalf of his customer for having consent to view identifiable information, such as IPs, on companies under the managed monitoring list.\n",
+                "operationId": "patchManagedMonitoringAgreementSign",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "is_signed": {
+                                        "description": "Signs or unsigns the managed monitoring agreement for the user's customer.",
+                                        "properties": {
+                                            "is_signed": {
+                                                "description": "Signs the managed monitoring when set to True, unsigns when set to false.\n",
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "is_signed"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringAgreementSign"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            }
+        },
+        "/managed-monitoring/companies": {
+            "get": {
+                "description": "Lists the portfolio companies eligible to manage IP visibility",
+                "operationId": "listManagedMonitoringEligibleCompanies",
+                "parameters": [
+                    {
+                        "description": "Filters by a given monitoring status",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by name search",
+                        "in": "query",
+                        "name": "q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort the companies by the specified parameters, separated by a comma. Sort by first in the list first applied",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Indicates the maximum number of entries to include on a response page",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Indicates the page offset",
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringEligibleCompanies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            },
+            "patch": {
+                "description": "Updates the managed monitoring status for a set of companies",
+                "operationId": "patchManagedMonitoringEligibleCompanies",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Contains a list of company guids to enable and another to disable",
+                                "properties": {
+                                    "managed_monitoring_patch_companies": {
+                                        "description": "A list of company guids to enable and another to disable",
+                                        "properties": {
+                                            "disable": {
+                                                "description": "Set of company guids for which we want to enable managed monitoring. A special tag 'all_companies' can be used in alternatively to enable all current portfolio companies without specifying guids.\n",
+                                                "items": {
+                                                    "$ref": "#/x-common-definitions/company_guid"
+                                                },
+                                                "type": "array"
+                                            },
+                                            "enable": {
+                                                "description": "Set of company guids for which we want to enable managed monitoring. A special tag 'all_companies' can be used to alternatively enable all current portfolio companies without specifying guids.\n",
+                                                "items": {
+                                                    "$ref": "#/x-common-definitions/company_guid"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "managed_monitoring_patch_companies"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringPatchResult"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            }
+        },
+        "/managed-monitoring/config": {
+            "get": {
+                "description": "Retrieve current managed monitoring configuration",
+                "operationId": "getManagedMonitoringConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringConfig"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            },
+            "patch": {
+                "description": "Updates managed monitoring configurations\n",
+                "operationId": "patchManagedMonitoringConfig",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "config_request_body": {
+                                        "description": "Config attributes to update",
+                                        "properties": {
+                                            "is_active_for_portfolio": {
+                                                "description": "Activates or deactivates managed monitoring for all portfolio companies",
+                                                "type": "boolean"
+                                            },
+                                            "is_my_company_tree_opted_out": {
+                                                "description": "Activates or deactivates the hability of other companies to view IP's for my company and my ratings tree",
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "config_request_body"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagedMonitoringConfig"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Managed Monitoring"
+                ]
+            }
+        }
+    }
+}

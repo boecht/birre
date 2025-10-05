@@ -1,0 +1,112 @@
+{
+    "components": {
+        "responses": {
+            "BadData": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Bad data"
+            },
+            "Conflict": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Conflict with current state of target resource"
+            },
+            "GatewayTimeout": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Gateway is unable to fulfill the request in time"
+            },
+            "InternalServerError": {
+                "description": "Internal Server Error"
+            },
+            "NotFound": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "The specified resource was not found"
+            },
+            "PermissionDenied": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Permission Denied for this action"
+            },
+            "PurchaseOrderBadData": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/PurchaseOrderRejectReason"
+                        }
+                    }
+                },
+                "description": "Bad data for PurchaseOrder"
+            },
+            "PurchaseOrderSuccessful": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/PurchaseOrderSuccessResult"
+                        }
+                    }
+                },
+                "description": "Successful submission of PurchaseOrder"
+            },
+            "ServiceUnavailable": {
+                "description": "Server is not ready to handle the request"
+            },
+            "TooManyRequests": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Too Many Requests in a given amount of time"
+            },
+            "Unauthorized": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Unauthorized"
+            },
+            "Unprocessable": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                },
+                "description": "Requested object can not be processed"
+            }
+        }
+    }
+}

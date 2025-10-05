@@ -1,0 +1,58 @@
+{
+    "components": {
+        "parameters": {
+            "FormatIncludeCSV": {
+                "description": "format of response data",
+                "in": "query",
+                "name": "format",
+                "required": false,
+                "schema": {
+                    "default": "json",
+                    "enum": [
+                        "json",
+                        "xml",
+                        "csv"
+                    ],
+                    "type": "string"
+                }
+            },
+            "Limit": {
+                "description": "the maximum number of records to return in a response.  If not set, will return all records\n",
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "Offset": {
+                "description": "the offset in the result set to start returning records from.  The value 0 will cause the results to start with the first record of the result set.\n",
+                "in": "query",
+                "name": "offset",
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "Query": {
+                "description": "the string to use to search for matching records.  This will perform a full-text search on all searchable fields.\n",
+                "in": "query",
+                "name": "q",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Sort": {
+                "description": "the fields to sort the response objects by.  Field names are simply the name of the field in the response object.  Multiple fields can be specified by comma-separating their names. Specifying a field sorts it in ascending order (A->Z).  To sort in reverse (descending) order, place a minus sign (-) immediately before the field name.  Ex, 'product_name,-provider_name' will sort first by product_name ascending, then by provider_name descending (where the product_name is the same)\n",
+                "in": "query",
+                "name": "sort",
+                "schema": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            }
+        }
+    }
+}

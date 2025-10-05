@@ -1,0 +1,3511 @@
+{
+    "paths": {
+        "/access-groups": {
+            "get": {
+                "description": "Get all access control groups and default group for a customer",
+                "operationId": "getAccessGroups",
+                "parameters": [
+                    {
+                        "description": "the format of the response data, either JSON or CSV",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "enum": [
+                                "json",
+                                "csv"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Select the response fields",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessControlGroups"
+                                }
+                            }
+                        },
+                        "description": "List of access control groups and default group"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            },
+            "post": {
+                "description": "Create an access control group",
+                "operationId": "createAccessGroup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "$ref": "#/components/schemas/AccessControlGroup"
+                                    }
+                                },
+                                "required": [
+                                    "body"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessControlGroup"
+                                }
+                            }
+                        },
+                        "description": "Newly created access control group metadata"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            }
+        },
+        "/access-groups/companies": {
+            "put": {
+                "description": "Update the company list on the given list of access control groups",
+                "operationId": "updateAccessGroupsCompanies",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "properties": {
+                                            "companies": {
+                                                "description": "List of company guids to add on the group",
+                                                "items": {
+                                                    "$ref": "#/x-common-definitions/company_guid"
+                                                },
+                                                "type": "array"
+                                            },
+                                            "groups": {
+                                                "description": "List of group guids to update the companies subscriptions",
+                                                "items": {
+                                                    "$ref": "#/x-common-definitions/guid"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            }
+        },
+        "/access-groups/query": {
+            "post": {
+                "description": "Get all access control groups and default group for a customer using Post",
+                "operationId": "postQueryAccessGroups",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "guid": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessControlGroups"
+                                }
+                            }
+                        },
+                        "description": "List of access control groups and default group"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            }
+        },
+        "/access-groups/{guid}": {
+            "delete": {
+                "description": "Delete a given access control group",
+                "operationId": "deleteAccessGroup",
+                "parameters": [
+                    {
+                        "description": "The guid of the access control group",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The Access Control Group was successfully deleted"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            },
+            "get": {
+                "description": "Get detailed information about a given access control group",
+                "operationId": "getAccessGroupDetail",
+                "parameters": [
+                    {
+                        "description": "The guid of the access control group",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "If expand=users is set, include list of users in the access control group",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "users"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessControlGroup"
+                                }
+                            }
+                        },
+                        "description": "Detail view of requested Access Control Group"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            },
+            "patch": {
+                "description": "Updates a given access control group information",
+                "operationId": "patchAccessGroupDetail",
+                "parameters": [
+                    {
+                        "description": "The guid of the access control group",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "$ref": "#/components/schemas/AccessControlGroup"
+                                    }
+                                },
+                                "required": [
+                                    "body"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessControlGroup"
+                                }
+                            }
+                        },
+                        "description": "Detail view of requested Access Control Group"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            }
+        },
+        "/access-groups/{guid}/companies/guids": {
+            "get": {
+                "description": "List company guids that the given access control group contains",
+                "operationId": "listAccessGroupCompanies",
+                "parameters": [
+                    {
+                        "description": "The guid of the access control group",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "The guid of the access control group to filter the subscription owner",
+                        "in": "query",
+                        "name": "subscribed-group",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/x-common-definitions/company_guid"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List of company guids in the group"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            },
+            "put": {
+                "description": "Update company guids in the given access control group",
+                "operationId": "setAccessGroupCompanies",
+                "parameters": [
+                    {
+                        "description": "The guid of the access control group",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/x-common-definitions/company_guid"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List of company guids in the group"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Access Groups"
+                ]
+            }
+        },
+        "/access-requests": {
+            "get": {
+                "description": "Lists the vendor access requests sent from the user's organization",
+                "operationId": "getAllSentEVA",
+                "parameters": [
+                    {
+                        "description": "Filter by sender on the specified user group",
+                        "in": "query",
+                        "name": "group",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter by sender as the specified user",
+                        "in": "query",
+                        "name": "requesterid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Exclude the specified user as sender",
+                        "in": "query",
+                        "name": "exclude_requesterid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested for the specified company",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested companies in the specifed folder",
+                        "in": "query",
+                        "name": "folder_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested companies in the specifed tier",
+                        "in": "query",
+                        "name": "tier_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more status, separated by a comma",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more reasons, separated by a comma",
+                        "in": "query",
+                        "name": "reason",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more risk vectors slugs, separated by a comma",
+                        "in": "query",
+                        "name": "context.risk_vectors.risk_vector.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/VendorAccessRequest"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "Array of vendor access requests"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            },
+            "post": {
+                "description": "Create a new Vendor Access Request",
+                "operationId": "createVendorAccessRequest",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "vendor_access_request": {
+                                        "$ref": "#/components/schemas/VendorAccessRequest"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequest"
+                                }
+                            }
+                        },
+                        "description": "The created Vendor Access Request"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/bulk": {
+            "post": {
+                "description": "Bulk actions on vendor access request",
+                "operationId": "bulkEVA",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VendorAccessRequestBulkPayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequestBulkReply"
+                                }
+                            }
+                        },
+                        "description": "List of modified and not modified access requests"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/config": {
+            "get": {
+                "description": "Retrieves vendor access request configurations affecting the customer",
+                "operationId": "getEVAConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequestConfig"
+                                }
+                            }
+                        },
+                        "description": "Detail of vendor access request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            },
+            "patch": {
+                "description": "Update vendor access request configurations affecting the customer",
+                "operationId": "updateEVAConfig",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "$ref": "#/components/schemas/VendorAccessRequestConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequestConfig"
+                                }
+                            }
+                        },
+                        "description": "Detail of updated vendor access request"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/counts": {
+            "get": {
+                "description": "Summarizes the vendor access requests sent from the user's organization",
+                "operationId": "getAllSentEVACounts",
+                "parameters": [
+                    {
+                        "description": "Filter by sender on the specified user group",
+                        "in": "query",
+                        "name": "group",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter by sender as the specified user",
+                        "in": "query",
+                        "name": "requesterid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Exclude the specified user as sender",
+                        "in": "query",
+                        "name": "exclude_requesterid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested for the specifed company",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested companies in the specifed folder",
+                        "in": "query",
+                        "name": "folder_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by requested companies in the specifed tier",
+                        "in": "query",
+                        "name": "tier_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more status, separated by a comma",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by creation time being greater than or equals to given value.",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by creation time being less than the given value.",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more reasons, separated by a comma",
+                        "in": "query",
+                        "name": "reason",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more risk vectors slugs, separated by a comma",
+                        "in": "query",
+                        "name": "context.risk_vectors.risk_vector.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Groups the summary counts by the specified argument",
+                        "in": "query",
+                        "name": "group_by",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "company"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/VendorAccessRequestCounts"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Summary of vendor access request counts"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/received": {
+            "get": {
+                "description": "List of vendor access requests received by user",
+                "operationId": "getAllReceivedEVA",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/VendorAccessRequest"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "Array of vendor access requests"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/received/mark-all-as-read": {
+            "post": {
+                "description": "Mark all vendor access requests as read",
+                "operationId": "markAllEVARead",
+                "responses": {
+                    "204": {
+                        "description": "All access requests have been marked as read"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/received/{guid}": {
+            "get": {
+                "description": "Detail of single vendor access request",
+                "operationId": "getReceivedEVA",
+                "parameters": [
+                    {
+                        "description": "GUID of the vendor access request",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequest"
+                                }
+                            }
+                        },
+                        "description": "Detail of vendor access request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            },
+            "patch": {
+                "description": "Update vendor access request",
+                "operationId": "updateEVA",
+                "parameters": [
+                    {
+                        "description": "GUID of the vendor access request",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VendorAccessRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequest"
+                                }
+                            }
+                        },
+                        "description": "Detail of updated vendor access request"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/self-access/validate-token": {
+            "post": {
+                "description": "Validate token of Client Access Links",
+                "operationId": "postValidateToken",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateTokenPayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidateTokenResponse"
+                                }
+                            }
+                        },
+                        "description": "scope and status of token"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/access-requests/{guid}": {
+            "patch": {
+                "description": "Update vendor access request sent by your company",
+                "operationId": "updateSentEVA",
+                "parameters": [
+                    {
+                        "description": "The Vendor Access Request guid",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VendorAccessRequestSentUpdatePayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VendorAccessRequest"
+                                }
+                            }
+                        },
+                        "description": "Detail of updated Vendor Access Request"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Vendor Access Requests"
+                ]
+            }
+        },
+        "/alert-preferences": {
+            "get": {
+                "description": "List of alert preferences",
+                "operationId": "AlertPreferenceList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Filter alert sets by container's GUID.",
+                        "in": "query",
+                        "name": "container.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Expands the provided field. If the alert set field is expanded, the respective alert settings will only be filtered for subscription folders.",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "alert_set"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertPreferences"
+                                }
+                            }
+                        },
+                        "description": "List of alert preferences"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-preferences/by-target": {
+            "get": {
+                "description": "Aggregation of alert preferences per target (folders, tiers and subscription folders)",
+                "operationId": "AlertPreferenceByTargetList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertPreferencesByTarget"
+                                }
+                            }
+                        },
+                        "description": "List of targets and their alert preferences"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            },
+            "patch": {
+                "description": "Update the alert preferences for the provided target",
+                "operationId": "AlertPreferenceByTargetPatch",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "alert_set_guid": {
+                                        "description": "GUID of the alert set to be applied to this target",
+                                        "type": "string"
+                                    },
+                                    "applies_to": {
+                                        "description": "Share scope of the alert preference this update action should affect.",
+                                        "type": "string"
+                                    },
+                                    "is_email_enabled_for_current_user": {
+                                        "description": "New value for the email toggle that determines whether an email should be sent to the request user if any alert is generated based on this preference.",
+                                        "type": "boolean"
+                                    },
+                                    "is_locked": {
+                                        "description": "New value for the locking policy that determines whether this alert preference should be enforced on the target for everyone with access to it.",
+                                        "type": "boolean"
+                                    },
+                                    "target": {
+                                        "properties": {
+                                            "guid": {
+                                                "$ref": "#/x-common-definitions/guid",
+                                                "description": "GUID of the target whose alert preferences are being modified"
+                                            },
+                                            "type": {
+                                                "description": "type of the target whose alert preferences are being modified",
+                                                "enum": [
+                                                    "folder",
+                                                    "tier",
+                                                    "subscription_folder"
+                                                ],
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertPreferencesAppliedToTarget"
+                                }
+                            }
+                        },
+                        "description": "Updated alert preferences for the requested target"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-preferences/{guid}": {
+            "get": {
+                "description": "Details of an alert preference",
+                "operationId": "AlertPreferenceDetail",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert preference",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertPreference"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert preference"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-sets": {
+            "get": {
+                "description": "List of alert sets",
+                "operationId": "AlertSetList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Filter alert sets by alert set GUID.",
+                        "in": "query",
+                        "name": "guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter alert sets by creator's GUID.",
+                        "in": "query",
+                        "name": "created_by.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alert sets based on whether they're private pertain to the request user.",
+                        "in": "query",
+                        "name": "is_private",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertSets"
+                                }
+                            }
+                        },
+                        "description": "List of alert sets"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            },
+            "post": {
+                "description": "Create an alert set",
+                "operationId": "AlertSetCreate",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AlertSet"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertSet"
+                                }
+                            }
+                        },
+                        "description": "Details of the successfully created alert set"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-sets/email-preferences": {
+            "put": {
+                "description": "Update an alert email preference",
+                "operationId": "AlertSetUpdateEmailPreference",
+                "responses": {
+                    "204": {
+                        "description": "The alert email preference was successfully updated"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-sets/{guid}": {
+            "delete": {
+                "description": "Delete an alert set",
+                "operationId": "AlertSetDelete",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert set",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The alert set was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            },
+            "get": {
+                "description": "Details of an alert set",
+                "operationId": "AlertSetDetail",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert set",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertSet"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            },
+            "patch": {
+                "description": "Update an alert set",
+                "operationId": "AlertSetUpdate",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert set",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AlertSet"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertSet"
+                                }
+                            }
+                        },
+                        "description": "Details of the successfully updated alert set"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alert-sets/{guid}/users/{user_guid}": {
+            "delete": {
+                "description": "Delete a user from an alert set",
+                "operationId": "AlertSetUserDelete",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert set",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "User guid to be removed from the alert set",
+                        "in": "path",
+                        "name": "user_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The alert set was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts": {
+            "get": {
+                "description": "List of Alerts",
+                "operationId": "AlertsList",
+                "parameters": [
+                    {
+                        "description": "Includes additional alert details",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "details"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Alerts"
+                                }
+                            }
+                        },
+                        "description": "Summary of alerts"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/informational/{guid}": {
+            "get": {
+                "description": "Details of an Informational Alert",
+                "operationId": "InformationalAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/latest": {
+            "get": {
+                "description": "List of the latest Alerts (according to the most recent date of alert generation)",
+                "operationId": "LatestAlertsList",
+                "parameters": [
+                    {
+                        "description": "Includes additional alert details",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "details"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Alerts"
+                                }
+                            }
+                        },
+                        "description": "Summary of alerts"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/nist/{guid}": {
+            "get": {
+                "description": "Details of a NIST Alert",
+                "operationId": "NISTAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/percent/{guid}": {
+            "get": {
+                "description": "Details of a Percent Alert",
+                "operationId": "PercentAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/portfolio/{guid}": {
+            "get": {
+                "description": "Details of a Portfolio Alert",
+                "operationId": "PortfolioAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/public-disclosure/{guid}": {
+            "get": {
+                "description": "Details of a Public Disclosure Alert",
+                "operationId": "PublicDisclosureAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/risk-categories/{guid}": {
+            "get": {
+                "description": "Details of a Risk Categories Alert",
+                "operationId": "RiskCategoriesAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/summaries": {
+            "get": {
+                "description": "The alerts summaries",
+                "operationId": "AlertsSummaries",
+                "parameters": [
+                    {
+                        "description": "Filter alerts by the specified folder guid.",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified tier guid.",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified alert type.",
+                        "in": "query",
+                        "name": "alert_type",
+                        "schema": {
+                            "enum": [
+                                "PERCENT_CHANGE",
+                                "RATING_THRESHOLD",
+                                "NIST_CATEGORY",
+                                "RISK_CATEGORY",
+                                "PORTFOLIO_QUALITY",
+                                "INFORMATIONAL",
+                                "SERVICE_PROVIDER",
+                                "VULNERABILITY",
+                                "PUBLIC_DISCLOSURE"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified risk category.",
+                        "in": "query",
+                        "name": "risk_vector",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "application_security",
+                                "botnet_infections",
+                                "data_breaches",
+                                "desktop_software",
+                                "dkim",
+                                "dnssec",
+                                "file_sharing",
+                                "insecure_systems",
+                                "malware_servers",
+                                "mobile_app_publications",
+                                "mobile_application_security",
+                                "mobile_software",
+                                "open_ports",
+                                "patching_cadence",
+                                "potentially_exploited",
+                                "server_software",
+                                "spam_propagation",
+                                "spf",
+                                "ssl_certificates",
+                                "ssl_configurations",
+                                "unsolicited_comm",
+                                "web_appsec"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter alerts by the specified severity level",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CRITICAL",
+                                "WARN",
+                                "INCREASE",
+                                "INFORMATIONAL",
+                                "CUSTOM"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If expand includes additional alert details",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "risk_vectors.end_grades"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with alert_date being less than given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter alerts with last_seen being greater than or equal to the given value. This parameter is incompatible with 'alert_date'.",
+                        "in": "query",
+                        "name": "alert_date_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertsSummaries"
+                                }
+                            }
+                        },
+                        "description": "Summary of alerts"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/threshold/{guid}": {
+            "get": {
+                "description": "Details of a Threshold Alert",
+                "operationId": "ThresholdAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/types": {
+            "get": {
+                "description": "Complete list of alert types",
+                "operationId": "getDefaultsAlertTypes",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/AlertType"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "Complete list of alert types"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Defaults"
+                ]
+            }
+        },
+        "/alerts/vulnerability/{guid}": {
+            "get": {
+                "description": "Details of a Vulnerability Alert",
+                "operationId": "VulnerabilityAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/alerts/{guid}": {
+            "get": {
+                "description": "Details of an Alert",
+                "operationId": "GenericAlertDetails",
+                "parameters": [
+                    {
+                        "description": "GUID of the alert",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericAlertDetails"
+                                }
+                            }
+                        },
+                        "description": "Detailed alert"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Alerts"
+                ]
+            }
+        },
+        "/api-tokens/retrieve": {
+            "post": {
+                "description": "Retreives an API token for a user.",
+                "operationId": "retrieveCustomersApiToken",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "auth_token": {
+                                        "description": "the one use auth token that was generated for the user",
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "description": "the email address that the token retrieve link was sent to",
+                                        "type": "string"
+                                    },
+                                    "user_guid": {
+                                        "$ref": "#/x-common-definitions/guid",
+                                        "description": "the guid of the user for the token"
+                                    }
+                                },
+                                "required": [
+                                    "email",
+                                    "user_guid",
+                                    "auth_token"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Successful retrieve"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "Customers"
+                ]
+            }
+        },
+        "/app-regions": {
+            "get": {
+                "description": "Get all app regions that can be accessed by the customer",
+                "operationId": "getAppRegions",
+                "parameters": [
+                    {
+                        "description": "Comma separated list of apps to filter fo",
+                        "in": "query",
+                        "name": "app",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppRegions"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "AppRegions"
+                ]
+            }
+        },
+        "/assessment/assessments/templates/{template_guid}/companies/{company_guid}": {
+            "get": {
+                "description": "Get assessment reports for a given company",
+                "operationId": "CompanyAssessmentReport",
+                "parameters": [
+                    {
+                        "description": "A unique identifier of the assessment template",
+                        "in": "path",
+                        "name": "template_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The guid of the company that should the report is for",
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyAssessment"
+                                }
+                            }
+                        },
+                        "description": "The json assessment report for the company"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Assessments",
+                    "Company Assessment",
+                    "Licenses"
+                ]
+            }
+        },
+        "/assessment/customers/{customer_guid}/assessments/templates": {
+            "get": {
+                "description": "Get a list of assessment templates for a given customer unpaginated",
+                "operationId": "CustomerAssessmentTemplatesUnpaginated",
+                "parameters": [
+                    {
+                        "description": "A unique identifier of the customer",
+                        "in": "path",
+                        "name": "customer_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/customer_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssessmentTemplate"
+                                }
+                            }
+                        },
+                        "description": "A list of GUIDs of all available assessments for the customer"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Assessments"
+                ]
+            }
+        },
+        "/assessments/templates": {
+            "get": {
+                "description": "Get all global and/or customized assessments for the current customer",
+                "operationId": "getAssessmentTemplate",
+                "parameters": [
+                    {
+                        "description": "True, if the assessment template is global",
+                        "in": "query",
+                        "name": "is_global",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Comma separated list of tier guids to filter for",
+                        "in": "query",
+                        "name": "tier_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssessmentTemplate"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Assessments"
+                ]
+            }
+        },
+        "/assessments/templates/{assessment_template_guid}": {
+            "patch": {
+                "description": "Update tier assignments for an assessment template",
+                "operationId": "updateAssessmentTemplate",
+                "parameters": [
+                    {
+                        "description": "A unique identifier of the assessment template",
+                        "in": "path",
+                        "name": "assessment_template_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "description": "All operations to be applied",
+                                        "properties": {
+                                            "assignments": {
+                                                "properties": {
+                                                    "add": {
+                                                        "properties": {
+                                                            "tier_guids": {
+                                                                "description": "List of tier guids assigned to the assessment template",
+                                                                "items": {
+                                                                    "$ref": "#/x-common-definitions/tier_guid"
+                                                                },
+                                                                "type": "array"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "remove": {
+                                                        "properties": {
+                                                            "tier_guids": {
+                                                                "description": "List of tier guids to unassign with this assessment template",
+                                                                "items": {
+                                                                    "$ref": "#/x-common-definitions/tier_guid"
+                                                                },
+                                                                "type": "array"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssessmentTemplate"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Assessments"
+                ]
+            }
+        },
+        "/assets/config": {
+            "delete": {
+                "description": "Delete the asset configuration. Only available to Customer Admins.",
+                "operationId": "deleteAssetConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetConfig"
+                                }
+                            }
+                        },
+                        "description": "Successful deletion of asset configuration"
+                    },
+                    "400": {
+                        "description": "Trying to delete a non-existent asset configuration"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "AssetConfig"
+                ]
+            },
+            "get": {
+                "description": "Retrieve the asset configuration. Returns a default is there is none.",
+                "operationId": "getAssetConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetConfig"
+                                }
+                            }
+                        },
+                        "description": "Customer wide asset configuration"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "AssetConfig"
+                ]
+            },
+            "put": {
+                "description": "Create/Update a customer-wide asset configuration. Only available to Customer Admins.",
+                "operationId": "createOrUpdateAssetConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetConfig"
+                                }
+                            }
+                        },
+                        "description": "Successful update of asset configuration."
+                    },
+                    "204": {
+                        "description": "Newly created customer wide asset configuration."
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "AssetConfig"
+                ]
+            }
+        }
+    }
+}

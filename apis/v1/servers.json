@@ -1,0 +1,12 @@
+{
+    "servers": [
+        {
+            "description": "production server",
+            "url": "https://api.bitsighttech.com/v1"
+        },
+        {
+            "description": "testing server",
+            "url": "/customer-api/v1"
+        }
+    ],
+}

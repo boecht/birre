@@ -1,0 +1,214 @@
+{
+    "tags": [
+        {
+            "name": "Access Groups"
+        },
+        {
+            "name": "Alerts"
+        },
+        {
+            "name": "Assessments"
+        },
+        {
+            "name": "AssetConfig"
+        },
+        {
+            "name": "Assets"
+        },
+        {
+            "name": "Async Job"
+        },
+        {
+            "name": "Benchmarking Configuration"
+        },
+        {
+            "name": "Breaches"
+        },
+        {
+            "name": "Client Access Links"
+        },
+        {
+            "name": "Cloud Service Providers"
+        },
+        {
+            "name": "Collaboration Hub"
+        },
+        {
+            "name": "Companies"
+        },
+        {
+            "name": "Company"
+        },
+        {
+            "name": "Company Assessment"
+        },
+        {
+            "name": "Company Recommendations"
+        },
+        {
+            "name": "Company Relationships"
+        },
+        {
+            "name": "Company Relationships Bulk Operation"
+        },
+        {
+            "name": "CompanyTree"
+        },
+        {
+            "name": "Compliance Claim"
+        },
+        {
+            "name": "Contacts"
+        },
+        {
+            "name": "Current Ratings"
+        },
+        {
+            "name": "Customers"
+        },
+        {
+            "name": "Dashboards"
+        },
+        {
+            "name": "DCEs"
+        },
+        {
+            "name": "Defaults"
+        },
+        {
+            "name": "Domains"
+        },
+        {
+            "name": "Exposed Credentials"
+        },
+        {
+            "name": "Feature"
+        },
+        {
+            "name": "Financial Quantification (Insurance)"
+        },
+        {
+            "name": "Financial Quantification (Security Performance Management)"
+        },
+        {
+            "name": "Financial Quantification Draft (Security Performance Management)"
+        },
+        {
+            "name": "Folders"
+        },
+        {
+            "name": "Industries"
+        },
+        {
+            "name": "Insights"
+        },
+        {
+            "name": "Integrations"
+        },
+        {
+            "name": "Knowledge Base"
+        },
+        {
+            "name": "Licenses"
+        },
+        {
+            "name": "Life Cycles"
+        },
+        {
+            "name": "Managed Monitoring"
+        },
+        {
+            "name": "Notifications"
+        },
+        {
+            "name": "Partners"
+        },
+        {
+            "name": "Peer Analytics"
+        },
+        {
+            "name": "Portfolio"
+        },
+        {
+            "name": "Product Types"
+        },
+        {
+            "name": "Products"
+        },
+        {
+            "name": "Providers"
+        },
+        {
+            "name": "Quick View"
+        },
+        {
+            "name": "Quota"
+        },
+        {
+            "name": "Rapid Underwriting Assessments"
+        },
+        {
+            "name": "ReleaseNote"
+        },
+        {
+            "name": "ReleasePreview"
+        },
+        {
+            "name": "Remediations"
+        },
+        {
+            "name": "Reports"
+        },
+        {
+            "name": "Risk Correlations"
+        },
+        {
+            "name": "SAML IdPs"
+        },
+        {
+            "name": "Self-Published"
+        },
+        {
+            "name": "Sovereign"
+        },
+        {
+            "name": "Standard Underwriting Assessments"
+        },
+        {
+            "name": "Statistics"
+        },
+        {
+            "name": "Subscriptions"
+        },
+        {
+            "name": "Subsidiaries"
+        },
+        {
+            "name": "Tiers"
+        },
+        {
+            "name": "UiPreferences"
+        },
+        {
+            "name": "Underwriting Assessments"
+        },
+        {
+            "name": "Underwriting Guidelines"
+        },
+        {
+            "name": "Users"
+        },
+        {
+            "name": "UserViewPreferences"
+        },
+        {
+            "name": "Vendor Access Requests"
+        },
+        {
+            "name": "WFH"
+        },
+        {
+            "name": "AppRegions"
+        }
+    ]
+}

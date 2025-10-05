@@ -1,0 +1,1646 @@
+{
+    "paths": {
+        "/territories/{territory_guid}/industries/{industry_guid}/grades": {
+            "get": {
+                "description": "Lists territory industry risk vector grades",
+                "operationId": "territoryIndustriesGrades",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "territory_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "industry_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TerritoryIndustryRiskVectorGrades"
+                                }
+                            }
+                        },
+                        "description": "A list of risk vector grades for the specified country industry."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/threats/attestations": {
+            "get": {
+                "description": "Get threats attestations",
+                "operationId": "getThreatsAttestations",
+                "parameters": [
+                    {
+                        "description": "Comma-separated list of fields to include in the response. Supports nested fields (e.g., 'threat.guid,attestation.slug,is_public')",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "example": "is_public,threat.guid,attestation.slug",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedThreatsAttestations"
+                                }
+                            }
+                        },
+                        "description": "List of threat attestations"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Threats"
+                ]
+            }
+        },
+        "/tiers": {
+            "get": {
+                "description": "List the customer tiers",
+                "operationId": "getTiers",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Tier_Folder"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "An array of tiers"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "post": {
+                "description": "Create a new tier",
+                "operationId": "createTier",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "tier": {
+                                        "$ref": "#/components/schemas/Tier_Folder"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tier_Folder"
+                                }
+                            }
+                        },
+                        "description": "The created tier"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/configs": {
+            "get": {
+                "description": "Retrieve the tier set configs",
+                "operationId": "getTierConfigs",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TierConfigs"
+                                }
+                            }
+                        },
+                        "description": "The tier set configs"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "patch": {
+                "description": "Update tier configurations.",
+                "operationId": "setTierConfigs",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "properties": {
+                                            "type": {
+                                                "description": "Tier management scope, which can be a customer or group wide one, and that defines the active tierset that can be viewed and managed by users.",
+                                                "enum": [
+                                                    "CUSTOMER",
+                                                    "GROUP"
+                                                ],
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "body"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "The config was successfully updated"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/configs/security-risks": {
+            "get": {
+                "description": "List the available configs",
+                "operationId": "listSecRiskConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SecurityRiskConfig"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "An array of Security Risk Categories configs"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "post": {
+                "description": "Create a new Security Risk Categories config",
+                "operationId": "createSecRiskConfig",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "config": {
+                                        "$ref": "#/components/schemas/SecurityRiskConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SecurityRiskConfig"
+                                }
+                            }
+                        },
+                        "description": "The created config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/configs/security-risks/{config_guid}": {
+            "delete": {
+                "description": "Delete a config",
+                "operationId": "deleteSecRiskConfig",
+                "parameters": [
+                    {
+                        "description": "GUID of the config",
+                        "in": "path",
+                        "name": "config_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The config was successfully deleted"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "get": {
+                "description": "Retrieve the config",
+                "operationId": "getSecRiskConfig",
+                "parameters": [
+                    {
+                        "description": "GUID of the config",
+                        "in": "path",
+                        "name": "config_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SecurityRiskConfig"
+                                }
+                            }
+                        },
+                        "description": "The config"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "patch": {
+                "description": "Edits the config",
+                "operationId": "putSecRiskConfig",
+                "parameters": [
+                    {
+                        "description": "GUID of the config",
+                        "in": "path",
+                        "name": "config_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "config": {
+                                        "$ref": "#/components/schemas/SecurityRiskConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SecurityRiskConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "put": {
+                "description": "Edits the config",
+                "operationId": "patchSecRiskConfig",
+                "parameters": [
+                    {
+                        "description": "GUID of the config",
+                        "in": "path",
+                        "name": "config_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "config": {
+                                        "$ref": "#/components/schemas/SecurityRiskConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SecurityRiskConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/risk-correlations/ransomware-incidents/summaries": {
+            "get": {
+                "description": "Count of companies in each ransomware incident risk bucket for each Tier",
+                "operationId": "RansomwareIncidentsSummariesList",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RiskCorrelationsSummary"
+                                }
+                            }
+                        },
+                        "description": "Summary of ransomware incidents risk probabilities"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Risk Correlations"
+                ]
+            }
+        },
+        "/tiers/risk-correlations/security-incidents/summaries": {
+            "get": {
+                "description": "Count of companies in each security incident risk bucket for each Tier",
+                "operationId": "SecurityIncidentsSummariesList",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RiskCorrelationsSummary"
+                                }
+                            }
+                        },
+                        "description": "Summary of security incidents risk probabilities"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Risk Correlations"
+                ]
+            }
+        },
+        "/tiers/security-risk": {
+            "get": {
+                "description": "Lists company guids for each distinct security risk category\n",
+                "operationId": "getTierSetSecurityRisk",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TierSecurityRiskCategories"
+                                }
+                            }
+                        },
+                        "description": "An object with an array of company guids, per vendor security risk category"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/summary": {
+            "get": {
+                "description": "List the summaries for each customer tier.\nThe entries are ordered by the rank of the tier.\n",
+                "operationId": "getTierSetSummary",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/TierFolderSummary"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "An array of tier summaries"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "parameters": [
+                {
+                    "description": "Optional folder GUID to filter the summary by",
+                    "in": "query",
+                    "name": "folder",
+                    "required": false,
+                    "schema": {
+                        "$ref": "#/x-common-definitions/guid"
+                    }
+                }
+            ]
+        },
+        "/tiers/vendor-action-plan": {
+            "get": {
+                "description": "Lists company guids for each distinct vendor action plan\n",
+                "operationId": "getTierSetVendorActionPlan",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TierVendorActionPlan"
+                                }
+                            }
+                        },
+                        "description": "An object with an array of company guids, per vendor action plan"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}": {
+            "delete": {
+                "description": "Delete a tier",
+                "operationId": "deleteTier",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The tier was successfully deleted"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "get": {
+                "description": "Retrieve the tier",
+                "operationId": "getTier",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tier_Folder"
+                                }
+                            }
+                        },
+                        "description": "The tier"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "patch": {
+                "description": "Update the tier",
+                "operationId": "updateDiffTier",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "tier": {
+                                        "$ref": "#/components/schemas/Tier_Folder"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tier_Folder"
+                                }
+                            }
+                        },
+                        "description": "The updated tier"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "put": {
+                "description": "Update the tier",
+                "operationId": "updateTier",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "tier": {
+                                        "$ref": "#/components/schemas/Tier_Folder"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tier_Folder"
+                                }
+                            }
+                        },
+                        "description": "The updated tier"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/companies": {
+            "patch": {
+                "description": "Update the contents of the tier",
+                "operationId": "updateTierCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "company_actions": {
+                                        "$ref": "#/components/schemas/Folder_Companies_Update"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Folder_Companies_Result"
+                                }
+                            }
+                        },
+                        "description": "The result of action"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/graph_data": {
+            "get": {
+                "description": "Get ratings graph data for a tier",
+                "operationId": "getTierGraphData",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FolderGraphData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    },
+                    "404": {
+                        "description": "Tier not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/product-types": {
+            "get": {
+                "description": "Get all product types for one of your tiers",
+                "operationId": "tierProductTypes",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductTypes"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Product Types"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/products": {
+            "get": {
+                "description": "Get all products for one of your tiers",
+                "operationId": "tierProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Products"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/products/{product_guid}/companies": {
+            "get": {
+                "description": "Get all products for one of your folders",
+                "operationId": "tierProductCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProductGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Products",
+                    "Companies"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers": {
+            "get": {
+                "description": "Get all service providers for one of your tiers",
+                "operationId": "tierProviders",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Providers"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers/breaches": {
+            "get": {
+                "description": "Get information about breaches of fourth party service providers of companies in a specific tier\n",
+                "operationId": "getTierProviderBreaches",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreaches"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers/breaches/reduced": {
+            "get": {
+                "description": "Get a lighter response regarding the information about breaches of fourth party service providers of companies in a specific tier. The dependent companies are substituted with a count.\n",
+                "operationId": "getTierProviderBreachesReduced",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreachesReduced"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers/breaches/{breach_guid}": {
+            "get": {
+                "description": "Get information about a specific breach of fourth party service providers of companies in a specific tier\n",
+                "operationId": "getTierProviderBreach",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/BreachGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreach"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers/{provider_guid}/companies": {
+            "get": {
+                "description": "Get all providers for one of your folders",
+                "operationId": "tierProviderCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers",
+                    "Companies"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/providers/{provider_guid}/products": {
+            "get": {
+                "description": "Get the products provided a specific provider",
+                "operationId": "tierProviderProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/TierGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    },
+                    {
+                        "$ref": "#/components/parameters/RelationshipType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Tiers",
+                    "Providers",
+                    "Products"
+                ]
+            }
+        },
+        "/tiers/{tier_guid}/summary": {
+            "get": {
+                "description": "Retrieve the summary for the tier.\n",
+                "operationId": "getTierSummary",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TierFolderSummary"
+                                }
+                            }
+                        },
+                        "description": "An array of tier summaries"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Tiers"
+                ]
+            },
+            "parameters": [
+                {
+                    "$ref": "#/components/parameters/TierGuidPath"
+                },
+                {
+                    "description": "Optional folder GUID to filter the summary by",
+                    "in": "query",
+                    "name": "folder",
+                    "required": false,
+                    "schema": {
+                        "$ref": "#/x-common-definitions/guid"
+                    }
+                }
+            ]
+        }
+    }
+}

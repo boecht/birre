@@ -1,0 +1,2309 @@
+{
+    "components": {
+        "schemas": {
+            "AffectedCompanies": {
+                "properties": {
+                    "count": {
+                        "description": "The total number of results",
+                        "type": "integer"
+                    },
+                    "links": {
+                        "description": "A set of links to traverse the result set",
+                        "properties": {
+                            "next": {
+                                "nullable": true,
+                                "type": "string"
+                            },
+                            "previous": {
+                                "nullable": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "results": {
+                        "items": {
+                            "properties": {
+                                "guid": {
+                                    "description": "GUID of the affected company",
+                                    "example": "d004824b-b94b-4b5f-89d0-5a0921890a25",
+                                    "readOnly": true,
+                                    "type": "string"
+                                },
+                                "is_subscribed": {
+                                    "description": "Whether the affected company is still subscribed.",
+                                    "example": true,
+                                    "readOnly": true,
+                                    "type": "boolean"
+                                },
+                                "name": {
+                                    "description": "Name of the affected company.",
+                                    "example": "Acme Corp.",
+                                    "readOnly": true,
+                                    "type": "string"
+                                },
+                                "rating": {
+                                    "description": "Current rating of the affected company if it is subscribed, otherwise null.",
+                                    "example": 450,
+                                    "nullable": true,
+                                    "readOnly": true,
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "Alert": {
+                "properties": {
+                    "alert_date": {
+                        "description": "First name of the requestee",
+                        "format": "date",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "alert_type": {
+                        "description": "The type of alert",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "company_custom_id": {
+                        "description": "A customer provided custom id for the organization",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "company_guid": {
+                        "description": "GUID of the company",
+                        "format": "uuid",
+                        "maxLength": 36,
+                        "type": "string"
+                    },
+                    "company_name": {
+                        "description": "The name of the company",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "company_url": {
+                        "description": "URL of the company",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "details": {
+                        "properties": {
+                            "category": {
+                                "description": "The category of alert if this is an INFORMATIONAL, SERVICE_PROVIDER or PUBLIC_DISCLOSURE alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "effective_date": {
+                                "description": "The effective date the public disclosure was added to the Bitsight platform, if this is PUBLIC_DISCLOSURE or a FP_PUBLIC_DISCLOSURE alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "end_grade": {
+                                "description": "The grade after the alert triggered if this is a RISK_CATEGORY or NIST_CATEGORY alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "end_rating": {
+                                "description": "The conmpany's security rating after the alert triggered if this is a PERCENT_CHANGE or RATING_THRESHOLD alert.",
+                                "readOnly": true,
+                                "type": "integer"
+                            },
+                            "message": {
+                                "description": "A message for this alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "nist_category": {
+                                "description": "The NIST CSF category (i.e. 'RS.MI') of the NIST_CATEGORY alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "nist_category_display_name": {
+                                "description": "The NIST CSF category display name (i.e. 'Mitigation') of this NIST_CATEGORY alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "rating_change_pct": {
+                                "description": "The percent change in security scores if this is a PERCENT_CHANGE alert.",
+                                "readOnly": true,
+                                "type": "integer"
+                            },
+                            "rating_threshold": {
+                                "description": "The rating threshold that was crossed to generate the alert if this is a RATING_THRESHOLD alert.",
+                                "readOnly": true,
+                                "type": "integer"
+                            },
+                            "risk_vector": {
+                                "description": "The risk vector that this alert is for if this is a RISK_CATEGORY alert.",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "start_grade": {
+                                "description": "The grade before the alert triggered if this is a RISK_CATEGORY or NIST_CATEGORY alert",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "start_rating": {
+                                "description": "The company's security rating before the alert triggered if this is a PERCENT_CHANGE or RATING_THRESHOLD alert.",
+                                "readOnly": true,
+                                "type": "integer"
+                            },
+                            "threshold_grade": {
+                                "description": "The grade that was reached or crossed to generate the RISK_CATEGORY or NIST_CATEGORY alert",
+                                "readOnly": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "folder_guid": {
+                        "description": "GUID of the folder",
+                        "format": "uuid",
+                        "maxLength": 36,
+                        "type": "string"
+                    },
+                    "folder_name": {
+                        "description": "The name of the folder that this alert was for",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "guid": {
+                        "description": "GUID of the alert",
+                        "format": "uuid",
+                        "maxLength": 36,
+                        "type": "string"
+                    },
+                    "severity": {
+                        "description": "The severity level of the alert.",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "start_date": {
+                        "description": "Last name of the requestee",
+                        "format": "date",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "trigger": {
+                        "description": "The trigger for the alert.",
+                        "readOnly": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Alerts": {
+                "properties": {
+                    "count": {
+                        "description": "The total number of results",
+                        "type": "integer"
+                    },
+                    "links": {
+                        "description": "A set of links to traverse the result set",
+                        "properties": {
+                            "next": {
+                                "nullable": true,
+                                "type": "string"
+                            },
+                            "previous": {
+                                "nullable": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/Alert"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiError": {
+                "properties": {
+                    "detail": {
+                        "description": "the detail about the errors",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "HTTP error code",
+                        "format": "int32",
+                        "type": "integer"
+                    },
+                    "title": {
+                        "description": "basic error description",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Company": {
+                "properties": {
+                    "guid": {
+                        "format": "uuid",
+                        "title": "Guid",
+                        "type": "string"
+                    },
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "guid",
+                    "name"
+                ],
+                "title": "Company",
+                "type": "object"
+            },
+            "CompanyComplianceClaim": {
+                "properties": {
+                    "certifications": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "guid": {
+                        "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+                        "format": "uuid",
+                        "maxLength": 36,
+                        "type": "string"
+                    },
+                    "trust_page": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanyIndustry": {
+                "properties": {
+                    "name": {
+                        "description": "The name of the industry sector",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "slug": {
+                        "description": "The slug name of the industry sector",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanyLifeCycle": {
+                "nullable": true,
+                "properties": {
+                    "name": {
+                        "description": "The name of the company's current life cycle, e.g. \"Onboarding\"",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "slug": {
+                        "description": "The slug name of the company's current life cycle",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanyRelationship": {
+                "nullable": true,
+                "properties": {
+                    "name": {
+                        "description": "The name of the company's relationship to the requestor, e.g. \"Vendor\"",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "slug": {
+                        "description": "The slug name of the company's relationship to the vendor",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanyRequest": {
+                "description": "A company request",
+                "properties": {
+                    "company": {
+                        "description": "Associated company, if the request was fulfilled successfuly",
+                        "properties": {
+                            "can_subscribe": {
+                                "description": "Indicates if you can subscribe the company",
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "can_view": {
+                                "description": "Indicates if you have permission to view the company",
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "guid": {
+                                "description": "Company GUID",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "in_portfolio": {
+                                "description": "Indicates if the company is subscribed",
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "is_bundle": {
+                                "description": "Indicates if the company is a ratings bundle",
+                                "readOnly": true,
+                                "type": "boolean"
+                            },
+                            "name": {
+                                "description": "Company name",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "self_published": {
+                                "description": "When the company is self published, indicates if its private or public",
+                                "enum": [
+                                    "public",
+                                    "private"
+                                ],
+                                "nullable": true,
+                                "readOnly": true,
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                    },
+                    "created_time": {
+                        "description": "Time the request was created",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "domain": {
+                        "description": "The primary domain representing the requested organization",
+                        "type": "string"
+                    },
+                    "guid": {
+                        "description": "GUID for this company request",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "requester": {
+                        "description": "User who made the company request",
+                        "properties": {
+                            "formal_name": {
+                                "description": "User formal name",
+                                "readOnly": true,
+                                "type": "string"
+                            },
+                            "guid": {
+                                "description": "User GUID",
+                                "readOnly": true,
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                    },
+                    "status": {
+                        "description": "Status of the reques",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "subscription_type": {
+                        "description": "Optional subscription type, used if we want to subscribe a company when the request is fulfilled\n",
+                        "example": "continuous_monitoring",
+                        "type": "string"
+                    },
+                    "updated_time": {
+                        "description": "Time the request was updated",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanyRequestsResponse": {
+                "description": "A paginated set of company requests",
+                "properties": {
+                    "count": {
+                        "description": "The total number of results",
+                        "type": "integer"
+                    },
+                    "links": {
+                        "description": "A set of links to traverse the result set",
+                        "properties": {
+                            "next": {
+                                "nullable": true,
+                                "type": "string"
+                            },
+                            "previous": {
+                                "nullable": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "results": {
+                        "description": "A list of company requests",
+                        "items": {
+                            "$ref": "#/components/schemas/CompanyRequest"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanySubIndustry": {
+                "properties": {
+                    "name": {
+                        "description": "The name of the sub-industry",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "slug": {
+                        "description": "The slug name of the sub-industry",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CompanySubscriptionType": {
+                "properties": {
+                    "name": {
+                        "description": "The name of the company's subscription type, e.g. \"Total Risk Monitoring\"",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "slug": {
+                        "description": "The slug name of the company's subscription type",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CountryCode": {
+                "description": "An enumeration.",
+                "enum": [
+                    "AW",
+                    "AF",
+                    "AO",
+                    "AI",
+                    "AX",
+                    "AL",
+                    "AD",
+                    "AE",
+                    "AR",
+                    "AM",
+                    "AS",
+                    "AQ",
+                    "TF",
+                    "AG",
+                    "AU",
+                    "AT",
+                    "AZ",
+                    "BI",
+                    "BE",
+                    "BJ",
+                    "BQ",
+                    "BF",
+                    "BD",
+                    "BG",
+                    "BH",
+                    "BS",
+                    "BA",
+                    "BL",
+                    "BY",
+                    "BZ",
+                    "BM",
+                    "BO",
+                    "BR",
+                    "BB",
+                    "BN",
+                    "BT",
+                    "BV",
+                    "BW",
+                    "CF",
+                    "CA",
+                    "CC",
+                    "CH",
+                    "CL",
+                    "CN",
+                    "CI",
+                    "CM",
+                    "CD",
+                    "CG",
+                    "CK",
+                    "CO",
+                    "KM",
+                    "CV",
+                    "CR",
+                    "CU",
+                    "CW",
+                    "CX",
+                    "KY",
+                    "CY",
+                    "CZ",
+                    "DE",
+                    "DJ",
+                    "DM",
+                    "DK",
+                    "DO",
+                    "DZ",
+                    "EC",
+                    "EG",
+                    "ER",
+                    "EH",
+                    "ES",
+                    "EE",
+                    "ET",
+                    "FI",
+                    "FJ",
+                    "FK",
+                    "FR",
+                    "FO",
+                    "FM",
+                    "GA",
+                    "GB",
+                    "GE",
+                    "GG",
+                    "GH",
+                    "GI",
+                    "GN",
+                    "GP",
+                    "GM",
+                    "GW",
+                    "GQ",
+                    "GR",
+                    "GD",
+                    "GL",
+                    "GT",
+                    "GF",
+                    "GU",
+                    "GY",
+                    "HK",
+                    "HM",
+                    "HN",
+                    "HR",
+                    "HT",
+                    "HU",
+                    "ID",
+                    "IM",
+                    "IN",
+                    "IO",
+                    "IE",
+                    "IR",
+                    "IQ",
+                    "IS",
+                    "IL",
+                    "IT",
+                    "JM",
+                    "JE",
+                    "JO",
+                    "JP",
+                    "KZ",
+                    "KE",
+                    "KG",
+                    "KH",
+                    "KI",
+                    "KN",
+                    "KR",
+                    "KW",
+                    "LA",
+                    "LB",
+                    "LR",
+                    "LY",
+                    "LC",
+                    "LI",
+                    "LK",
+                    "LS",
+                    "LT",
+                    "LU",
+                    "LV",
+                    "MO",
+                    "MF",
+                    "MA",
+                    "MC",
+                    "MD",
+                    "MG",
+                    "MV",
+                    "MX",
+                    "MH",
+                    "MK",
+                    "ML",
+                    "MT",
+                    "MM",
+                    "ME",
+                    "MN",
+                    "MP",
+                    "MZ",
+                    "MR",
+                    "MS",
+                    "MQ",
+                    "MU",
+                    "MW",
+                    "MY",
+                    "YT",
+                    "NA",
+                    "NC",
+                    "NE",
+                    "NF",
+                    "NG",
+                    "NI",
+                    "NU",
+                    "NL",
+                    false,
+                    "NP",
+                    "NR",
+                    "NZ",
+                    "OM",
+                    "PK",
+                    "PA",
+                    "PN",
+                    "PE",
+                    "PH",
+                    "PW",
+                    "PG",
+                    "PL",
+                    "PR",
+                    "KP",
+                    "PT",
+                    "PY",
+                    "PS",
+                    "PF",
+                    "QA",
+                    "RE",
+                    "RO",
+                    "RU",
+                    "RW",
+                    "SA",
+                    "SD",
+                    "SN",
+                    "SG",
+                    "GS",
+                    "SH",
+                    "SJ",
+                    "SB",
+                    "SL",
+                    "SV",
+                    "SM",
+                    "SO",
+                    "PM",
+                    "RS",
+                    "SS",
+                    "ST",
+                    "SR",
+                    "SK",
+                    "SI",
+                    "SE",
+                    "SZ",
+                    "SX",
+                    "SC",
+                    "SY",
+                    "TC",
+                    "TD",
+                    "TG",
+                    "TH",
+                    "TJ",
+                    "TK",
+                    "TM",
+                    "TL",
+                    "TO",
+                    "TT",
+                    "TN",
+                    "TR",
+                    "TV",
+                    "TW",
+                    "TZ",
+                    "UG",
+                    "UA",
+                    "UM",
+                    "UY",
+                    "US",
+                    "UZ",
+                    "VA",
+                    "VC",
+                    "VE",
+                    "VG",
+                    "VI",
+                    "VN",
+                    "VU",
+                    "WF",
+                    "WS",
+                    "YE",
+                    "ZA",
+                    "ZM",
+                    "ZW"
+                ],
+                "title": "CountryCode"
+            },
+            "Currency": {
+                "description": "An enumeration.",
+                "enum": [
+                    "HUF",
+                    "NZD",
+                    "ROL",
+                    "TRY",
+                    "TRL",
+                    "SEK",
+                    "IDR",
+                    "GBP",
+                    "LVL",
+                    "THB",
+                    "SIT",
+                    "MXN",
+                    "KRW",
+                    "BRL",
+                    "DKK",
+                    "EUR",
+                    "HKD",
+                    "CYP",
+                    "MYR",
+                    "RUB",
+                    "SKK",
+                    "ZAR",
+                    "PHP",
+                    "USD",
+                    "CNY",
+                    "PLN",
+                    "JPY",
+                    "CAD",
+                    "SGD",
+                    "ISK",
+                    "HRK",
+                    "MTL",
+                    "EEK",
+                    "ILS",
+                    "NOK",
+                    "CZK",
+                    "BGN",
+                    "LTL",
+                    "RON",
+                    "AUD",
+                    "INR",
+                    "CHF"
+                ],
+                "title": "Currency"
+            },
+            "Customer": {
+                "properties": {
+                    "guid": {
+                        "format": "uuid",
+                        "title": "Guid",
+                        "type": "string"
+                    },
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "guid",
+                    "name"
+                ],
+                "title": "Customer",
+                "type": "object"
+            },
+            "CyberInsurance": {
+                "properties": {
+                    "attachment_point": {
+                        "minimum": 0,
+                        "title": "Attachment Point",
+                        "type": "integer"
+                    },
+                    "deductible": {
+                        "minimum": 0,
+                        "title": "Deductible",
+                        "type": "integer"
+                    },
+                    "limit": {
+                        "minimum": 0,
+                        "title": "Limit",
+                        "type": "integer"
+                    },
+                    "premium": {
+                        "minimum": 0,
+                        "title": "Premium",
+                        "type": "integer"
+                    }
+                },
+                "title": "CyberInsurance",
+                "type": "object"
+            },
+            "DamageType": {
+                "description": "An enumeration.",
+                "enum": [
+                    "extortion_payment",
+                    "extortion_recovery_expenses",
+                    "bi_recovery_expenses",
+                    "lost_income",
+                    "public_relations_repairment",
+                    "forensics",
+                    "data_recovery",
+                    "monitoring_services",
+                    "notifications",
+                    "settlements",
+                    "legal_defense",
+                    "regulatory_legal_defense",
+                    "regulatory_fines"
+                ],
+                "title": "DamageType",
+                "type": "string"
+            },
+            "EmployeeCount": {
+                "description": "An enumeration.",
+                "enum": [
+                    "0-10",
+                    "10-50",
+                    "50-100",
+                    "100-500",
+                    "500-1000",
+                    "1000-5000",
+                    "5000-10000",
+                    "10000-50000",
+                    "50000-100000",
+                    "100000+"
+                ],
+                "title": "EmployeeCount",
+                "type": "string"
+            },
+            "Error": {
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "FQOutput": {
+                "description": "Output data returned by the model. For legacy FQs, in the case of the level1 output, these fields will all be empty and in the case of level2_3, annualized_loss will be empty. Signals and scores will always be empty for legacy, as well.",
+                "properties": {
+                    "level1": {
+                        "$ref": "#/components/schemas/FQOutputLevel"
+                    },
+                    "level2_3": {
+                        "$ref": "#/components/schemas/FQOutputLevel"
+                    },
+                    "scores": {
+                        "$ref": "#/components/schemas/FQOutputScores"
+                    },
+                    "signals": {
+                        "items": {
+                            "type": "object"
+                        },
+                        "title": "Signals",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "signals",
+                    "scores",
+                    "level1",
+                    "level2_3"
+                ],
+                "title": "FQOutput",
+                "type": "object"
+            },
+            "FQOutputLevel": {
+                "description": "For Legacy, in the case of the level1 output, these fields will all be empty and in the case of level2_3, annualized_loss will be empty.",
+                "properties": {
+                    "annualized_loss": {
+                        "items": {
+                            "$ref": "#/components/schemas/FQOutputLoss"
+                        },
+                        "title": "Annualized Loss",
+                        "type": "array"
+                    },
+                    "probabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/FQOutputProbability"
+                        },
+                        "title": "Probabilities",
+                        "type": "array"
+                    },
+                    "single_loss": {
+                        "items": {
+                            "$ref": "#/components/schemas/FQOutputLoss"
+                        },
+                        "title": "Single Loss",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "single_loss",
+                    "annualized_loss",
+                    "probabilities"
+                ],
+                "title": "FQOutputLevel",
+                "type": "object"
+            },
+            "FQOutputLoss": {
+                "description": "From model",
+                "properties": {
+                    "25th_exposure": {
+                        "title": "25Th Exposure",
+                        "type": "number"
+                    },
+                    "50th_exposure": {
+                        "title": "50Th Exposure",
+                        "type": "number"
+                    },
+                    "75th_exposure": {
+                        "title": "75Th Exposure",
+                        "type": "number"
+                    },
+                    "average": {
+                        "title": "Average",
+                        "type": "number"
+                    },
+                    "ep_curve": {
+                        "items": {
+                            "type": "number"
+                        },
+                        "title": "Ep Curve",
+                        "type": "array"
+                    },
+                    "fq_scenario_name": {
+                        "$ref": "#/components/schemas/FqScenario"
+                    },
+                    "high_exposure": {
+                        "title": "High Exposure",
+                        "type": "number"
+                    },
+                    "low_exposure": {
+                        "title": "Low Exposure",
+                        "type": "number"
+                    },
+                    "maximum": {
+                        "title": "Maximum",
+                        "type": "number"
+                    },
+                    "min": {
+                        "title": "Min",
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "fq_scenario_name",
+                    "low_exposure",
+                    "average",
+                    "high_exposure",
+                    "25th_exposure",
+                    "50th_exposure",
+                    "75th_exposure",
+                    "min",
+                    "maximum",
+                    "ep_curve"
+                ],
+                "title": "FQOutputLoss",
+                "type": "object"
+            },
+            "FQOutputProbability": {
+                "description": "From model",
+                "properties": {
+                    "fq_scenario_name": {
+                        "$ref": "#/components/schemas/FqScenario"
+                    },
+                    "total_probability": {
+                        "title": "Total Probability",
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "fq_scenario_name",
+                    "total_probability"
+                ],
+                "title": "FQOutputProbability",
+                "type": "object"
+            },
+            "FQOutputResponse": {
+                "description": "Summary of a financial quantification output",
+                "properties": {
+                    "completed_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Completed At",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Created At",
+                        "type": "string"
+                    },
+                    "fq_guid": {
+                        "format": "uuid",
+                        "title": "Fq Guid",
+                        "type": "string"
+                    },
+                    "guid": {
+                        "format": "uuid",
+                        "title": "Guid",
+                        "type": "string"
+                    },
+                    "run_time": {
+                        "format": "time-delta",
+                        "title": "Run Time",
+                        "type": "number"
+                    },
+                    "started_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Started At",
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/FQOutputStatus"
+                    },
+                    "submitted_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Submitted At",
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Updated At",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "guid",
+                    "fq_guid",
+                    "status",
+                    "created_at",
+                    "updated_at"
+                ],
+                "title": "FQOutputResponse",
+                "type": "object"
+            },
+            "FQOutputScores": {
+                "description": "From model",
+                "properties": {
+                    "detection_or_response": {
+                        "title": "Detection Or Response",
+                        "type": "number"
+                    },
+                    "fortitude_score": {
+                        "title": "Fortitude Score",
+                        "type": "number"
+                    },
+                    "protection": {
+                        "title": "Protection",
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "detection_or_response",
+                    "protection",
+                    "fortitude_score"
+                ],
+                "title": "FQOutputScores",
+                "type": "object"
+            },
+            "FQOutputStatus": {
+                "description": "An enumeration.",
+                "enum": [
+                    "draft",
+                    "submitted",
+                    "running",
+                    "error",
+                    "complete"
+                ],
+                "title": "FQOutputStatus"
+            },
+            "FqDetailResponse": {
+                "description": "Detail for a financial quantification",
+                "properties": {
+                    "company": {
+                        "$ref": "#/components/schemas/Company"
+                    },
+                    "completed_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Completed At",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Created At",
+                        "type": "string"
+                    },
+                    "created_by": {
+                        "format": "uuid",
+                        "title": "Created By",
+                        "type": "string"
+                    },
+                    "customer": {
+                        "$ref": "#/components/schemas/Customer"
+                    },
+                    "guid": {
+                        "format": "uuid",
+                        "title": "Guid",
+                        "type": "string"
+                    },
+                    "highlights": {
+                        "$ref": "#/components/schemas/FqOutputSummaryResponse"
+                    },
+                    "input_data": {
+                        "$ref": "#/components/schemas/FqInput"
+                    },
+                    "output_data": {
+                        "$ref": "#/components/schemas/FQOutput"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/FqStatus"
+                    },
+                    "submitted_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Submitted At",
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Updated At",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "guid",
+                    "status",
+                    "created_at",
+                    "updated_at",
+                    "customer",
+                    "company",
+                    "created_by",
+                    "input_data"
+                ],
+                "title": "FqDetailResponse",
+                "type": "object"
+            },
+            "FqExposureResponse": {
+                "properties": {
+                    "average": {
+                        "title": "Average",
+                        "type": "number"
+                    },
+                    "maximum": {
+                        "title": "Maximum",
+                        "type": "number"
+                    },
+                    "minimum": {
+                        "title": "Minimum",
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "minimum",
+                    "average",
+                    "maximum"
+                ],
+                "title": "FqExposureResponse",
+                "type": "object"
+            },
+            "FqInput": {
+                "description": "Input data for an FQ.",
+                "properties": {
+                    "questionnaire": {
+                        "$ref": "#/components/schemas/Questionnaire"
+                    }
+                },
+                "required": [
+                    "questionnaire"
+                ],
+                "title": "FqInput",
+                "type": "object"
+            },
+            "FqOutputSummaryResponse": {
+                "description": "Highlights from an FQ",
+                "properties": {
+                    "overall_exposure": {
+                        "$ref": "#/components/schemas/FqExposureResponse"
+                    },
+                    "rating": {
+                        "title": "Rating,",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "rating",
+                    "overall_exposure"
+                ],
+                "title": "FqOutputSummaryResponse",
+                "type": "object"
+            },
+            "FqScenario": {
+                "description": "The various loss scenarios.",
+                "enum": [
+                    "Overall Exposure",
+                    "Business Interruption",
+                    "Data Theft & Privacy",
+                    "Ransomware & Extortion",
+                    "Regulation Compliance",
+                    "3rd Party Service Provider Failure",
+                    "Third Party Liability",
+                    "Other Risk Scenario"
+                ],
+                "title": "FqScenario"
+            },
+            "FqStatus": {
+                "description": "An enumeration.",
+                "enum": [
+                    "draft",
+                    "submitted",
+                    "error",
+                    "complete"
+                ],
+                "title": "FqStatus"
+            },
+            "FqSummaryResponse": {
+                "description": "Summary of a financial quantification",
+                "properties": {
+                    "company": {
+                        "$ref": "#/components/schemas/Company"
+                    },
+                    "completed_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Completed At",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Created At",
+                        "type": "string"
+                    },
+                    "created_by": {
+                        "format": "uuid",
+                        "title": "Created By",
+                        "type": "string"
+                    },
+                    "customer": {
+                        "$ref": "#/components/schemas/Customer"
+                    },
+                    "guid": {
+                        "format": "uuid",
+                        "title": "Guid",
+                        "type": "string"
+                    },
+                    "highlights": {
+                        "$ref": "#/components/schemas/FqOutputSummaryResponse"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/FqStatus"
+                    },
+                    "submitted_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Submitted At",
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "title": "Updated At",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "guid",
+                    "status",
+                    "created_at",
+                    "updated_at",
+                    "customer",
+                    "company",
+                    "created_by"
+                ],
+                "title": "FqSummaryResponse",
+                "type": "object"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "title": "Detail",
+                        "type": "array"
+                    }
+                },
+                "title": "HTTPValidationError",
+                "type": "object"
+            },
+            "Page_FqSummaryResponse_": {
+                "properties": {
+                    "count": {
+                        "title": "Count",
+                        "type": "integer"
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FqSummaryResponse"
+                        },
+                        "title": "Results",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "title": "Page[FqSummaryResponse]",
+                "type": "object"
+            },
+            "Portfolio": {
+                "description": "A paginated set of companies in a user's portfolio",
+                "properties": {
+                    "count": {
+                        "description": "The total number of results",
+                        "type": "integer"
+                    },
+                    "links": {
+                        "description": "A set of links to traverse the result set",
+                        "properties": {
+                            "next": {
+                                "nullable": true,
+                                "type": "string"
+                            },
+                            "previous": {
+                                "nullable": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "results": {
+                        "description": "A list of portfolio companies",
+                        "items": {
+                            "$ref": "#/components/schemas/PortfolioCompany"
+                        },
+                        "type": "array"
+                    },
+                    "summaries": {
+                        "description": "Summary metadata about the response.",
+                        "properties": {
+                            "my-company": {
+                                "description": "The guid of My Company",
+                                "format": "uuid",
+                                "maxLength": 36,
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PortfolioCompany": {
+                "properties": {
+                    "added_date": {
+                        "description": "Date the organization was added",
+                        "format": "date",
+                        "type": "string"
+                    },
+                    "compliance_claim": {
+                        "$ref": "#/components/schemas/CompanyComplianceClaim"
+                    },
+                    "custom_id": {
+                        "description": "A customer provided custom id for the organization",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "display_url": {
+                        "description": "The full URL for the organization's Security Ratings page on Bitsight",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "guid": {
+                        "description": "GUID of the company",
+                        "format": "uuid",
+                        "maxLength": 36,
+                        "type": "string"
+                    },
+                    "industry": {
+                        "$ref": "#/components/schemas/CompanyIndustry"
+                    },
+                    "life_cycle": {
+                        "$ref": "#/components/schemas/CompanyLifeCycle"
+                    },
+                    "logo": {
+                        "description": "URL that contains the organization's official logo",
+                        "type": "string"
+                    },
+                    "name": {
+                        "description": "Full name of the organization",
+                        "type": "string"
+                    },
+                    "network_size_v4": {
+                        "description": "The number of IPv4 addresses attributed to the organization",
+                        "type": "integer"
+                    },
+                    "primary_domain": {
+                        "description": "Primary domain of the organization",
+                        "type": "string"
+                    },
+                    "rating": {
+                        "description": "Latest rating on rating_date",
+                        "nullable": true,
+                        "type": "integer"
+                    },
+                    "rating_date": {
+                        "description": "The date of the latest rating for this company",
+                        "format": "date",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "relationship": {
+                        "$ref": "#/components/schemas/CompanyRelationship"
+                    },
+                    "shortname": {
+                        "description": "Name of the organization",
+                        "type": "string"
+                    },
+                    "sparkline": {
+                        "description": "Rating sparkline URL",
+                        "type": "string"
+                    },
+                    "sub_industry": {
+                        "$ref": "#/components/schemas/CompanySubIndustry"
+                    },
+                    "subscription_type": {
+                        "$ref": "#/components/schemas/CompanySubscriptionType"
+                    },
+                    "tier": {
+                        "description": "The guid of the tier that this company is in, or None of it is not in a tier",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "tier_name": {
+                        "description": "The name of the tier that this company is in, or None of it is not in a tier",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "tier_order": {
+                        "description": "The order of the tier that this company is in, or None of it is not in a tier",
+                        "nullable": true,
+                        "type": "integer"
+                    },
+                    "type": {
+                        "description": "Type(s) of organization as classified by Bitsight",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "PortfolioSummaries": {
+                "description": "A mapping of field to an array of filter values for that field. The\nordering of each array is arbitrary.",
+                "properties": {
+                    "countries": {
+                        "description": "All of the countries that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "industries": {
+                        "description": "All of the industries that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "infections": {
+                        "description": "All of the infections that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "open_ports": {
+                        "description": "All of the open ports that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "product_types": {
+                        "description": "All of the 4th party product types that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "products": {
+                        "description": "All of the 4th party products that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "providers": {
+                        "description": "All of the 4th party providers that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "software": {
+                        "description": "All of the software names that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "subscription_types": {
+                        "description": "All of the subscription types that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "types": {
+                        "description": "All of the rating types that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "vulnerabilities": {
+                        "description": "All of the vulnerabilities that appear in your portfolio",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "PreviousCyberIncident": {
+                "properties": {
+                    "damage_type": {
+                        "$ref": "#/components/schemas/DamageType"
+                    },
+                    "details": {
+                        "title": "Details",
+                        "type": "string"
+                    },
+                    "financial_loss": {
+                        "title": "Financial Loss",
+                        "type": "integer"
+                    }
+                },
+                "title": "PreviousCyberIncident",
+                "type": "object"
+            },
+            "Questionnaire": {
+                "description": "Optional fields to allow users to save partially completed draft questionnaires.",
+                "properties": {
+                    "annual_revenue": {
+                        "minimum": 10000,
+                        "title": "Annual Revenue",
+                        "type": "integer"
+                    },
+                    "controls": {
+                        "$ref": "#/components/schemas/SecurityCertificationsAndRegulations"
+                    },
+                    "country_codes": {
+                        "default": [],
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/CountryCode"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ThreeDigitCountryCode"
+                                }
+                            ]
+                        },
+                        "title": "Country Codes",
+                        "type": "array"
+                    },
+                    "currency": {
+                        "$ref": "#/components/schemas/Currency"
+                    },
+                    "currency_conversion_date": {
+                        "format": "date",
+                        "title": "Currency Conversion Date",
+                        "type": "string"
+                    },
+                    "cyber_insurance": {
+                        "$ref": "#/components/schemas/CyberInsurance"
+                    },
+                    "employee_count_bucket": {
+                        "$ref": "#/components/schemas/EmployeeCount"
+                    },
+                    "industries": {
+                        "default": [],
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "Industries",
+                        "type": "array"
+                    },
+                    "naics": {
+                        "default": [],
+                        "items": {
+                            "type": "integer"
+                        },
+                        "title": "Naics",
+                        "type": "array"
+                    },
+                    "other_record_count": {
+                        "minimum": 0,
+                        "title": "Other Record Count",
+                        "type": "integer"
+                    },
+                    "past_incidents": {
+                        "default": [],
+                        "items": {
+                            "$ref": "#/components/schemas/PreviousCyberIncident"
+                        },
+                        "title": "Past Incidents",
+                        "type": "array"
+                    },
+                    "payment_card_industry_record_count": {
+                        "minimum": 0,
+                        "title": "Payment Card Industry Record Count",
+                        "type": "integer"
+                    },
+                    "personally_identifiable_info_record_count": {
+                        "minimum": 0,
+                        "title": "Personally Identifiable Info Record Count",
+                        "type": "integer"
+                    },
+                    "protected_health_info_record_count": {
+                        "minimum": 0,
+                        "title": "Protected Health Info Record Count",
+                        "type": "integer"
+                    },
+                    "states": {
+                        "default": [],
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "States",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "controls",
+                    "cyber_insurance"
+                ],
+                "title": "Questionnaire",
+                "type": "object"
+            },
+            "Regulation": {
+                "description": "An enumeration.",
+                "enum": [
+                    "USFLR",
+                    "USSLR",
+                    "PCI",
+                    "GDPR",
+                    "OTHER"
+                ],
+                "title": "Regulation",
+                "type": "string"
+            },
+            "SecurityCertificate": {
+                "description": "An enumeration.",
+                "enum": [
+                    "SOC",
+                    "ISO",
+                    "PCI_DSS",
+                    "NIST_800",
+                    "NIST_CSF"
+                ],
+                "title": "SecurityCertificate",
+                "type": "string"
+            },
+            "SecurityCertificationsAndRegulations": {
+                "properties": {
+                    "regulations": {
+                        "default": [],
+                        "items": {
+                            "$ref": "#/components/schemas/Regulation"
+                        },
+                        "type": "array"
+                    },
+                    "security_certificates": {
+                        "default": [],
+                        "items": {
+                            "$ref": "#/components/schemas/SecurityCertificate"
+                        },
+                        "type": "array"
+                    },
+                    "security_products": {
+                        "default": [],
+                        "items": {
+                            "$ref": "#/components/schemas/SecurityProducts"
+                        },
+                        "type": "array"
+                    }
+                },
+                "title": "SecurityCertificationsAndRegulations",
+                "type": "object"
+            },
+            "SecurityProducts": {
+                "description": "An enumeration.",
+                "enum": [
+                    "ICHA",
+                    "ICSA",
+                    "CVM",
+                    "CUAP",
+                    "SCHS",
+                    "MMAAL",
+                    "EWBP",
+                    "MD",
+                    "LCNPPS",
+                    "DRC",
+                    "SCND",
+                    "BD",
+                    "DP",
+                    "CAB",
+                    "WAC",
+                    "AMC",
+                    "ISA",
+                    "ASS",
+                    "IRM",
+                    "PTRT"
+                ],
+                "title": "SecurityProducts",
+                "type": "string"
+            },
+            "ThreeDigitCountryCode": {
+                "description": "An enumeration.",
+                "enum": [
+                    "ABW",
+                    "AFG",
+                    "AGO",
+                    "AIA",
+                    "ALA",
+                    "ALB",
+                    "AND",
+                    "ARE",
+                    "ARG",
+                    "ARM",
+                    "ASM",
+                    "ATA",
+                    "ATF",
+                    "ATG",
+                    "AUS",
+                    "AUT",
+                    "AZE",
+                    "BDI",
+                    "BEL",
+                    "BEN",
+                    "BES",
+                    "BFA",
+                    "BGD",
+                    "BGR",
+                    "BHR",
+                    "BHS",
+                    "BIH",
+                    "BLM",
+                    "BLR",
+                    "BLZ",
+                    "BMU",
+                    "BOL",
+                    "BRA",
+                    "BRB",
+                    "BRN",
+                    "BTN",
+                    "BVT",
+                    "BWA",
+                    "CAF",
+                    "CAN",
+                    "CCK",
+                    "CHE",
+                    "CHL",
+                    "CHN",
+                    "CIV",
+                    "CMR",
+                    "COD",
+                    "COG",
+                    "COK",
+                    "COL",
+                    "COM",
+                    "CPV",
+                    "CRI",
+                    "CUB",
+                    "CUW",
+                    "CXR",
+                    "CYM",
+                    "CYP",
+                    "CZE",
+                    "DEU",
+                    "DJI",
+                    "DMA",
+                    "DNK",
+                    "DOM",
+                    "DZA",
+                    "ECU",
+                    "EGY",
+                    "ERI",
+                    "ESH",
+                    "ESP",
+                    "EST",
+                    "ETH",
+                    "FIN",
+                    "FJI",
+                    "FLK",
+                    "FRA",
+                    "FRO",
+                    "FSM",
+                    "GAB",
+                    "GBR",
+                    "GEO",
+                    "GGY",
+                    "GHA",
+                    "GIB",
+                    "GIN",
+                    "GLP",
+                    "GMB",
+                    "GNB",
+                    "GNQ",
+                    "GRC",
+                    "GRD",
+                    "GRL",
+                    "GTM",
+                    "GUF",
+                    "GUM",
+                    "GUY",
+                    "HKG",
+                    "HMD",
+                    "HND",
+                    "HRV",
+                    "HTI",
+                    "HUN",
+                    "IDN",
+                    "IMN",
+                    "IND",
+                    "IOT",
+                    "IRL",
+                    "IRN",
+                    "IRQ",
+                    "ISL",
+                    "ISR",
+                    "ITA",
+                    "JAM",
+                    "JEY",
+                    "JOR",
+                    "JPN",
+                    "KAZ",
+                    "KEN",
+                    "KGZ",
+                    "KHM",
+                    "KIR",
+                    "KNA",
+                    "KOR",
+                    "KWT",
+                    "LAO",
+                    "LBN",
+                    "LBR",
+                    "LBY",
+                    "LCA",
+                    "LIE",
+                    "LKA",
+                    "LSO",
+                    "LTU",
+                    "LUX",
+                    "LVA",
+                    "MAC",
+                    "MAF",
+                    "MAR",
+                    "MCO",
+                    "MDA",
+                    "MDG",
+                    "MDV",
+                    "MEX",
+                    "MHL",
+                    "MKD",
+                    "MLI",
+                    "MLT",
+                    "MMR",
+                    "MNE",
+                    "MNG",
+                    "MNP",
+                    "MOZ",
+                    "MRT",
+                    "MSR",
+                    "MTQ",
+                    "MUS",
+                    "MWI",
+                    "MYS",
+                    "MYT",
+                    "NAM",
+                    "NCL",
+                    "NER",
+                    "NFK",
+                    "NGA",
+                    "NIC",
+                    "NIU",
+                    "NLD",
+                    "NOR",
+                    "NPL",
+                    "NRU",
+                    "NZL",
+                    "OMN",
+                    "PAK",
+                    "PAN",
+                    "PCN",
+                    "PER",
+                    "PHL",
+                    "PLW",
+                    "PNG",
+                    "POL",
+                    "PRI",
+                    "PRK",
+                    "PRT",
+                    "PRY",
+                    "PSE",
+                    "PYF",
+                    "QAT",
+                    "REU",
+                    "ROU",
+                    "RUS",
+                    "RWA",
+                    "SAU",
+                    "SDN",
+                    "SEN",
+                    "SGP",
+                    "SGS",
+                    "SHN",
+                    "SJM",
+                    "SLB",
+                    "SLE",
+                    "SLV",
+                    "SMR",
+                    "SOM",
+                    "SPM",
+                    "SRB",
+                    "SSD",
+                    "STP",
+                    "SUR",
+                    "SVK",
+                    "SVN",
+                    "SWE",
+                    "SWZ",
+                    "SXM",
+                    "SYC",
+                    "SYR",
+                    "TCA",
+                    "TCD",
+                    "TGO",
+                    "THA",
+                    "TJK",
+                    "TKL",
+                    "TKM",
+                    "TLS",
+                    "TON",
+                    "TTO",
+                    "TUN",
+                    "TUR",
+                    "TUV",
+                    "TWN",
+                    "TZA",
+                    "UGA",
+                    "UKR",
+                    "UMI",
+                    "URY",
+                    "USA",
+                    "UZB",
+                    "VAT",
+                    "VCT",
+                    "VEN",
+                    "VGB",
+                    "VIR",
+                    "VNM",
+                    "VUT",
+                    "WLF",
+                    "WSM",
+                    "YEM",
+                    "ZAF",
+                    "ZMB",
+                    "ZWE"
+                ],
+                "title": "ThreeDigitCountryCode"
+            },
+            "User": {
+                "description": "A user",
+                "properties": {
+                    "email": {
+                        "description": "Email address",
+                        "type": "string"
+                    },
+                    "email_preferences": {
+                        "description": "The email preferences settings for the user (only return for current user).",
+                        "properties": {
+                            "compromised_system_alerts": {
+                                "description": "whether the user will receive event alert emails.",
+                                "type": "boolean"
+                            },
+                            "notifications": {
+                                "description": "a list of the different notification types that the user will receive email for",
+                                "properties": {
+                                    "annotation": {
+                                        "description": "Email alerts for comments that mentions the user.",
+                                        "type": "boolean"
+                                    },
+                                    "company_request": {
+                                        "description": "company requests by the user or other users within the same company if admin",
+                                        "type": "boolean"
+                                    },
+                                    "folder": {
+                                        "description": "when a folder has been shared with the user or deleted",
+                                        "type": "boolean"
+                                    },
+                                    "issue_tracking": {
+                                        "description": "when a finding has been assigned to the user",
+                                        "type": "boolean"
+                                    },
+                                    "report": {
+                                        "description": "when a pdf report download is ready",
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "real_time_alerts": {
+                                "description": "fields for if/when the user will receive real time alert emails",
+                                "properties": {
+                                    "alerts_period": {
+                                        "description": "the frequency of which the user will receive the alert emails",
+                                        "type": "integer"
+                                    },
+                                    "is_enabled": {
+                                        "description": "if the user will receive the email",
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "features": {
+                        "description": "User managed features",
+                        "items": {
+                            "properties": {
+                                "can_update": {
+                                    "description": "If the feature value can be updated for this user",
+                                    "readOnly": true,
+                                    "type": "boolean"
+                                },
+                                "slug": {
+                                    "description": "Feature slug",
+                                    "enum": [
+                                        "wfh-ro",
+                                        "fq-access"
+                                    ],
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "description": "Feature value.",
+                                    "oneOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "formal_name": {
+                        "description": "Formal name",
+                        "type": "string"
+                    },
+                    "friendly_name": {
+                        "description": "Friendly name",
+                        "type": "string"
+                    },
+                    "group": {
+                        "description": "Group that the user belongs to",
+                        "properties": {
+                            "guid": {
+                                "description": "Group identifier",
+                                "type": "string"
+                            },
+                            "name": {
+                                "description": "Group name",
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "guid": {
+                        "description": "GUID for this user",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "is_available_for_contact": {
+                        "description": "Indicates if the user is set as a customer contact",
+                        "type": "boolean"
+                    },
+                    "is_company_api_token": {
+                        "description": "Indicates if it is a token user",
+                        "readOnly": true,
+                        "type": "boolean"
+                    },
+                    "joined_time": {
+                        "description": "Time the user was created",
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "landing_page": {
+                        "description": "User portal landing page",
+                        "enum": [
+                            "DEFAULT",
+                            "SPM",
+                            "TPRM"
+                        ],
+                        "type": "string"
+                    },
+                    "last_login_time": {
+                        "description": "Last time the user logged in",
+                        "example": "2024-04-01 12:34:56",
+                        "format": "bitsight-date-time",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "preferred_contact_for_entities": {
+                        "description": "List of entities of which the user is a preferred contact",
+                        "items": {
+                            "description": "GUID of the company",
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "description": "User roles",
+                        "items": {
+                            "description": "User role",
+                            "properties": {
+                                "name": {
+                                    "description": "User role name",
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "description": "User role identifier",
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "description": "User status",
+                        "enum": [
+                            "Created",
+                            "Activated",
+                            "Deactivated"
+                        ],
+                        "readOnly": true,
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "UserResponse": {
+                "description": "A paginated set of users",
+                "properties": {
+                    "count": {
+                        "description": "The total number of results",
+                        "type": "integer"
+                    },
+                    "links": {
+                        "description": "A set of links to traverse the result set",
+                        "properties": {
+                            "next": {
+                                "nullable": true,
+                                "type": "string"
+                            },
+                            "previous": {
+                                "nullable": true,
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "results": {
+                        "description": "A list of users",
+                        "items": {
+                            "$ref": "#/components/schemas/User"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "title": "Location",
+                        "type": "array"
+                    },
+                    "msg": {
+                        "title": "Message",
+                        "type": "string"
+                    },
+                    "type": {
+                        "title": "Error Type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError",
+                "type": "object"
+            }
+        }
+    }
+}

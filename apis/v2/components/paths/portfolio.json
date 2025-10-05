@@ -1,0 +1,1018 @@
+{
+    "paths": {
+        "/portfolio": {
+            "get": {
+                "description": "A list of paginated portfolio companies",
+                "operationId": "PortfolioList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/FormatIncludeCSV"
+                    },
+                    {
+                        "description": "Filter companies by excluding one or more subscription type slugs, e.g. 'continuous_monitoring,alerts-only'",
+                        "in": "query",
+                        "name": "exclude_subscription_type.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Comma delimited list of fields to return in each result",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "rating",
+                                "industry.name",
+                                "rating_date",
+                                "life_cycle.name",
+                                "relationship.slug",
+                                "logo",
+                                "subscription_type.slug",
+                                "network_size_v4",
+                                "guid",
+                                "sparkline",
+                                "primary_domain",
+                                "sub_industry.slug",
+                                "shortname",
+                                "industry.slug",
+                                "relationship.name",
+                                "subscription_type.name",
+                                "added_date",
+                                "life_cycle.slug",
+                                "tier",
+                                "sub_industry.name",
+                                "custom_id",
+                                "name",
+                                "display_url",
+                                "type"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "A list of fields for which you want to group filters. Grouping\nis only supported for certain fields, and modifies the way that the\nfilters intersect with each other.",
+                        "in": "query",
+                        "name": "filter_group",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "risk_vectors",
+                                "software"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more folder guids, or null to include companies that are in no visible folders.",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more industry name, e.g. 'Finance,Technology'",
+                        "in": "query",
+                        "name": "industry.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more industry slugs, e.g. 'finance,technology'",
+                        "in": "query",
+                        "name": "industry.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more infection names, e.g. 'Zloader,Conficker'",
+                        "in": "query",
+                        "name": "infections",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more life cycle slugs or null to include companies with no life cycle assigned, e.g. 'onboarding,null'",
+                        "in": "query",
+                        "name": "life_cycle.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more open ports, e.g. 'SIP,Port 8081'",
+                        "in": "query",
+                        "name": "open_ports",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more rating types, e.g. 'CURATED,SELF-PUBLISHED'",
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CURATED",
+                                "PROVISIONAL",
+                                "SELF-PUBLISHED",
+                                "PRIVATE",
+                                "COUNTRY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by a list of guids.",
+                        "in": "query",
+                        "name": "guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by a single rating value.",
+                        "in": "query",
+                        "name": "rating",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies with rating less than the given value.",
+                        "in": "query",
+                        "name": "rating_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating less than or equal to the given value.",
+                        "in": "query",
+                        "name": "rating_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating greater than the given value.",
+                        "in": "query",
+                        "name": "rating_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating greater than or equal to the given value.",
+                        "in": "query",
+                        "name": "rating_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more relationship slugs or null to include companies with no relationship assigned, e.g. 'vendor,null'",
+                        "in": "query",
+                        "name": "relationship.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort companies by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "name",
+                                "rating",
+                                "industry.name",
+                                "life_cycle.name",
+                                "relationship.name",
+                                "subscription_type.name",
+                                "tier"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more subscription type slugs, e.g. 'continuous_monitoring,alerts-only'",
+                        "in": "query",
+                        "name": "subscription_type.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more tier guids, or null to include companies that are in no visible tier.",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by partial name match.",
+                        "in": "query",
+                        "name": "name_q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more vendor action plans, e.g. 'escalate,monitor'",
+                        "in": "query",
+                        "name": "vendor_action_plan",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more vulnerabilities, e.g. 'POODLE'",
+                        "in": "query",
+                        "name": "vulnerabilities",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more countries in which they have IPs, e.g. 'US,CA'.\nUse 'EUU' for all EU countries and 'NEU' for all non-EU countries.",
+                        "in": "query",
+                        "name": "countries",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more regions in which they have IPs, e.g. 'US-MA,ES-CT'.",
+                        "in": "query",
+                        "name": "regions",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more categories of security incidents which occured for the company or its subsidiaries in the past year. e.g. \"general,breach\"",
+                        "in": "query",
+                        "name": "security_incident_categories",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which risk vectors they have grades for. On its\nown, this includes companies which have any grade (A-F) in any one\nof the specified risk vectors. This can be intersected with\n`risk_vectors.grade` by using `filter_group=risk_vectors` to filter\nby specific grades in specific risk vectors.",
+                        "in": "query",
+                        "name": "risk_vectors.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which grades they have in any risk vector. On\nits own, this includes companies which have any of the specified\ngrades in any risk vector. This can be intersected with\n`risk_vectors.slug` by using `filter_group=risk_vectors` to filter\nby specific grades in specific risk vectors.",
+                        "in": "query",
+                        "name": "risk_vectors.grade",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which categories of software (Supported,\nUnsupported, Unknown) they have. On its own, this includes companies\nwhich have at least one software if any of the specified categories.\nThis can be intersected with `software.name` by using `filter_group=software`\nto filter by specific software in specific categories.",
+                        "in": "query",
+                        "name": "software.category",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which software has been detected on their network.\nOn its own, this includes companies which have any of the specified\nsoftware, across all software categories. This can be intersected\nwith `software.category` by using `filter_group=software` to filter\nby specific software in specific categories.",
+                        "in": "query",
+                        "name": "software.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party service provider relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "providers",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party product relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "products",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party product type relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "product_types",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by relationship type, the only known scope now is SPM, which is\nthe set of companies with a Subsidiary Subscription Type + Your own company",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Exclude subscriptions-types",
+                        "example": "continuous_monitoring, alerts_only",
+                        "in": "query",
+                        "name": "exclude_subscription_type",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations whose IPs are visible",
+                        "in": "query",
+                        "name": "show_ips",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations that have enhanced event evidence enabled",
+                        "in": "query",
+                        "name": "show_event_evidence",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Filter organizations based on whether or not they are self-published",
+                        "in": "query",
+                        "name": "is_self_published",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "true",
+                                "false"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter organizations by one or more visibility types, e.g. 'PRIMARY,PRIVATE'",
+                        "in": "query",
+                        "name": "visibility",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "PRIMARY",
+                                "PRIVATE"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Portfolio"
+                                }
+                            }
+                        },
+                        "description": "List of paginated portfolio companies."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            },
+            "post": {
+                "description": "A list of paginated portfolio companies",
+                "operationId": "PortfolioListPost",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/FormatIncludeCSV"
+                    },
+                    {
+                        "description": "Filter companies by excluding one or more subscription type slugs, e.g. 'continuous_monitoring,alerts-only'",
+                        "in": "query",
+                        "name": "exclude_subscription_type.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Comma delimited list of fields to return in each result",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "rating",
+                                "industry.name",
+                                "rating_date",
+                                "life_cycle.name",
+                                "relationship.slug",
+                                "logo",
+                                "subscription_type.slug",
+                                "network_size_v4",
+                                "guid",
+                                "sparkline",
+                                "primary_domain",
+                                "sub_industry.slug",
+                                "shortname",
+                                "industry.slug",
+                                "relationship.name",
+                                "subscription_type.name",
+                                "added_date",
+                                "life_cycle.slug",
+                                "tier",
+                                "sub_industry.name",
+                                "custom_id",
+                                "name",
+                                "display_url",
+                                "type"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "A list of fields for which you want to group filters. Grouping\nis only supported for certain fields, and modifies the way that the\nfilters intersect with each other.",
+                        "in": "query",
+                        "name": "filter_group",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "risk_vectors",
+                                "software"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more folder guids, or null to include companies that are in no visible folders.",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more industry name, e.g. 'Finance,Technology'",
+                        "in": "query",
+                        "name": "industry.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more industry slugs, e.g. 'finance,technology'",
+                        "in": "query",
+                        "name": "industry.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more infection names, e.g. 'Zloader,Conficker'",
+                        "in": "query",
+                        "name": "infections",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more life cycle slugs or null to include companies with no life cycle assigned, e.g. 'onboarding,null'",
+                        "in": "query",
+                        "name": "life_cycle.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more open ports, e.g. 'SIP,Port 8081'",
+                        "in": "query",
+                        "name": "open_ports",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more rating types, e.g. 'CURATED,SELF-PUBLISHED'",
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "CURATED",
+                                "PROVISIONAL",
+                                "SELF-PUBLISHED",
+                                "PRIVATE",
+                                "COUNTRY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by a list of guids.",
+                        "in": "query",
+                        "name": "guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by a single rating value.",
+                        "in": "query",
+                        "name": "rating",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies with rating less than the given value.",
+                        "in": "query",
+                        "name": "rating_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating less than or equal to the given value.",
+                        "in": "query",
+                        "name": "rating_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating greater than the given value.",
+                        "in": "query",
+                        "name": "rating_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter companies with rating greater than or equal to the given value.",
+                        "in": "query",
+                        "name": "rating_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more relationship slugs or null to include companies with no relationship assigned, e.g. 'vendor,null'",
+                        "in": "query",
+                        "name": "relationship.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort companies by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "name",
+                                "rating",
+                                "industry.name",
+                                "life_cycle.name",
+                                "relationship.name",
+                                "subscription_type.name",
+                                "tier"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more subscription type slugs, e.g. 'continuous_monitoring,alerts-only'",
+                        "in": "query",
+                        "name": "subscription_type.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more tier guids, or null to include companies that are in no visible tier.",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by partial name match.",
+                        "in": "query",
+                        "name": "name_q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more vendor action plans, e.g. 'escalate,monitor'",
+                        "in": "query",
+                        "name": "vendor_action_plan",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more vulnerabilities, e.g. 'POODLE'",
+                        "in": "query",
+                        "name": "vulnerabilities",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more countries in which they have IPs, e.g. 'US,CA'.\nUse 'EUU' for all EU countries and 'NEU' for all non-EU countries.",
+                        "in": "query",
+                        "name": "countries",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more regions in which they have IPs, e.g. 'US-MA,ES-CT'.",
+                        "in": "query",
+                        "name": "regions",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by one or more categories of security incidents which occured for the company or its subsidiaries in the past year. e.g. \"general,breach\"",
+                        "in": "query",
+                        "name": "security_incident_categories",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which risk vectors they have grades for. On its\nown, this includes companies which have any grade (A-F) in any one\nof the specified risk vectors. This can be intersected with\n`risk_vectors.grade` by using `filter_group=risk_vectors` to filter\nby specific grades in specific risk vectors.",
+                        "in": "query",
+                        "name": "risk_vectors.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which grades they have in any risk vector. On\nits own, this includes companies which have any of the specified\ngrades in any risk vector. This can be intersected with\n`risk_vectors.slug` by using `filter_group=risk_vectors` to filter\nby specific grades in specific risk vectors.",
+                        "in": "query",
+                        "name": "risk_vectors.grade",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which categories of software (Supported,\nUnsupported, Unknown) they have. On its own, this includes companies\nwhich have at least one software if any of the specified categories.\nThis can be intersected with `software.name` by using `filter_group=software`\nto filter by specific software in specific categories.",
+                        "in": "query",
+                        "name": "software.category",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by which software has been detected on their network.\nOn its own, this includes companies which have any of the specified\nsoftware, across all software categories. This can be intersected\nwith `software.category` by using `filter_group=software` to filter\nby specific software in specific categories.",
+                        "in": "query",
+                        "name": "software.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party service provider relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "providers",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party product relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "products",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by their fourth party product type relationships\nidentified either by Bitsight data sources or managed by the customer.",
+                        "in": "query",
+                        "name": "product_types",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter companies by relationship type, the only known scope now is SPM, which is\nthe set of companies with a Subsidiary Subscription Type + Your own company",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Exclude subscriptions-types",
+                        "example": "continuous_monitoring, alerts_only",
+                        "in": "query",
+                        "name": "exclude_subscription_type",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations whose IPs are visible",
+                        "in": "query",
+                        "name": "show_ips",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations that have enhanced event evidence enabled",
+                        "in": "query",
+                        "name": "show_event_evidence",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Filter organizations based on whether or not they are self-published",
+                        "in": "query",
+                        "name": "is_self_published",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "true",
+                                "false"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter organizations by one or more visibility types, e.g. 'PRIMARY,PRIVATE'",
+                        "in": "query",
+                        "name": "visibility",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "PRIMARY",
+                                "PRIVATE"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Portfolio"
+                                }
+                            }
+                        },
+                        "description": "List of paginated portfolio companies."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/summaries": {
+            "get": {
+                "description": "Summarized filter data for the /portfolio endpoint. Used to populate all possible values for a number of filters on that endpoint.",
+                "operationId": "PortfolioSummaries",
+                "parameters": [
+                    {
+                        "description": "Comma delimited list of fields to return. If not passed, all fields are returned.",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Only show results for the single given folder guid",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Only show results for the single given tier guid",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioSummaries"
+                                }
+                            }
+                        },
+                        "description": "Dictionary of filter values, by field."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        }
+    }
+}

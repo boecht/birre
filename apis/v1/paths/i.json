@@ -1,0 +1,1688 @@
+{
+    "paths": {
+        "/idps/config": {
+            "get": {
+                "description": "Get the configuration information about the IdPs for the current customer",
+                "operationId": "getSamlIdpsConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SamlIdpConfig"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns a simple object containing the configuration information for the current customer."
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "summary": "Get the configuration information about the IdPs for the current customer",
+                "tags": [
+                    "SAML IdPs"
+                ]
+            }
+        },
+        "/idps/{guid}": {
+            "delete": {
+                "description": "Delete a SAML IdP",
+                "operationId": "deleteSamlIdp",
+                "parameters": [
+                    {
+                        "description": "GUID of the SAML IdP",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The SAML IdP was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "SAML IdPs"
+                ]
+            },
+            "patch": {
+                "description": "Edits the SAML IdP",
+                "operationId": "patchSamlIdp",
+                "parameters": [
+                    {
+                        "description": "GUID of the SAML IdP",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "idp": {
+                                        "$ref": "#/components/schemas/SamlIdp"
+                                    }
+                                },
+                                "required": [
+                                    "id"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SamlIdp"
+                                }
+                            }
+                        },
+                        "description": "The updated SAML IdP"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "SAML IdPs"
+                ]
+            }
+        },
+        "/industries": {
+            "get": {
+                "description": "Get Industries",
+                "operationId": "getIndustries",
+                "parameters": [
+                    {
+                        "description": "Option to expand rating_details",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "rating_details"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Option to show all industries, portfolio independent",
+                        "in": "query",
+                        "name": "show_all",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Option to add sub_industries for each industry",
+                        "in": "query",
+                        "name": "add_sub_industries",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Industries"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Industries"
+                ]
+            }
+        },
+        "/industries/countries": {
+            "get": {
+                "description": "Lists sovereign country industries for countries in the customer portfolio",
+                "operationId": "sovereignIndustriesCountries",
+                "parameters": [
+                    {
+                        "description": "Filters country industries from selected countries. Expects 2 letter country codes, comma separated",
+                        "in": "query",
+                        "name": "countries",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters country industries from selected industries. Expects industry sector names, comma separated",
+                        "in": "query",
+                        "name": "industries",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If set to 'ratings' also retrieves the entity's rating history",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Ratings history period. Allowed values daily, weekly or monthly. Defaults to 'daily'",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Ratings history start date.",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Ratings history end date.",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort the results. Allowed values 'guid', 'rating', 'country_name', 'industry_name'. Prefix with '-' to reverse direction",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "default": "guid",
+                            "enum": [
+                                "guid",
+                                "rating",
+                                "country_name",
+                                "industry_name"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CountryIndustries"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/industries/{slug}/graph_data": {
+            "get": {
+                "description": "Retrieve graph data for an industry",
+                "operationId": "getIndustriesGraphdata",
+                "parameters": [
+                    {
+                        "description": "Slug value for the intended industry",
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Industries_Graph_Data"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Industries"
+                ]
+            }
+        },
+        "/industries/{slug}/statistics": {
+            "get": {
+                "description": "Retrieve statistics data for an industry",
+                "operationId": "getIndustriesStatistics",
+                "parameters": [
+                    {
+                        "description": "slug value for the intended industry",
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Industries_Statistics"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Industries"
+                ]
+            }
+        },
+        "/infections": {
+            "get": {
+                "description": "All infections tracked by Bitsight",
+                "operationId": "getInfections",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/InfectionObject"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "List of infections"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Knowledge Base"
+                ]
+            }
+        },
+        "/insights": {
+            "get": {
+                "description": "Retrieve insights for a specific organization",
+                "operationId": "getInsights",
+                "parameters": [
+                    {
+                        "description": "GUID of the organization",
+                        "in": "query",
+                        "name": "company",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "ISO formatted date to start looking for insights",
+                        "in": "query",
+                        "name": "start",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "ISO formatted date to stop looking for insights",
+                        "in": "query",
+                        "name": "end",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters RCEs so that the score delta is lower than the specified value.\nWhen this parameter is not specified the results are filtered by score delta lower than -10.\n",
+                        "in": "query",
+                        "name": "score_delta_lt",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Removes score delta filter for RCEs so that the api returns all insights within a given date range\n",
+                        "in": "query",
+                        "name": "ignore_score_delta",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Insight"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns insights"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Insights"
+                ]
+            }
+        },
+        "/insights/get_companies": {
+            "post": {
+                "description": "Retrieve insights for multiple organizations",
+                "operationId": "getInsightsMultipleCompanies",
+                "parameters": [
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "data": {
+                                        "description": "group of organization GUIDs and optional interval dates for limiting the result",
+                                        "properties": {
+                                            "companies": {
+                                                "description": "group of organization GUID",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            },
+                                            "end": {
+                                                "description": "ISO formatted date to stop looking for insights",
+                                                "type": "string"
+                                            },
+                                            "start": {
+                                                "description": "ISO formatted date to start looking for insights",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "properties"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Insight"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns insights"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Insights"
+                ]
+            }
+        },
+        "/insights/observations": {
+            "get": {
+                "description": "Retrieve the observation details for rating changes.\nThe results are limited to 100 entries at most, by default this limit is 10 see the relevant query parameter.\n",
+                "operationId": "getInsightObservations",
+                "parameters": [
+                    {
+                        "description": "GUID of the organization",
+                        "in": "query",
+                        "name": "company",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The date when changes happened in the format 'YYYY-mm-dd'",
+                        "in": "query",
+                        "name": "date",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Limits the number of results. When omitted a default of 10 is used.",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/InsightObservation"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "The details for the observations matching the specified criteria"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Insights"
+                ]
+            }
+        },
+        "/insights/rating_changes": {
+            "get": {
+                "description": "List rating changes",
+                "operationId": "listInsightsRatingChanges",
+                "parameters": [
+                    {
+                        "description": "Filter changes by specified companies.\nA comma separated list of GUIDs.\n",
+                        "in": "query",
+                        "name": "company",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter changes by date greater or equal to specified date.\nISO formatted date.\n",
+                        "in": "query",
+                        "name": "date_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter changes by date lower than the specified date.\nISO formatted date\n",
+                        "in": "query",
+                        "name": "date_lt",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters changes so that the score delta is greater or equal to the specified value.\n",
+                        "in": "query",
+                        "name": "score_delta_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filters RCEs so that the score delta is lower than the specified value.\n",
+                        "in": "query",
+                        "name": "score_delta_lt",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "The offset in the results to start from.\nWhen not specified a default of 0 is used.\n",
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "The maximum number of results returned.\nWhen not specified a default of 100 is used.\n",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedInsightRatingChanges"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns rating changes"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Insights"
+                ]
+            }
+        },
+        "/integrations/slack": {
+            "get": {
+                "description": "Get a list of slack integration instances",
+                "operationId": "SlackInstanceList",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/IntegrationInstance"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "The newly created instance"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            },
+            "post": {
+                "description": "Creates a slack integration instance",
+                "operationId": "SlackInstanceCreate",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "description": "The instance id",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The newly created instance"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/slack/access-token": {
+            "post": {
+                "description": "Gets the user slack integration access token",
+                "operationId": "SlackAccessToken",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "description": "The requested token",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The requested access token"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/slack/authorization-code": {
+            "post": {
+                "description": "Gets the user slack integration authorization code",
+                "operationId": "SlackAuthCode",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "authorization_code": {
+                                            "description": "The requested authorization code",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The requested authorization code"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/slack/{id}": {
+            "delete": {
+                "description": "Deletes the provided a slack integration instance",
+                "operationId": "SlackInstanceDelete",
+                "parameters": [
+                    {
+                        "description": "The integration instance id you want to delete",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The instance was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            },
+            "patch": {
+                "description": "Updates the provided a slack integration instance",
+                "operationId": "SlackInstanceUpdate",
+                "parameters": [
+                    {
+                        "description": "The integration instance id you want to update",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IntegrationInstancePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IntegrationInstancePatch"
+                                }
+                            }
+                        },
+                        "description": "Details of the successfully updated instance"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/teams": {
+            "get": {
+                "description": "Get a list of teams integration instances",
+                "operationId": "TeamsInstanceList",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/IntegrationInstance"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "The newly created instance"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            },
+            "post": {
+                "description": "Creates a teams integration instance",
+                "operationId": "TeamsInstanceCreate",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "description": "The instance id",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The newly created instance"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/teams/access-token": {
+            "post": {
+                "description": "Gets the user teams integration access token",
+                "operationId": "TeamsAccessToken",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "description": "The requested token",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The requested access token"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/teams/authorization-code": {
+            "post": {
+                "description": "Gets the user teams integration authorization code",
+                "operationId": "TeamsAuthCode",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "authorization_code": {
+                                            "description": "The requested authorization code",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "The requested authorization code"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/integrations/teams/{id}": {
+            "delete": {
+                "description": "Deletes the provided teams integration instance",
+                "operationId": "TeamsInstanceDelete",
+                "parameters": [
+                    {
+                        "description": "The integration instance id you want to delete",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The instance was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            },
+            "patch": {
+                "description": "Updates the provided teams integration instance",
+                "operationId": "TeamsInstanceUpdate",
+                "parameters": [
+                    {
+                        "description": "The integration instance id you want to update",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IntegrationInstancePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IntegrationInstancePatch"
+                                }
+                            }
+                        },
+                        "description": "Details of the successfully updated instance"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Integrations"
+                ]
+            }
+        },
+        "/iq/assessments/frameworks": {
+            "get": {
+                "description": "Get available assessment frameworks for IQ assessments",
+                "operationId": "getIqAssessmentFrameworks",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "count": {
+                                            "description": "Total number of available frameworks",
+                                            "example": 2,
+                                            "type": "integer"
+                                        },
+                                        "results": {
+                                            "description": "List of available assessment frameworks",
+                                            "items": {
+                                                "properties": {
+                                                    "description": {
+                                                        "description": "Detailed description of the framework",
+                                                        "example": "A streamlined version of the Shared Assessments Standardized Information Gathering (SIG) Lite 2025 Questionnaire containing only the 10 most critical questions for rapid third-party security assessments.",
+                                                        "type": "string"
+                                                    },
+                                                    "guid": {
+                                                        "description": "Unique identifier for the framework",
+                                                        "example": "38f072bc-7a10-456f-c47a-8fe78c3b1935",
+                                                        "format": "uuid",
+                                                        "type": "string"
+                                                    },
+                                                    "is_real": {
+                                                        "description": "Whether this is a real framework or a test/demo framework",
+                                                        "example": false,
+                                                        "type": "boolean"
+                                                    },
+                                                    "logo": {
+                                                        "description": "URL to the framework logo",
+                                                        "example": "https://s3.amazonaws.com/s3-apps-devstg-fileservice/",
+                                                        "format": "uri",
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "description": "Display name of the framework",
+                                                        "example": "Minified SIG Lite 2025",
+                                                        "type": "string"
+                                                    },
+                                                    "slug": {
+                                                        "description": "URL-friendly identifier for the framework",
+                                                        "example": "minified_sig_lite_2025",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "guid",
+                                                    "slug",
+                                                    "name",
+                                                    "description",
+                                                    "logo",
+                                                    "is_real"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "required": [
+                                        "count",
+                                        "results"
+                                    ],
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Assessment frameworks retrieved successfully"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "example": "Failed to retrieve assessment frameworks",
+                                            "type": "string"
+                                        },
+                                        "status_code": {
+                                            "example": 500,
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "status_code",
+                                        "message"
+                                    ],
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Assessments",
+                    "IQ Assessments"
+                ]
+            }
+        }
+    }
+}

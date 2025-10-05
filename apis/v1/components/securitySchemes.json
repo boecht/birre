@@ -1,0 +1,15 @@
+{
+    "components": {
+        "securitySchemes": {
+            "Jwt": {
+                "in": "header",
+                "name": "Authorization",
+                "type": "apiKey"
+            },
+            "Token": {
+                "scheme": "basic",
+                "type": "http"
+            }
+        }
+    }
+}

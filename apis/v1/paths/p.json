@@ -1,0 +1,4191 @@
+{
+    "paths": {
+        "/partners/{partner_guid}/customers": {
+            "get": {
+                "description": "Get Customers for the Partner",
+                "operationId": "getPartnerCustomers",
+                "parameters": [
+                    {
+                        "description": "GUID of the partner",
+                        "in": "path",
+                        "name": "partner_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Partner_Customer_Summary"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns list of Customers"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Partners"
+                ]
+            },
+            "post": {
+                "description": "Create Customer for the partner",
+                "operationId": "createPartnerCustomer",
+                "parameters": [
+                    {
+                        "description": "GUID of the partner",
+                        "in": "path",
+                        "name": "partner_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "api_tokens": {
+                                        "description": "The api tokens to add to the created customer.",
+                                        "items": {
+                                            "$ref": "#/components/schemas/APIToken"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "companies": {
+                                        "description": "The companies for this Customer",
+                                        "items": {
+                                            "$ref": "#/components/schemas/Company_Subscription"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "contact_information": {
+                                        "$ref": "#/components/schemas/User_Contact"
+                                    },
+                                    "country_code": {
+                                        "description": "The country code of the country the customer is in.",
+                                        "type": "string"
+                                    },
+                                    "customer_provided_api_token": {
+                                        "description": "API token a customer provided to a partner used to identify the customer",
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "description": "The name of the customer to create",
+                                        "type": "string"
+                                    },
+                                    "partner_customer_id": {
+                                        "description": "External Id of Partner for the Customer",
+                                        "type": "string"
+                                    },
+                                    "purchases": {
+                                        "description": "The purchases added to the Customer",
+                                        "items": {
+                                            "properties": {
+                                                "end_date": {
+                                                    "description": "end date for the purchase",
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "description": "The product code associated with this purchase",
+                                                    "type": "string"
+                                                },
+                                                "quantity": {
+                                                    "description": "The quantity of the purchase",
+                                                    "type": "integer"
+                                                },
+                                                "start_date": {
+                                                    "description": "start date for the purchase",
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "registration_status": {
+                                        "description": "Registration status of this Customer",
+                                        "enum": [
+                                            "provisioning",
+                                            "error",
+                                            "active",
+                                            "deactivated",
+                                            "tos-waiting",
+                                            "deleted"
+                                        ],
+                                        "type": "string"
+                                    },
+                                    "sales_manager": {
+                                        "description": "The sales manager to create the customer with.",
+                                        "properties": {
+                                            "email": {
+                                                "description": "Email of the sales manager",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "skip_tos": {
+                                        "default": false,
+                                        "description": "Set True to let the Customer skip the ToS",
+                                        "type": "boolean"
+                                    },
+                                    "users": {
+                                        "description": "The list of Users for this Customer",
+                                        "items": {
+                                            "$ref": "#/components/schemas/User"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "contact_information": {
+                                            "$ref": "#/components/schemas/User_Contact"
+                                        },
+                                        "guid": {
+                                            "$ref": "#/x-common-definitions/customer_guid",
+                                            "description": "The guid of the Customer the purchases were added to"
+                                        },
+                                        "name": {
+                                            "description": "The name of the Customer",
+                                            "type": "string"
+                                        },
+                                        "purchases": {
+                                            "description": "The purchases added to the Customer",
+                                            "items": {
+                                                "properties": {
+                                                    "end_date": {
+                                                        "description": "end date for the purchase",
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "description": "The product code associated with this purchase",
+                                                        "type": "string"
+                                                    },
+                                                    "quantity": {
+                                                        "description": "The quantity of the purchase",
+                                                        "type": "integer"
+                                                    },
+                                                    "start_date": {
+                                                        "description": "start date for the purchase",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "success": {
+                                            "description": "Was the update successful?",
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns added Purchases and Customer information"
+                    },
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Customer"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns added Customer"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Partners"
+                ]
+            }
+        },
+        "/partners/{partner_guid}/customers/{customer_guid}/purchase-orders": {
+            "post": {
+                "description": "Submit a PurchaseOrder for a given Customer of the Partner for processing",
+                "operationId": "submitPartnerCustomerPurchaseOrder",
+                "parameters": [
+                    {
+                        "description": "GUID of the Partner",
+                        "in": "path",
+                        "name": "partner_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "GUID of the Customer",
+                        "in": "path",
+                        "name": "customer_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/customer_guid"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "purchase_order": {
+                                        "$ref": "#/components/schemas/PurchaseOrder"
+                                    }
+                                },
+                                "required": [
+                                    "properties"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/PurchaseOrderSuccessful"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/PurchaseOrderBadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Partners"
+                ]
+            }
+        },
+        "/partners/{partner_guid}/customers/{guid}": {
+            "delete": {
+                "description": "Deactivate a customer for a partner",
+                "operationId": "deactivatePartnerCustomer",
+                "parameters": [
+                    {
+                        "description": "GUID of the partner",
+                        "in": "path",
+                        "name": "partner_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "GUID of the customer",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/customer_guid"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The Customer was successfully deactivated"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Partners"
+                ]
+            },
+            "get": {
+                "description": "Get a single Customer of the Partner",
+                "operationId": "getPartnerCustomer",
+                "parameters": [
+                    {
+                        "description": "GUID of the partner",
+                        "in": "path",
+                        "name": "partner_guid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "GUID of the customer",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/customer_guid"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Partner_Customer_Summary"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns Customer"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Partners"
+                ]
+            }
+        },
+        "/peer-analytics/configs/user": {
+            "get": {
+                "description": "Retrieves the user's Peer Analytics Config",
+                "operationId": "peer_analytics.configs.retrieve",
+                "parameters": [
+                    {
+                        "description": "A comma separated list of fields to expand.",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerAnalyticsConfig"
+                                }
+                            }
+                        },
+                        "description": "The config"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "patch": {
+                "description": "Update the user's Peer Analytics Config",
+                "operationId": "peer_analytics.configs.update_partial",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "peer_analytics_config": {
+                                        "$ref": "#/components/schemas/PeerAnalyticsConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerAnalyticsConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "put": {
+                "description": "Update the user's Peer Analytics Config",
+                "operationId": "peer_analytics.configs.update",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "peer_analytics_config": {
+                                        "$ref": "#/components/schemas/PeerAnalyticsConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerAnalyticsConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            }
+        },
+        "/peer-analytics/peer-group-summary": {
+            "post": {
+                "description": "Compute the summary data for the peer group.",
+                "operationId": "peer_analytics.peer_group_summary",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "peer_group_config": {
+                                        "$ref": "#/components/schemas/PeerGroupSummaryArgs"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupSummary"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            }
+        },
+        "/peer-analytics/peer-groups": {
+            "get": {
+                "description": "Lists the user's Peer Group Configs",
+                "operationId": "peer_analytics.peer_groups.list",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/PeerGroupType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPeerGroupConfigs"
+                                }
+                            }
+                        },
+                        "description": "The available configs"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "post": {
+                "description": "Create a Peer Group Config for the user",
+                "operationId": "peer_analytics.peer_groups.create",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "config": {
+                                        "$ref": "#/components/schemas/PeerGroupConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupConfig"
+                                }
+                            }
+                        },
+                        "description": "The created config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            }
+        },
+        "/peer-analytics/peer-groups/{guid}": {
+            "delete": {
+                "description": "Delete a Peer Group Config",
+                "operationId": "peer_analytics.peer_groups.delete",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The config was successfully deleted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "get": {
+                "description": "Retrieve a Peer Group Config",
+                "operationId": "peer_analytics.peer_groups.retrieve",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupConfig"
+                                }
+                            }
+                        },
+                        "description": "The config"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "patch": {
+                "description": "Update a Peer Group Config",
+                "operationId": "peer_analytics.peer_groups.update_partial",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "peer_group_config": {
+                                        "$ref": "#/components/schemas/PeerGroupConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            },
+            "put": {
+                "description": "Update a Peer Group Config",
+                "operationId": "peer_analytics.peer_groups.update",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "peer_group_config": {
+                                        "$ref": "#/components/schemas/PeerGroupConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupConfig"
+                                }
+                            }
+                        },
+                        "description": "The updated config"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            }
+        },
+        "/peer-analytics/peer-groups/{guid}/graph-data": {
+            "get": {
+                "description": "Get ratings graph data for a peer group",
+                "operationId": "getPeerGroupGraphData",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupGraphData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ]
+            }
+        },
+        "/peer-analytics/peer-groups/{guid}/statistics": {
+            "get": {
+                "description": "Get statistics information for peer group companies",
+                "operationId": "getPeerGroupStatistics",
+                "parameters": [
+                    {
+                        "description": "The GUID of the config",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PeerGroupStatistic"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/peer-analytics/ratings-distribution": {
+            "post": {
+                "description": "Compute the ratings distribution data for the peer group.",
+                "operationId": "peer_analytics.ratings_distribution",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "ratings_distribution": {
+                                        "$ref": "#/components/schemas/PaRatingsDistributionArgs"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaRatingsDistribution"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Peer Analytics"
+                ]
+            }
+        },
+        "/portfolio": {
+            "get": {
+                "description": "Get Profile details of the organization",
+                "operationId": "getPortfolio",
+                "parameters": [
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Latest Rating Date",
+                        "in": "query",
+                        "name": "rating_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If true, exclude alerts-only subscriptions",
+                        "in": "query",
+                        "name": "exclude_alerts_only",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations whose IPs are visible",
+                        "in": "query",
+                        "name": "show_ips",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Show only organizations that have enhanced event evidence enabled",
+                        "in": "query",
+                        "name": "show_event_evidence",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Comma delimited list of organization fields to return",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Show only companies in the specified folder (guid)",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Get scores from the last day of the quarter that is N quarters back from today.",
+                        "in": "query",
+                        "name": "quarters_back",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Show only companies that are tiered to the specified tiers.\nSupports a comma separated list of guids, together with an 'untiered' alias, to include companies not present in any tier.\n",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Portfolio"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/breaches": {
+            "get": {
+                "description": "Get Breach details of the organization",
+                "operationId": "getPortfolioBreaches",
+                "parameters": [
+                    {
+                        "description": "Filter Breaches by a specific company",
+                        "in": "query",
+                        "name": "company",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter Breaches for companies in the specified folder",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter Breaches for companies in the specified tier",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter Breaches from the specified date",
+                        "in": "query",
+                        "name": "start",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter Breaches before the specified date",
+                        "in": "query",
+                        "name": "end",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter breaches equal to the specified severity level",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter breaches greater than or equal to the specified severity level",
+                        "in": "query",
+                        "name": "severity_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter breaches greater than the specified severity level",
+                        "in": "query",
+                        "name": "severity_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter breaches less than or equal to the specified severity level",
+                        "in": "query",
+                        "name": "severity_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter breaches less than the specified severity level",
+                        "in": "query",
+                        "name": "severity_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "integer",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Breach"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "The list of Breaches matching the requested criteria"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/entity-custom-ids/bulk": {
+            "post": {
+                "description": "Endpoint for bulk add, modify and delete CustomEntityId's",
+                "operationId": "deleteEntityCustomIds",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EntityCustomIdRequestBody"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EntityCustomIdResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData",
+                        "description": "Bad request"
+                    }
+                },
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/filters/vulnerabilities": {
+            "get": {
+                "description": "Getting vulnerabilities filters for your portfolio/folder/tier",
+                "operationId": "getPortfolioFiltersVulnerabilities",
+                "parameters": [
+                    {
+                        "description": "folder guid for which to get the filters for",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "tier guid for which to get the filters for",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "initial_counts": {
+                                            "properties": {
+                                                "vulnerabilities": {
+                                                    "properties": {
+                                                        "status": {
+                                                            "description": "count for confirmed vs potential vulnerabilities",
+                                                            "properties": {
+                                                                "confirmed": {
+                                                                    "description": "the number of companies impacted by a confirmed vulnerability",
+                                                                    "type": "integer"
+                                                                },
+                                                                "potential": {
+                                                                    "description": "the number of companies impacted by a potential vulnerability",
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "vulnerabilities": {
+                                                            "additionalProperties": {
+                                                                "description": "count of the companies impacted by the vulnerability",
+                                                                "type": "integer"
+                                                            },
+                                                            "description": "a list of key value pair keyed on the vulnerability CVE with the count as the value",
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "vulnerabilities": {
+                                            "additionalProperties": {
+                                                "properties": {
+                                                    "confirmed": {
+                                                        "description": "a list of confirmed vulnerabilities affecting this company",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "potential": {
+                                                        "description": "a list of potential vulnerability affecting this company",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "description": "an object with the company guid as key, and all vulnerabilities impacting the company listed",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "List of vulnerabilities to filter on, along with a list of companies that are affected by the vulnerabilities"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/findings/counts": {
+            "get": {
+                "description": "Get the findings count for your portfolio companies.  Currently requires the ?in_spm_portfolio=True filter",
+                "operationId": "getPortfolioFindingsCounts",
+                "parameters": [
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If true, only return findings counts for SPM Portfolio companies",
+                        "in": "query",
+                        "name": "in_spm_portfolio",
+                        "required": true,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of affects_rating",
+                        "in": "query",
+                        "name": "affects_rating",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of first_seen. This parameter is incompatible with 'first_seen_lt' and 'first_seen_gt.",
+                        "in": "query",
+                        "name": "first_seen",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with first_seen being less than given value. This parameter is incompatible with 'first_seen'.",
+                        "in": "query",
+                        "name": "first_seen_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with first_seen being greater than given value. This parameter is incompatible with 'first_seen'.",
+                        "in": "query",
+                        "name": "first_seen_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with first_seen being less than or equal to given value. This parameter is incompatible with 'first_seen'.",
+                        "in": "query",
+                        "name": "first_seen_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with first_seen being greater than or equal to given value. This parameter is incompatible with 'first_seen'.",
+                        "in": "query",
+                        "name": "first_seen_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of last_seen. This parameter is incompatible with 'last_seen_lt' and 'last_seen_gt'.",
+                        "in": "query",
+                        "name": "last_seen",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with last_seen being less than given value. This parameter is incompatible with 'last_seen'.",
+                        "in": "query",
+                        "name": "last_seen_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with last_seen being greater than given value. This parameter is incompatible with 'last_seen'.",
+                        "in": "query",
+                        "name": "last_seen_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with last_seen being less than or equal to than given value. This parameter is incompatible with 'last_seen'.",
+                        "in": "query",
+                        "name": "last_seen_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with last_seen being greater than or equal to given value. This parameter is incompatible with 'last_seen'.",
+                        "in": "query",
+                        "name": "last_seen_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of severity.",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "filter the result by severity less than the given value.",
+                        "in": "query",
+                        "name": "severity_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "filter the result by severity less than or equal to the given value.",
+                        "in": "query",
+                        "name": "severity_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "filter the result by severity greater than the given value.",
+                        "in": "query",
+                        "name": "severity_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "filter the result by severity greater than or equal to the given value.",
+                        "in": "query",
+                        "name": "severity_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the severity category.",
+                        "in": "query",
+                        "name": "severity_category",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "severe",
+                                "material",
+                                "moderate",
+                                "minor"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of risk_category.",
+                        "in": "query",
+                        "name": "risk_category",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Compromised Systems",
+                                "Diligence",
+                                "User Behavior"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of risk_vector.",
+                        "in": "query",
+                        "name": "risk_vector",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "application_security",
+                                "botnet_infections",
+                                "data_breaches",
+                                "desktop_software",
+                                "dkim",
+                                "dnssec",
+                                "file_sharing",
+                                "insecure_systems",
+                                "malware_servers",
+                                "mobile_app_publications",
+                                "mobile_application_security",
+                                "mobile_software",
+                                "open_ports",
+                                "patching_cadence",
+                                "potentially_exploited",
+                                "server_software",
+                                "spam_propagation",
+                                "spf",
+                                "ssl_certificates",
+                                "ssl_configurations",
+                                "unsolicited_comm",
+                                "web_appsec"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of risk_vector_label.",
+                        "in": "query",
+                        "name": "risk_vector_label",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Web Application Headers",
+                                "Botnet Infections",
+                                "Breaches",
+                                "Desktop Software",
+                                "DKIM",
+                                "DNSSEC",
+                                "File Sharing",
+                                "Insecure Systems",
+                                "Malware Servers",
+                                "Mobile App Publications",
+                                "Mobile Application Security",
+                                "Mobile Software",
+                                "Open Ports",
+                                "Patching Cadence",
+                                "Potentially Exploited",
+                                "Server Software",
+                                "Spam Propagation",
+                                "SPF",
+                                "SSL Certificates",
+                                "SSL Configurations",
+                                "Unsolicited Communications",
+                                "Web Application Security"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result by the value of grade. This parameter is incompatible with 'grade_lt' and 'grade_gt'.",
+                        "in": "query",
+                        "name": "details.grade",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "NEUTRAL",
+                                "BAD",
+                                "WARN",
+                                "FAIR",
+                                "GOOD",
+                                "NONE"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with grade being less than given value. The order goes as NEUTRAL < BAD < WARN < FAIR < GOOD This parameter is incompatible with 'grade'.\n",
+                        "in": "query",
+                        "name": "details.grade_lt",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "BAD",
+                                "WARN",
+                                "FAIR",
+                                "GOOD"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter the result with grade being greater than given value. The order goes as NEUTRAL < BAD < WARN < FAIR < GOOD This parameter is incompatible with 'grade'.\n",
+                        "in": "query",
+                        "name": "details.grade_gt",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "NEUTRAL",
+                                "BAD",
+                                "WARN",
+                                "FAIR"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by one or more infection names",
+                        "in": "query",
+                        "name": "details.infection.family",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by the asset category (critical, high, medium, low).",
+                        "in": "query",
+                        "name": "assets.category",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "critical",
+                                "high",
+                                "medium",
+                                "low"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioFindingsCounts"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/infections/statistics": {
+            "post": {
+                "description": "Get Infection statistics data for companies in your portfolio",
+                "operationId": "getPortfolioInfectionStatistics",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "companies": {
+                                        "description": "List of company guids to get statistics for.  Only company guids in the user's portfolio will be processed.",
+                                        "items": {
+                                            "$ref": "#/x-common-definitions/company_guid"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioVulnerabilitiesOrInfectionsStatistics"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets": {
+            "get": {
+                "description": "Detailed list of monitored assets",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    },
+                    {
+                        "description": "The fields to sort the response objects by. Multiple fields can be specified by comma-separating their names. Specifying a field sorts it in ascending order (A->Z). To sort in reverse (descending) order, place a minus sign (-) immediately before the field name. Ex, 'product_name,-provider_name' will sort first by product_name ascending, then by provider_name descending (where the product_name is the same).\n",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "asset",
+                                "-asset",
+                                "asset_type",
+                                "-asset_type",
+                                "country",
+                                "-country",
+                                "country_code",
+                                "-country_code",
+                                "attributed_to.name",
+                                "-attributed_to.name",
+                                "findings.counts_by_severity.severe_material",
+                                "-findings.counts_by_severity.severe_material",
+                                "findings.total_count",
+                                "-findings.total_count",
+                                "hosted_by.name",
+                                "-hosted_by.name",
+                                "importance",
+                                "-importance",
+                                "origin_subsidiary.name",
+                                "-origin_subsidiary.name"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by asset name.",
+                        "in": "query",
+                        "name": "asset",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by multiple asset names, comma-separated.",
+                        "in": "query",
+                        "name": "assets",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by asset type.",
+                        "in": "query",
+                        "name": "asset_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Host",
+                                "IP",
+                                "Android application",
+                                "iOS application"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of country names.",
+                        "in": "query",
+                        "name": "countries",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by country name.",
+                        "in": "query",
+                        "name": "country",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by country codes.",
+                        "in": "query",
+                        "name": "country_code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of 2-letter country codes.",
+                        "in": "query",
+                        "name": "country_codes",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a company name.",
+                        "in": "query",
+                        "name": "attributed_to.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of company guids.",
+                        "in": "query",
+                        "name": "attributed_to.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being the given value.",
+                        "in": "query",
+                        "name": "findings.total_count",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being not equal to the given value.",
+                        "in": "query",
+                        "name": "findings.total_count_ne",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being less than given value.",
+                        "in": "query",
+                        "name": "findings.total_count_lt",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being greater than given value.",
+                        "in": "query",
+                        "name": "findings.total_count_gt",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being less than or equal to given value.",
+                        "in": "query",
+                        "name": "findings.total_count_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter the result with findings' total count being greater than or equal to given value.",
+                        "in": "query",
+                        "name": "findings.total_count_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a hosting provider company name.",
+                        "in": "query",
+                        "name": "hosted_by.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of hosting provider company guids.",
+                        "in": "query",
+                        "name": "hosted_by.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by whether or not the asset has an associated hosting provider.",
+                        "in": "query",
+                        "name": "hosted_by_isnull",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Filter results by asset identifier, currently only used for mobile application assets.",
+                        "in": "query",
+                        "name": "identifier",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by importance value.",
+                        "in": "query",
+                        "name": "importance",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Filter results by an importance category.",
+                        "in": "query",
+                        "name": "importance_category",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of importance categories.",
+                        "in": "query",
+                        "name": "importance_categories",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by IP address.",
+                        "in": "query",
+                        "name": "ip_address",
+                        "required": false,
+                        "schema": {
+                            "format": "ip",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If True, only return assets that are IP addresses.  If False, only return Domain-based assets.",
+                        "in": "query",
+                        "name": "is_ip",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Filter results by origin subsidiary name.",
+                        "in": "query",
+                        "name": "origin_subsidiary.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of origin subsidiary guids.",
+                        "in": "query",
+                        "name": "origin_subsidiary.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter by whether or not the asset is attributed to a subsidiary.",
+                        "in": "query",
+                        "name": "origin_subsidiary_isnull",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated assets affected by a list of threat guids.",
+                        "in": "query",
+                        "name": "threat.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a comma-separated list of threat exposure detection values.",
+                        "example": "mitigated,exposed",
+                        "in": "query",
+                        "name": "threat.exposure_detection",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/PortfolioAsset"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets/bulk": {
+            "post": {
+                "description": "Monitor or stop monitoring a list of assets",
+                "operationId": "bulkMonitorAssets",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "add": {
+                                        "description": "List of assets to start monitoring.",
+                                        "items": {
+                                            "$ref": "#/components/schemas/InputMonitoredAsset"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "delete": {
+                                        "description": "List of assets to stop monitoring.",
+                                        "items": {
+                                            "$ref": "#/components/schemas/InputMonitoredAsset"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "added": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/MonitoredAsset"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "deleted": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/MonitoredAsset"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "errors": {
+                                            "items": {
+                                                "properties": {
+                                                    "assets": {
+                                                        "description": "List of invalid assets",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "company_guid": {
+                                                        "description": "GUID of the company",
+                                                        "type": "string"
+                                                    },
+                                                    "message": {
+                                                        "description": "Error message",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets/bulk/validate": {
+            "post": {
+                "description": "Validate a list of assets for monitoring",
+                "operationId": "validateMonitoredAssets",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "$ref": "#/components/schemas/InputMonitoredAsset"
+                                },
+                                "type": "array"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "invalid": {
+                                            "items": {
+                                                "properties": {
+                                                    "assets": {
+                                                        "description": "List of invalid assets",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "company_guid": {
+                                                        "description": "GUID of the company",
+                                                        "type": "string"
+                                                    },
+                                                    "message": {
+                                                        "description": "Error message",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "valid": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/MonitoredAsset"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets/quota": {
+            "get": {
+                "description": "Obtain the quota values of monitored assets",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioAssetsQuota"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets",
+                    "Quota"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets/summaries": {
+            "get": {
+                "description": "Monitored assets summaries",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioAssetSummaries"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets"
+                ]
+            }
+        },
+        "/portfolio/monitored-assets/threats": {
+            "get": {
+                "description": "Threats for monitored assets",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    },
+                    {
+                        "description": "The fields to sort the response objects by. Multiple fields can be specified by comma-separating their names. Specifying a field sorts it in ascending order (A->Z). To sort in reverse (descending) order, place a minus sign (-) immediately before the field name. Ex, 'product_name,-provider_name' will sort first by product_name ascending, then by provider_name descending (where the product_name is the same).\n",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "guid",
+                                "-guid",
+                                "name",
+                                "-name",
+                                "first_seen_date",
+                                "-first_seen_date",
+                                "last_seen_date",
+                                "-last_seen_date",
+                                "severity",
+                                "-severity",
+                                "exposure_detection",
+                                "-exposure_detection",
+                                "evidence_certainty",
+                                "-evidence_certainty",
+                                "evidence_record_count",
+                                "-evidence_record_count"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a list of categories, comma delimited.",
+                        "example": "vulnerability",
+                        "in": "query",
+                        "name": "category",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a list of severity levels, comma delimited.",
+                        "example": "material,severe",
+                        "in": "query",
+                        "name": "severity_level",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by severity lower than or equal to value.",
+                        "in": "query",
+                        "name": "severity_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Filter results by severity greater than or equal to value.",
+                        "in": "query",
+                        "name": "severity_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Filter results by first seen date lower than or equal to value.",
+                        "example": "2024-12-31",
+                        "in": "query",
+                        "name": "first_seen_date_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by first seen date greater than or equal to value.",
+                        "example": "2024-12-31",
+                        "in": "query",
+                        "name": "first_seen_date_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by last seen date lower than or equal to value.",
+                        "example": "2024-12-31",
+                        "in": "query",
+                        "name": "last_seen_date_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by last seen date greater than or equal to value.",
+                        "example": "2024-12-31",
+                        "in": "query",
+                        "name": "last_seen_date_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a list of evidence certainties, comma delimited.",
+                        "example": "confirmed,likely,possible",
+                        "in": "query",
+                        "name": "evidence_certainty",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a list of exposure detections, comma delimited.",
+                        "example": "exposed,mitigated",
+                        "in": "query",
+                        "name": "exposure_detection",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by a list of threat GUIDs, comma delimited.",
+                        "in": "query",
+                        "name": "guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by evidence record count lower than or equal to value.",
+                        "in": "query",
+                        "name": "evidence_record_count_lte",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter results by evidence record count greater than or equal to value.",
+                        "in": "query",
+                        "name": "evidence_record_count_gte",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Filter results by threats affecting a specific asset. Requires 'attributed_to.guid' filter to be present.",
+                        "example": "1.1.1.1",
+                        "in": "query",
+                        "name": "asset",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter results by threats affecting a specific entity GUID.",
+                        "in": "query",
+                        "name": "attributed_to.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/PortfolioAssetThreat"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Unprocessable"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio",
+                    "Assets"
+                ]
+            }
+        },
+        "/portfolio/product-types": {
+            "get": {
+                "description": "Get all product types for your portfolio",
+                "operationId": "portfolioProductTypes",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductTypes"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Product Types"
+                ]
+            }
+        },
+        "/portfolio/products": {
+            "get": {
+                "description": "Get all products for your portfolio",
+                "operationId": "portfolioProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Products"
+                ]
+            }
+        },
+        "/portfolio/products/{product_guid}/companies": {
+            "get": {
+                "description": "Get all products for one of your folders",
+                "operationId": "portfolioProductCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/ProductGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Products",
+                    "Companies"
+                ]
+            }
+        },
+        "/portfolio/providers": {
+            "get": {
+                "description": "Get all service providers for your portfolio",
+                "operationId": "portfolioProviders",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Providers"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers"
+                ]
+            }
+        },
+        "/portfolio/providers/breaches": {
+            "get": {
+                "description": "Get information about breaches of fourth party service providers of companies in your portfolio\n",
+                "operationId": "getPortfolioProviderBreaches",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreaches"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/portfolio/providers/breaches/reduced": {
+            "get": {
+                "description": "Get a lighter response regarding the information about breaches of fourth party service providers of companies in your portfolio. The dependent companies are substituted with a count.\n",
+                "operationId": "getPortfolioProviderBreachesReduced",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreachesReduced"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/portfolio/providers/breaches/{breach_guid}": {
+            "get": {
+                "description": "Get information about a specific breach of fourth party service providers of companies in your portfolio\n",
+                "operationId": "getPortfolioProviderBreach",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/BreachGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreach"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/portfolio/providers/{provider_guid}/companies": {
+            "get": {
+                "description": "Get all providers for one of your folders",
+                "operationId": "portfolioProviderCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers",
+                    "Companies"
+                ]
+            }
+        },
+        "/portfolio/providers/{provider_guid}/products": {
+            "get": {
+                "description": "Get the products provided a specific provider",
+                "operationId": "portfolioProviderProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    },
+                    {
+                        "$ref": "#/components/parameters/RelationshipType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Portfolio",
+                    "Providers",
+                    "Products"
+                ]
+            }
+        },
+        "/portfolio/ratings": {
+            "get": {
+                "description": "Get rating details for companies in your portfolio",
+                "operationId": "getPortfolioRatings",
+                "parameters": [
+                    {
+                        "description": "If expand=rating_details, show scores for each risk vector",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "rating_details"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Return either daily, weekly, monthly, or the latest ratings data",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "default": "monthly",
+                            "enum": [
+                                "daily",
+                                "weekly",
+                                "monthly",
+                                "latest"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter ratings starting on the specified date",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter ratings ending on the specified date",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/PortfolioRating"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "A list of ratings on the specified dates"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/risk-correlations/ransomware-incidents/statistics": {
+            "get": {
+                "description": "Count of companies in each ransomware incident risk bucket",
+                "operationId": "RansomwareIncidentsStatistics",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RiskCorrelationsStatistics"
+                                }
+                            }
+                        },
+                        "description": "Statistics of ransomware incidents risk probabilities"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Risk Correlations"
+                ]
+            }
+        },
+        "/portfolio/risk-correlations/security-incidents/risk-vectors/summaries": {
+            "get": {
+                "description": "Count of companies in each security incident risk vector",
+                "operationId": "RiskVectorCorrelationSummaries",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RiskVectorCorrelationsSummaries"
+                                }
+                            }
+                        },
+                        "description": "Summaries of risk vectors risk probabilities"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Risk Correlations"
+                ]
+            }
+        },
+        "/portfolio/risk-correlations/security-incidents/statistics": {
+            "get": {
+                "description": "Count of companies in each security incident risk bucket",
+                "operationId": "SecurityIncidentsStatistics",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RiskCorrelationsStatistics"
+                                }
+                            }
+                        },
+                        "description": "Statistics of security incidents risk probabilities"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Risk Correlations"
+                ]
+            }
+        },
+        "/portfolio/risk-vectors/grades": {
+            "get": {
+                "description": "Get risk vector grades for companies in your portfolio",
+                "operationId": "getPortfolioRiskVectorGrades",
+                "parameters": [
+                    {
+                        "description": "latest returns the grades for the most recent date; monthly returns the grades for the first day of the month for the most recent 12 months\n",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "default": "latest",
+                            "enum": [
+                                "latest",
+                                "monthly"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the starting record for the result set",
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "default": 0,
+                            "format": "int32",
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "the maximum number of records to return",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "default": 100,
+                            "format": "int32",
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "filters by a specific list of comma-separated company GUIDs",
+                        "in": "query",
+                        "name": "company.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by folder guid",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "Filters by tier guid",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioRiskVectorsGrades"
+                                }
+                            }
+                        },
+                        "description": "A list of risk vector grades for a specific period"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/statistics": {
+            "get": {
+                "description": "Get statistics information for companies in your portfolio",
+                "operationId": "getPortfolioStatistics",
+                "parameters": [
+                    {
+                        "description": "Filter portfolio for companies in the specified folder",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter portfolio for companies in the specified tier",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "A list of statistic types to return",
+                        "in": "query",
+                        "name": "types",
+                        "required": false,
+                        "schema": {
+                            "items": {
+                                "enum": [
+                                    "risk_vector_averages",
+                                    "ratings"
+                                ],
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    {
+                        "description": "Requested rating date for the portfolio statistics",
+                        "in": "query",
+                        "name": "rating_date",
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioStatistic"
+                                }
+                            }
+                        },
+                        "description": "A portfolio statistic object, the content may varies based on the types param"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/territories/industries/risk-vectors/grades": {
+            "get": {
+                "description": "Get risk vector grades for territory industries in your portfolio",
+                "operationId": "getPortfolioTerritoriesIndustriesRiskVectorGrades",
+                "parameters": [
+                    {
+                        "description": "latest returns the grades for the most recent date; monthly returns the grades for the first day of the month for the most recent 12 months\n",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "default": "latest",
+                            "enum": [
+                                "latest",
+                                "monthly"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Comma separated list of industry sectors to filter by",
+                        "in": "query",
+                        "name": "industry_sectors",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Comma separated list of risk vectors to filter by",
+                        "in": "query",
+                        "name": "risk_vectors",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioTerritoryIndustryRiskVectorGradesResult"
+                                }
+                            }
+                        },
+                        "description": "A list of risk vector grades for a specific period"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/territories/risk-vectors/grades": {
+            "get": {
+                "description": "Get risk vector grades for a territory in Portfolio",
+                "operationId": "getPortfolioTerritoryRiskVectorGrades",
+                "parameters": [
+                    {
+                        "description": "latest returns the grades for the most recent date; monthly returns the grades for the first day of the month for the most recent 12 months\n",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "default": "latest",
+                            "enum": [
+                                "latest",
+                                "monthly"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioTerritoryRiskVectorGrades"
+                                }
+                            }
+                        },
+                        "description": "A list of risk vector grades for a specific period"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/portfolio/vulnerabilities": {
+            "get": {
+                "description": "Endpoint for fetching vulnerabilities data for a portfolio",
+                "operationId": "listPortfolioVulnerabilities",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the vulnerabilities by the specified parameters, separated by a comma. Sort by first in the list first applied. The list of available values are ['name', '-name', 'alias', '-alias', 'display_name', '-display_name', 'severity', '-severity', 'companies_impacted', '-companies_impacted']\n",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the severity of the vulnerabilities to fetch",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Severe",
+                                "Material",
+                                "Moderate",
+                                "Minor"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the status of the vulnerability that should be returned, can contain one or more of the statuses. The available values are [unique_alias_supported, unique_alias_unsupported, dupe_alias_supported, dupe_alias_unsupported, aggregate_row]\n",
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The scope filter helps on limiting the companies considered in the impacted count, where you can either consider your whole portfolio or just the 'spm' related companies.\n",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/PortfolioVulnerability"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                }
+            }
+        },
+        "/portfolio/vulnerabilities/statistics": {
+            "post": {
+                "description": "Get Vulnerability statistics data for companies in your portfolio",
+                "operationId": "getPortfolioVulnerabilityStatistics",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "companies": {
+                                        "description": "List of company guids to get statistics for.  Only company guids in the user's portfolio will be processed.",
+                                        "items": {
+                                            "$ref": "#/x-common-definitions/company_guid"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "include_potential": {
+                                        "description": "Optional Includes potential vulnerabilities in addition to confirmed vulnerabilities. Only confirmed vulnerabilities by default.",
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioVulnerabilitiesOrInfectionsStatistics"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Portfolio"
+                ]
+            }
+        },
+        "/products/{product_guid}": {
+            "get": {
+                "description": "Get information about a specific product",
+                "operationId": "product",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/ProductGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Product"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Products"
+                ]
+            }
+        },
+        "/providers/{provider_guid}": {
+            "get": {
+                "description": "Get information about a specific provider",
+                "operationId": "provider",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Providers"
+                ]
+            }
+        }
+    }
+}

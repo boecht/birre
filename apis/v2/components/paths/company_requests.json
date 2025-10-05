@@ -1,0 +1,477 @@
+{
+    "paths": {
+        "/company-requests": {
+            "get": {
+                "description": "Lists company requests",
+                "operationId": "getCompanyRequests",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the company requests by the specified parameters, separated by a comma. '-' can be used to prefix a parameter to invert the order.\n",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "created_time",
+                                "updated_time",
+                                "domain",
+                                "requester.formal_name"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by matching domains",
+                        "in": "query",
+                        "name": "domain",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more specific statuses, comma separated",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by a specific company guid",
+                        "in": "query",
+                        "name": "company.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more specific requesters, by name, comma separated",
+                        "in": "query",
+                        "name": "requester.formal_name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more specific requesters, by guid, comma separated. Supports 'current' alias for selecting the current user.\n",
+                        "in": "query",
+                        "name": "requester.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Excludes one or more specific requesters, by guid, comma separated. Supports 'current' alias for selecting the current user.\n",
+                        "in": "query",
+                        "name": "exclude_requester.guid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by requests created after or at the provided ISO 8601 datetime.",
+                        "in": "query",
+                        "name": "created_time_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by requests created before or at the provided ISO 8601 datetime.",
+                        "in": "query",
+                        "name": "created_time_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by requests updated after or at the provided ISO 8601 datetime.",
+                        "in": "query",
+                        "name": "updated_time_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by requests updated before or at the provided ISO 8601 datetime.",
+                        "in": "query",
+                        "name": "updated_time_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/CompanyRequestsResponse"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "There is an error in your request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "You do not have sufficient privileges in the system to perform this request\n"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            },
+            "post": {
+                "description": "Requests a company, not yet on Bitsight company inventory",
+                "operationId": "createCompanyRequest",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "company_request": {
+                                        "$ref": "#/components/schemas/CompanyRequest"
+                                    }
+                                },
+                                "required": [
+                                    "company_request"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyRequest"
+                                }
+                            }
+                        },
+                        "description": "Company request submitted successfully"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "details": {
+                                            "$ref": "#/components/schemas/CompanyRequest"
+                                        },
+                                        "domain": {
+                                            "items": {
+                                                "example": "A pending request for the given domain already exists.",
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "There is already a pending request for this company submitted by you."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            }
+        },
+        "/company-requests/bulk": {
+            "post": {
+                "description": "Manage the bulk creation of company requests from a given CSV.",
+                "operationId": "createCompanyRequestBulk",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "file": {
+                                        "description": "Csv file containing bulk company requests.",
+                                        "type": "string"
+                                    },
+                                    "folder_guid": {
+                                        "description": "Folder guid",
+                                        "type": "string"
+                                    },
+                                    "subscription_type": {
+                                        "description": "Subscription type",
+                                        "type": "string"
+                                    },
+                                    "tier_guid": {
+                                        "description": "Tier guid",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "file"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyRequest"
+                                }
+                            }
+                        },
+                        "description": "Company request submitted successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            }
+        },
+        "/company-requests/{guid}": {
+            "delete": {
+                "description": "Cancel a submitted company request",
+                "operationId": "deleteCompanyRequest",
+                "parameters": [
+                    {
+                        "description": "Company request guid",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The company request was successfully cancelled"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            },
+            "get": {
+                "description": "Get detailed information about a company request",
+                "operationId": "getCompanyRequest",
+                "parameters": [
+                    {
+                        "description": "Company request guid",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyRequest"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            },
+            "patch": {
+                "description": "Edit a company request",
+                "operationId": "editCompanyRequest",
+                "parameters": [
+                    {
+                        "description": "Company request guid",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "maxLength": 36,
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "company_request": {
+                                        "$ref": "#/components/schemas/CompanyRequest",
+                                        "description": "The details of the company request to modify."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyRequest"
+                                }
+                            }
+                        },
+                        "description": "Company request modified successfully"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Company Requests"
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,706 @@
+{
+    "paths": {
+        "/companies/{company_guid}/financial-quantifications": {
+            "get": {
+                "description": "Get all financial quantifications for a company",
+                "operationId": "get_fqs_customer_api_v1_companies__company_guid__financial_quantifications_get",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Company Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "title": "Sort",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "is_legacy",
+                        "required": false,
+                        "schema": {
+                            "title": "Is Legacy",
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "title": "Status",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status__ne",
+                        "required": false,
+                        "schema": {
+                            "title": "Status  Ne",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "default": 0,
+                            "minimum": 0,
+                            "title": "Offset",
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "default": 10,
+                            "maximum": 100,
+                            "minimum": 0,
+                            "title": "Limit",
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Page_FqSummaryResponse_"
+                                }
+                            }
+                        },
+                        "description": "Successful Response,"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                        "description": "Validation Error,"
+                    }
+                },
+                "summary": "Get Fqs",
+                "tags": [
+                    "Financial Quantification"
+                ]
+            },
+            "post": {
+                "description": "Creates a draft FQ unless submit=true is specified",
+                "operationId": "create_fq_for_company_customer_api_v1_companies__company_guid__financial_quantifications_post",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Company Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submit",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "title": "Submit",
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FqInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response for Draft"
+                    },
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response for Submission"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                        "description": "Validation Error,"
+                    }
+                },
+                "summary": "Create Fq For Company",
+                "tags": [
+                    "Financial Quantification"
+                ]
+            }
+        },
+        "/companies/{company_guid}/financial-quantifications/latest": {
+            "get": {
+                "description": "Get the most recent FQ for a company (by update date)",
+                "operationId": "get_latest_fq_customer_api_v1_companies__company_guid__financial_quantifications_latest_get",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Company Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Created At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "updated_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Updated At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submitted_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Submitted At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__lt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Lt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__lte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Lte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__gt",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Gt",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "completed_at__gte",
+                        "required": false,
+                        "schema": {
+                            "format": "bitsight-date-time",
+                            "title": "Completed At  Gte",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "title": "Sort",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "title": "Status",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status__ne",
+                        "required": false,
+                        "schema": {
+                            "title": "Status  Ne",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response,"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                        "description": "Validation Error,"
+                    }
+                },
+                "summary": "Get Latest Fq",
+                "tags": [
+                    "Financial Quantification"
+                ]
+            }
+        },
+        "/companies/{company_guid}/financial-quantifications/{fq_guid}": {
+            "get": {
+                "description": "Get a specific FQ for a company",
+                "operationId": "get_fq_customer_api_v1_companies__company_guid__financial_quantifications__fq_guid__get",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Company Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "fq_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Fq Guid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response,"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                        "description": "Validation Error,"
+                    }
+                },
+                "summary": "Get Fq",
+                "tags": [
+                    "Financial Quantification"
+                ]
+            },
+            "put": {
+                "description": "Updates a draft FQ (submit=true will also submit it)",
+                "operationId": "update_fq_customer_api_v1_companies__company_guid__financial_quantifications__fq_guid__put",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Company Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "fq_guid",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "title": "Fq Guid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "submit",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "title": "Submit",
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FqInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response for Draft"
+                    },
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FqDetailResponse"
+                                }
+                            }
+                        },
+                        "description": "Successful Response for Submission"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                        "description": "Validation Error"
+                    }
+                },
+                "summary": "Update Fq",
+                "tags": [
+                    "Financial Quantification"
+                ]
+            }
+        }
+    }
+}

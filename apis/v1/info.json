@@ -1,0 +1,7 @@
+{
+    "info": {
+        "description": "`api.bitsighttech.com/v1` [requires API token](https://help.bitsighttech.com/hc/en-us/articles/231872628)\n",
+        "title": "Bitsight Customer API",
+        "version": "1.0.0"
+    }
+}

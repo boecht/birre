@@ -1,0 +1,1045 @@
+{
+    "paths": {
+        "/rating-release-previews": {
+            "get": {
+                "description": "For a company or companies, get a CSV with the rating(s) using the updated and existing algorithms during the RAU preview period.",
+                "operationId": "listRatingReleasePreviews",
+                "parameters": [
+                    {
+                        "description": "Guid of the folder",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "Guid of the tier",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    },
+                    {
+                        "description": "Date of the rating in YYYY-MM-DD format.",
+                        "in": "query",
+                        "name": "rating_date",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "default": "csv",
+                            "enum": [
+                                "csv"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns csv of rating algorithm update"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "ReleasePreview"
+                ]
+            }
+        },
+        "/rating-release-previews/portfolio/statistics": {
+            "get": {
+                "description": "Get aggregate statistics on RAU preview data for companies in your portfolio. Shows risk vector grades, median rating and rating category for companies using the updated and existing algorithms during the RAU preview period.",
+                "operationId": "getPortfolioStatisticsRAU",
+                "parameters": [
+                    {
+                        "description": "Filter portfolio for companies in the specified folder",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filter portfolio for companies in the specified tier",
+                        "in": "query",
+                        "name": "tier",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Requested rating date for the portfolio statistics",
+                        "in": "query",
+                        "name": "rating_date",
+                        "required": true,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Risk vector to count portfolio grade distributions",
+                        "in": "query",
+                        "name": "risk_vector",
+                        "required": false,
+                        "schema": {
+                            "example": "patching_cadence",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioStatisticRAU"
+                                }
+                            }
+                        },
+                        "description": "A portfolio statistic object, the content may varies based on the types param"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "ReleasePreview"
+                ]
+            }
+        },
+        "/rating-release-previews/{company_guid}": {
+            "get": {
+                "description": "For a company or companies, get the risk vector grade, percentile, and rating using the updated and existing algorithms during the RAU preview period.",
+                "operationId": "getRatingReleasePreview",
+                "parameters": [
+                    {
+                        "description": "Guid of the company",
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "description": "Requested rating date for the ratings preview",
+                        "in": "query",
+                        "name": "rating_date",
+                        "required": true,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RAUReleasePreviewResponse"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns info of company rating"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "ReleasePreview"
+                ]
+            }
+        },
+        "/rating-release-previews/{company_guid}/summaries": {
+            "get": {
+                "description": "For a company or companies, get the rating(s) using the updated and existing algorithms during the RAU preview period.",
+                "operationId": "getRatingReleasePreviewSummaries",
+                "parameters": [
+                    {
+                        "description": "Guid of the company",
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RAUReleasePreviewSummariesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns info of company rating"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "ReleasePreview"
+                ]
+            }
+        },
+        "/release-notes": {
+            "get": {
+                "description": "Retrieve the release note in descending order",
+                "operationId": "getReleaseNotes",
+                "parameters": [
+                    {
+                        "description": "ISO formatted date to start looking for release note (inclusive)",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "ISO formatted date to stop looking for release note (exclusive)",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ReleaseNote"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns release notes"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "ReleaseNote"
+                ]
+            }
+        },
+        "/release-notes/{id}": {
+            "get": {
+                "description": "Retrieve a single release note based on given ID",
+                "operationId": "getReleaseNote",
+                "parameters": [
+                    {
+                        "description": "ID of release note",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReleaseNote"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns single release note"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "ReleaseNote"
+                ]
+            }
+        },
+        "/remediations": {
+            "get": {
+                "description": "Get a list of event remediation records",
+                "operationId": "listRemediations",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "evidence_key",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "risk_vector",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_time_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "datetime",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_time_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "datetime",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "No Status",
+                                "Open",
+                                "To Do",
+                                "Work In Progress",
+                                "Resolved",
+                                "Risk Accepted"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "creator",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "rolledup_observation_id",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            },
+            "post": {
+                "description": "Create a new event remediation record",
+                "operationId": "newEventRemediation",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "data": {
+                                        "description": "The parameters needed to create a new event remediation record",
+                                        "items": {
+                                            "$ref": "#/components/schemas/EventRemediationRecordArgs"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            }
+        },
+        "/remediations/preferences": {
+            "get": {
+                "description": "Get customer preferences for issue tracking",
+                "operationId": "getRemediationPreferences",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemediationPreferences"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            },
+            "patch": {
+                "description": "Update customer preferences for issue tracking",
+                "operationId": "updateRemediationPreferences",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemediationPreferences"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemediationPreferences"
+                                }
+                            }
+                        },
+                        "description": "Successful Operation"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            },
+            "post": {
+                "description": "Create customer preferences for issue tracking",
+                "operationId": "createRemediationPreferences",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemediationPreferences"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemediationPreferences"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            }
+        },
+        "/remediations/summaries": {
+            "get": {
+                "description": "Get summary counts of remediation statuses.",
+                "operationId": "listRemediationSummaries",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "companies",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "remediation_assignments",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "risk_vector",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "A comma separated list of fields to expand with possible values severity or grade.",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RemediationSummaries"
+                                }
+                            }
+                        },
+                        "description": "Successful operation"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "tags": [
+                    "Remediations"
+                ]
+            }
+        },
+        "/reports/dashboards": {
+            "get": {
+                "description": "Get dashboards for an user",
+                "operationId": "getDashboards",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Dashboards"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "A list of dashboards with details for an user"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Reports"
+                ]
+            }
+        },
+        "/reports/spi/requests": {
+            "post": {
+                "description": "Create spi report request for an entity",
+                "operationId": "postSPIReportRequest",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "company_guid": {
+                                        "$ref": "#/x-common-definitions/company_guid",
+                                        "description": "Company guid of the entity that needs the report"
+                                    },
+                                    "status": {
+                                        "description": "Status of the report request. Should be new, failed or complete\n",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SPIReportRequests"
+                                }
+                            }
+                        },
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Reports"
+                ]
+            }
+        },
+        "/reports/user-workbooks": {
+            "get": {
+                "description": "Lists workbooks user workbooks",
+                "operationId": "getUserWorkbooks",
+                "parameters": [
+                    {
+                        "description": "the number of entries per page",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "the pagination offset",
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "orders results by one or a combination of fields. Multiple fields can be comma separated. A minus sign can be prepending to request descending order for that field. Supported sorting fields: [updated_time, guid]\n",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Seaches in report name, description and category names",
+                        "in": "query",
+                        "name": "q",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserWorkbooks"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Reports"
+                ]
+            },
+            "post": {
+                "description": "Uploads a tableau workbook as a new user report",
+                "operationId": "postUserWorkbook",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "description": {
+                                        "description": "Workbook report description",
+                                        "maxLength": 140,
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "description": "Workbook report name",
+                                        "maxLength": 32,
+                                        "type": "string"
+                                    },
+                                    "show_tabs": {
+                                        "description": "Allow navigation between views in this workbook by clicking on tabs.",
+                                        "type": "boolean"
+                                    },
+                                    "workbook_file": {
+                                        "description": "A twb or twbx workbook file. Note that a workbook with local dependencies which are not included cannot be uploaded and published successfully.\n",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserWorkbook"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Reports"
+                ]
+            }
+        },
+        "/reports/{guid}/share": {
+            "post": {
+                "description": "Shares a previously rendered report by email as attachment",
+                "operationId": "ReportsShare",
+                "parameters": [
+                    {
+                        "description": "The guid of the report to share.",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "cc_self": {
+                                        "default": false,
+                                        "description": "Option to also send the report by email to the user",
+                                        "type": "boolean"
+                                    },
+                                    "message": {
+                                        "description": "Optional message to be included in the email",
+                                        "maxLength": 10000,
+                                        "type": "string"
+                                    },
+                                    "recipient_emails": {
+                                        "description": "List of email recipients",
+                                        "items": {
+                                            "description": "email recipient",
+                                            "format": "email",
+                                            "type": "string"
+                                        },
+                                        "maxItems": 10,
+                                        "minItems": 1,
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportsShare"
+                                }
+                            }
+                        },
+                        "description": "Succeeded in sharing the report by email"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Reports"
+                ]
+            }
+        }
+    }
+}

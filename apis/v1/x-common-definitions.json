@@ -1,0 +1,403 @@
+{
+    "x-common-definitions": {
+        "SpsPaginationWrapper": {
+            "properties": {
+                "count": {
+                    "description": "the total number of records available to page through",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "query": {
+                    "description": "the parameters used to make the request for this data",
+                    "properties": {
+                        "limit": {
+                            "description": "the maximum number of records to return",
+                            "format": "int32",
+                            "type": "integer"
+                        },
+                        "offset": {
+                            "description": "the starting record for the result set",
+                            "format": "int32",
+                            "type": "integer"
+                        },
+                        "q": {
+                            "description": "the full-text query filter",
+                            "type": "string"
+                        },
+                        "query": {
+                            "description": "The query parameters provided to the original call.  Only included if return_query is set to true\n",
+                            "type": "object"
+                        },
+                        "sort": {
+                            "description": "the sort parameters",
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "summaries": {
+                    "description": "The filter summaries for the returned data.  Only included if include_summaries is set to true\n",
+                    "properties": {
+                        "enums": {
+                            "description": "map of field name to the number of results that match",
+                            "type": "object"
+                        },
+                        "ranges": {
+                            "description": "map of field name to the range of values present for that field",
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "max": {
+                                            "description": "the maximum observed value",
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "min": {
+                                            "description": "the minimum observed value",
+                                            "format": "double",
+                                            "type": "number"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "max_date": {
+                                            "description": "the maximum observed date",
+                                            "format": "date",
+                                            "type": "string"
+                                        },
+                                        "min_date": {
+                                            "description": "the minimum observed date",
+                                            "format": "date",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "assets_category": {
+            "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+            ],
+            "type": "string"
+        },
+        "company_guid": {
+            "description": "GUID of the company",
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "format": "uuid",
+            "maxLength": 36,
+            "type": "string"
+        },
+        "company_guid_or_default": {
+            "description": "GUID of the company or the string 'default'",
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "maxLength": 36,
+            "pattern": "^(default)|([0-9a-fA-F-]{36})$",
+            "type": "string"
+        },
+        "company_relationship_types": {
+            "description": "The type of relationship between this company and the customer",
+            "enum": [
+                "vendor",
+                "strategic_partner",
+                "competitor",
+                "fourth_party",
+                "subsidiary",
+                "other"
+            ],
+            "example": "vendor",
+            "type": "string"
+        },
+        "customer_guid": {
+            "description": "GUID of the customer",
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "format": "uuid",
+            "maxLength": 36,
+            "type": "string"
+        },
+        "default_read_errors": {
+            "401": {
+                "$ref": "#/components/responses/Unauthorized"
+            },
+            "403": {
+                "$ref": "#/components/responses/PermissionDenied"
+            },
+            "404": {
+                "$ref": "#/components/responses/NotFound"
+            },
+            "default": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                },
+                "description": "Unexpected error"
+            }
+        },
+        "default_security": {
+            "security": [
+                {
+                    "Jwt": []
+                },
+                {
+                    "Token": []
+                }
+            ]
+        },
+        "default_write_errors": {
+            "400": {
+                "$ref": "#/components/responses/BadData"
+            },
+            "401": {
+                "$ref": "#/components/responses/Unauthorized"
+            },
+            "403": {
+                "$ref": "#/components/responses/PermissionDenied"
+            },
+            "404": {
+                "$ref": "#/components/responses/NotFound"
+            },
+            "default": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiError"
+                        }
+                    }
+                },
+                "description": "Unexpected error"
+            }
+        },
+        "folder_guid": {
+            "description": "GUID of the folder",
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "format": "uuid",
+            "maxLength": 36,
+            "type": "string"
+        },
+        "grade": {
+            "enum": [
+                "NEUTRAL",
+                "BAD",
+                "WARN",
+                "FAIR",
+                "GOOD",
+                "NONE"
+            ],
+            "type": "string"
+        },
+        "guid": {
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "format": "uuid",
+            "maxLength": 36,
+            "type": "string"
+        },
+        "life_cycle_types": {
+            "description": "The type of life cycle",
+            "enum": [
+                "Onboarding",
+                "Monitoring",
+                "Re-Assessment"
+            ],
+            "type": "string"
+        },
+        "paginated_result": {
+            "properties": {
+                "count": {
+                    "description": "The total number of results",
+                    "type": "integer"
+                },
+                "links": {
+                    "description": "A set of links to traverse the result set",
+                    "properties": {
+                        "next": {
+                            "nullable": true,
+                            "type": "string"
+                        },
+                        "previous": {
+                            "nullable": true,
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "results": {
+                    "description": "The actual results page",
+                    "items": {
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "summaries": {
+                    "description": "Summary metadata about the response.",
+                    "nullable": true,
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "peer_analytics_action": {
+            "security": [
+                {
+                    "Jwt": []
+                },
+                {
+                    "Token": []
+                }
+            ],
+            "tags": [
+                "Peer Analytics"
+            ]
+        },
+        "refresh_status_label": {
+            "description": "The refresh status value.",
+            "enum": [
+                "in_progress",
+                "completed",
+                "failed"
+            ],
+            "type": "string"
+        },
+        "relationship_type": {
+            "description": "the type of this fourth-party relationship.  'bitsight' if the relationship came from Bitsight's data, 'self' if the relationship was entered by a user, and 'none' if there is not yet a relationship with this fourth party\n",
+            "enum": [
+                "bitsight",
+                "self",
+                "none"
+            ],
+            "type": "string"
+        },
+        "remediation_status_label": {
+            "enum": [
+                "No Status",
+                "Open",
+                "To Do",
+                "Work In Progress",
+                "Resolved",
+                "Risk Accepted"
+            ],
+            "type": "string"
+        },
+        "risk_category": {
+            "enum": [
+                "Compromised Systems",
+                "Diligence",
+                "User Behavior"
+            ],
+            "type": "string"
+        },
+        "risk_vector": {
+            "enum": [
+                "application_security",
+                "botnet_infections",
+                "data_breaches",
+                "desktop_software",
+                "dkim",
+                "dnssec",
+                "file_sharing",
+                "insecure_systems",
+                "malware_servers",
+                "mobile_app_publications",
+                "mobile_application_security",
+                "mobile_software",
+                "open_ports",
+                "patching_cadence",
+                "potentially_exploited",
+                "server_software",
+                "spam_propagation",
+                "spf",
+                "ssl_certificates",
+                "ssl_configurations",
+                "unsolicited_comm",
+                "web_appsec"
+            ],
+            "type": "string"
+        },
+        "risk_vector_label": {
+            "enum": [
+                "Web Application Headers",
+                "Botnet Infections",
+                "Breaches",
+                "Desktop Software",
+                "DKIM",
+                "DNSSEC",
+                "File Sharing",
+                "Insecure Systems",
+                "Malware Servers",
+                "Mobile App Publications",
+                "Mobile Application Security",
+                "Mobile Software",
+                "Open Ports",
+                "Patching Cadence",
+                "Potentially Exploited",
+                "Server Software",
+                "Spam Propagation",
+                "SPF",
+                "SSL Certificates",
+                "SSL Configurations",
+                "Unsolicited Communications",
+                "Web Application Security"
+            ],
+            "type": "string"
+        },
+        "severity_category": {
+            "enum": [
+                "severe",
+                "material",
+                "moderate",
+                "minor"
+            ],
+            "type": "string"
+        },
+        "statistics_action": {
+            "security": [
+                {
+                    "Jwt": []
+                },
+                {
+                    "Token": []
+                }
+            ],
+            "tags": [
+                "Statistics"
+            ]
+        },
+        "tier_guid": {
+            "description": "GUID of the tier",
+            "example": "a940bb61-33c4-42c9-9231-c8194c305db3",
+            "format": "uuid",
+            "maxLength": 36,
+            "type": "string"
+        },
+        "vulnerability_confidence": {
+            "description": "The confidence in findings for this vulnerability, either HIGH or LOW.",
+            "enum": [
+                "HIGH",
+                "LOW"
+            ],
+            "type": "string"
+        },
+        "vulnerability_severity": {
+            "enum": [
+                "Severe",
+                "Material",
+                "Moderate",
+                "Minor"
+            ],
+            "type": "string"
+        }
+    }
+}

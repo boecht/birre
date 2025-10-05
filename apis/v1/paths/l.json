@@ -1,0 +1,89 @@
+{
+    "paths": {
+        "/licenses/summaries": {
+            "get": {
+                "description": "get license type summaries including usage info",
+                "operationId": "getLicenseSummary",
+                "parameters": [
+                    {
+                        "description": "a comma separated list of license type slugs",
+                        "in": "query",
+                        "name": "license_usage.slug",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "license_usage": {
+                                            "description": "license type usage information",
+                                            "items": {
+                                                "properties": {
+                                                    "name": {
+                                                        "description": "the name of the license type",
+                                                        "example": "Security Rating",
+                                                        "type": "string"
+                                                    },
+                                                    "remaining": {
+                                                        "description": "how many licenses of this type is still remaining",
+                                                        "example": 5,
+                                                        "type": "integer"
+                                                    },
+                                                    "slug": {
+                                                        "description": "the api key name of the license type",
+                                                        "example": "security-rating",
+                                                        "type": "string"
+                                                    },
+                                                    "total": {
+                                                        "description": "how many licenses of this type was purchased in total",
+                                                        "example": 10,
+                                                        "type": "integer"
+                                                    },
+                                                    "used": {
+                                                        "description": "how many licenses of this type has been used",
+                                                        "example": 5,
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Licenses"
+                ]
+            }
+        }
+    }
+}

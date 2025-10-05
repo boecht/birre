@@ -1,0 +1,380 @@
+{
+    "paths": {
+        "/dashboards/{dashboard_key}": {
+            "get": {
+                "description": "Get the dashboard layout associated with the requesting user and provided dashboard key.",
+                "operationId": "dashboards.get",
+                "parameters": [
+                    {
+                        "description": "The specific feature requesting a dashboard layout",
+                        "in": "path",
+                        "name": "dashboard_key",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The guid of the company which the dashboard relates to",
+                        "in": "query",
+                        "name": "company",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DashboardInfo"
+                                }
+                            }
+                        },
+                        "description": "Dashboard layout information"
+                    },
+                    "204": {
+                        "description": "No existing dashboard for the user"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Dashboards"
+                ]
+            },
+            "put": {
+                "description": "Create or update the dashboard layout for the requesting user and provided dashboard key.",
+                "operationId": "dashboards.put",
+                "parameters": [
+                    {
+                        "description": "The specific feature requesting a dashboard layout",
+                        "in": "path",
+                        "name": "dashboard_key",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The guid of the company which the dashboard relates to",
+                        "in": "query",
+                        "name": "company",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "idp": {
+                                        "$ref": "#/components/schemas/DashboardInfo"
+                                    }
+                                },
+                                "required": [
+                                    "idp"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DashboardInfo"
+                                }
+                            }
+                        },
+                        "description": "Dashboard layout information"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Dashboards"
+                ]
+            }
+        },
+        "/defaults": {
+            "get": {
+                "description": "Default names, values, ranges, and colors used to display Bitsight data",
+                "operationId": "getDefaults",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Defaults"
+                                }
+                            }
+                        },
+                        "description": "Default names and values"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Defaults"
+                ]
+            }
+        },
+        "/defaults/compliance-certifications": {
+            "get": {
+                "description": "Complete list of compliance certifications",
+                "operationId": "getDefaultsComplianceCertifications",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ComplianceClaimSupportedCertifications"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Complete list of compliance certifications"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Defaults"
+                ]
+            }
+        },
+        "/defaults/risk-correlations": {
+            "get": {
+                "description": "Complete list of risk correlation studies values",
+                "operationId": "getDefaultsRiskCorrelations",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/RiskCorrelationsValues"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Complete list of risk correlation studies values"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Defaults"
+                ]
+            }
+        },
+        "/delegated-security-controls-summary": {
+            "get": {
+                "description": "Summary of the delegated security controls",
+                "operationId": "getDelegatedSecurityControlsSummary",
+                "parameters": [
+                    {
+                        "description": "Determines the scope of the entities (spm-and-tree, tprm, or cni)",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm-and-tree",
+                                "tprm",
+                                "cni"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Guid for specific benchmark group",
+                        "in": "query",
+                        "name": "selected_benchmark_group",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "csp": {
+                                            "description": "The names of the CSP entities",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "csp_entities_count": {
+                                            "description": "The count of CSP entities",
+                                            "type": "integer"
+                                        },
+                                        "dce_live_count": {
+                                            "description": "The count of DCEs that are live",
+                                            "type": "integer"
+                                        },
+                                        "dce_preview_count": {
+                                            "description": "The count of DCEs in preview",
+                                            "type": "integer"
+                                        },
+                                        "latest_live_date": {
+                                            "description": "The latest live date for a DCE",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "DCEs"
+                ]
+            }
+        },
+        "/diligence/statistics": {
+            "post": {
+                "description": "Computes Risk Type statistics for Diligence",
+                "operationId": "diligence.batch.statistics",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "statistics_args": {
+                                        "$ref": "#/components/schemas/BatchStatisticsArgs"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DiligenceBatchStatistics"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Statistics"
+                ]
+            }
+        }
+    }
+}

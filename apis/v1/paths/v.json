@@ -1,0 +1,449 @@
+{
+    "paths": {
+        "/view-preferences": {
+            "get": {
+                "description": "Retrieves a list of all user view preferences",
+                "operationId": "listUserViewPreferences",
+                "parameters": [
+                    {
+                        "description": "Filters by a given target. Multiple targets can be specified by comma-separating their names.",
+                        "in": "query",
+                        "name": "target",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/UserViewPreferences"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UserViewPreferences"
+                ]
+            },
+            "post": {
+                "description": "Creates new user view preferences",
+                "operationId": "createUserViewPreferences",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserViewPreferences",
+                                "required": [
+                                    "name",
+                                    "description",
+                                    "target"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UserViewPreferences"
+                ]
+            }
+        },
+        "/view-preferences/{guid}": {
+            "delete": {
+                "description": "Delete the user view preferences",
+                "operationId": "deleteUserViewPreferences",
+                "parameters": [
+                    {
+                        "description": "GUID of the user view preferences",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successful deletion of user view preferences"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UserViewPreferences"
+                ]
+            },
+            "get": {
+                "description": "Retrieves the user view preferences",
+                "operationId": "getUserViewPreferences",
+                "parameters": [
+                    {
+                        "description": "GUID of the user view preferences",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserViewPreferences"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UserViewPreferences"
+                ]
+            },
+            "patch": {
+                "description": "Update the user view preferences",
+                "operationId": "updateUserViewPreferences",
+                "parameters": [
+                    {
+                        "description": "GUID of the user view preferences",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserViewPreferences"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserViewPreferences"
+                                }
+                            }
+                        },
+                        "description": "Newly updated  user view preferences"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "UserViewPreferences"
+                ]
+            }
+        },
+        "/vulnerabilities": {
+            "get": {
+                "description": "Endpoint for fetching vulnerabilities data",
+                "operationId": "listVulnerabilities",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Sort the vulnerabilities by the specified parameters, separated by a comma. Sort by first in the list first applied.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "name",
+                                "-name",
+                                "alias",
+                                "-alias",
+                                "display_name",
+                                "-display_name",
+                                "severity",
+                                "-severity"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the severity of the vulnerabilities to fetch",
+                        "in": "query",
+                        "name": "severity",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "Severe",
+                                "Material",
+                                "Moderate",
+                                "Minor"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "any severities less than the value provided",
+                        "in": "query",
+                        "name": "severity_lt",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "any severities less than/equal to the value provided",
+                        "in": "query",
+                        "name": "severity_lte",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "any severities greater than the value provided",
+                        "in": "query",
+                        "name": "severity_gt",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "any severities greater than/equal to the value provided",
+                        "in": "query",
+                        "name": "severity_gte",
+                        "required": false,
+                        "schema": {
+                            "format": "float",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "the status of the vulnerability that should be returned, can contain one or more of the statuses that will be and together",
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "enum": [
+                                "unique_alias_supported",
+                                "unique_alias_unsupported",
+                                "dupe_alias_supported",
+                                "dupe_alias_unsupported",
+                                "aggregate_row"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/Vulnerability"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                }
+            }
+        }
+    }
+}

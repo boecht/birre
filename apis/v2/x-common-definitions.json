@@ -1,0 +1,115 @@
+{
+  "x-common-definitions": {
+    "company_guid": {
+      "description": "GUID of the company",
+      "format": "uuid",
+      "maxLength": 36,
+      "type": "string"
+    },
+    "default_read_errors": {
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "403": {
+        "$ref": "#/components/responses/PermissionDenied"
+      },
+      "404": {
+        "$ref": "#/components/responses/NotFound"
+      },
+      "default": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        },
+        "description": "Unexpected error"
+      }
+    },
+    "default_write_errors": {
+      "400": {
+        "$ref": "#/components/responses/BadData"
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "403": {
+        "$ref": "#/components/responses/PermissionDenied"
+      },
+      "404": {
+        "$ref": "#/components/responses/NotFound"
+      },
+      "default": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        },
+        "description": "Unexpected error"
+      }
+    },
+    "folder_guid": {
+      "description": "GUID of the folder",
+      "format": "uuid",
+      "maxLength": 36,
+      "type": "string"
+    },
+    "grade": {
+      "enum": [
+        "NEUTRAL",
+        "BAD",
+        "WARN",
+        "FAIR",
+        "GOOD",
+        "NONE"
+      ],
+      "type": "string"
+    },
+    "guid": {
+      "format": "uuid",
+      "maxLength": 36,
+      "type": "string"
+    },
+    "paginated_result": {
+      "count": {
+        "description": "The total number of results",
+        "type": "integer"
+      },
+      "links": {
+        "description": "A set of links to traverse the result set",
+        "properties": {
+          "next": {
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "results": {
+        "description": "The actual results page",
+        "type": "array"
+      }
+    },
+    "risk_category": {
+      "enum": [
+        "Compromised Systems",
+        "Diligence",
+        "User Behavior"
+      ],
+      "type": "string"
+    },
+    "tier_guid": {
+      "description": "GUID of the tier",
+      "format": "uuid",
+      "maxLength": 36,
+      "type": "string"
+    }
+  }
+}

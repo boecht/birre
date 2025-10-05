@@ -1,0 +1,1397 @@
+{
+    "paths": {
+        "/sovereign/network-resources/ips/{ip}": {
+            "get": {
+                "description": "Validates if an IP address belongs to the provided countries.",
+                "operationId": "getSovereignNetworkResourceIp",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "ip",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "territory_code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK - The IP belongs to the countries provided."
+                    },
+                    "403": {
+                        "description": "Unauthorized - The address does not belong to the countries provided."
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    }
+                ],
+                "summary": "Validate IP"
+            }
+        },
+        "/sovereign/observations": {
+            "get": {
+                "description": "Lists sovereign forensics observations for the customer primary country",
+                "operationId": "sovereignObservations",
+                "parameters": [
+                    {
+                        "description": "Filter observations by the selected IPV4 or IPV6 address",
+                        "in": "query",
+                        "name": "ip",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected industry name",
+                        "in": "query",
+                        "name": "industry",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected risk types, comma separated",
+                        "in": "query",
+                        "name": "risk_types",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected infections, comma separated",
+                        "in": "query",
+                        "name": "infections",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected user behavior categories, comma separated",
+                        "in": "query",
+                        "name": "categories",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected vulnerabilities, comma separated",
+                        "in": "query",
+                        "name": "vulnerabilities",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected open ports, comma separated",
+                        "in": "query",
+                        "name": "open_ports",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Date interval limiting included observations. When omitted '7d' is used.",
+                        "in": "query",
+                        "name": "date_interval",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "7d",
+                                "30d"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The max number of observations to return. When omitted 1000 is used.",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Opaque token for the next or previous page of results",
+                        "in": "query",
+                        "name": "cursor",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SovereignObservations"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/sovereign/observations/companies/kpis": {
+            "get": {
+                "description": "Lists sovereign forensics key performance indicators for companies in the customer primary country",
+                "operationId": "sovereignObservationsCompaniesKpis",
+                "parameters": [
+                    {
+                        "description": "Filter observations by the selected industry GUID",
+                        "in": "query",
+                        "name": "industry",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected infections",
+                        "in": "query",
+                        "name": "infections",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected vulnerabilities",
+                        "in": "query",
+                        "name": "vulnerabilities",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected open ports",
+                        "in": "query",
+                        "name": "open_ports",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected categories",
+                        "in": "query",
+                        "name": "categories",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Date interval limiting included observations. When omitted '7d' is used.",
+                        "in": "query",
+                        "name": "date_interval",
+                        "schema": {
+                            "enum": [
+                                "7d",
+                                "30d"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Observations start date.",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Observations end date.",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Limits the number of results, after the results are sorted. When omitted all values are returned.",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SovereignObservationsCompaniesKpis"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/sovereign/observations/counts": {
+            "get": {
+                "description": "Retrieves sovereign observations counts",
+                "operationId": "sovereignObservationsCounts",
+                "parameters": [
+                    {
+                        "description": "Filter observations by the selected IPV4 or IPV6 address",
+                        "in": "query",
+                        "name": "ip",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected industry name",
+                        "in": "query",
+                        "name": "industry",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Date interval limiting included observations. When omitted '7d' is used.",
+                        "in": "query",
+                        "name": "date_interval",
+                        "schema": {
+                            "enum": [
+                                "7d",
+                                "30d"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SovereignObservationsCounts"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/sovereign/observations/kpis": {
+            "get": {
+                "description": "Lists sovereign forensics key performance indicators for the customer primary country",
+                "operationId": "sovereignObservationsKpis",
+                "parameters": [
+                    {
+                        "description": "Filter observations by the selected industry GUID",
+                        "in": "query",
+                        "name": "industry",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Date interval limiting included observations. When omitted '7d' is used.",
+                        "in": "query",
+                        "name": "date_interval",
+                        "schema": {
+                            "enum": [
+                                "7d",
+                                "30d"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sorts results in ascending or descending order. When omitted descending order is used",
+                        "in": "query",
+                        "name": "order",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Limits the number of results, after the results are sorted. When omitted all values are returned.",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SovereignObservationsKpis"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Sovereign"
+                ]
+            }
+        },
+        "/sub-industries/statistics": {
+            "get": {
+                "description": "A list of statistics data for a given list of industries.",
+                "operationId": "getSubIndustryStatistics",
+                "parameters": [
+                    {
+                        "description": "An optional comma-separated string of sub-industry slugs to retrieve statistics for.",
+                        "in": "query",
+                        "name": "sub_industry",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SubIndustryStatistics"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK response"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Bad request, invalid industry."
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                }
+            }
+        },
+        "/subscriptions/": {
+            "get": {
+                "description": "Get information about the customer's subscriptions",
+                "operationId": "getCompanySubscriptions",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanySubscriptions"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            },
+            "post": {
+                "description": "Add new Companies to user's Portfolio",
+                "operationId": "addSubscriptions",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "subscription_params": {
+                                        "$ref": "#/components/schemas/SubscriptionParameters"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubscriptionResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/bulk": {
+            "post": {
+                "description": "Manage entity subscriptions in user's portfolio in bulk",
+                "operationId": "manageSubscriptionsBulk",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkSubscriptionParameters"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkSubscriptionResults"
+                                }
+                            }
+                        },
+                        "description": "Bulk subscription request successful"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/companies": {
+            "get": {
+                "description": "A list of paginated company subscriptions limited to the user's portfolio",
+                "operationId": "SubscriptionsList",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "If expand=groups is set, include list of groups that contain the subscription",
+                        "in": "query",
+                        "name": "expand",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "groups"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort the company subscriptions by the specified parameters, separated by a comma. ‘-’ can be used to prefix a parameter to invert the order.",
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "company.name",
+                                "start_date",
+                                "end_date",
+                                "subscribed_group.name",
+                                "type"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by company name (partial match is supported)",
+                        "in": "query",
+                        "name": "company.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by tier guid (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "tier.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/tier_guid"
+                        }
+                    },
+                    {
+                        "description": "Filters by folder guid (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "folder.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "Filters by subscription type API name (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by industry name (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "industry.name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by country code (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "country.code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filters by group guid (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "groups.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filters by subscribed group guid (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "subscribed_group.guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Filters by subscription guid (exact match, multiple values are allowed)",
+                        "in": "query",
+                        "name": "subscription.guid",
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    },
+                    {
+                        "description": "Include expired subscriptions",
+                        "in": "query",
+                        "name": "include_expired",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Include subscriptions for all customer groups, if the user has permission to manage own groups",
+                        "in": "query",
+                        "name": "include_all_groups",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Include subscriptions to inactive entities",
+                        "in": "query",
+                        "name": "include_inactive_companies",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EntitySubscription"
+                                }
+                            }
+                        },
+                        "description": "List of paginated company subscriptions."
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Subscriptions"
+                ]
+            },
+            "post": {
+                "description": "A list of paginated company subscriptions limited to the user's portfolio",
+                "operationId": "SubscriptionsPostQuery",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "guid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EntitySubscription"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/company_annotations": {
+            "get": {
+                "description": "A list of annotations attached to a set of subscriptions, only insurance users have access to this API currently\n",
+                "operationId": "getSubscriptionsAnnotations",
+                "parameters": [
+                    {
+                        "description": "The guid of the folder of the companies that the annotation is attached to",
+                        "in": "query",
+                        "name": "folder",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "The type of company subscription annotations",
+                        "in": "query",
+                        "name": "type",
+                        "required": true,
+                        "schema": {
+                            "default": "insurance",
+                            "enum": [
+                                "insurance"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/EntitySubscriptionAnnotation"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/expired": {
+            "get": {
+                "description": "A list of expired subscriptions for the customer.",
+                "operationId": "SubscriptionsExpired",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "An inactive filter to filter out any entities that there is an active subscription on.",
+                        "in": "query",
+                        "name": "include_active_subscriptions",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ExpiredEntitySubscription"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/{company_guid}": {
+            "get": {
+                "description": "Get detailed information about a specific company subscription",
+                "operationId": "getCompanySubscriptionDetail",
+                "parameters": [
+                    {
+                        "description": "The guid of the company the subscription is attached to",
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanySubscriptionDetail"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "description": "Company not found or customer is not subscribed to company"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subscriptions/{company_guid}/company_annotations": {
+            "get": {
+                "description": "A list of annotations attached to a company subscription",
+                "operationId": "getCompanySubscriptionAnnotations",
+                "parameters": [
+                    {
+                        "description": "The guid of the company the annotation is attached to",
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "description": "The type of company subscription annotations",
+                        "in": "query",
+                        "name": "type",
+                        "required": true,
+                        "schema": {
+                            "default": "insurance",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Subscriptions"
+                ]
+            }
+        },
+        "/subsidiaries": {
+            "get": {
+                "description": "Get a list of my subsidiaries",
+                "operationId": "listSubsidiaries",
+                "parameters": [
+                    {
+                        "description": "defaults to my company",
+                        "in": "query",
+                        "name": "company_guid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    },
+                    {
+                        "description": "include additional entities for the specified subscription type. options: my_subsidiary",
+                        "in": "query",
+                        "name": "include_subscription_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "my_subsidiary"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubsidiaryDetails"
+                                }
+                            }
+                        },
+                        "description": "get my subsidiaries"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Subsidiaries"
+                ]
+            }
+        },
+        "/subsidiaries/statistics": {
+            "get": {
+                "description": "Get my subsidiary statistics",
+                "operationId": "getSubsidiariesStatistics",
+                "parameters": [
+                    {
+                        "description": "defaults to 1 year ago",
+                        "in": "query",
+                        "name": "start_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "defaults to today",
+                        "in": "query",
+                        "name": "end_date",
+                        "required": false,
+                        "schema": {
+                            "format": "date",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "defaults to monthly. options: daily, weekly, monthly, quarterly",
+                        "in": "query",
+                        "name": "period",
+                        "required": false,
+                        "schema": {
+                            "default": "monthly",
+                            "enum": [
+                                "monthly",
+                                "daily",
+                                "weekly",
+                                "quarterly"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "defaults to ratings. options: ratings, application_security, botnet_infections, data_breaches, desktop_software, dkim, dnssec, file_sharing, insecure_systems, malware_servers, mobile_application_security, mobile_software, open_ports, patching_cadence, potentially_exploited, server_software, spam_propagation, spf, ssl_certificates, ssl_configurations, unsolicited_comm",
+                        "in": "query",
+                        "name": "lens",
+                        "required": false,
+                        "schema": {
+                            "default": "ratings",
+                            "enum": [
+                                "ratings",
+                                "application_security",
+                                "botnet_infections",
+                                "data_breaches",
+                                "desktop_software",
+                                "dkim",
+                                "dnssec",
+                                "file_sharing",
+                                "insecure_systems",
+                                "malware_servers",
+                                "mobile_application_security",
+                                "mobile_software",
+                                "open_ports",
+                                "patching_cadence",
+                                "potentially_exploited",
+                                "server_software",
+                                "spam_propagation",
+                                "spf",
+                                "ssl_certificates",
+                                "ssl_configurations",
+                                "unsolicited_comm"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "include additional entities for the specified subscription type. options: my_subsidiary",
+                        "in": "query",
+                        "name": "include_subscription_type",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "my_subsidiary"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Limit the companies returned to the specified scope",
+                        "in": "query",
+                        "name": "scope",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "spm"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the format of the response data. options: json, xml, csv",
+                        "in": "query",
+                        "name": "format",
+                        "required": false,
+                        "schema": {
+                            "default": "json",
+                            "enum": [
+                                "json",
+                                "xml",
+                                "csv"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubsidiaryStatistics"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Subsidiaries"
+                ]
+            }
+        },
+        "/subsidiaries/{company_guid}/recommendations": {
+            "get": {
+                "description": "Get subsidiary improvement recommendations for a company",
+                "operationId": "getSubsidiariesRecommendations",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "company_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/company_guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Recommendation"
+                                }
+                            }
+                        },
+                        "description": "List of recommendations"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Subsidiaries"
+                ]
+            }
+        }
+    }
+}

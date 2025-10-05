@@ -1,0 +1,1561 @@
+{
+    "paths": {
+        "/fast-ratings": {
+            "post": {
+                "description": "Quickly get rating details for any company in 1 minute",
+                "operationId": "getFastRatings",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FastRatingArgs"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FastRatings"
+                                }
+                            }
+                        },
+                        "description": "OK - Returns ratings"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Does not have fast rating feature, or over quota, or company too large"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/TooManyRequests"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Rapid Underwriting Assessments"
+                ]
+            }
+        },
+        "/fast-ratings/quota": {
+            "get": {
+                "description": "Get information about remaing fast ratings quota",
+                "operationId": "getFastRatingsQuota",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FastRatingsQuota"
+                                }
+                            }
+                        },
+                        "description": "OK - returns quota information"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Does not have fast rating feature"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/TooManyRequests"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/ServiceUnavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Rapid Underwriting Assessments",
+                    "Quota"
+                ]
+            }
+        },
+        "/fast-ratings/requests": {
+            "get": {
+                "description": "Retrieve records of previous calls to the fast-ratings endpoint for the current customer",
+                "operationId": "listFastRatingsRequests",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FastRatingsRequests"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "tags": [
+                    "Rapid Underwriting Assessments"
+                ]
+            }
+        },
+        "/fast-ratings/requests/summaries": {
+            "get": {
+                "description": "Retrieve summary data about the fast ratings requests endpoint",
+                "operationId": "getFastRatingsRequestSummaries",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FastRatingsRequestsSummaries"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "tags": [
+                    "Rapid Underwriting Assessments"
+                ]
+            }
+        },
+        "/fast-ratings/requests/{request_guid}/response": {
+            "get": {
+                "description": "Retrieve a past response given by the fast-ratings endpoint for a given record id",
+                "operationId": "getFastRatingsResponse",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "request_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FastRatings",
+                                    "company_name": {
+                                        "description": "The name of the company rated",
+                                        "type": "string"
+                                    },
+                                    "created": {
+                                        "description": "Date the rating was run",
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "tags": [
+                    "Rapid Underwriting Assessments"
+                ]
+            }
+        },
+        "/filters/portfolio/product-types": {
+            "get": {
+                "description": "Gets impact counts for all providers used by entities in your portfolio",
+                "operationId": "filtersPortfolioProductTypes",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/CompanyTreeGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/TierGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioFilterData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Product Types"
+                ]
+            }
+        },
+        "/filters/portfolio/products": {
+            "get": {
+                "description": "Gets impact counts for all products used by entities in your portfolio",
+                "operationId": "filtersPortfolioProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/CompanyTreeGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/TierGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioFilterData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Products"
+                ]
+            }
+        },
+        "/filters/portfolio/providers": {
+            "get": {
+                "description": "Gets impact counts for all providers used by entities in your portfolio",
+                "operationId": "filtersPortfolioProviders",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/CompanyTreeGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/TierGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioFilterData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Providers"
+                ]
+            }
+        },
+        "/findings/wfh": {
+            "get": {
+                "description": "Lists forensics from Work From Home IP addresses",
+                "operationId": "findingsWFH",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "description": "Filter observations by the selected IPV4 or IPV6 addresses (comma separated)",
+                        "in": "query",
+                        "name": "ips",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter observations by the selected risk types, comma separated",
+                        "in": "query",
+                        "name": "risk_types",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "botnet_infections",
+                                "malware_servers",
+                                "open_ports",
+                                "potentially_exploited",
+                                "spam_propagation",
+                                "unsolicited_comm"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Date interval limiting included observations. When omitted '7d' is used.",
+                        "in": "query",
+                        "name": "date_interval",
+                        "required": false,
+                        "schema": {
+                            "enum": [
+                                "7d",
+                                "30d"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Guid of an existing WFHBulkUpload object",
+                        "in": "query",
+                        "name": "bulk_request",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/SovereignObservationRecords"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "summaries": {
+                                            "description": "Summary metadata about the response.",
+                                            "properties": {
+                                                "non_isp": {
+                                                    "description": "Any IP addresses that do not belong to an ISP.",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "WFH"
+                ]
+            }
+        },
+        "/findings/wfh/bulk": {
+            "get": {
+                "description": "Lists all WFHBulkUploads for the current user that have been modified in the last 60 days. Maximum of 10 uploads per user.",
+                "operationId": "getWFHBulkUpload",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/x-common-definitions/paginated_result",
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/WFHBulkUpload"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "WFH"
+                ]
+            },
+            "post": {
+                "description": "Create a new WFHBulkUpload object by uploading a CSV",
+                "operationId": "createWFHBulkUpload",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "file": {
+                                        "description": "File containing a single column of IP addresses",
+                                        "type": "string"
+                                    },
+                                    "filename": {
+                                        "description": "Name of the uploaded file",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "file",
+                                    "filename"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WFHBulkUpload"
+                                }
+                            }
+                        },
+                        "description": "Succesfully created a new WFHBulkUpload"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "WFH"
+                ]
+            }
+        },
+        "/findings/wfh/bulk/{bulk_request_guid}": {
+            "delete": {
+                "description": "Remove a WFHBulkUpload object",
+                "operationId": "deleteWFHBulkUpload",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "bulk_request_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "WFHBulkUpload was successfully deleted"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "WFH"
+                ]
+            }
+        },
+        "/findings/wfh/bulk/{bulk_request_guid}/rescan": {
+            "post": {
+                "description": "Rescan all the IP's in a WFHBulkUpload object for recent findings.",
+                "operationId": "rescanWFHBulkUpload",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "bulk_request_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WFHBulkUpload"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "WFH"
+                ]
+            }
+        },
+        "/folders": {
+            "get": {
+                "description": "List of folders owned and shared with you",
+                "operationId": "getFolders",
+                "parameters": [
+                    {
+                        "description": "Comma delimited list of organization fields to return",
+                        "in": "query",
+                        "name": "fields",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "If true, exclude subscription type folders",
+                        "in": "query",
+                        "name": "exclude_subscription_folders",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Folder"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "An array of folders"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            },
+            "post": {
+                "description": "Create a new folder",
+                "operationId": "createFolder",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "folder": {
+                                        "description": "Details of the new folder that is to be created",
+                                        "properties": {
+                                            "content_expiry_days": {
+                                                "description": "The number of days after which companies in the folder will be removed from it",
+                                                "type": "integer"
+                                            },
+                                            "description": {
+                                                "description": "Description of the Folder",
+                                                "type": "string"
+                                            },
+                                            "name": {
+                                                "description": "Name of the Folder",
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Folder"
+                                }
+                            }
+                        },
+                        "description": "Details of the newly created folder"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadData"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/findings/summary/": {
+            "get": {
+                "description": "Get FindingsPresentSummary data for a folder",
+                "operationId": "getFolderFindingsPresentSummary",
+                "parameters": [
+                    {
+                        "description": "GUID of the folder",
+                        "in": "path",
+                        "name": "folder_guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/folder_guid"
+                        }
+                    },
+                    {
+                        "description": "risk type",
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "default": "vulnerability",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "risk confidence",
+                        "in": "query",
+                        "name": "confidence",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "format of response data",
+                        "in": "query",
+                        "name": "history",
+                        "required": false,
+                        "schema": {
+                            "default": true,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FolderFindingsPresentSummary"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/graph_data": {
+            "get": {
+                "description": "Get ratings graph data for a folder",
+                "operationId": "getFolderGraphData",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FolderGraphData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "description": "Not Authorized"
+                    },
+                    "404": {
+                        "description": "Folder not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/industry-median/statistics/": {
+            "get": {
+                "description": "Get Industry Median Statistics for a folder",
+                "operationId": "getFolderIndustryMedianStatistics",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FolderIndustryMedianStatistic"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/product-types": {
+            "get": {
+                "description": "Get all product types for one of your folders",
+                "operationId": "folderProductTypes",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductTypes"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Product Types"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/products": {
+            "get": {
+                "description": "Get all products for one of your folders",
+                "operationId": "folderProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Products"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/products/{product_guid}/companies": {
+            "get": {
+                "description": "Get all products for one of your folders",
+                "operationId": "folderProductCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProductGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Products",
+                    "Companies"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers": {
+            "get": {
+                "description": "Get all service providers for one of your folders",
+                "operationId": "folderProviders",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Providers"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers/breaches": {
+            "get": {
+                "description": "Get information about breaches of fourth party service providers of companies in a specific folder\n",
+                "operationId": "getFolderProviderBreaches",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreaches"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers/breaches/reduced": {
+            "get": {
+                "description": "Get a lighter response regarding the information about breaches of fourth party service providers of companies in a specific folder. The dependent companies are substituted with a count.\n",
+                "operationId": "getFolderProviderBreachesReduced",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreachesReduced"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers/breaches/{breach_guid}": {
+            "get": {
+                "description": "Get information about a specific breach of fourth party service providers of companies in a specific folder\n",
+                "operationId": "getFolderProviderBreach",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/BreachGuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpsBreach"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers",
+                    "Breaches"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers/{provider_guid}/companies": {
+            "get": {
+                "description": "Get all providers for one of your folders",
+                "operationId": "folderProviderCompanies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Provider_Companies"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers",
+                    "Companies"
+                ]
+            }
+        },
+        "/folders/{folder_guid}/providers/{provider_guid}/products": {
+            "get": {
+                "description": "Get the products provided a specific provider",
+                "operationId": "folderProviderProducts",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/FolderGuidPath"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ProviderGuid"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Limit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Offset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Query"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Sort"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Fields"
+                    },
+                    {
+                        "$ref": "#/components/parameters/RelationshipType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Products"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "default": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "description": "Unexpected error"
+                    }
+                },
+                "tags": [
+                    "Folders",
+                    "Providers",
+                    "Products"
+                ]
+            }
+        },
+        "/folders/{guid}": {
+            "delete": {
+                "description": "Delete this folder if it is a user-created folder.\n",
+                "operationId": "deleteFolder",
+                "parameters": [
+                    {
+                        "description": "GUID of the Folder",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The folder was successfully deleted"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "summary": "Delete folders you've created",
+                "tags": [
+                    "Folders"
+                ]
+            },
+            "get": {
+                "description": "Details for a single folder object.",
+                "operationId": "getFolder",
+                "parameters": [
+                    {
+                        "description": "GUID of the Folder",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Folder"
+                                }
+                            }
+                        },
+                        "description": "Details of the folders"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/PermissionDenied"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            },
+            "patch": {
+                "description": "Edit the properties of a folder.",
+                "operationId": "updateFolder",
+                "parameters": [
+                    {
+                        "description": "GUID of the Folder",
+                        "in": "path",
+                        "name": "guid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/x-common-definitions/guid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "$ref": "#/components/schemas/Folder"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Folder"
+                                }
+                            }
+                        },
+                        "description": "Details of the folders"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "Jwt": []
+                    },
+                    {
+                        "Token": []
+                    }
+                ],
+                "tags": [
+                    "Folders"
+                ]
+            }
+        }
+    }
+}
