@@ -1,4 +1,4 @@
-"""Helpers for invoking BitSight v1 endpoints via FastMCP."""
+"""Helpers for invoking BitSight OpenAPI endpoints via FastMCP."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def filter_none(params: Dict[str, Any]) -> Dict[str, Any]:
     return {key: value for key, value in params.items() if value is not None}
 
 
-async def call_v1_openapi_tool(
+async def call_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
     ctx: Context,
@@ -24,38 +24,7 @@ async def call_v1_openapi_tool(
     *,
     logger: logging.Logger,
 ) -> Any:
-    """Invoke a BitSight v1 FastMCP tool and normalize the result.
-
-    Parameters
-    ----------
-    api_server:
-        FastMCP server generated from the BitSight v1 OpenAPI spec.
-    tool_name:
-        Name of the tool exposed by the generated server (e.g. ``"companySearch"``).
-    ctx:
-        Call context inherited from the business server; used for logging and
-        nested tool execution.
-    params:
-        Raw parameters to forward to the FastMCP tool. ``None`` values are
-        removed before invocation to satisfy strict argument validation.
-    logger:
-        Logger used for diagnostic messages.
-
-    Returns
-    -------
-    Any
-        Structured content returned by the tool, the inner ``result`` payload
-        when present, or the raw ``ToolResult`` object as a last resort.
-
-    Raises
-    ------
-    httpx.HTTPStatusError
-        The FastMCP bridge raised an HTTP error while calling the BitSight v1
-        API.
-    Exception
-        Any other error encountered during invocation is propagated after being
-        logged via ``ctx`` and the provided ``logger``.
-    """
+    """Invoke a FastMCP OpenAPI tool and normalize the result."""
 
     filtered_params = filter_none(params)
 
@@ -99,6 +68,75 @@ async def call_v1_openapi_tool(
             exc_info=True,
         )
         raise
+
+
+async def call_v1_openapi_tool(
+    api_server: FastMCP,
+    tool_name: str,
+    ctx: Context,
+    params: Dict[str, Any],
+    *,
+    logger: logging.Logger,
+) -> Any:
+    """Invoke a BitSight v1 FastMCP tool and normalize the result.
+
+    Parameters
+    ----------
+    api_server:
+        FastMCP server generated from the BitSight v1 OpenAPI spec.
+    tool_name:
+        Name of the tool exposed by the generated server (e.g. ``"companySearch"``).
+    ctx:
+        Call context inherited from the business server; used for logging and
+        nested tool execution.
+    params:
+        Raw parameters to forward to the FastMCP tool. ``None`` values are
+        removed before invocation to satisfy strict argument validation.
+    logger:
+        Logger used for diagnostic messages.
+
+    Returns
+    -------
+    Any
+        Structured content returned by the tool, the inner ``result`` payload
+        when present, or the raw ``ToolResult`` object as a last resort.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        The FastMCP bridge raised an HTTP error while calling the BitSight v1
+        API.
+    Exception
+        Any other error encountered during invocation is propagated after being
+        logged via ``ctx`` and the provided ``logger``.
+    """
+
+    return await call_openapi_tool(
+        api_server,
+        tool_name,
+        ctx,
+        params,
+        logger=logger,
+    )
+
+
+async def call_v2_openapi_tool(
+    api_server: FastMCP,
+    tool_name: str,
+    ctx: Context,
+    params: Dict[str, Any],
+    *,
+    logger: logging.Logger,
+) -> Any:
+    """Invoke a BitSight v2 FastMCP tool and normalize the result."""
+
+    return await call_openapi_tool(
+        api_server,
+        tool_name,
+        ctx,
+        params,
+        logger=logger,
+    )
 
 
 __all__ = ["filter_none", "call_v1_openapi_tool"]

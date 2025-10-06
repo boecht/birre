@@ -10,6 +10,10 @@ import heapq
 import asyncio
 
 from fastmcp import Context, FastMCP
+from fastmcp.tools.tool import FunctionTool
+
+from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from src.constants import coerce_bool
 
 from .helpers import CallV1Tool
 from .helpers.subscription import (
@@ -20,7 +24,7 @@ from .helpers.subscription import (
 from ..logging import log_rating_event
 
 
-def rating_color(value: Optional[float]) -> Optional[str]:
+def _rating_color(value: Optional[float]) -> Optional[str]:
     if value is None:
         return None
     if value >= 740:
@@ -30,7 +34,7 @@ def rating_color(value: Optional[float]) -> Optional[str]:
     return "red"
 
 
-def aggregate_ratings(
+def _aggregate_ratings(
     raw_ratings: List[Dict[str, Any]],
     *,
     horizon_days: int,
@@ -78,7 +82,7 @@ def aggregate_ratings(
     return series
 
 
-def compute_trend(series: List[tuple[datetime, float]]) -> Dict[str, object]:
+def _compute_trend(series: List[tuple[datetime, float]]) -> Dict[str, object]:
     if len(series) < 2:
         return {
             "direction": "insufficient data",
@@ -116,12 +120,536 @@ def compute_trend(series: List[tuple[datetime, float]]) -> Dict[str, object]:
     }
 
 
+def _rank_severity_category_value(val: Any) -> int:
+    if isinstance(val, str):
+        v = val.lower()
+        if v == "severe":
+            return 3
+        if v == "material":
+            return 2
+        if v == "moderate":
+            return 1
+        if v == "low":
+            return 0
+    return -1
+
+
+def _derive_numeric_severity_score(item: Any) -> float:
+    if isinstance(item, dict):
+        sv = item.get("severity")
+        if isinstance(sv, (int, float)):
+            return float(sv)
+        details_dict = item.get("details")
+        if isinstance(details_dict, dict):
+            sev2 = details_dict.get("severity")
+            if isinstance(sev2, (int, float)):
+                return float(sev2)
+            grade = details_dict.get("grade")
+            if isinstance(grade, (int, float)):
+                return float(grade)
+            cvss = details_dict.get("cvss")
+            base = cvss.get("base") if isinstance(cvss, dict) else None
+            if isinstance(base, (int, float)):
+                return float(base)
+    return -1.0
+
+
+def _parse_timestamp_seconds(val: Any) -> int:
+    if isinstance(val, str) and val:
+        for fmt in (
+            "%Y-%m-%d",
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+        ):
+            try:
+                return int(datetime.strptime(val, fmt).timestamp())
+            except Exception:
+                continue
+    return 0
+
+
+def _derive_asset_importance_score(obj: Any) -> float:
+    if isinstance(obj, dict):
+        assets = obj.get("assets") if isinstance(obj.get("assets"), dict) else {}
+        if isinstance(assets, dict):
+            for key in ("combined_importance", "importance"):
+                val = assets.get(key)
+                if isinstance(val, (int, float)):
+                    return float(val)
+    return 0.0
+
+
+def _build_finding_sort_key(item: Any):
+    sev_num = _derive_numeric_severity_score(item)
+    sev_cat = _rank_severity_category_value(
+        item.get("severity") if isinstance(item, dict) else None
+    )
+    imp = _derive_asset_importance_score(item)
+    last = _parse_timestamp_seconds(
+        item.get("last_seen") if isinstance(item, dict) else None
+    )
+    rv = (item.get("risk_vector") or "") if isinstance(item, dict) else ""
+    # Desc numeric severity, then desc categorical rank, desc importance, desc last_seen; asc risk_vector
+    return (-sev_num, -sev_cat, -imp, -last, rv)
+
+
+def _build_finding_score_tuple(item: Any):
+    # Positive score tuple for heapq.nlargest (descending desired)
+    sev_num = _derive_numeric_severity_score(item)
+    sev_cat = _rank_severity_category_value(
+        item.get("severity") if isinstance(item, dict) else None
+    )
+    imp = _derive_asset_importance_score(item)
+    last = _parse_timestamp_seconds(
+        item.get("last_seen") if isinstance(item, dict) else None
+    )
+    return (sev_num, sev_cat, imp, last)
+
+
+def _select_top_finding_candidates(
+    results: List[Dict[str, Any]], k: int
+) -> List[Dict[str, Any]]:
+    if not results:
+        return []
+    # Keep only the top-k by primary numeric keys; finalize ordering with full _sort_key
+    candidates = heapq.nlargest(k, results, key=_build_finding_score_tuple)
+    candidates.sort(key=_build_finding_sort_key)
+    return candidates
+
+
+# ---- Finding normalization helpers ----
+
+# Infection vectors whose narrative should take precedence when available
+INFECTION_RISK_VECTORS = {
+    "botnet_infections",
+    "spam_propagation",
+    "malware_servers",
+    "unsolicited_comm",
+    "potentially_exploited",
+}
+
+
+def _determine_finding_label(
+    item: Dict[str, Any], details: Dict[str, Any]
+) -> Optional[str]:
+    """Choose a finding label from details.name/display_name or risk_vector_label."""
+    if isinstance(details.get("name"), str):
+        return details.get("name")  # type: ignore[return-value]
+    if isinstance(details.get("display_name"), str):
+        return details.get("display_name")  # type: ignore[return-value]
+    rv_label = item.get("risk_vector_label")
+    return rv_label if isinstance(rv_label, str) else None
+
+
+def _compose_base_details_text(details: Dict[str, Any]) -> Optional[str]:
+    """Build the base details text from display_name/description/searchable_details/infection.family."""
+    display_name = (
+        details.get("display_name")
+        if isinstance(details.get("display_name"), str)
+        else None
+    )
+    long_desc = (
+        details.get("description")
+        if isinstance(details.get("description"), str)
+        else None
+    )
+    if display_name and long_desc:
+        return f"{display_name} — {long_desc}"
+    if long_desc:
+        return long_desc
+    if display_name:
+        return display_name
+    if isinstance(details.get("searchable_details"), str):
+        return details.get("searchable_details")  # type: ignore[return-value]
+    inf = details.get("infection")
+    if isinstance(inf, dict) and isinstance(inf.get("family"), str):
+        return f"Infection: {inf['family']}"
+    return None
+
+
+def _find_first_remediation_text(details: Dict[str, Any]) -> Optional[str]:
+    """Return the first available remediation hint text if present."""
+    rem_list = (
+        details.get("remediations")
+        if isinstance(details.get("remediations"), list)
+        else []
+    )
+    for rem in rem_list or []:
+        if isinstance(rem, dict):
+            text = (
+                rem.get("help_text") or rem.get("remediation_tip") or rem.get("message")
+            )
+            if isinstance(text, str) and text:
+                return text
+    return None
+
+
+def _normalize_detected_service_summary(
+    text: str, remediation_hint: Optional[str]
+) -> str:
+    """Rewrite 'Detected service: ...' text to include a concise remediation hint when available."""
+    if not remediation_hint:
+        return text
+    try:
+        after = text.split(":", 1)[1].strip()
+        service = after.split(",", 1)[0].strip()
+        return f"Detected service: {service} — {remediation_hint}"
+    except Exception:
+        return f"{text} — {remediation_hint}" if remediation_hint not in text else text
+
+
+def _append_remediation_hint(
+    text: Optional[str], remediation_hint: Optional[str]
+) -> Optional[str]:
+    """Append remediation hint to text, preserving punctuation and avoiding duplication."""
+    if not remediation_hint:
+        return text
+    if isinstance(text, str):
+        if remediation_hint in text:
+            return text
+        if text.endswith((".", "!", "?")):
+            return f"{text} {remediation_hint}"
+        return f"{text}. {remediation_hint}"
+    return remediation_hint
+
+
+def _apply_infection_narrative_preference(
+    text: Optional[str], risk_vector: Any, details: Dict[str, Any]
+) -> Optional[str]:
+    """Prefer infection narrative for infection vectors when description/family are present."""
+    if not isinstance(risk_vector, str) or risk_vector not in INFECTION_RISK_VECTORS:
+        return text
+    inf = details.get("infection")
+    if not isinstance(inf, dict):
+        return text
+    family = inf.get("family") if isinstance(inf.get("family"), str) else None
+    desc_val = inf.get("description")
+    inf_desc = desc_val.strip() if isinstance(desc_val, str) else None
+    if family and inf_desc:
+        return f"Infection: {family} — {inf_desc}"
+    if inf_desc:
+        if text and inf_desc not in (text or ""):
+            return f"{text} — {inf_desc}"
+        return inf_desc or text
+    return text
+
+
+def _determine_primary_port(details: Dict[str, Any]) -> Optional[int]:
+    """Return a port from details.dest_port or the first of details.port_list."""
+    dest_port = details.get("dest_port")
+    if isinstance(dest_port, int):
+        return dest_port
+    ports = details.get("port_list")
+    if isinstance(ports, list) and ports:
+        p0 = ports[0]
+        if isinstance(p0, int):
+            return p0
+    return None
+
+
+def _determine_primary_asset(
+    item: Dict[str, Any], details: Dict[str, Any]
+) -> Optional[str]:
+    """Choose an asset from evidence_key, then details.assets[0] (+port), then observed_ips[0]."""
+    asset: Optional[str] = (
+        item.get("evidence_key") if isinstance(item.get("evidence_key"), str) else None
+    )
+    if asset:
+        return asset
+    assets = details.get("assets")
+    if isinstance(assets, list) and assets:
+        first = assets[0]
+        if isinstance(first, dict) and isinstance(first.get("asset"), str):
+            port = _determine_primary_port(details)
+            return f"{first['asset']}:{port}" if port else first["asset"]
+    observed = details.get("observed_ips")
+    if isinstance(observed, list) and observed:
+        ip0 = observed[0]
+        if isinstance(ip0, str):
+            return ip0
+    return None
+
+
+def _normalize_finding_entry(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize one API finding item into the compact summary shape used in outputs."""
+    raw_details = item.get("details")
+    details_obj: Dict[str, Any] = raw_details if isinstance(raw_details, dict) else {}
+    finding_label = _determine_finding_label(item, details_obj)
+    text = _compose_base_details_text(details_obj)
+    remediation = _find_first_remediation_text(details_obj)
+    if isinstance(text, str) and text.startswith("Detected service:") and remediation:
+        text = _normalize_detected_service_summary(text, remediation)
+    else:
+        text = _append_remediation_hint(text, remediation)
+    text = _apply_infection_narrative_preference(
+        text, item.get("risk_vector"), details_obj
+    )
+    asset = _determine_primary_asset(item, details_obj)
+    return {
+        "finding": finding_label,
+        "details": text,
+        "asset": asset,
+        "first_seen": item.get("first_seen"),
+        "last_seen": item.get("last_seen"),
+    }
+
+
+def _normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    for item in results or []:
+        if not isinstance(item, dict):
+            continue
+        items.append(_normalize_finding_entry(item))
+    return items
+
+
+async def _assemble_top_findings_section(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    risk_vector_filter: str,
+    max_findings: int,
+) -> Dict[str, Any]:
+    limit = (
+        max_findings
+        if isinstance(max_findings, int) and max_findings > 0
+        else DEFAULT_MAX_FINDINGS
+    )
+    params = {
+        "guid": guid,
+        "affects_rating": True,
+        "risk_vector": risk_vector_filter,
+        "severity_category": "severe,material",
+        # Intentionally omit server-side sort/limit; sort & cap locally
+        # Request only used fields to reduce payload size while preserving help_text
+        "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
+    }
+
+    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
+    if not isinstance(raw, dict):
+        return {
+            "policy": {
+                "severity_floor": "material",
+                "supplements": [],
+                "max_items": 10,
+                "profile": "strict",
+            },
+            "count": 0,
+            "findings": [],
+        }
+
+    _debug(ctx, "getCompaniesFindings raw response", raw)
+
+    results = raw.get("results") or []
+    if not isinstance(results, list):
+        results = []
+
+    # DEBUG preview: top 15 without full sort
+    try:
+        preview_items = heapq.nlargest(15, results, key=_build_finding_score_tuple)
+        preview_items.sort(key=_build_finding_sort_key)
+        preview = []
+        for i, it in enumerate(preview_items[:15], start=1):
+            preview.append(
+                {
+                    "idx": i,
+                    "sev_num": _derive_numeric_severity_score(it),
+                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
+                    "importance": _derive_asset_importance_score(it),
+                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
+                    "risk_vector": it.get("risk_vector")
+                    if isinstance(it, dict)
+                    else None,
+                }
+            )
+        _debug(ctx, "Sort preview (strict)", preview)
+    except Exception:
+        pass
+    # Select only top 10 raw items, then normalize
+    top_raw = _select_top_finding_candidates(results, limit)
+    findings = _normalize_top_findings(top_raw)
+    top = findings[:limit]
+    profile = "strict"
+    severity_floor = "material"
+    supplements: List[str] = []
+    max_items = limit
+
+    # Automatic relaxed mode: if fewer than 3 findings, include 'moderate'
+    if len(top) < 3:
+        profile = "relaxed"
+        severity_floor = "moderate"
+        relaxed_params = dict(params)
+        relaxed_params["severity_category"] = "severe,material,moderate"
+        raw_relaxed = await call_v1_tool("getCompaniesFindings", ctx, relaxed_params)
+        if isinstance(raw_relaxed, dict):
+            _debug(ctx, "getCompaniesFindings raw response (relaxed)", raw_relaxed)
+            results_r = raw_relaxed.get("results") or []
+            if not isinstance(results_r, list):
+                results_r = []
+            raw_relaxed = None
+            # DEBUG preview: relaxed top 15
+            try:
+                preview_r_items = heapq.nlargest(
+                    15, results_r, key=_build_finding_score_tuple
+                )
+                preview_r_items.sort(key=_build_finding_sort_key)
+                preview_r = []
+                for i, it in enumerate(preview_r_items[:15], start=1):
+                    preview_r.append(
+                        {
+                            "idx": i,
+                            "sev_num": _derive_numeric_severity_score(it),
+                            "sev_cat": it.get("severity")
+                            if isinstance(it, dict)
+                            else None,
+                            "importance": _derive_asset_importance_score(it),
+                            "last_seen": it.get("last_seen")
+                            if isinstance(it, dict)
+                            else None,
+                            "risk_vector": it.get("risk_vector")
+                            if isinstance(it, dict)
+                            else None,
+                        }
+                    )
+                _debug(ctx, "Sort preview (relaxed)", preview_r)
+            except Exception:
+                pass
+            top_raw_r = _select_top_finding_candidates(results_r, limit)
+            findings_r = _normalize_top_findings(top_raw_r)
+            top = findings_r[:limit]
+        # Third case: still < 3 after relaxed → append Web Application Security until limit is reached
+        if len(top) < 3:
+            web_params = dict(relaxed_params)
+            web_params["risk_vector"] = "web_appsec"
+            raw_web = await call_v1_tool("getCompaniesFindings", ctx, web_params)
+            if isinstance(raw_web, dict):
+                _debug(ctx, "getCompaniesFindings raw response (web_appsec)", raw_web)
+                results_w = raw_web.get("results") or []
+                if not isinstance(results_w, list):
+                    results_w = []
+                raw_web = None
+                # DEBUG preview: web_appsec top 15
+                try:
+                    preview_w_items = heapq.nlargest(
+                        15, results_w, key=_build_finding_score_tuple
+                    )
+                    preview_w_items.sort(key=_build_finding_sort_key)
+                    preview_w = []
+                    for i, it in enumerate(preview_w_items[:15], start=1):
+                        preview_w.append(
+                            {
+                                "idx": i,
+                                "sev_num": _derive_numeric_severity_score(it),
+                                "sev_cat": it.get("severity")
+                                if isinstance(it, dict)
+                                else None,
+                                "importance": _derive_asset_importance_score(it),
+                                "last_seen": it.get("last_seen")
+                                if isinstance(it, dict)
+                                else None,
+                                "risk_vector": it.get("risk_vector")
+                                if isinstance(it, dict)
+                                else None,
+                            }
+                        )
+                    _debug(ctx, "Sort preview (web_appsec)", preview_w)
+                except Exception:
+                    pass
+                needed = max(0, limit - len(top))
+                if needed > 0:
+                    top_raw_w = _select_top_finding_candidates(results_w, needed)
+                    findings_w = _normalize_top_findings(top_raw_w)
+                    top.extend(findings_w[:needed])
+                profile = "relaxed+web_appsec"
+                supplements = ["web_appsec"]
+                max_items = limit
+    for idx, entry in enumerate(top, start=1):
+        if isinstance(entry, dict):
+            entry["top"] = idx
+
+    _debug(ctx, "Normalized top findings", top)
+
+    return {
+        "policy": {
+            "severity_floor": severity_floor,
+            "supplements": supplements,
+            "max_items": max_items,
+            "profile": profile,
+        },
+        "count": len(top),
+        "findings": top,
+    }
+
+
+def _debug(ctx: Context, message: str, obj: Any) -> None:
+    """Emit a structured debug log if DEBUG env var is enabled."""
+    try:
+        if coerce_bool(os.getenv("DEBUG")):
+            try:
+                pretty = json.dumps(obj, indent=2, ensure_ascii=False)
+            except Exception:
+                pretty = str(obj)
+            # fire-and-forget; Context expects awaits in callers, but avoid raising
+            # This helper is used only inside awaited functions
+            return asyncio.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
+    except Exception:
+        return None
+
+
+async def _fetch_company_profile_dict(
+    call_v1_tool: CallV1Tool, ctx: Context, guid: str
+) -> Dict[str, Any]:
+    """Fetch and validate the company profile object from BitSight v1."""
+    company = await call_v1_tool("getCompany", ctx, {"guid": guid})
+    if not isinstance(company, dict):
+        raise ValueError("Unexpected response format from BitSight company endpoint")
+    return company
+
+
+def _summarize_current_rating(company: Dict[str, Any]) -> tuple[Any, Any]:
+    """Return (value, color) tuple for the company's current rating."""
+    value = company.get("current_rating")
+    return value, _rating_color(value)
+
+
+def _calculate_rating_trend_summaries(
+    company: Dict[str, Any],
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """Calculate 8-week and 1-year rating trends from the ratings series."""
+    raw_ratings = company.get("ratings", [])
+    weekly_series = _aggregate_ratings(raw_ratings, horizon_days=56, mode="weekly")
+    yearly_series = _aggregate_ratings(raw_ratings, horizon_days=365, mode="monthly")
+    return _compute_trend(weekly_series), _compute_trend(yearly_series)
+
+
+def _build_rating_legend_entries() -> List[Dict[str, Any]]:
+    return [
+        {"color": "red", "min": 250, "max": 629},
+        {"color": "yellow", "min": 630, "max": 739},
+        {"color": "green", "min": 740, "max": 900},
+    ]
+
+
 def register_company_rating_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
     logger: logging.Logger,
-) -> None:
+    risk_vector_filter: Optional[str] = None,
+    max_findings: Optional[int] = None,
+) -> FunctionTool:
+    effective_filter = (
+        risk_vector_filter.strip()
+        if isinstance(risk_vector_filter, str) and risk_vector_filter.strip()
+        else DEFAULT_RISK_VECTOR_FILTER
+    )
+    effective_findings = (
+        max_findings
+        if isinstance(max_findings, int) and max_findings > 0
+        else DEFAULT_MAX_FINDINGS
+    )
+
     @business_server.tool()
     async def get_company_rating(ctx: Context, guid: str) -> Dict[str, Any]:
         """Fetch normalized BitSight rating analytics for a company.
@@ -167,10 +695,10 @@ def register_company_rating_tool(
           - policy:
             - severity_floor: "material" (includes severe+material) or "moderate" (includes severe+material+moderate).
             - supplements: ["web_appsec"] when fallback was needed; otherwise []. Appended items come last.
-            - max_items: 10 normally; 5 when fallback appsec padding is applied.
+            - max_items: Configured `max_findings` (default 10). When web-appsec padding is applied, the list remains capped at this value.
             - profile: quick summary: "strict" | "relaxed" | "relaxed+web_appsec".
           - Behavior: Start strict (severe,material). If <3 items, relax to include 'moderate'. If still <3,
-            append from Web Application Security to reach up to 5 total (do not mix order; append at end).
+            append from Web Application Security until the configured limit is reached (appended findings remain last).
         - legend.rating: Explicit color thresholds used to compute current_rating.color.
 
         Error contract
@@ -214,16 +742,20 @@ def register_company_rating_tool(
             log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
 
             # 2) Fetch company profile
-            company = await fetch_company_profile_dict(call_v1_tool, ctx, guid)
+            company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
 
             # 3) Compute rating + trends
-            current_value, color = summarize_current_rating(company)
-            weekly_trend, yearly_trend = calculate_rating_trend_summaries(company)
+            current_value, color = _summarize_current_rating(company)
+            weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
 
             # 4) Fetch top findings
             try:
-                top_findings_payload = await assemble_top_findings_section(
-                    call_v1_tool, ctx, guid
+                top_findings_payload = await _assemble_top_findings_section(
+                    call_v1_tool,
+                    ctx,
+                    guid,
+                    effective_filter,
+                    effective_findings,
                 )
             except Exception as exc:  # pragma: no cover - defensive log
                 await ctx.warning(f"Failed to fetch top findings: {exc}")
@@ -248,7 +780,7 @@ def register_company_rating_tool(
                 "trend_8_weeks": weekly_trend,
                 "trend_1_year": yearly_trend,
                 "top_findings": top_findings_payload,
-                "legend": {"rating": build_rating_legend_entries()},
+                "legend": {"rating": _build_rating_legend_entries()},
             }
             log_rating_event(
                 logger,
@@ -282,520 +814,7 @@ def register_company_rating_tool(
 
         return result
 
+    return get_company_rating  # type: ignore[return-value]
+
 
 __all__ = ["register_company_rating_tool"]
-
-# -----------------
-# Internal helpers
-# -----------------
-
-RISK_VECTOR_FILTER = (
-    "botnet_infections,spam_propagation,malware_servers,unsolicited_comm,"
-    "potentially_exploited,open_ports,patching_cadence,insecure_systems,server_software"
-)
-
-
-# ---- Sorting helpers (module scope to avoid per-call allocations) ----
-from datetime import datetime
-
-
-def rank_severity_category_value(val: Any) -> int:
-    if isinstance(val, str):
-        v = val.lower()
-        if v == "severe":
-            return 3
-        if v == "material":
-            return 2
-        if v == "moderate":
-            return 1
-        if v == "low":
-            return 0
-    return -1
-
-
-def derive_numeric_severity_score(item: Any) -> float:
-    if isinstance(item, dict):
-        sv = item.get("severity")
-        if isinstance(sv, (int, float)):
-            return float(sv)
-        details_dict = item.get("details")
-        if isinstance(details_dict, dict):
-            sev2 = details_dict.get("severity")
-            if isinstance(sev2, (int, float)):
-                return float(sev2)
-            grade = details_dict.get("grade")
-            if isinstance(grade, (int, float)):
-                return float(grade)
-            cvss = details_dict.get("cvss")
-            base = cvss.get("base") if isinstance(cvss, dict) else None
-            if isinstance(base, (int, float)):
-                return float(base)
-    return -1.0
-
-
-def parse_timestamp_seconds(val: Any) -> int:
-    if isinstance(val, str) and val:
-        for fmt in (
-            "%Y-%m-%d",
-            "%Y-%m-%dT%H:%M:%S%z",
-            "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%d %H:%M:%S",
-        ):
-            try:
-                return int(datetime.strptime(val, fmt).timestamp())
-            except Exception:
-                continue
-    return 0
-
-
-def derive_asset_importance_score(obj: Any) -> float:
-    if isinstance(obj, dict):
-        assets = obj.get("assets") if isinstance(obj.get("assets"), dict) else {}
-        if isinstance(assets, dict):
-            for key in ("combined_importance", "importance"):
-                val = assets.get(key)
-                if isinstance(val, (int, float)):
-                    return float(val)
-    return 0.0
-
-
-def build_finding_sort_key(item: Any):
-    sev_num = derive_numeric_severity_score(item)
-    sev_cat = rank_severity_category_value(
-        item.get("severity") if isinstance(item, dict) else None
-    )
-    imp = derive_asset_importance_score(item)
-    last = parse_timestamp_seconds(
-        item.get("last_seen") if isinstance(item, dict) else None
-    )
-    rv = (item.get("risk_vector") or "") if isinstance(item, dict) else ""
-    # Desc numeric severity, then desc categorical rank, desc importance, desc last_seen; asc risk_vector
-    return (-sev_num, -sev_cat, -imp, -last, rv)
-
-
-def build_finding_score_tuple(item: Any):
-    # Positive score tuple for heapq.nlargest (descending desired)
-    sev_num = derive_numeric_severity_score(item)
-    sev_cat = rank_severity_category_value(
-        item.get("severity") if isinstance(item, dict) else None
-    )
-    imp = derive_asset_importance_score(item)
-    last = parse_timestamp_seconds(
-        item.get("last_seen") if isinstance(item, dict) else None
-    )
-    return (sev_num, sev_cat, imp, last)
-
-
-def select_top_finding_candidates(
-    results: List[Dict[str, Any]], k: int
-) -> List[Dict[str, Any]]:
-    if not results:
-        return []
-    # Keep only the top-k by primary numeric keys; finalize ordering with full _sort_key
-    candidates = heapq.nlargest(k, results, key=build_finding_score_tuple)
-    candidates.sort(key=build_finding_sort_key)
-    return candidates
-
-
-# ---- Finding normalization helpers ----
-
-# Infection vectors whose narrative should take precedence when available
-INFECTION_RISK_VECTORS = {
-    "botnet_infections",
-    "spam_propagation",
-    "malware_servers",
-    "unsolicited_comm",
-    "potentially_exploited",
-}
-
-
-def determine_finding_label(
-    item: Dict[str, Any], details: Dict[str, Any]
-) -> Optional[str]:
-    """Choose a finding label from details.name/display_name or risk_vector_label."""
-    if isinstance(details.get("name"), str):
-        return details.get("name")  # type: ignore[return-value]
-    if isinstance(details.get("display_name"), str):
-        return details.get("display_name")  # type: ignore[return-value]
-    rv_label = item.get("risk_vector_label")
-    return rv_label if isinstance(rv_label, str) else None
-
-
-def compose_base_details_text(details: Dict[str, Any]) -> Optional[str]:
-    """Build the base details text from display_name/description/searchable_details/infection.family."""
-    display_name = (
-        details.get("display_name")
-        if isinstance(details.get("display_name"), str)
-        else None
-    )
-    long_desc = (
-        details.get("description")
-        if isinstance(details.get("description"), str)
-        else None
-    )
-    if display_name and long_desc:
-        return f"{display_name} — {long_desc}"
-    if long_desc:
-        return long_desc
-    if display_name:
-        return display_name
-    if isinstance(details.get("searchable_details"), str):
-        return details.get("searchable_details")  # type: ignore[return-value]
-    inf = details.get("infection")
-    if isinstance(inf, dict) and isinstance(inf.get("family"), str):
-        return f"Infection: {inf['family']}"
-    return None
-
-
-def find_first_remediation_text(details: Dict[str, Any]) -> Optional[str]:
-    """Return the first available remediation hint text if present."""
-    rem_list = (
-        details.get("remediations")
-        if isinstance(details.get("remediations"), list)
-        else []
-    )
-    for rem in rem_list or []:
-        if isinstance(rem, dict):
-            text = (
-                rem.get("help_text") or rem.get("remediation_tip") or rem.get("message")
-            )
-            if isinstance(text, str) and text:
-                return text
-    return None
-
-
-def normalize_detected_service_summary(
-    text: str, remediation_hint: Optional[str]
-) -> str:
-    """Rewrite 'Detected service: ...' text to include a concise remediation hint when available."""
-    if not remediation_hint:
-        return text
-    try:
-        after = text.split(":", 1)[1].strip()
-        service = after.split(",", 1)[0].strip()
-        return f"Detected service: {service} — {remediation_hint}"
-    except Exception:
-        return f"{text} — {remediation_hint}" if remediation_hint not in text else text
-
-
-def append_remediation_hint(
-    text: Optional[str], remediation_hint: Optional[str]
-) -> Optional[str]:
-    """Append remediation hint to text, preserving punctuation and avoiding duplication."""
-    if not remediation_hint:
-        return text
-    if isinstance(text, str):
-        if remediation_hint in text:
-            return text
-        if text.endswith((".", "!", "?")):
-            return f"{text} {remediation_hint}"
-        return f"{text}. {remediation_hint}"
-    return remediation_hint
-
-
-def apply_infection_narrative_preference(
-    text: Optional[str], risk_vector: Any, details: Dict[str, Any]
-) -> Optional[str]:
-    """Prefer infection narrative for infection vectors when description/family are present."""
-    if not isinstance(risk_vector, str) or risk_vector not in INFECTION_RISK_VECTORS:
-        return text
-    inf = details.get("infection")
-    if not isinstance(inf, dict):
-        return text
-    family = inf.get("family") if isinstance(inf.get("family"), str) else None
-    desc_val = inf.get("description")
-    inf_desc = desc_val.strip() if isinstance(desc_val, str) else None
-    if family and inf_desc:
-        return f"Infection: {family} — {inf_desc}"
-    if inf_desc:
-        if text and inf_desc not in (text or ""):
-            return f"{text} — {inf_desc}"
-        return inf_desc or text
-    return text
-
-
-def determine_primary_port(details: Dict[str, Any]) -> Optional[int]:
-    """Return a port from details.dest_port or the first of details.port_list."""
-    dest_port = details.get("dest_port")
-    if isinstance(dest_port, int):
-        return dest_port
-    ports = details.get("port_list")
-    if isinstance(ports, list) and ports:
-        p0 = ports[0]
-        if isinstance(p0, int):
-            return p0
-    return None
-
-
-def determine_primary_asset(
-    item: Dict[str, Any], details: Dict[str, Any]
-) -> Optional[str]:
-    """Choose an asset from evidence_key, then details.assets[0] (+port), then observed_ips[0]."""
-    asset: Optional[str] = (
-        item.get("evidence_key") if isinstance(item.get("evidence_key"), str) else None
-    )
-    if asset:
-        return asset
-    assets = details.get("assets")
-    if isinstance(assets, list) and assets:
-        first = assets[0]
-        if isinstance(first, dict) and isinstance(first.get("asset"), str):
-            port = determine_primary_port(details)
-            return f"{first['asset']}:{port}" if port else first["asset"]
-    observed = details.get("observed_ips")
-    if isinstance(observed, list) and observed:
-        ip0 = observed[0]
-        if isinstance(ip0, str):
-            return ip0
-    return None
-
-
-def normalize_finding_entry(item: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize one API finding item into the compact summary shape used in outputs."""
-    raw_details = item.get("details")
-    details_obj: Dict[str, Any] = raw_details if isinstance(raw_details, dict) else {}
-    finding_label = determine_finding_label(item, details_obj)
-    text = compose_base_details_text(details_obj)
-    remediation = find_first_remediation_text(details_obj)
-    if isinstance(text, str) and text.startswith("Detected service:") and remediation:
-        text = normalize_detected_service_summary(text, remediation)
-    else:
-        text = append_remediation_hint(text, remediation)
-    text = apply_infection_narrative_preference(
-        text, item.get("risk_vector"), details_obj
-    )
-    asset = determine_primary_asset(item, details_obj)
-    return {
-        "finding": finding_label,
-        "details": text,
-        "asset": asset,
-        "first_seen": item.get("first_seen"),
-        "last_seen": item.get("last_seen"),
-    }
-
-
-def normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    items: List[Dict[str, Any]] = []
-    for item in results or []:
-        if not isinstance(item, dict):
-            continue
-        items.append(normalize_finding_entry(item))
-    return items
-
-
-async def assemble_top_findings_section(
-    call_v1_tool: CallV1Tool, ctx: Context, guid: str
-) -> Dict[str, Any]:
-    params = {
-        "guid": guid,
-        "affects_rating": True,
-        "risk_vector": RISK_VECTOR_FILTER,
-        "severity_category": "severe,material",
-        # Intentionally omit server-side sort/limit; sort & cap locally
-        # Request only used fields to reduce payload size while preserving help_text
-        "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
-    }
-
-    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
-    if not isinstance(raw, dict):
-        return {
-            "policy": {
-                "severity_floor": "material",
-                "supplements": [],
-                "max_items": 10,
-                "profile": "strict",
-            },
-            "count": 0,
-            "findings": [],
-        }
-
-    _debug(ctx, "getCompaniesFindings raw response", raw)
-
-    results = raw.get("results") or []
-    if not isinstance(results, list):
-        results = []
-
-    # DEBUG preview: top 15 without full sort
-    try:
-        preview_items = heapq.nlargest(15, results, key=build_finding_score_tuple)
-        preview_items.sort(key=build_finding_sort_key)
-        preview = []
-        for i, it in enumerate(preview_items[:15], start=1):
-            preview.append(
-                {
-                    "idx": i,
-                    "sev_num": derive_numeric_severity_score(it),
-                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
-                    "importance": derive_asset_importance_score(it),
-                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
-                    "risk_vector": it.get("risk_vector")
-                    if isinstance(it, dict)
-                    else None,
-                }
-            )
-        _debug(ctx, "Sort preview (strict)", preview)
-    except Exception:
-        pass
-    # Select only top 10 raw items, then normalize
-    top_raw = select_top_finding_candidates(results, 10)
-    findings = normalize_top_findings(top_raw)
-    top = findings[:10]
-    profile = "strict"
-    severity_floor = "material"
-    supplements: List[str] = []
-    max_items = 10
-
-    # Automatic relaxed mode: if fewer than 3 findings, include 'moderate'
-    if len(top) < 3:
-        profile = "relaxed"
-        severity_floor = "moderate"
-        relaxed_params = dict(params)
-        relaxed_params["severity_category"] = "severe,material,moderate"
-        raw_relaxed = await call_v1_tool("getCompaniesFindings", ctx, relaxed_params)
-        if isinstance(raw_relaxed, dict):
-            _debug(ctx, "getCompaniesFindings raw response (relaxed)", raw_relaxed)
-            results_r = raw_relaxed.get("results") or []
-            if not isinstance(results_r, list):
-                results_r = []
-            raw_relaxed = None
-            # DEBUG preview: relaxed top 15
-            try:
-                preview_r_items = heapq.nlargest(
-                    15, results_r, key=build_finding_score_tuple
-                )
-                preview_r_items.sort(key=build_finding_sort_key)
-                preview_r = []
-                for i, it in enumerate(preview_r_items[:15], start=1):
-                    preview_r.append(
-                        {
-                            "idx": i,
-                            "sev_num": derive_numeric_severity_score(it),
-                            "sev_cat": it.get("severity")
-                            if isinstance(it, dict)
-                            else None,
-                            "importance": derive_asset_importance_score(it),
-                            "last_seen": it.get("last_seen")
-                            if isinstance(it, dict)
-                            else None,
-                            "risk_vector": it.get("risk_vector")
-                            if isinstance(it, dict)
-                            else None,
-                        }
-                    )
-                _debug(ctx, "Sort preview (relaxed)", preview_r)
-            except Exception:
-                pass
-            top_raw_r = select_top_finding_candidates(results_r, 10)
-            findings_r = normalize_top_findings(top_raw_r)
-            top = findings_r[:10]
-        # Third case: still < 3 after relaxed → append Web Application Security to reach up to 5 total
-        if len(top) < 3:
-            web_params = dict(relaxed_params)
-            web_params["risk_vector"] = "web_appsec"
-            raw_web = await call_v1_tool("getCompaniesFindings", ctx, web_params)
-            if isinstance(raw_web, dict):
-                _debug(ctx, "getCompaniesFindings raw response (web_appsec)", raw_web)
-                results_w = raw_web.get("results") or []
-                if not isinstance(results_w, list):
-                    results_w = []
-                raw_web = None
-                # DEBUG preview: web_appsec top 15
-                try:
-                    preview_w_items = heapq.nlargest(
-                        15, results_w, key=build_finding_score_tuple
-                    )
-                    preview_w_items.sort(key=build_finding_sort_key)
-                    preview_w = []
-                    for i, it in enumerate(preview_w_items[:15], start=1):
-                        preview_w.append(
-                            {
-                                "idx": i,
-                                "sev_num": derive_numeric_severity_score(it),
-                                "sev_cat": it.get("severity")
-                                if isinstance(it, dict)
-                                else None,
-                                "importance": derive_asset_importance_score(it),
-                                "last_seen": it.get("last_seen")
-                                if isinstance(it, dict)
-                                else None,
-                                "risk_vector": it.get("risk_vector")
-                                if isinstance(it, dict)
-                                else None,
-                            }
-                        )
-                    _debug(ctx, "Sort preview (web_appsec)", preview_w)
-                except Exception:
-                    pass
-                needed = 5 - len(top)
-                if needed > 0:
-                    top_raw_w = select_top_finding_candidates(results_w, needed)
-                    findings_w = normalize_top_findings(top_raw_w)
-                    top.extend(findings_w[:needed])
-                profile = "relaxed+web_appsec"
-                supplements = ["web_appsec"]
-                max_items = 5
-    for idx, entry in enumerate(top, start=1):
-        if isinstance(entry, dict):
-            entry["top"] = idx
-
-    _debug(ctx, "Normalized top findings", top)
-
-    return {
-        "policy": {
-            "severity_floor": severity_floor,
-            "supplements": supplements,
-            "max_items": max_items,
-            "profile": profile,
-        },
-        "count": len(top),
-        "findings": top,
-    }
-
-
-def _debug(ctx: Context, message: str, obj: Any) -> None:
-    """Emit a structured debug log if DEBUG env var is enabled."""
-    try:
-        if os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}:
-            try:
-                pretty = json.dumps(obj, indent=2, ensure_ascii=False)
-            except Exception:
-                pretty = str(obj)
-            # fire-and-forget; Context expects awaits in callers, but avoid raising
-            # This helper is used only inside awaited functions
-            return asyncio.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
-    except Exception:
-        return None
-
-
-async def fetch_company_profile_dict(
-    call_v1_tool: CallV1Tool, ctx: Context, guid: str
-) -> Dict[str, Any]:
-    """Fetch and validate the company profile object from BitSight v1."""
-    company = await call_v1_tool("getCompany", ctx, {"guid": guid})
-    if not isinstance(company, dict):
-        raise ValueError("Unexpected response format from BitSight company endpoint")
-    return company
-
-
-def summarize_current_rating(company: Dict[str, Any]) -> tuple[Any, Any]:
-    """Return (value, color) tuple for the company's current rating."""
-    value = company.get("current_rating")
-    return value, rating_color(value)
-
-
-def calculate_rating_trend_summaries(
-    company: Dict[str, Any],
-) -> tuple[Dict[str, Any], Dict[str, Any]]:
-    """Calculate 8-week and 1-year rating trends from the ratings series."""
-    raw_ratings = company.get("ratings", [])
-    weekly_series = aggregate_ratings(raw_ratings, horizon_days=56, mode="weekly")
-    yearly_series = aggregate_ratings(raw_ratings, horizon_days=365, mode="monthly")
-    return compute_trend(weekly_series), compute_trend(yearly_series)
-
-
-def build_rating_legend_entries() -> List[Dict[str, Any]]:
-    return [
-        {"color": "red", "min": 250, "max": 629},
-        {"color": "yellow", "min": 630, "max": 739},
-        {"color": "green", "min": 740, "max": 900},
-    ]

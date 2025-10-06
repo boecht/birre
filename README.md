@@ -54,12 +54,20 @@ This project enables third-party access to Bitsight services through their publi
 
 ### Available Tools
 
-**BiRRe** currently exposes two business tools:
+BiRRe now supports context-specific toolsets:
 
-- **`get_company_rating`** - Get security ratings with automatic subscription management
-- **`company_search`** - Search for companies by name or domain (required for get_company_rating)
+- **`standard` context (default)** – quick rating workflows
+  - `company_search`: Search BitSight for companies by name or domain
+  - `get_company_rating`: Retrieve security ratings with automatic subscription management
+- **`risk_manager` context** – subscription and onboarding operations
+  - `company_search_interactive`: Enriched search results (name + GUID, domains, description, employee count, subscription folders) for human-in-the-loop selection
+  - `manage_subscriptions`: Bulk subscribe/unsubscribe GUIDs with dry-run support and audit summaries
+  - `request_company`: Submit BitSight company requests (deduplicates existing requests, attempts v2 bulk workflow with folder targeting, falls back gracefully)
+  - `company_search` and `get_company_rating` remain available for spot checks
 
-## BitSight API Documentation
+Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` config key. Invalid values default to `standard` with a warning.
+
+## BitSight API Documentation (v1 + v2 are complementary)
 
 **API Version**: This implementation is based on BitSight APIs as of July 24th, 2025. For the latest API changes and updates, refer to the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
 
@@ -93,11 +101,12 @@ This project enables third-party access to Bitsight services through their publi
 - **Narrative Improvements**: Normalise detection/remediation text for quick consumption by MCP clients
 - **Configuration Hooks**: Continue to rely on v1 findings endpoints while keeping v2 tooling optional via `BIRRE_ENABLE_V2`
 
-### Version 3.0: Context Modes (Planned)
+### Version 3.0: Context Modes (Current)
 
 - Two personas: `standard` (quick ratings) and `risk_manager` (subscription operations)
-- Context-driven tool filtering via CLI (`--context`) or env (`BIRRE_CONTEXT`)
-- Interactive company search and batch subscription management for risk managers
+- Context-driven tool filtering via CLI (`--context`), env (`BIRRE_CONTEXT`), or config
+- Risk manager tooling delivers enriched search data, dry-run batch subscription workflows, and company onboarding requests without in-tool prompts (LLMs coordinate user confirmations)
+- Optional BitSight v2 bridge loads automatically when the risk manager context is active
 
 ### Version 4.0: Caching Layer (Not Implemented)
 
@@ -114,3 +123,23 @@ This project enables third-party access to Bitsight services through their publi
 - Remote deployment support
 - Authentication and authorization
 - Concurrent user support
+
+## Testing
+
+BiRRe ships with both offline unit tests and opt-in live integration checks. The
+offline suite exercises configuration layering, logging formatters, startup
+checks, subscription helpers, and both standard and risk-manager tools without
+touching the BitSight API. The live tests drive the FastMCP client end-to-end
+against BitSight and require real credentials.
+
+```bash
+# Run the offline suite (no network calls).
+uv run pytest -m "not live"
+
+# Run the live smoke tests against BitSight.
+uv run pytest -m live -rs
+```
+
+Live tests require a valid `BITSIGHT_API_KEY` in the environment (or
+`config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
+install on demand inside an isolated virtual environment.

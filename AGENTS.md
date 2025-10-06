@@ -129,10 +129,10 @@ Always think step-by-step through the development process, considering the proje
 
 ```bash
 # Run offline unit tests only
-pytest -m "not live" -v
+uv run pytest -m "not live" -v
 
 # Run live MCP smoke tests (requires BITSIGHT_API_KEY)
-pytest -m live -k birre --maxfail=1
+uv run pytest -m live -rs
 
 # Fetch rating summary for the default sample query
 uv run python scripts/min_mcp_client.py
@@ -151,9 +151,6 @@ uvx --from git+https://github.com/boecht/birre server.py
 ### FastMCP Implementation Testing (Essential)
 
 ```bash
-# Test server creation
-uv run python -c "from birre.server import create_server; print(f'✅ Server: {create_server().name}')"
-
 # Test server startup (with timeout to avoid hanging)
 timeout 10s uv run server.py || echo "✅ Server test completed"
 ```

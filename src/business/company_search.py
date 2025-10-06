@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastmcp import Context, FastMCP
+from fastmcp.tools.tool import FunctionTool
 
 from .helpers import CallV1Tool
 from ..logging import log_search_event
@@ -62,7 +63,7 @@ def register_company_search_tool(
     call_v1_tool: CallV1Tool,
     *,
     logger: logging.Logger,
-) -> None:
+) -> FunctionTool:
     @business_server.tool()
     async def company_search(
         ctx: Context, name: Optional[str] = None, domain: Optional[str] = None
@@ -148,6 +149,8 @@ def register_company_search_tool(
             return {
                 "error": error_msg,
             }
+
+    return company_search  # type: ignore[return-value]
 
 
 __all__ = ["register_company_search_tool"]

@@ -5,7 +5,7 @@
 - **Purpose:** Build a general-purpose MCP server for the BitSight security rating platform. This server exposes BitSight data retrieval/functionality as callable MCP "tools" (endpoints) to any client able to speak the Model Context Protocol (MCP).
 - **MCP Role:** This is a backend service ("MCP server"), not an LLM client, plugin, or IDE extension. It responds to standardized MCP method calls from AI clients; it does not initiate them.
 - **Deployment:** Service can be run locally or remotely (cloud/server), and must support multi-tenant LLM/AI agent access, with basic authentication in advanced versions.
-- **BitSight Interaction:** Business tools call BitSight v1 endpoints via FastMCP. The v2 schema is preloaded (enable with `BIRRE_ENABLE_V2=true`) for complementary features, but no production tool invokes v2 yet.
+- **BitSight Interaction:** Business tools call BitSight v1 endpoints via FastMCP. The v2 schema is preloaded (enable with `BIRRE_ENABLE_V2=true`) for complementary features—v2 augments v1 and is used where it adds capabilities (e.g., bulk company requests).
 
 ## 2. Functional Requirements, by Version
 
@@ -79,18 +79,19 @@
 - **`risk_manager`**
   - **Audience:** Human risk managers handling subscription portfolios and data hygiene.
   - **Tools exposed:**
-    - `company_search_interactive`: prompts the operator to confirm the exact entity (parent vs subsidiary) before returning a GUID. If no match is found, it produces a structured "request-new-company" task that downstream automations can pass to BitSight support.
-    - `manage_subscriptions`: create, update, or remove subscriptions for single GUIDs or CSV-style batches (wrapping `manageSubscriptionsBulk`).
+    - `company_search_interactive`: returns enriched search results (name with GUID, domain, website, description, employee count, folder membership, subscription snapshot) so the calling LLM can drive the clarification dialogue with the human. When no fit exists the LLM is instructed to invoke the `request_company` tool—no in-tool prompts.
+    - `request_company`: Dedicated BitSight onboarding helper. Checks `/v2/company-requests` for duplicates, prefers the `createCompanyRequestBulk` workflow (so folder/type metadata can be supplied) and falls back to `createCompanyRequest` on errors—demonstrating how v2 augments v1 rather than replacing it.
+    - `manage_subscriptions`: create, update, or remove subscriptions for single GUIDs or CSV-style batches (wrapping `manageSubscriptionsBulk`) with the option to define a target folder (default is the regular subscription_folder, currently API).
     - `get_company_rating`: same payload as the standard context for spot checks after subscription changes.
   - **Behaviour:**
-    - Search results are verbose, highlighting folder placement, subscription status, and asking for explicit confirmation before proceeding.
-    - Batch operations require acknowledgement of the target folder/type before execution and report granular success/error lists.
-    - Failed searches emit an escalation payload instructing users to request BitSight onboarding for the missing entity.
+    - Search responses highlight folder placement, subscription status, and include guidance text instructing the LLM to ask the user which company to proceed with.
+    - Batch operations support dry-run payload previews, confirm target folder usage, and return granular success/error lists suitable for audit logs.
+    - Failed searches emit an escalation payload instructing callers to trigger the `request_company` tool for onboarding when the entity is absent.
 
 #### Implementation Requirements
 
 - **Tool Filtering:** Only the tools defined above are registered under each context; hidden API tools remain accessible internally via `server.call_tool`.
-- **Interactive Prompts:** `company_search_interactive` must surface clarification questions via `ctx.prompt` / `ctx.ask` so risk managers can steer the search.
+- **Interactive Guidance:** `company_search_interactive` outputs enriched metadata and explicit guidance strings; the operator conversation is driven by the LLM rather than in-tool prompts.
 - **Batch Safety:** `manage_subscriptions` must support dry-run mode and emit summaries suitable for audit logs (success, duplicate, failure counts).
 - **Extensibility:** Future contexts (e.g., `admin`) can be layered on, but Version 3.0 ships with exactly these two personas.
 
@@ -151,6 +152,7 @@
 - **Maintainability:** Codebase modularity and clarity are a must; all endpoints and logic should be independently updatable and testable.
 - **Compatibility:** The MCP server must work with any LLM/AI agent that supports the MCP protocol and should be designed for maximum protocol compliance.
 - **Testing:** Provide an opt-in live integration suite (`pytest -m live`) that uses the in-process FastMCP client to hit BitSight endpoints when `BITSIGHT_API_KEY` is configured, while keeping offline tests fixture-driven.
+- **Offline coverage:** Maintain a fast `uv run pytest -m "not live"` suite that exercises configuration layering, logging, startup checks, and risk-manager tooling without requiring network access.
 - **Startup Checks:** On every launch the server validates BitSight connectivity (API key, subscriptions, quota). Allow operators to skip these checks via `--skip-startup-checks`, `BIRRE_SKIP_STARTUP_CHECKS`, or `[runtime].skip_startup_checks` when running in controlled environments.
 
 ## 4. Technical Architecture
@@ -169,5 +171,5 @@ The project uses a **FastMCP hybrid architecture** that leverages OpenAPI schema
 
 - Requirements specify interface, contract, data flow, error handling, and now architectural structure.
 - Implementation decisions within each layer—such as specific HTTP client library, async patterns, or data validation strategies—are left to architectural preference.
-- The FastMCP hybrid architecture is mandatory for maintainability and extensibility goals; future iterations will layer in multi-version API support once v2 business tooling ships.
+- The FastMCP hybrid architecture is mandatory for maintainability and extensibility goals; future iterations will continue to layer in complementary v2 tooling alongside the v1-centric core.
 - If ambiguity or edge cases arise, clarify with explicit options and recommendations (don't default or assume).

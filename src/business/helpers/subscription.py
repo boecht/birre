@@ -7,6 +7,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
 
+from src.constants import coerce_bool
+
 from . import CallV1Tool
 
 
@@ -77,7 +79,7 @@ async def create_ephemeral_subscription(
         )
 
         # Debug: dump raw API response if DEBUG env is set
-        if os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}:
+        if coerce_bool(os.getenv("DEBUG")):
             pretty = (
                 json.dumps(result, indent=2, sort_keys=True)
                 if isinstance(result, dict)
@@ -168,7 +170,7 @@ async def cleanup_ephemeral_subscription(
         result = await call_v1_tool("manageSubscriptionsBulk", ctx, delete_payload)
 
         # Debug: dump raw API response if DEBUG env is set
-        if os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}:
+        if coerce_bool(os.getenv("DEBUG")):
             pretty = (
                 json.dumps(result, indent=2, sort_keys=True)
                 if isinstance(result, dict)

@@ -5,10 +5,6 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .logging import get_logger, log_event
-
-LOGGER = get_logger(__name__)
-
 SCHEMA_PATHS = (
     Path("apis/bitsight.v1.schema.json"),
     Path("apis/bitsight.v2.schema.json"),
@@ -28,69 +24,61 @@ class _StartupCheckContext:
         self._logger.warning(message)
 
     async def error(self, message: str) -> None:
-        self._logger.error(message)
+        self._logger.critical(message)
 
 
 def run_offline_startup_checks(
     *,
-    api_key_present: bool,
+    has_api_key: bool,
     subscription_folder: Optional[str],
     subscription_type: Optional[str],
-    logger: Optional[logging.Logger] = None,
-) -> Dict[str, Any]:
-    check_logger = logger or LOGGER
-    checks: List[Dict[str, Any]] = []
+    logger: logging.Logger,
+) -> bool:
+    if not has_api_key:
+        logger.critical("offline.config.api_key: BITSIGHT_API_KEY is not set")
+        return False
 
-    def record(name: str, status: str, details: str) -> None:
-        checks.append({"check": name, "status": status, "details": details})
-
-    if api_key_present:
-        record("config.api_key", "ok", "API key provided")
-    else:
-        record("config.api_key", "error", "BITSIGHT_API_KEY is not set")
+    logger.debug("offline.config.api_key: API key provided")
 
     for path in SCHEMA_PATHS:
         if not path.exists():
-            record(f"config.schema:{path.name}", "error", "Schema file missing")
-        else:
-            try:
-                with path.open("r", encoding="utf-8") as handle:
-                    json.load(handle)
-                record(f"config.schema:{path.name}", "ok", "Schema parsed successfully")
-            except Exception as exc:  # pragma: no cover - defensive
-                record(
-                    f"config.schema:{path.name}", "error", f"Schema parse error: {exc}"
-                )
+            logger.critical("offline.config.schema:%s: Schema file missing", path.name)
+            return False
+
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                json.load(handle)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.critical(
+                "offline.config.schema:%s: Schema parse error: %s",
+                path.name,
+                exc,
+            )
+            return False
+
+        logger.debug("offline.config.schema:%s: Schema parsed successfully", path.name)
 
     if subscription_folder:
-        record(
-            "config.subscription_folder",
-            "ok",
-            f"Folder configured: {subscription_folder}",
+        logger.debug(
+            "offline.config.subscription_folder: Folder configured: %s",
+            subscription_folder,
         )
     else:
-        record(
-            "config.subscription_folder", "warning", "BIRRE_SUBSCRIPTION_FOLDER not set"
+        logger.warning(
+            "offline.config.subscription_folder: BIRRE_SUBSCRIPTION_FOLDER not set"
         )
 
     if subscription_type:
-        record(
-            "config.subscription_type",
-            "ok",
-            f"Subscription type configured: {subscription_type}",
+        logger.debug(
+            "offline.config.subscription_type: Subscription type configured: %s",
+            subscription_type,
         )
     else:
-        record("config.subscription_type", "warning", "BIRRE_SUBSCRIPTION_TYPE not set")
+        logger.warning(
+            "offline.config.subscription_type: BIRRE_SUBSCRIPTION_TYPE not set"
+        )
 
-    summary = {
-        "ok": sum(1 for c in checks if c["status"] == "ok"),
-        "warning": sum(1 for c in checks if c["status"] == "warning"),
-        "error": sum(1 for c in checks if c["status"] == "error"),
-    }
-
-    log_event(check_logger, "startup_checks.offline", summary=summary, checks=checks)
-
-    return {"summary": summary, "checks": checks}
+    return True
 
 
 async def _check_api_connectivity(call_v1_tool, ctx: Any) -> Optional[str]:
@@ -170,83 +158,59 @@ async def run_online_startup_checks(
     call_v1_tool,
     subscription_folder: Optional[str],
     subscription_type: Optional[str],
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger,
     skip_startup_checks: bool = False,
-) -> Dict[str, Any]:
-    diag_logger = logger or LOGGER
-    checks: List[Dict[str, Any]] = []
-
-    def record(name: str, status: str, details: str) -> None:
-        checks.append({"check": name, "status": status, "details": details})
-
+) -> bool:
     if skip_startup_checks:
-        record(
-            "startup_checks_skipped",
-            "warning",
-            "Startup online checks skipped on request",
+        logger.warning(
+            "online.startup_checks_skipped: Startup online checks skipped on request"
         )
-        summary = {
-            "ok": sum(1 for c in checks if c["status"] == "ok"),
-            "warning": sum(1 for c in checks if c["status"] == "warning"),
-            "error": sum(1 for c in checks if c["status"] == "error"),
-        }
-        log_event(diag_logger, "startup_checks.online", summary=summary, checks=checks)
-        return {"summary": summary, "checks": checks}
+        return True
 
     if call_v1_tool is None:
-        record("api_connectivity", "error", "v1 call tool unavailable")
+        logger.critical("online.api_connectivity: v1 call tool unavailable")
+        return False
+
+    ctx = _StartupCheckContext(logger)
+
+    connectivity_issue = await _check_api_connectivity(call_v1_tool, ctx)
+    if connectivity_issue is not None:
+        logger.critical("online.api_connectivity: %s", connectivity_issue)
+        return False
+
+    logger.info("online.api_connectivity: Successfully called companySearch")
+
+    if subscription_folder:
+        folder_issue = await _check_subscription_folder(
+            call_v1_tool, ctx, subscription_folder
+        )
+        if folder_issue is not None:
+            logger.critical("online.subscription_folder_exists: %s", folder_issue)
+            return False
+        logger.info(
+            "online.subscription_folder_exists: Folder '%s' verified via API",
+            subscription_folder,
+        )
     else:
-        ctx = _StartupCheckContext(diag_logger)
+        logger.error(
+            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set"
+        )
 
-        connectivity_issue = await _check_api_connectivity(call_v1_tool, ctx)
-        if connectivity_issue is None:
-            record("api_connectivity", "ok", "Successfully called companySearch")
-        else:
-            record("api_connectivity", "error", connectivity_issue)
+    if subscription_type:
+        quota_issue = await _check_subscription_quota(
+            call_v1_tool, ctx, subscription_type
+        )
+        if quota_issue is not None:
+            logger.critical("online.subscription_quota: %s", quota_issue)
+            return False
+        logger.info(
+            "online.subscription_quota: Subscription '%s' has remaining licenses",
+            subscription_type,
+        )
+    else:
+        logger.error("online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set")
 
-        if subscription_folder:
-            folder_issue = await _check_subscription_folder(
-                call_v1_tool, ctx, subscription_folder
-            )
-            if folder_issue is None:
-                record(
-                    "subscription_folder_exists",
-                    "ok",
-                    f"Folder '{subscription_folder}' verified via API",
-                )
-            else:
-                record("subscription_folder_exists", "error", folder_issue)
-        else:
-            record(
-                "subscription_folder_exists",
-                "warning",
-                "BIRRE_SUBSCRIPTION_FOLDER not set",
-            )
-
-        if subscription_type:
-            quota_issue = await _check_subscription_quota(
-                call_v1_tool, ctx, subscription_type
-            )
-            if quota_issue is None:
-                record(
-                    "subscription_quota",
-                    "ok",
-                    f"Subscription '{subscription_type}' has remaining licenses",
-                )
-            else:
-                record("subscription_quota", "error", quota_issue)
-        else:
-            record("subscription_quota", "warning", "BIRRE_SUBSCRIPTION_TYPE not set")
-
-    summary = {
-        "ok": sum(1 for c in checks if c["status"] == "ok"),
-        "warning": sum(1 for c in checks if c["status"] == "warning"),
-        "error": sum(1 for c in checks if c["status"] == "error"),
-    }
-
-    log_event(diag_logger, "startup_checks.online", summary=summary, checks=checks)
-
-    return {"summary": summary, "checks": checks}
+    return True
 
 
 __all__ = ["run_offline_startup_checks", "run_online_startup_checks"]

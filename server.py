@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """BiRRe FastMCP server entrypoint.
 
 Usage:
@@ -10,28 +9,12 @@ environment variable.
 
 import argparse
 import asyncio
-import json
 import logging
-from typing import Any, Dict
 
-from src.birre import create_birre_server, resolve_birre_settings
-from src.logging import (
-    LoggingSettings,
-    configure_logging,
-    get_logger,
-    resolve_logging_settings,
-)
+from src.birre import create_birre_server
+from src.config import resolve_application_settings
+from src.logging import configure_logging
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
-
-
-def _resolve_settings_helper(args: argparse.Namespace) -> Dict[str, Any]:
-    return resolve_birre_settings(
-        api_key_arg=args.api_key,
-        config_path=args.config_path,
-        subscription_folder_arg=args.subscription_folder,
-        subscription_type_arg=args.subscription_type,
-        debug_arg=args.debug,
-    )
 
 
 def main() -> None:
@@ -42,6 +25,17 @@ def main() -> None:
         "--bitsight-api-key",
         dest="api_key",
         help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--config",
+        dest="config_path",
+        default="config.toml",
+        help="Path to BiRRe config TOML (default: config.toml)",
+    )
+    parser.add_argument(
+        "--context",
+        dest="context",
+        help="Tool persona to expose (standard or risk_manager)",
     )
     valid_levels = [
         name
@@ -63,7 +57,7 @@ def main() -> None:
     parser.add_argument(
         "--log-file",
         dest="log_file",
-        help="Optional log file path (adds rotating file handler)",
+        help="Log file path (adds rotating file handler)",
     )
     parser.add_argument(
         "--log-max-bytes",
@@ -84,12 +78,6 @@ def main() -> None:
         help="Skip BitSight startup checks (not recommended)",
     )
     parser.add_argument(
-        "--config",
-        dest="config_path",
-        default="config.toml",
-        help="Path to BiRRe config TOML (default: config.toml)",
-    )
-    parser.add_argument(
         "--subscription-folder",
         dest="subscription_folder",
         help="Preferred BitSight subscription folder name (e.g. API), must exist",
@@ -100,6 +88,17 @@ def main() -> None:
         help="BitSight subscription type (e.g. continuous_monitoring)",
     )
     parser.add_argument(
+        "--risk-vector-filter",
+        dest="risk_vector_filter",
+        help="Override the default risk vectors used for top findings (comma-separated).",
+    )
+    parser.add_argument(
+        "--max-findings",
+        dest="max_findings",
+        type=int,
+        help="Maximum number of findings/details to surface per company (default: 10).",
+    )
+    parser.add_argument(
         "--debug",
         dest="debug",
         action="store_true",
@@ -108,66 +107,76 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    server_settings = _resolve_settings_helper(args)
-    debug_enabled = server_settings["debug"]
-
-    logging_settings = resolve_logging_settings(
+    runtime_settings, logging_settings = resolve_application_settings(
+        api_key_arg=args.api_key,
         config_path=args.config_path,
-        level_override=args.log_level,
-        format_override=args.log_format,
-        file_override=args.log_file,
-        max_bytes_override=args.log_max_bytes,
-        backup_count_override=args.log_backup_count,
+        context_arg=args.context,
+        risk_vector_filter_arg=args.risk_vector_filter,
+        max_findings_arg=args.max_findings,
+        log_level_override=args.log_level,
+        log_format_override=args.log_format,
+        log_file_override=args.log_file,
+        log_max_bytes_override=args.log_max_bytes,
+        log_backup_count_override=args.log_backup_count,
+        subscription_folder_arg=args.subscription_folder,
+        subscription_type_arg=args.subscription_type,
+        debug_arg=args.debug,
     )
 
-    if debug_enabled and logging_settings.level > logging.DEBUG:
-        logging_settings = LoggingSettings(
-            level=logging.DEBUG,
-            format=logging_settings.format,
-            file_path=logging_settings.file_path,
-            max_bytes=logging_settings.max_bytes,
-            backup_count=logging_settings.backup_count,
-        )
+    print(
+        "\n"
+        "╭────────────────────────────────────────────────────────────────╮\n"
+        "│\033[0;33m                                                                \033[0m│\n"
+        "│\033[0;33m     ███████████   ███  ███████████   ███████████               \033[0m│\n"
+        "│\033[0;33m    ░░███░░░░░███ ░░░  ░░███░░░░░███ ░░███░░░░░███              \033[0m│\n"
+        "│\033[0;33m     ░███    ░███ ████  ░███    ░███  ░███    ░███   ██████     \033[0m│\n"
+        "│\033[0;33m     ░██████████ ░░███  ░██████████   ░██████████   ███░░███    \033[0m│\n"
+        "│\033[0;33m     ░███░░░░░███ ░███  ░███░░░░░███  ░███░░░░░███ ░███████     \033[0m│\n"
+        "│\033[0;33m     ░███    ░███ ░███  ░███    ░███  ░███    ░███ ░███░░░      \033[0m│\n"
+        "│\033[0;33m     ███████████  █████ █████   █████ █████   █████░░██████     \033[0m│\n"
+        "│\033[0;33m    ░░░░░░░░░░░  ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░  ░░░░░░      \033[0m│\n"
+        "│\033[0;33m                                                                \033[0m│\n"
+        "│\033[2m                   Bitsight Rating Retriever                    \033[0m│\n"
+        "│\033[0;33m                 Model Context Protocol Server                  \033[0m│\n"
+        "│\033[0;33m                https://github.com/boecht/birre                 \033[0m│\n"
+        "╰────────────────────────────────────────────────────────────────╯\n\033[0m"
+    )
 
     configure_logging(logging_settings)
-    logger = get_logger(__name__)
+    logger = logging.getLogger("birre")
 
-    offline_results = run_offline_startup_checks(
-        api_key_present=bool(server_settings["api_key"]),
-        subscription_folder=server_settings["subscription_folder"],
-        subscription_type=server_settings["subscription_type"],
+    for message in runtime_settings.get("warnings", []):
+        logger.warning(message)
+
+    logger.info("Running offline startup checks")
+    offline_ok = run_offline_startup_checks(
+        has_api_key=bool(runtime_settings["api_key"]),  # CodeQL false positive
+        subscription_folder=runtime_settings["subscription_folder"],
+        subscription_type=runtime_settings["subscription_type"],
         logger=logger,
     )
-    if offline_results["summary"]["error"] > 0:
-        print(json.dumps({"offline": offline_results}, indent=2, ensure_ascii=False))
+    if not offline_ok:
+        logger.critical("Offline startup checks failed; aborting startup")
         raise SystemExit(1)
 
-    server = create_birre_server(
-        api_key=args.api_key,
-        config_path=args.config_path,
-        subscription_folder=args.subscription_folder,
-        subscription_type=args.subscription_type,
-    )
+    logger.info("Preparing BiRRe FastMCP server")
+    server = create_birre_server(settings=runtime_settings, logger=logger)
 
+    logger.info("Running online startup checks")
     call_v1_tool = getattr(server, "call_v1_tool", None)
-    online_results = asyncio.run(
+    online_ok = asyncio.run(
         run_online_startup_checks(
             call_v1_tool=call_v1_tool,
-            subscription_folder=server_settings["subscription_folder"],
-            subscription_type=server_settings["subscription_type"],
+            subscription_folder=runtime_settings["subscription_folder"],
+            subscription_type=runtime_settings["subscription_type"],
             logger=logger,
             skip_startup_checks=(
-                args.skip_startup_checks or server_settings["skip_startup_checks"]
+                args.skip_startup_checks or runtime_settings["skip_startup_checks"]
             ),
         )
     )
-
-    combined_results = {"offline": offline_results, "online": online_results}
-    print(json.dumps(combined_results, indent=2, ensure_ascii=False))
-    if (
-        offline_results["summary"]["error"] > 0
-        or online_results["summary"]["error"] > 0
-    ):
+    if not online_ok:
+        logger.critical("Online startup checks failed; aborting startup")
         raise SystemExit(1)
 
     logger.info("Starting BiRRe FastMCP server")

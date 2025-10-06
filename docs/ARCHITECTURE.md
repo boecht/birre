@@ -34,19 +34,23 @@ The architecture uses FastMCP's tool filtering mechanism to separate API tools f
 
 ```text
 MCP Client
-    ↓ (sees 2 business tools)
+    ↓ (context-specific business tools)
 BiRRe FastMCP Server
-├── company_search
-└── get_company_rating
-    ↓ (internal access via stored call_v1_tool)
-Selected v1 API Tools (kept enabled)
-├── companySearch
-├── manageSubscriptionsBulk
-├── getCompany
-├── getCompaniesFindings
-├── getFolders
-└── getCompanySubscriptions
-    ↓ (HTTP calls)
+├── Standard context tools
+│   ├── company_search
+│   └── get_company_rating
+└── Risk-manager context tools (superset)
+    ├── company_search
+    ├── get_company_rating
+    ├── company_search_interactive
+    ├── manage_subscriptions
+    └── request_company (uses v2 bulk onboarding when available)
+        ↓ (internal access via stored call_v1_tool / call_v2_tool)
+Selected BitSight API Tools kept enabled
+├── v1: companySearch, manageSubscriptionsBulk, getCompany, getCompaniesFindings,
+│      getFolders, getCompanySubscriptions
+└── v2: getCompanyRequests, createCompanyRequestBulk, createCompanyRequest
+        ↓ (HTTP calls)
 BitSight REST APIs (v1: 383 endpoints, v2: 20 complementary endpoints)
 ```
 
@@ -97,21 +101,21 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 **Exposed Tools**:
 
-- `company_search`: Company lookup by name or domain with result processing
-- `get_company_rating`: Security rating retrieval with subscription management and top findings summarisation
+- Standard context: `company_search`, `get_company_rating`
+- Risk-manager context: standard tools plus `company_search_interactive`, `manage_subscriptions`, `request_company`
 
 **Internal Capabilities**:
 
 - Ephemeral subscription lifecycle management (create/cleanup)
 - Severity-aware top findings ranking (BitSight findings API)
 - Error handling and response normalization
-- Optional v2 preloading via `BIRRE_ENABLE_V2` for future complementary endpoints (no business usage yet)
+- Optional v2 preloading via `BIRRE_ENABLE_V2` for complementary endpoints (used when workflows require functionality v1 does not offer, such as bulk company requests)
 
 ### API Version Strategy
 
 - **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search, ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are disabled at startup to minimise surface area.
-- **v2 API (Complementary)**: The v2 schema can be preloaded by setting `BIRRE_ENABLE_V2=true`, preparing the FastMCP server for future enhancements. No production tool invokes v2 today, so the runtime behaviour is unchanged unless new tools are added.
-- **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will be layered on per-feature. There is no automatic version fallback path at present.
+- **v2 API (Complementary)**: The v2 schema can be preloaded by setting `BIRRE_ENABLE_V2=true`. Business tooling invokes v2 only when it provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains v1-centric unless optional features require it.
+- **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will continue to be layered on per feature; v2 augments v1 and there is no plan for a wholesale replacement.
 
 ## Implementation Details
 
@@ -143,7 +147,7 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 ## Benefits
 
-**Interface Simplicity**: 2 focused business tools instead of 478 API endpoints
+**Interface Simplicity**: Context-specific business toolsets (2 for standard, 5 for risk-manager) instead of 478 API endpoints
 **Complete Coverage**: Full API functionality available through auto-generation
 **Maintainability**: Minimal custom HTTP client code, handled by FastMCP
 **Framework Compliance**: Uses standard FastMCP patterns as documented
@@ -162,7 +166,9 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 ## Testing Strategy
 
-Automated coverage is currently **absent**. Historical live tests were removed in September 2025 because they depended on deprecated helpers. The agreed plan is to rebuild:
+The project maintains both offline and live suites:
 
-- A minimal offline/unit suite around company search, rating assembly, and subscription helpers.
-- An opt-in live smoke test (guarded by `pytest -m live`) once the offline baseline exists and BitSight credentials are available.
+- **Offline (`uv run pytest -m "not live"`)** – Runs quickly without network access. It covers configuration layering, logging formatters, startup checks, and the risk-manager tools (interactive search, subscription management, company requests) using lightweight stubs.
+- **Live (`uv run pytest -m live -rs`)** – Executes the FastMCP client end-to-end against BitSight, verifying the company search/rating workflow and the online startup checks. Requires a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
+
+Future work should extend the offline suite to the standard company rating/search flows and ensure any new tooling lands with matching tests.

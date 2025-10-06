@@ -6,10 +6,6 @@ from typing import Any
 import httpx
 from fastmcp import FastMCP
 
-from ..logging import get_logger
-
-_LOGGER = get_logger(__name__)
-
 
 def _load_api_spec(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as handle:

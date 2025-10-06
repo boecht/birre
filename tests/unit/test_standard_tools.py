@@ -1,0 +1,184 @@
+import logging
+from types import SimpleNamespace
+from typing import Any, Dict
+
+import pytest
+from fastmcp import Context, FastMCP
+
+from src.business.company_search import register_company_search_tool
+from src.business.company_rating import register_company_rating_tool
+
+
+class StubContext(Context):
+    def __init__(self) -> None:
+        self.messages: Dict[str, list[str]] = {"info": [], "warning": [], "error": []}
+        self.metadata = {}
+        self.tool = "standard"
+        self._request_id = "standard-test"
+
+    async def info(self, message: str) -> None:  # type: ignore[override]
+        self.messages["info"].append(message)
+
+    async def warning(self, message: str) -> None:  # type: ignore[override]
+        self.messages["warning"].append(message)
+
+    async def error(self, message: str) -> None:  # type: ignore[override]
+        self.messages["error"].append(message)
+
+    @property
+    def request_id(self) -> str:  # type: ignore[override]
+        return self._request_id
+
+    @property
+    def call_id(self) -> str:  # type: ignore[override]
+        return self._request_id
+
+
+def make_server() -> tuple[FastMCP, logging.Logger]:
+    server = FastMCP(name="TestServer")
+    logger = logging.getLogger("birre.test.standard")
+    return server, logger
+
+
+@pytest.mark.asyncio
+async def test_company_search_requires_query() -> None:
+    server, logger = make_server()
+
+    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        raise AssertionError("call_v1_tool should not be invoked without params")
+
+    tool = register_company_search_tool(server, call_v1_tool, logger=logger)
+    ctx = StubContext()
+
+    result = await tool.fn(ctx)  # type: ignore[attr-defined]
+    assert result == {
+        "error": "At least one of 'name' or 'domain' must be provided",
+    }
+    assert ctx.messages["error"] == []
+
+
+@pytest.mark.asyncio
+async def test_company_search_returns_normalized_payload() -> None:
+    server, logger = make_server()
+
+    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        assert name == "companySearch"
+        assert params == {"name": "Example", "domain": None}
+        return {
+            "results": [
+                {"guid": "guid-1", "name": "Example Corp", "primary_domain": "example.com"},
+                {"guid": "guid-2", "name": "Example Blog", "display_url": "blog.example.com"},
+            ],
+        }
+
+    tool = register_company_search_tool(server, call_v1_tool, logger=logger)
+    ctx = StubContext()
+
+    result = await tool.fn(ctx, name="Example")  # type: ignore[attr-defined]
+    assert result == {
+        "companies": [
+            {"guid": "guid-1", "name": "Example Corp", "domain": "example.com"},
+            {"guid": "guid-2", "name": "Example Blog", "domain": "blog.example.com"},
+        ],
+        "count": 2,
+    }
+    assert not ctx.messages["error"]
+
+
+@pytest.mark.asyncio
+async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pytest.MonkeyPatch) -> None:
+    server, logger = make_server()
+
+    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        raise AssertionError(f"Unexpected call_v1_tool invocation: {name}")
+
+    tool = register_company_rating_tool(server, call_v1_tool, logger=logger)
+    ctx = StubContext()
+
+    # Patch internal helpers to isolate behaviour
+    async def fake_create(*args, **kwargs):
+        return SimpleNamespace(success=True, created=True, already_subscribed=False, message=None)
+
+    async def fake_cleanup(*args, **kwargs):
+        return True
+
+    monkeypatch.setattr(
+        "src.business.company_rating.create_ephemeral_subscription",
+        fake_create,
+    )
+    monkeypatch.setattr(
+        "src.business.company_rating.cleanup_ephemeral_subscription",
+        fake_cleanup,
+    )
+    async def fake_fetch_company(*args, **kwargs):
+        return {
+            "name": "Example Corp",
+            "primary_domain": "example.com",
+            "current_rating": 740,
+            "ratings": [
+                {"rating_date": "2025-09-10", "rating": 720},
+                {"rating_date": "2025-10-01", "rating": 740},
+            ],
+        }
+
+    async def fake_top_findings(*args, **kwargs):
+        return {
+            "policy": {
+                "severity_floor": "material",
+                "supplements": [],
+                "max_items": 5,
+                "profile": "strict",
+            },
+            "count": 1,
+            "findings": [
+                {
+                    "top": 1,
+                    "finding": "Open Ports",
+                    "details": "Detected service: HTTPS",
+                    "asset": "example.com",
+                    "first_seen": "2025-09-15",
+                    "last_seen": "2025-10-01",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "src.business.company_rating._fetch_company_profile_dict",
+        fake_fetch_company,
+    )
+    monkeypatch.setattr(
+        "src.business.company_rating._assemble_top_findings_section",
+        fake_top_findings,
+    )
+
+    result = await tool.fn(ctx, guid="guid-1")  # type: ignore[attr-defined]
+    assert result["name"] == "Example Corp"
+    assert result["domain"] == "example.com"
+    assert result["current_rating"]["value"] == 740
+    assert result["top_findings"]["count"] == 1
+    assert ctx.messages["error"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_company_rating_subscription_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    server, logger = make_server()
+
+    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        raise AssertionError("call_v1_tool should not run when subscription fails")
+
+    tool = register_company_rating_tool(server, call_v1_tool, logger=logger)
+    ctx = StubContext()
+
+    async def fake_create_fail(*args, **kwargs):
+        return SimpleNamespace(
+            success=False, created=False, already_subscribed=False, message="no subscription"
+        )
+
+    monkeypatch.setattr(
+        "src.business.company_rating.create_ephemeral_subscription",
+        fake_create_fail,
+    )
+
+    result = await tool.fn(ctx, guid="guid-err")  # type: ignore[attr-defined]
+    assert result == {"error": "no subscription"}
+    assert "no subscription" in ctx.messages["error"]

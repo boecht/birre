@@ -4,20 +4,28 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any, Dict
 
 import pytest
 import pytest_asyncio
-from pathlib import Path
-import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from fastmcp.client import Client
-from fastmcp.client.client import CallToolResult
-from src.birre import create_birre_server
+try:
+    from fastmcp.client import Client
+    from fastmcp.client.client import CallToolResult
+except (ImportError, ModuleNotFoundError):
+    pytest.skip(
+        "fastmcp client not installed; skipping live tests", allow_module_level=True
+    )
+
+from src.birre import create_birre_server  # ruff: noqa: E402
+from src.config import resolve_birre_settings  # ruff: noqa: E402
+from src.logging import get_logger  # ruff: noqa: E402
 
 
 pytestmark = pytest.mark.live
@@ -59,7 +67,9 @@ def require_live_api_key() -> str:
 async def birre_client(require_live_api_key: str):
     """Provide an in-process FastMCP client for BiRRe."""
 
-    server = create_birre_server()
+    settings = resolve_birre_settings()
+    logger = get_logger("birre.live.test")
+    server = create_birre_server(settings, logger=logger)
     async with Client(server) as client:
         yield client
 
