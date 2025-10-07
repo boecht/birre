@@ -435,10 +435,14 @@ def register_company_search_interactive_tool(
             return {
                 "count": 0,
                 "results": [],
+                "search_term": search_term,
                 "guidance": {
                     "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
                     "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
+                    "default_folder": default_folder,
+                    "default_subscription_type": default_type,
                 },
+                "truncated": False,
             }
 
         details = await _fetch_company_details(
