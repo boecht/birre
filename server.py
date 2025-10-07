@@ -1,12 +1,3 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#     "fastmcp==2.12.4",
-#     "python-dotenv",
-#     "httpx",
-# ]
-# ///
-
 """BiRRe FastMCP server entrypoint.
 
 Usage:
