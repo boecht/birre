@@ -10,6 +10,7 @@ from src.business.company_rating import (
     register_company_rating_tool,
     _normalize_finding_entry,
 )
+from src.business.risk_manager import register_company_search_interactive_tool
 
 
 class StubContext(Context):
@@ -86,6 +87,45 @@ async def test_company_search_returns_normalized_payload() -> None:
         "count": 2,
     }
     assert not ctx.messages["error"]
+
+
+@pytest.mark.asyncio
+async def test_company_search_interactive_empty_result_contract() -> None:
+    server, logger = make_server()
+
+    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        assert name == "companySearch"
+        assert params == {"expand": "details.employee_count", "name": "Example"}
+        return {"results": []}
+
+    async def call_v2_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        raise AssertionError(f"Unexpected v2 call: {name}")
+
+    tool = register_company_search_interactive_tool(
+        server,
+        call_v1_tool,
+        call_v2_tool,
+        logger=logger,
+        default_folder="Default",
+        default_type="continuous",
+    )
+    ctx = StubContext()
+
+    result = await tool.fn(ctx, name="Example")  # type: ignore[attr-defined]
+
+    assert result == {
+        "count": 0,
+        "results": [],
+        "search_term": "Example",
+        "guidance": {
+            "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
+            "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
+            "default_folder": "Default",
+            "default_subscription_type": "continuous",
+        },
+        "truncated": False,
+    }
+    assert ctx.messages["error"] == []
 
 
 @pytest.mark.asyncio
