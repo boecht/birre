@@ -6,7 +6,10 @@ import pytest
 from fastmcp import Context, FastMCP
 
 from src.business.company_search import register_company_search_tool
-from src.business.company_rating import register_company_rating_tool
+from src.business.company_rating import (
+    register_company_rating_tool,
+    _normalize_finding_entry,
+)
 
 
 class StubContext(Context):
@@ -182,3 +185,22 @@ async def test_get_company_rating_subscription_failure(monkeypatch: pytest.Monke
     result = await tool.fn(ctx, guid="guid-err")  # type: ignore[attr-defined]
     assert result == {"error": "no subscription"}
     assert "no subscription" in ctx.messages["error"]
+
+
+def test_normalize_finding_entry_missing_dates() -> None:
+    item = {
+        "details": {
+            "display_name": "Open port",
+            "description": "Detected service: HTTPS",
+        },
+        "risk_vector": "web_appsec",
+        "risk_vector_label": "Web Application Security",
+    }
+
+    normalized = _normalize_finding_entry(item)
+
+    assert normalized["finding"] == "Open port"
+    assert normalized["details"].startswith("Open port")
+    assert normalized["asset"] is None
+    assert normalized["first_seen"] is None
+    assert normalized["last_seen"] is None
