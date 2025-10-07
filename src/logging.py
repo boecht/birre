@@ -133,7 +133,7 @@ def configure_logging(settings: LoggingSettings) -> None:
 
     channel_filter = ChannelNameFilter()
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(settings.level)
     console_handler.addFilter(channel_filter)
     console_handler.setFormatter(_build_formatter(settings.format))
