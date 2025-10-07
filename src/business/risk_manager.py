@@ -15,6 +15,159 @@ from .helpers import CallV1Tool, CallV2Tool
 from ..logging import log_search_event
 
 
+_SUBSCRIPTION_SNAPSHOT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "active": {"type": "boolean"},
+        "subscription_type": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "folders": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "subscription_end_date": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    },
+    "required": ["active", "subscription_type", "folders", "subscription_end_date"],
+    "additionalProperties": True,
+}
+
+_COMPANY_INTERACTIVE_RESULT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "label": {"type": "string"},
+        "guid": {"type": "string"},
+        "name": {"type": "string"},
+        "primary_domain": {"type": "string"},
+        "website": {"type": "string"},
+        "description": {"type": "string"},
+        "employee_count": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "subscription": _SUBSCRIPTION_SNAPSHOT_SCHEMA,
+    },
+    "required": [
+        "label",
+        "guid",
+        "name",
+        "primary_domain",
+        "website",
+        "description",
+        "employee_count",
+        "subscription",
+    ],
+    "additionalProperties": True,
+}
+
+COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "count": {"type": "integer", "minimum": 0},
+        "results": {
+            "type": "array",
+            "items": _COMPANY_INTERACTIVE_RESULT_SCHEMA,
+        },
+        "search_term": {"type": "string"},
+        "guidance": {
+            "type": "object",
+            "properties": {
+                "selection": {"type": "string"},
+                "if_missing": {"type": "string"},
+                "default_folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                "default_subscription_type": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}]
+                },
+            },
+            "required": ["selection", "if_missing", "default_folder", "default_subscription_type"],
+            "additionalProperties": True,
+        },
+        "truncated": {"type": "boolean"},
+    },
+    "required": [],
+    "anyOf": [
+        {"required": ["error"]},
+        {"required": ["count", "results", "guidance", "truncated"]},
+    ],
+    "additionalProperties": True,
+}
+
+REQUEST_COMPANY_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "status": {
+            "type": "string",
+            "enum": [
+                "already_requested",
+                "dry_run",
+                "submitted_v2_bulk",
+                "submitted_v2_single",
+            ],
+        },
+        "domain": {"type": "string"},
+        "requests": {
+            "type": "array",
+            "items": {"type": "object", "additionalProperties": True},
+        },
+        "guidance": {
+            "type": "object",
+            "properties": {
+                "next_steps": {"type": "string"},
+                "confirmation": {"type": "string"},
+            },
+            "additionalProperties": True,
+        },
+        "folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "payload": {"type": "object", "additionalProperties": True},
+        "subscription_type": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "result": {"type": "object", "additionalProperties": True},
+        "warning": {"type": "string"},
+    },
+    "required": [],
+    "anyOf": [
+        {"required": ["error"]},
+        {"required": ["status", "domain"]},
+    ],
+    "additionalProperties": True,
+}
+
+MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "status": {"type": "string", "enum": ["dry_run", "applied"]},
+        "action": {"type": "string"},
+        "guids": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "payload": {"type": "object", "additionalProperties": True},
+        "guidance": {
+            "type": "object",
+            "properties": {
+                "confirmation": {"type": "string"},
+                "next_steps": {"type": "string"},
+            },
+            "additionalProperties": True,
+        },
+        "summary": {
+            "type": "object",
+            "properties": {
+                "added": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+                "deleted": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+                "modified": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+                "errors": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+            },
+            "additionalProperties": True,
+        },
+    },
+    "required": [],
+    "anyOf": [
+        {"required": ["error"]},
+        {"required": ["status", "action", "guids"]},
+    ],
+    "additionalProperties": True,
+}
+
+
 def _coerce_guid_list(guids: Any) -> List[str]:
     if isinstance(guids, str):
         return [guid.strip() for guid in guids.split(",") if guid.strip()]
@@ -282,10 +435,14 @@ def register_company_search_interactive_tool(
             return {
                 "count": 0,
                 "results": [],
+                "search_term": search_term,
                 "guidance": {
                     "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
                     "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
+                    "default_folder": default_folder,
+                    "default_subscription_type": default_type,
                 },
+                "truncated": False,
             }
 
         details = await _fetch_company_details(
@@ -332,7 +489,9 @@ def register_company_search_interactive_tool(
             "truncated": truncated,
         }
 
-    return business_server.tool()(company_search_interactive)
+    return business_server.tool(
+        output_schema=COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA
+    )(company_search_interactive)
 
 
 async def _resolve_folder_guid(
@@ -472,7 +631,9 @@ def register_request_company_tool(
                 "warning": "The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
             }
 
-    return business_server.tool()(request_company)
+    return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(
+        request_company
+    )
 
 
 def _build_subscription_payload(
@@ -590,7 +751,9 @@ def register_manage_subscriptions_tool(
             },
         }
 
-    return business_server.tool()(manage_subscriptions)
+    return business_server.tool(output_schema=MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA)(
+        manage_subscriptions
+    )
 
 
 __all__ = [

@@ -68,7 +68,7 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
     }
 
     business_server = FastMCP(
-        name="BiRRe",
+        name="io.github.boecht.birre",
         instructions=instructions_map.get(active_context, instructions_map["standard"]),
     )
 
