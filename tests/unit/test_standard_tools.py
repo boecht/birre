@@ -159,6 +159,8 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
     assert result["domain"] == "example.com"
     assert result["current_rating"]["value"] == 740
     assert result["top_findings"]["count"] == 1
+    assert result["top_findings"]["findings"][0]["asset"] is None
+    assert result["top_findings"]["findings"][0]["last_seen"] is None
     assert ctx.messages["error"] == []
 
 
