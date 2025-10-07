@@ -494,12 +494,20 @@ def _normalize_finding_entry(item: Dict[str, Any]) -> Dict[str, Any]:
         text, item.get("risk_vector"), details_obj
     )
     asset = _determine_primary_asset(item, details_obj)
+    first_seen_raw = item.get("first_seen")
+    # BitSight's Finding schema (apis/v1/components/schemas.json) does not require
+    # first_seen/last_seen, so the fields may be absent entirely in the payload.
+    # When the source omits them we surface ``null`` in our normalized output to
+    # preserve the key without claiming a timestamp we do not have.
+    first_seen = first_seen_raw if isinstance(first_seen_raw, str) else None
+    last_seen_raw = item.get("last_seen")
+    last_seen = last_seen_raw if isinstance(last_seen_raw, str) else None
     return {
         "finding": finding_label,
         "details": text,
         "asset": asset,
-        "first_seen": item.get("first_seen"),
-        "last_seen": item.get("last_seen"),
+        "first_seen": first_seen,
+        "last_seen": last_seen,
     }
 
 
