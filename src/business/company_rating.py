@@ -24,6 +24,114 @@ from .helpers.subscription import (
 from ..logging import log_rating_event
 
 
+_TREND_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "direction": {"type": "string"},
+        "change": {"type": "number"},
+    },
+    "required": ["direction", "change"],
+    "additionalProperties": True,
+}
+
+_FINDING_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "top": {"type": "integer", "minimum": 1},
+        "finding": {"type": "string"},
+        "details": {"type": "string"},
+        "asset": {"type": "string"},
+        "first_seen": {"type": "string"},
+        "last_seen": {"type": "string"},
+    },
+    "required": ["top", "finding", "details", "asset"],
+    "additionalProperties": True,
+}
+
+COMPANY_RATING_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "name": {"type": "string"},
+        "domain": {"type": "string"},
+        "current_rating": {
+            "type": "object",
+            "properties": {
+                "value": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "color": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            },
+            "required": ["value", "color"],
+            "additionalProperties": True,
+        },
+        "trend_8_weeks": _TREND_SCHEMA,
+        "trend_1_year": _TREND_SCHEMA,
+        "top_findings": {
+            "type": "object",
+            "properties": {
+                "policy": {
+                    "type": "object",
+                    "properties": {
+                        "severity_floor": {"type": "string"},
+                        "supplements": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "max_items": {"type": "integer", "minimum": 0},
+                        "profile": {"type": "string"},
+                    },
+                    "required": ["severity_floor", "supplements", "max_items", "profile"],
+                    "additionalProperties": True,
+                },
+                "count": {"type": "integer", "minimum": 0},
+                "findings": {
+                    "type": "array",
+                    "items": _FINDING_SCHEMA,
+                },
+            },
+            "required": ["policy", "count", "findings"],
+            "additionalProperties": True,
+        },
+        "legend": {
+            "type": "object",
+            "properties": {
+                "rating": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "color": {"type": "string"},
+                            "min": {"type": "integer"},
+                            "max": {"type": "integer"},
+                        },
+                        "required": ["color", "min", "max"],
+                        "additionalProperties": True,
+                    },
+                }
+            },
+            "required": ["rating"],
+            "additionalProperties": True,
+        },
+        "warning": {"type": "string"},
+    },
+    "required": [],
+    "anyOf": [
+        {"required": ["error"]},
+        {
+            "required": [
+                "name",
+                "domain",
+                "current_rating",
+                "trend_8_weeks",
+                "trend_1_year",
+                "top_findings",
+                "legend",
+            ]
+        },
+    ],
+    "additionalProperties": True,
+}
+
+
 def _rating_color(value: Optional[float]) -> Optional[str]:
     if value is None:
         return None
@@ -650,7 +758,7 @@ def register_company_rating_tool(
         else DEFAULT_MAX_FINDINGS
     )
 
-    @business_server.tool()
+    @business_server.tool(output_schema=COMPANY_RATING_OUTPUT_SCHEMA)
     async def get_company_rating(ctx: Context, guid: str) -> Dict[str, Any]:
         """Fetch normalized BitSight rating analytics for a company.
 

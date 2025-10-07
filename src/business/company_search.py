@@ -10,6 +10,36 @@ from .helpers import CallV1Tool
 from ..logging import log_search_event
 
 
+COMPANY_SUMMARY_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "guid": {"type": "string"},
+        "name": {"type": "string"},
+        "domain": {"type": "string"},
+    },
+    "required": ["guid", "name", "domain"],
+    "additionalProperties": True,
+}
+
+COMPANY_SEARCH_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "companies": {
+            "type": "array",
+            "items": COMPANY_SUMMARY_SCHEMA,
+        },
+        "count": {"type": "integer", "minimum": 0},
+    },
+    "required": [],
+    "anyOf": [
+        {"required": ["error"]},
+        {"required": ["companies", "count"]},
+    ],
+    "additionalProperties": True,
+}
+
+
 def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
     """Transform raw BitSight search results into the compact response shape."""
 
@@ -64,7 +94,7 @@ def register_company_search_tool(
     *,
     logger: logging.Logger,
 ) -> FunctionTool:
-    @business_server.tool()
+    @business_server.tool(output_schema=COMPANY_SEARCH_OUTPUT_SCHEMA)
     async def company_search(
         ctx: Context, name: Optional[str] = None, domain: Optional[str] = None
     ) -> Dict[str, Any]:
