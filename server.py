@@ -10,6 +10,7 @@ environment variable.
 import argparse
 import asyncio
 import logging
+import sys
 
 from src.birre import create_birre_server
 from src.config import resolve_application_settings
@@ -139,7 +140,8 @@ def main() -> None:
         "│\033[2m                   Bitsight Rating Retriever                    \033[0m│\n"
         "│\033[0;33m                 Model Context Protocol Server                  \033[0m│\n"
         "│\033[0;33m                https://github.com/boecht/birre                 \033[0m│\n"
-        "╰────────────────────────────────────────────────────────────────╯\n\033[0m"
+        "╰────────────────────────────────────────────────────────────────╯\n\033[0m",
+        file=sys.stderr,
     )
 
     configure_logging(logging_settings)
