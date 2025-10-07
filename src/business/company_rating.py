@@ -38,11 +38,36 @@ _FINDING_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
         "top": {"type": "integer", "minimum": 1},
-        "finding": {"type": "string"},
-        "details": {"type": "string"},
-        "asset": {"type": "string"},
-        "first_seen": {"type": "string"},
-        "last_seen": {"type": "string"},
+        "finding": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "null"},
+            ]
+        },
+        "details": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "null"},
+            ]
+        },
+        "asset": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "null"},
+            ]
+        },
+        "first_seen": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "null"},
+            ]
+        },
+        "last_seen": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "null"},
+            ]
+        },
     },
     "required": ["top", "finding", "details", "asset"],
     "additionalProperties": True,
