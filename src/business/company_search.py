@@ -44,8 +44,9 @@ def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
     """Transform raw BitSight search results into the compact response shape."""
 
     if isinstance(raw_result, dict) and raw_result.get("error"):
+        error_message = str(raw_result.get("error"))
         return {
-            "error": f"BitSight API error: {raw_result['error']}",
+            "error": f"BitSight API error: {error_message}",
             "companies": [],
             "count": 0,
         }
@@ -76,9 +77,9 @@ def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
 
         companies.append(
             {
-                "guid": company.get("guid", ""),
-                "name": company.get("name", ""),
-                "domain": domain_value,
+                "guid": str(company.get("guid") or ""),
+                "name": str(company.get("name") or ""),
+                "domain": str(domain_value or ""),
             }
         )
 

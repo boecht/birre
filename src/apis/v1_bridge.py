@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
 
 
-def filter_none(params: Dict[str, Any]) -> Dict[str, Any]:
+def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
     """Return a copy of ``params`` without keys set to ``None``."""
 
-    return {key: value for key, value in params.items() if value is not None}
+    filtered: Dict[str, Any] = {}
+    for key, value in params.items():
+        if value is None:
+            continue
+        filtered[str(key)] = value
+    return filtered
 
 
 async def call_openapi_tool(
@@ -26,12 +32,21 @@ async def call_openapi_tool(
 ) -> Any:
     """Invoke a FastMCP OpenAPI tool and normalize the result."""
 
+    if not isinstance(tool_name, str) or not tool_name.strip():
+        raise ValueError("tool_name must be a non-empty string")
+
+    if not isinstance(params, Mapping):
+        raise TypeError("params must be a mapping of argument names to values")
+
+    resolved_tool_name = tool_name.strip()
     filtered_params = filter_none(params)
 
     try:
-        await ctx.info(f"Calling FastMCP tool '{tool_name}'")
+        await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
         async with Context(api_server):
-            tool_result = await api_server._call_tool(tool_name, filtered_params)
+            tool_result = await api_server._call_tool(
+                resolved_tool_name, filtered_params
+            )
 
         structured = getattr(tool_result, "structured_content", None)
         if structured is not None:
@@ -48,24 +63,43 @@ async def call_openapi_tool(
                     return json.loads(text)
                 except json.JSONDecodeError:
                     await ctx.warning(
-                        f"Failed to parse text content for '{tool_name}' as JSON"
+                        f"Failed to parse text content for '{resolved_tool_name}' as JSON"
+                    )
+                    logger.debug(
+                        "Unable to deserialize JSON payload from FastMCP tool response",
+                        extra={"tool": resolved_tool_name},
+                        exc_info=True,
                     )
                     return text
 
         await ctx.warning(
-            f"FastMCP tool '{tool_name}' returned no structured data; passing raw result"
+            f"FastMCP tool '{resolved_tool_name}' returned no structured data; passing raw result"
+        )
+        logger.warning(
+            "FastMCP tool returned unstructured payload; returning raw result",
+            extra={"tool": resolved_tool_name},
         )
         return tool_result
     except httpx.HTTPStatusError as exc:
         await ctx.error(
-            f"FastMCP tool '{tool_name}' returned HTTP {exc.response.status_code}: {exc}"
+            f"FastMCP tool '{resolved_tool_name}' returned HTTP {exc.response.status_code}: {exc}"
+        )
+        logger.error(
+            "FastMCP tool returned HTTP error",
+            extra={
+                "tool": resolved_tool_name,
+                "status_code": exc.response.status_code,
+            },
+            exc_info=True,
         )
         raise
     except Exception as exc:  # pragma: no cover - diagnostic fallback
-        await ctx.error(f"FastMCP tool '{tool_name}' execution failed: {exc}")
+        await ctx.error(
+            f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}"
+        )
         logger.error(
             "FastMCP tool execution failed",
-            extra={"tool_name": tool_name},
+            extra={"tool": resolved_tool_name},
             exc_info=True,
         )
         raise
