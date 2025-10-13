@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
@@ -49,16 +49,16 @@ async def call_openapi_tool(
             )
 
         structured = getattr(tool_result, "structured_content", None)
-        if structured:
+        if structured is not None:
             if isinstance(structured, dict) and "result" in structured:
                 return structured["result"]
             return structured
 
-        content_blocks = getattr(tool_result, "content", None) or []
+        content_blocks: Iterable[Any] | None = getattr(tool_result, "content", None)
         if content_blocks:
-            first_block = content_blocks[0]
+            first_block = next(iter(content_blocks), None)
             text = getattr(first_block, "text", None)
-            if text:
+            if text is not None:
                 try:
                     return json.loads(text)
                 except json.JSONDecodeError:
@@ -70,6 +70,7 @@ async def call_openapi_tool(
                         extra={"tool": resolved_tool_name},
                         exc_info=True,
                     )
+                    return text
 
         await ctx.warning(
             f"FastMCP tool '{resolved_tool_name}' returned no structured data; passing raw result"
