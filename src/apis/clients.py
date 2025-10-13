@@ -44,7 +44,7 @@ def _normalize_schema_response_refs(openapi_spec: Any) -> None:
             responses = operation.get("responses")
             if not isinstance(responses, Mapping):
                 continue
-            for status_code, response in list(responses.items()):
+            for status_code, response in responses.items():
                 if (
                     isinstance(response, Mapping)
                     and set(response.keys()) == {"$ref"}
