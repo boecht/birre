@@ -127,3 +127,47 @@ def test_resolve_logging_settings_overrides(
     )
     assert logging_settings.max_bytes == 4096
     assert logging_settings.backup_count == 2
+
+
+def test_allow_insecure_tls_from_env(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
+    monkeypatch.delenv("BIRRE_ALLOW_INSECURE_TLS", raising=False)
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_ALLOW_INSECURE_TLS", "true")
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["allow_insecure_tls"] is True
+    assert settings["ca_bundle_path"] is None
+    assert os.environ["BIRRE_ALLOW_INSECURE_TLS"] == "true"
+    assert "BIRRE_CA_BUNDLE" not in os.environ
+
+
+def test_ca_bundle_from_cli_overrides_env(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
+    monkeypatch.delenv("BIRRE_ALLOW_INSECURE_TLS", raising=False)
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_CA_BUNDLE", " ")
+
+    ca_path = tmp_path / "certs" / "proxy.pem"
+    ca_path.parent.mkdir(parents=True, exist_ok=True)
+    ca_path.write_text("dummy", encoding="utf-8")
+
+    settings = resolve_birre_settings(
+        config_path=str(base), ca_bundle_path_arg=str(ca_path)
+    )
+
+    assert settings["ca_bundle_path"] == str(ca_path)
+    assert settings["allow_insecure_tls"] is False
+    assert os.environ["BIRRE_CA_BUNDLE"] == str(ca_path)
+    assert "BIRRE_ALLOW_INSECURE_TLS" not in os.environ

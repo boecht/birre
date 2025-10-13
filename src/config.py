@@ -44,6 +44,9 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_MAX_BYTES = 10_000_000
 DEFAULT_BACKUP_COUNT = 5
 
+ENV_ALLOW_INSECURE_TLS = "BIRRE_ALLOW_INSECURE_TLS"
+ENV_CA_BUNDLE = "BIRRE_CA_BUNDLE"
+
 ENV_LOG_LEVEL = "BIRRE_LOG_LEVEL"
 ENV_LOG_FORMAT = "BIRRE_LOG_FORMAT"
 ENV_LOG_FILE = "BIRRE_LOG_FILE"
@@ -139,6 +142,8 @@ def resolve_birre_settings(
     debug_arg: Optional[bool] = None,
     risk_vector_filter_arg: Optional[str] = None,
     max_findings_arg: Optional[int] = None,
+    allow_insecure_tls_arg: Optional[bool] = None,
+    ca_bundle_path_arg: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Resolve BiRRe runtime settings using config, env vars, and CLI overrides."""
 
@@ -193,6 +198,14 @@ def resolve_birre_settings(
     max_findings_cfg = (
         runtime_cfg.get("max_findings") if isinstance(runtime_cfg, dict) else None
     )
+    allow_insecure_cfg = (
+        runtime_cfg.get("allow_insecure_tls")
+        if isinstance(runtime_cfg, dict)
+        else None
+    )
+    ca_bundle_cfg = (
+        runtime_cfg.get("ca_bundle_path") if isinstance(runtime_cfg, dict) else None
+    )
 
     api_key_env = os.getenv("BITSIGHT_API_KEY")
     folder_env = os.getenv("BIRRE_SUBSCRIPTION_FOLDER")
@@ -202,6 +215,8 @@ def resolve_birre_settings(
     context_env = os.getenv("BIRRE_CONTEXT")
     risk_filter_env = os.getenv(ENV_RISK_VECTOR_FILTER)
     max_findings_env = os.getenv(ENV_MAX_FINDINGS)
+    allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
+    ca_bundle_env = os.getenv(ENV_CA_BUNDLE)
 
     api_key = api_key_arg or api_key_env or api_key_cfg
     subscription_folder = subscription_folder_arg or folder_env or folder_cfg
@@ -239,6 +254,48 @@ def resolve_birre_settings(
         raw_filter_str if raw_filter_str else DEFAULT_RISK_VECTOR_FILTER
     )
 
+    allow_insecure_tls = coerce_bool(allow_insecure_cfg)
+    allow_insecure_tls = coerce_bool(
+        allow_insecure_env,
+        default=allow_insecure_tls,
+    )
+    allow_insecure_tls = coerce_bool(
+        allow_insecure_tls_arg,
+        default=allow_insecure_tls,
+    )
+
+    raw_ca_bundle = (
+        ca_bundle_path_arg or ca_bundle_env or ca_bundle_cfg
+    )
+    ca_bundle_path: Optional[str]
+    if raw_ca_bundle is None:
+        ca_bundle_path = None
+    else:
+        ca_bundle_str = str(raw_ca_bundle).strip()
+        if not ca_bundle_str:
+            warnings.append(
+                "Empty ca_bundle_path override; ignoring custom CA bundle configuration"
+            )
+            ca_bundle_path = None
+        else:
+            ca_bundle_path = ca_bundle_str
+
+    if allow_insecure_tls and ca_bundle_path:
+        warnings.append(
+            "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
+        )
+        ca_bundle_path = None
+
+    if allow_insecure_tls:
+        os.environ[ENV_ALLOW_INSECURE_TLS] = "true"
+    else:
+        os.environ.pop(ENV_ALLOW_INSECURE_TLS, None)
+
+    if ca_bundle_path:
+        os.environ[ENV_CA_BUNDLE] = ca_bundle_path
+    else:
+        os.environ.pop(ENV_CA_BUNDLE, None)
+
     if max_findings_arg is not None:
         raw_max_findings = max_findings_arg
     elif max_findings_env is not None:
@@ -275,6 +332,8 @@ def resolve_birre_settings(
         "max_findings": max_findings,
         "skip_startup_checks": skip_startup_checks,
         "debug": debug_enabled,
+        "allow_insecure_tls": allow_insecure_tls,
+        "ca_bundle_path": ca_bundle_path,
         "warnings": warnings,
     }
 
@@ -359,6 +418,8 @@ def resolve_application_settings(
     log_file_override: Optional[str] = None,
     log_max_bytes_override: Optional[int] = None,
     log_backup_count_override: Optional[int] = None,
+    allow_insecure_tls_arg: Optional[bool] = None,
+    ca_bundle_path_arg: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], LoggingSettings]:
     runtime_settings = resolve_birre_settings(
         api_key_arg=api_key_arg,
@@ -369,6 +430,8 @@ def resolve_application_settings(
         debug_arg=debug_arg,
         risk_vector_filter_arg=risk_vector_filter_arg,
         max_findings_arg=max_findings_arg,
+        allow_insecure_tls_arg=allow_insecure_tls_arg,
+        ca_bundle_path_arg=ca_bundle_path_arg,
     )
     logging_settings = resolve_logging_settings(
         config_path=config_path,
@@ -399,4 +462,6 @@ __all__ = [
     "LOG_FORMAT_JSON",
     "DEFAULT_RISK_VECTOR_FILTER",
     "DEFAULT_MAX_FINDINGS",
+    "ENV_ALLOW_INSECURE_TLS",
+    "ENV_CA_BUNDLE",
 ]

@@ -34,6 +34,16 @@ skip_startup_checks = false
 # CLI: --debug
 debug = false
 
+# Disable HTTPS certificate verification for BitSight API requests.
+# ENV: BIRRE_ALLOW_INSECURE_TLS
+# CLI: --allow-insecure-tls
+# allow_insecure_tls = false
+
+# Path to a custom certificate authority bundle for BitSight API HTTPS validation.
+# ENV: BIRRE_CA_BUNDLE
+# CLI: --ca-bundle
+# ca_bundle_path = "C:/path/to/proxy-root.pem"
+
 [roles]
 # Default persona exposed by the server.
 #   standard      - quick rating workflows (default)
