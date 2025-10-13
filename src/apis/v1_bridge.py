@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
@@ -34,22 +34,23 @@ async def call_openapi_tool(
             tool_result = await api_server._call_tool(tool_name, filtered_params)
 
         structured = getattr(tool_result, "structured_content", None)
-        if structured:
+        if structured is not None:
             if isinstance(structured, dict) and "result" in structured:
                 return structured["result"]
             return structured
 
-        content_blocks = getattr(tool_result, "content", None) or []
+        content_blocks: Iterable[Any] | None = getattr(tool_result, "content", None)
         if content_blocks:
-            first_block = content_blocks[0]
+            first_block = next(iter(content_blocks), None)
             text = getattr(first_block, "text", None)
-            if text:
+            if text is not None:
                 try:
                     return json.loads(text)
                 except json.JSONDecodeError:
                     await ctx.warning(
                         f"Failed to parse text content for '{tool_name}' as JSON"
                     )
+                    return text
 
         await ctx.warning(
             f"FastMCP tool '{tool_name}' returned no structured data; passing raw result"
@@ -139,4 +140,9 @@ async def call_v2_openapi_tool(
     )
 
 
-__all__ = ["filter_none", "call_v1_openapi_tool"]
+__all__ = [
+    "filter_none",
+    "call_openapi_tool",
+    "call_v1_openapi_tool",
+    "call_v2_openapi_tool",
+]
