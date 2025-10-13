@@ -49,11 +49,27 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
     else:
         max_findings = DEFAULT_MAX_FINDINGS
 
-    v1_api_server = create_v1_api_server(resolved_api_key)
+    allow_insecure_tls = coerce_bool(settings.get("allow_insecure_tls"))
+    ca_bundle_path = settings.get("ca_bundle_path")
+    verify_option: bool | str = True
+    if allow_insecure_tls:
+        logger.warning(
+            "HTTPS certificate verification disabled for BitSight API requests; "
+            "only enable this setting with a trusted proxy"
+        )
+        verify_option = False
+    elif ca_bundle_path:
+        verify_option = str(ca_bundle_path)
+        logger.info(
+            "Using custom CA bundle for BitSight API requests: %s",
+            verify_option,
+        )
+
+    v1_api_server = create_v1_api_server(resolved_api_key, verify=verify_option)
 
     v2_api_server: Optional[FastMCP] = None
     if active_context == "risk_manager" or coerce_bool(os.getenv("BIRRE_ENABLE_V2")):
-        v2_api_server = create_v2_api_server(resolved_api_key)
+        v2_api_server = create_v2_api_server(resolved_api_key, verify=verify_option)
 
     instructions_map = {
         "standard": (

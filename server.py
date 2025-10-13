@@ -10,6 +10,7 @@ environment variable.
 import argparse
 import asyncio
 import logging
+import os
 import sys
 
 from src.birre import create_birre_server
@@ -109,6 +110,24 @@ def main() -> None:
         action="store_true",
         help="Enable verbose debug logging and diagnostic payloads",
     )
+    parser.add_argument(
+        "--allow-insecure-tls",
+        dest="allow_insecure_tls",
+        action="store_true",
+        default=None,
+        help=(
+            "Disable HTTPS certificate verification for BitSight API requests. "
+            "Use only when behind a trusted intercepting proxy."
+        ),
+    )
+    parser.add_argument(
+        "--ca-bundle",
+        dest="ca_bundle_path",
+        help=(
+            "Path to a custom CA bundle for BitSight API HTTPS verification "
+            "(overrides system trust store)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -126,6 +145,13 @@ def main() -> None:
         subscription_folder_arg=args.subscription_folder,
         subscription_type_arg=args.subscription_type,
         debug_arg=args.debug,
+        allow_insecure_tls_arg=args.allow_insecure_tls,
+        ca_bundle_path_arg=args.ca_bundle_path,
+    )
+
+    os.environ.setdefault(
+        "FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER",
+        "true",
     )
 
     print(

@@ -19,6 +19,8 @@ def _runtime_settings() -> dict:
         "context": "standard",
         "skip_startup_checks": False,
         "debug": False,
+        "allow_insecure_tls": False,
+        "ca_bundle_path": None,
         "warnings": ["reminder"],
     }
 
