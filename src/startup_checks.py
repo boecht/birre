@@ -3,10 +3,24 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
-SCHEMA_PATHS = (
+
+class ToolLoggingContext(Protocol):
+    """Subset of the FastMCP context API used by the startup checks."""
+
+    async def info(self, message: str) -> None: ...  # pragma: no cover - protocol
+
+    async def warning(self, message: str) -> None: ...  # pragma: no cover - protocol
+
+    async def error(self, message: str) -> None: ...  # pragma: no cover - protocol
+
+
+CallV1ToolFn = Callable[[str, ToolLoggingContext, Dict[str, Any]], Awaitable[Any]]
+
+SCHEMA_PATHS: tuple[Path, Path] = (
     Path("apis/bitsight.v1.schema.json"),
     Path("apis/bitsight.v2.schema.json"),
 )
@@ -82,21 +96,23 @@ def run_offline_startup_checks(
     return True
 
 
-async def _check_api_connectivity(call_v1_tool, ctx: Any) -> Optional[str]:
+async def _check_api_connectivity(
+    call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext
+) -> Optional[str]:
     try:
         await call_v1_tool("companySearch", ctx, {"name": "bitsight", "limit": 1})
         return None
     except Exception as exc:  # pragma: no cover - network failure
-        return str(exc)
+        return f"{exc.__class__.__name__}: {exc}"
 
 
 async def _check_subscription_folder(
-    call_v1_tool, ctx: Any, folder: str
+    call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext, folder: str
 ) -> Optional[str]:
     try:
         raw = await call_v1_tool("getFolders", ctx, {})
     except Exception as exc:
-        return f"Failed to query folders: {exc}"
+        return f"Failed to query folders: {exc.__class__.__name__}: {exc}"
 
     folders: List[str] = []
     if isinstance(raw, list):
@@ -120,12 +136,14 @@ async def _check_subscription_folder(
 
 
 async def _check_subscription_quota(
-    call_v1_tool, ctx: Any, subscription_type: str
+    call_v1_tool: CallV1ToolFn,
+    ctx: ToolLoggingContext,
+    subscription_type: str,
 ) -> Optional[str]:
     try:
         raw = await call_v1_tool("getCompanySubscriptions", ctx, {})
     except Exception as exc:
-        return f"Failed to query subscriptions: {exc}"
+        return f"Failed to query subscriptions: {exc.__class__.__name__}: {exc}"
 
     details: Optional[Dict[str, Any]] = None
     available_types: List[str] = []
@@ -155,14 +173,15 @@ async def _check_subscription_quota(
 
 
 async def _validate_subscription_folder(
-    call_v1_tool,
-    ctx: Any,
+    call_v1_tool: CallV1ToolFn,
+    ctx: ToolLoggingContext,
     subscription_folder: Optional[str],
     logger: logging.Logger,
 ) -> bool:
     if not subscription_folder:
-        logger.error(
-            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set"
+        logger.warning(
+            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set; "
+            "skipping folder validation"
         )
         return True
 
@@ -181,13 +200,16 @@ async def _validate_subscription_folder(
 
 
 async def _validate_subscription_quota(
-    call_v1_tool,
-    ctx: Any,
+    call_v1_tool: CallV1ToolFn,
+    ctx: ToolLoggingContext,
     subscription_type: Optional[str],
     logger: logging.Logger,
 ) -> bool:
     if not subscription_type:
-        logger.error("online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set")
+        logger.warning(
+            "online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set; "
+            "skipping quota validation"
+        )
         return True
 
     quota_issue = await _check_subscription_quota(
@@ -206,7 +228,7 @@ async def _validate_subscription_quota(
 
 async def run_online_startup_checks(
     *,
-    call_v1_tool,
+    call_v1_tool: CallV1ToolFn,
     subscription_folder: Optional[str],
     subscription_type: Optional[str],
     logger: logging.Logger,
