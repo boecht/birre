@@ -98,12 +98,9 @@ async def test_company_search_interactive_enriches_results() -> None:
             "getFolders": get_folders_handler,
         }
     )
-    call_v2 = BridgeStub({"getCompanyRequests": lambda _: []})
-
     tool = register_company_search_interactive_tool(
         server,
         call_v1,
-        call_v2,
         logger=logger,
         default_folder="API",
         default_type="continuous_monitoring",

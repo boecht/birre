@@ -239,13 +239,12 @@ def resolve_birre_settings(
         raw_filter_str if raw_filter_str else DEFAULT_RISK_VECTOR_FILTER
     )
 
-    raw_max_findings = (
-        max_findings_arg
-        if max_findings_arg is not None
-        else max_findings_env
-        if max_findings_env is not None
-        else max_findings_cfg
-    )
+    if max_findings_arg is not None:
+        raw_max_findings = max_findings_arg
+    elif max_findings_env is not None:
+        raw_max_findings = max_findings_env
+    else:
+        raw_max_findings = max_findings_cfg
     try:
         max_findings = _coerce_positive_int(
             raw_max_findings,

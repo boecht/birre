@@ -726,16 +726,24 @@ async def _assemble_top_findings_section(
 def _debug(ctx: Context, message: str, obj: Any) -> None:
     """Emit a structured debug log if DEBUG env var is enabled."""
     try:
-        if coerce_bool(os.getenv("DEBUG")):
-            try:
-                pretty = json.dumps(obj, indent=2, ensure_ascii=False)
-            except Exception:
-                pretty = str(obj)
-            # fire-and-forget; Context expects awaits in callers, but avoid raising
-            # This helper is used only inside awaited functions
-            return asyncio.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
+        if not coerce_bool(os.getenv("DEBUG")):
+            return None
+
+        try:
+            pretty = json.dumps(obj, indent=2, ensure_ascii=False)
+        except Exception:
+            pretty = str(obj)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return None
+
+        loop.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
     except Exception:
         return None
+
+    return None
 
 
 async def _fetch_company_profile_dict(

@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 try:
     from fastmcp.client import Client
     from fastmcp.client.client import CallToolResult
-except (ImportError, ModuleNotFoundError):
+except ImportError:
     pytest.skip(
         "fastmcp client not installed; skipping live tests", allow_module_level=True
     )

@@ -105,14 +105,9 @@ async def test_company_search_interactive_empty_result_contract() -> None:
         assert params == {"expand": "details.employee_count", "name": "Example"}
         return {"results": []}
 
-    async def call_v2_tool(name: str, ctx: Context, params: Dict[str, Any]):
-        await asyncio.sleep(0)
-        raise AssertionError(f"Unexpected v2 call: {name}")
-
     tool = register_company_search_interactive_tool(
         server,
         call_v1_tool,
-        call_v2_tool,
         logger=logger,
         default_folder="Default",
         default_type="continuous",

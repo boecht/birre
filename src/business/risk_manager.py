@@ -13,7 +13,7 @@ from src.config import DEFAULT_MAX_FINDINGS
 from src.constants import DEFAULT_CONFIG_FILENAME
 
 from .helpers import CallV1Tool, CallV2Tool
-from ..logging import log_search_event
+from ..logging import log_event, log_search_event
 
 
 _SUBSCRIPTION_SNAPSHOT_SCHEMA: Dict[str, Any] = {
@@ -316,7 +316,6 @@ def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
 
 
 def _build_subscription_snapshot(
-    guid: str,
     detail: Dict[str, Any],
     folders: Sequence[str],
 ) -> Dict[str, Any]:
@@ -353,14 +352,13 @@ def _format_result_entry(
         "website": candidate.get("website") or detail.get("homepage") or "",
         "description": description or "",
         "employee_count": employee_count,
-        "subscription": _build_subscription_snapshot(guid, detail, folders),
+        "subscription": _build_subscription_snapshot(detail, folders),
     }
 
 
 def register_company_search_interactive_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
-    call_v2_tool: CallV2Tool,
     *,
     logger: logging.Logger,
     default_folder: Optional[str],
@@ -565,19 +563,49 @@ def register_request_company_tool(
 
         domain_value = (domain or "").strip().lower()
         if not domain_value:
+            log_event(
+                logger,
+                "company_request.invalid_domain",
+                level=logging.WARNING,
+                ctx=ctx,
+                domain=domain,
+            )
             return {"error": "Domain is required to request a company"}
 
         selected_folder = folder or default_folder
         folder_guid = None
+        log_event(
+            logger,
+            "company_request.start",
+            ctx=ctx,
+            domain=domain_value,
+            folder=selected_folder,
+            dry_run=dry_run,
+        )
         if selected_folder:
             folder_guid = await _resolve_folder_guid(call_v1_tool, ctx, selected_folder)
             if selected_folder and folder_guid is None:
+                log_event(
+                    logger,
+                    "company_request.folder_unknown",
+                    level=logging.WARNING,
+                    ctx=ctx,
+                    domain=domain_value,
+                    folder=selected_folder,
+                )
                 return {
                     "error": f"Unknown folder '{selected_folder}'. Call `company_search_interactive` to inspect available folders first.",
                 }
 
         existing = await _list_company_requests(call_v2_tool, ctx, domain_value)
         if existing:
+            log_event(
+                logger,
+                "company_request.already_requested",
+                ctx=ctx,
+                domain=domain_value,
+                existing_count=len(existing),
+            )
             return {
                 "status": "already_requested",
                 "domain": domain_value,
@@ -598,6 +626,14 @@ def register_request_company_tool(
             bulk_payload["subscription_type"] = subscription_type
 
         if dry_run:
+            log_event(
+                logger,
+                "company_request.dry_run",
+                ctx=ctx,
+                domain=domain_value,
+                folder=selected_folder,
+                subscription_type=subscription_type,
+            )
             return {
                 "status": "dry_run",
                 "domain": domain_value,
@@ -610,6 +646,14 @@ def register_request_company_tool(
 
         try:
             result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
+            log_event(
+                logger,
+                "company_request.submitted_bulk",
+                ctx=ctx,
+                domain=domain_value,
+                folder=selected_folder,
+                subscription_type=subscription_type,
+            )
             return {
                 "status": "submitted_v2_bulk",
                 "domain": domain_value,
@@ -617,12 +661,30 @@ def register_request_company_tool(
                 "subscription_type": subscription_type,
                 "result": result,
             }
-        except Exception:
+        except Exception as exc:
+            log_event(
+                logger,
+                "company_request.bulk_failed",
+                level=logging.WARNING,
+                ctx=ctx,
+                domain=domain_value,
+                folder=selected_folder,
+                subscription_type=subscription_type,
+                error=str(exc),
+            )
             # Fall back to single-request endpoint which does not attach a folder.
             payload = {"company_request": {"domain": domain_value}}
             if subscription_type:
                 payload["company_request"]["subscription_type"] = subscription_type
             result = await call_v2_tool("createCompanyRequest", ctx, payload)
+            log_event(
+                logger,
+                "company_request.submitted_single",
+                ctx=ctx,
+                domain=domain_value,
+                folder=selected_folder,
+                subscription_type=subscription_type,
+            )
             return {
                 "status": "submitted_v2_single",
                 "domain": domain_value,

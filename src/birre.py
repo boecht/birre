@@ -150,7 +150,6 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
         register_company_search_interactive_tool(
             business_server,
             call_v1_tool,
-            call_v2_tool,
             logger=logger,
             default_folder=default_folder,
             default_type=default_type,
