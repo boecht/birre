@@ -62,11 +62,13 @@ async def _log_bulk_response(ctx: Context, result: Any, action: str) -> None:
     if not coerce_bool(os.getenv("DEBUG")):
         return
 
-    pretty = (
-        json.dumps(result, indent=2, sort_keys=True)
-        if isinstance(result, dict)
-        else str(result)
-    )
+    if isinstance(result, dict):
+        try:
+            pretty = json.dumps(result, indent=2, sort_keys=True)
+        except TypeError:
+            pretty = str(result)
+    else:
+        pretty = str(result)
     await ctx.info(f"manageSubscriptionsBulk({action}) raw response: {pretty}")
 
 

@@ -87,7 +87,21 @@ def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
         }
 
     companies: List[Dict[str, Any]] = [
-        _normalize_company(company)
+        {
+            "guid": str(company.get("guid") or ""),
+            "name": str(company.get("name") or ""),
+            "domain": str(
+                next(
+                    (
+                        company.get("primary_domain"),
+                        company.get("display_url"),
+                        company.get("domain"),
+                        company.get("company_url"),
+                    ),
+                    "",
+                ) or "",
+            ),
+        }
         for company in _extract_companies_data(raw_result)
         if isinstance(company, dict)
     ]
