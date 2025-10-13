@@ -157,19 +157,27 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def _first_non_empty_str(values: Any) -> Optional[str]:
+    """Return the first truthy string from an iterable of candidates."""
+
+    for value in values:
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
 def _extract_request_id(ctx: Optional[Context]) -> Optional[str]:
     if ctx is None:
         return None
-    for attr in ("request_id", "call_id", "id"):
-        value = getattr(ctx, attr, None)
-        if isinstance(value, str) and value:
-            return value
+
+    candidate_attrs = ("request_id", "call_id", "id")
+    direct_match = _first_non_empty_str(getattr(ctx, attr, None) for attr in candidate_attrs)
+    if direct_match:
+        return direct_match
+
     metadata = getattr(ctx, "metadata", None)
     if isinstance(metadata, dict):
-        for key in ("request_id", "call_id", "id"):
-            value = metadata.get(key)
-            if isinstance(value, str) and value:
-                return value
+        return _first_non_empty_str(metadata.get(key) for key in candidate_attrs)
     return None
 
 
