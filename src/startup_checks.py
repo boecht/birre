@@ -161,8 +161,9 @@ async def _validate_subscription_folder(
     logger: logging.Logger,
 ) -> bool:
     if not subscription_folder:
-        logger.error(
-            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set"
+        logger.warning(
+            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set; "
+            "skipping folder validation"
         )
         return True
 
@@ -187,7 +188,10 @@ async def _validate_subscription_quota(
     logger: logging.Logger,
 ) -> bool:
     if not subscription_type:
-        logger.error("online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set")
+        logger.warning(
+            "online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set; "
+            "skipping quota validation"
+        )
         return True
 
     quota_issue = await _check_subscription_quota(
