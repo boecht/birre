@@ -154,6 +154,56 @@ async def _check_subscription_quota(
     return f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
 
 
+async def _validate_subscription_folder(
+    call_v1_tool,
+    ctx: Any,
+    subscription_folder: Optional[str],
+    logger: logging.Logger,
+) -> bool:
+    if not subscription_folder:
+        logger.error(
+            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set"
+        )
+        return True
+
+    folder_issue = await _check_subscription_folder(
+        call_v1_tool, ctx, subscription_folder
+    )
+    if folder_issue is not None:
+        logger.critical("online.subscription_folder_exists: %s", folder_issue)
+        return False
+
+    logger.info(
+        "online.subscription_folder_exists: Folder '%s' verified via API",
+        subscription_folder,
+    )
+    return True
+
+
+async def _validate_subscription_quota(
+    call_v1_tool,
+    ctx: Any,
+    subscription_type: Optional[str],
+    logger: logging.Logger,
+) -> bool:
+    if not subscription_type:
+        logger.error("online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set")
+        return True
+
+    quota_issue = await _check_subscription_quota(
+        call_v1_tool, ctx, subscription_type
+    )
+    if quota_issue is not None:
+        logger.critical("online.subscription_quota: %s", quota_issue)
+        return False
+
+    logger.info(
+        "online.subscription_quota: Subscription '%s' has remaining licenses",
+        subscription_type,
+    )
+    return True
+
+
 async def run_online_startup_checks(
     *,
     call_v1_tool,
@@ -181,35 +231,15 @@ async def run_online_startup_checks(
 
     logger.info("online.api_connectivity: Successfully called companySearch")
 
-    if subscription_folder:
-        folder_issue = await _check_subscription_folder(
-            call_v1_tool, ctx, subscription_folder
-        )
-        if folder_issue is not None:
-            logger.critical("online.subscription_folder_exists: %s", folder_issue)
-            return False
-        logger.info(
-            "online.subscription_folder_exists: Folder '%s' verified via API",
-            subscription_folder,
-        )
-    else:
-        logger.error(
-            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set"
-        )
+    if not await _validate_subscription_folder(
+        call_v1_tool, ctx, subscription_folder, logger
+    ):
+        return False
 
-    if subscription_type:
-        quota_issue = await _check_subscription_quota(
-            call_v1_tool, ctx, subscription_type
-        )
-        if quota_issue is not None:
-            logger.critical("online.subscription_quota: %s", quota_issue)
-            return False
-        logger.info(
-            "online.subscription_quota: Subscription '%s' has remaining licenses",
-            subscription_type,
-        )
-    else:
-        logger.error("online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set")
+    if not await _validate_subscription_quota(
+        call_v1_tool, ctx, subscription_type, logger
+    ):
+        return False
 
     return True
 
