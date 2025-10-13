@@ -34,7 +34,7 @@ async def call_openapi_tool(
             tool_result = await api_server._call_tool(tool_name, filtered_params)
 
         structured = getattr(tool_result, "structured_content", None)
-        if structured:
+        if structured is not None:
             if isinstance(structured, dict) and "result" in structured:
                 return structured["result"]
             return structured
