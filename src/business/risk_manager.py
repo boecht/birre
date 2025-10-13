@@ -10,6 +10,7 @@ from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
 from src.config import DEFAULT_MAX_FINDINGS
+from src.constants import DEFAULT_CONFIG_FILENAME
 
 from .helpers import CallV1Tool, CallV2Tool
 from ..logging import log_search_event
@@ -702,7 +703,10 @@ def register_manage_subscriptions_tool(
         target_folder = folder or default_folder
         if normalized_action == "add" and not default_type:
             return {
-                "error": "Subscription type is not configured. Set BIRRE_SUBSCRIPTION_TYPE or update config.toml",
+                "error": (
+                    "Subscription type is not configured. Set BIRRE_SUBSCRIPTION_TYPE "
+                    f"or update {DEFAULT_CONFIG_FILENAME}"
+                ),
             }
 
         payload = _build_subscription_payload(

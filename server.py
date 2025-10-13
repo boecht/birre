@@ -13,6 +13,7 @@ import logging
 import sys
 
 from src.birre import create_birre_server
+from src.constants import DEFAULT_CONFIG_FILENAME
 from src.config import resolve_application_settings
 from src.logging import configure_logging
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
@@ -30,8 +31,11 @@ def main() -> None:
     parser.add_argument(
         "--config",
         dest="config_path",
-        default="config.toml",
-        help="Path to BiRRe config TOML (default: config.toml)",
+        default=DEFAULT_CONFIG_FILENAME,
+        help=(
+            "Path to BiRRe config TOML "
+            f"(default: {DEFAULT_CONFIG_FILENAME})"
+        ),
     )
     parser.add_argument(
         "--context",

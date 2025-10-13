@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -18,13 +19,13 @@ class _StartupCheckContext:
         self._logger = logger
 
     async def info(self, message: str) -> None:
-        self._logger.info(message)
+        await asyncio.to_thread(self._logger.info, message)
 
     async def warning(self, message: str) -> None:
-        self._logger.warning(message)
+        await asyncio.to_thread(self._logger.warning, message)
 
     async def error(self, message: str) -> None:
-        self._logger.critical(message)
+        await asyncio.to_thread(self._logger.critical, message)
 
 
 def run_offline_startup_checks(

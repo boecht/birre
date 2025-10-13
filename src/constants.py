@@ -8,6 +8,11 @@ TRUTHY_STRINGS = {"1", "true", "yes", "on"}
 FALSY_STRINGS = {"0", "false", "no", "off"}
 
 
+CONFIG_BASENAME = "config"
+DEFAULT_CONFIG_FILENAME = f"{CONFIG_BASENAME}.toml"
+LOCAL_CONFIG_FILENAME = f"{CONFIG_BASENAME}.local.toml"
+
+
 def coerce_bool(value: Optional[object], *, default: bool = False) -> bool:
     """Convert common truthy/falsey string markers into booleans.
 
@@ -34,4 +39,11 @@ def coerce_bool(value: Optional[object], *, default: bool = False) -> bool:
         return default
 
 
-__all__ = ["coerce_bool", "TRUTHY_STRINGS", "FALSY_STRINGS"]
+__all__ = [
+    "coerce_bool",
+    "TRUTHY_STRINGS",
+    "FALSY_STRINGS",
+    "CONFIG_BASENAME",
+    "DEFAULT_CONFIG_FILENAME",
+    "LOCAL_CONFIG_FILENAME",
+]
