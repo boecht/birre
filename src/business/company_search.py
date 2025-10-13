@@ -93,13 +93,17 @@ def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
             "domain": str(
                 next(
                     (
-                        company.get("primary_domain"),
-                        company.get("display_url"),
-                        company.get("domain"),
-                        company.get("company_url"),
+                        value
+                        for value in (
+                            company.get("primary_domain"),
+                            company.get("display_url"),
+                            company.get("domain"),
+                            company.get("company_url"),
+                        )
+                        if value
                     ),
                     "",
-                ) or "",
+                )
             ),
         }
         for company in _extract_companies_data(raw_result)
