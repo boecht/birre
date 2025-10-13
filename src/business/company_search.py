@@ -40,47 +40,57 @@ COMPANY_SEARCH_OUTPUT_SCHEMA: Dict[str, Any] = {
 }
 
 
+def _extract_error(raw_result: Any) -> Optional[str]:
+    if isinstance(raw_result, dict) and raw_result.get("error"):
+        return f"BitSight API error: {raw_result['error']}"
+    return None
+
+
+def _extract_companies_data(raw_result: Any) -> List[Any]:
+    if isinstance(raw_result, dict):
+        for key in ("results", "companies"):
+            if key in raw_result:
+                return raw_result.get(key) or []
+        if raw_result.get("guid"):
+            return [raw_result]
+        return []
+    if isinstance(raw_result, list):
+        return raw_result
+    return []
+
+
+def _normalize_company(company: Dict[str, Any]) -> Dict[str, Any]:
+    domain_candidates = (
+        company.get("primary_domain"),
+        company.get("display_url"),
+        company.get("domain"),
+        company.get("company_url"),
+    )
+    domain_value = next((value for value in domain_candidates if value), "")
+
+    return {
+        "guid": company.get("guid", ""),
+        "name": company.get("name", ""),
+        "domain": domain_value,
+    }
+
+
 def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
     """Transform raw BitSight search results into the compact response shape."""
 
-    if isinstance(raw_result, dict) and raw_result.get("error"):
+    error_message = _extract_error(raw_result)
+    if error_message:
         return {
-            "error": f"BitSight API error: {raw_result['error']}",
+            "error": error_message,
             "companies": [],
             "count": 0,
         }
 
-    companies_data: Any = []
-    if isinstance(raw_result, dict):
-        if "results" in raw_result:
-            companies_data = raw_result["results"]
-        elif "companies" in raw_result:
-            companies_data = raw_result["companies"]
-        elif raw_result.get("guid"):
-            companies_data = [raw_result]
-    elif isinstance(raw_result, list):
-        companies_data = raw_result
-
-    companies: List[Dict[str, Any]] = []
-    for company in companies_data or []:
-        if not isinstance(company, dict):
-            continue
-
-        domain_value = (
-            company.get("primary_domain")
-            or company.get("display_url")
-            or company.get("domain")
-            or company.get("company_url")
-            or ""
-        )
-
-        companies.append(
-            {
-                "guid": company.get("guid", ""),
-                "name": company.get("name", ""),
-                "domain": domain_value,
-            }
-        )
+    companies: List[Dict[str, Any]] = [
+        _normalize_company(company)
+        for company in _extract_companies_data(raw_result)
+        if isinstance(company, dict)
+    ]
 
     return {
         "companies": companies,
