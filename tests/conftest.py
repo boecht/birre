@@ -7,6 +7,7 @@ stubs so imports succeed, while automatically skipping any tests marked
 the stubs remain unused.
 """
 
+import asyncio
 import sys
 import types
 
@@ -39,7 +40,7 @@ if STUB_FASTMCP:
     sys.modules["fastmcp.tools.tool"] = tool_module
 
     class Context:  # type: ignore[override]
-        pass
+        """Minimal stub of fastmcp.Context for offline unit tests."""
 
     class FastMCP:  # type: ignore[override]
         def __init__(self, *args, **kwargs):
@@ -47,6 +48,7 @@ if STUB_FASTMCP:
             self.instructions = kwargs.get("instructions")
 
         async def get_tools(self):
+            await asyncio.sleep(0)
             return {}
 
         def tool(self, *args, **kwargs):

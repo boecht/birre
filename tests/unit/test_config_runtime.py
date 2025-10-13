@@ -5,9 +5,13 @@ import logging
 import pytest
 
 from src.config import LoggingSettings, resolve_birre_settings, resolve_logging_settings
+from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 
 
-CONFIG_WARNING = "Avoid storing bitsight.api_key in config.toml; prefer config.local.toml, environment variables, or CLI overrides."
+CONFIG_WARNING = (
+    "Avoid storing bitsight.api_key in "
+    f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
+)
 
 
 def write_config(path: Path, *, include_api_key: bool) -> None:
@@ -46,7 +50,7 @@ def write_local_config(path: Path, *, api_key: str) -> None:
 def test_warns_only_when_base_config_defines_api_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    base = tmp_path / "config.toml"
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
     write_config(base, include_api_key=True)
 
     monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
@@ -60,8 +64,8 @@ def test_warns_only_when_base_config_defines_api_key(
 def test_local_only_api_key_does_not_emit_warning(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    base = tmp_path / "config.toml"
-    local = tmp_path / "config.local.toml"
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    local = tmp_path / LOCAL_CONFIG_FILENAME
     write_config(base, include_api_key=False)
     write_local_config(local, api_key="local-key")
 
@@ -76,7 +80,7 @@ def test_local_only_api_key_does_not_emit_warning(
 def test_cli_arg_overrides_env_and_sets_debug(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    base = tmp_path / "config.toml"
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
     write_config(base, include_api_key=False)
 
     monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
@@ -101,10 +105,10 @@ def test_cli_arg_overrides_env_and_sets_debug(
 def test_resolve_logging_settings_overrides(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    base = tmp_path / "config.toml"
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
     write_config(base, include_api_key=False)
     monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
-    write_local_config(tmp_path / "config.local.toml", api_key="test")
+    write_local_config(tmp_path / LOCAL_CONFIG_FILENAME, api_key="test")
 
     logging_settings = resolve_logging_settings(
         config_path=str(base),

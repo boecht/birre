@@ -20,12 +20,15 @@ class StubContext(Context):
         self._request_id = "sub-test"
 
     async def info(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["info"].append(message)
 
     async def warning(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["warning"].append(message)
 
     async def error(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["error"].append(message)
 
     @property
@@ -44,6 +47,7 @@ async def test_create_ephemeral_subscription_success(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "continuous_monitoring")
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+        await asyncio.sleep(0)
         assert name == "manageSubscriptionsBulk"
         assert payload["add"][0]["guid"] == "guid-1"
         return {"added": ["guid-1"]}
@@ -60,6 +64,7 @@ async def test_create_ephemeral_subscription_already_exists(monkeypatch: pytest.
     monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "continuous_monitoring")
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+        await asyncio.sleep(0)
         return {"errors": [{"guid": "guid-1", "message": "Already exists"}]}
 
     attempt = await create_ephemeral_subscription(call_v1, ctx, "guid-1", logger=_logdummy())
@@ -73,6 +78,7 @@ async def test_create_ephemeral_subscription_missing_config(monkeypatch: pytest.
     monkeypatch.delenv("BIRRE_SUBSCRIPTION_TYPE", raising=False)
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+        await asyncio.sleep(0)
         raise AssertionError("call_v1 should not be invoked when config missing")
 
     attempt = await create_ephemeral_subscription(call_v1, ctx, "guid-1", logger=_logdummy())
@@ -86,6 +92,7 @@ async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyP
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+        await asyncio.sleep(0)
         return {"errors": ["boom"]}
 
     result = await cleanup_ephemeral_subscription(call_v1, ctx, "guid-1")
@@ -98,6 +105,7 @@ async def test_cleanup_ephemeral_subscription_success(monkeypatch: pytest.Monkey
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+        await asyncio.sleep(0)
         return {"deleted": ["guid-1"]}
 
     result = await cleanup_ephemeral_subscription(call_v1, ctx, "guid-1")
@@ -107,9 +115,9 @@ async def test_cleanup_ephemeral_subscription_success(monkeypatch: pytest.Monkey
 def _logdummy():
     class _Logger:
         def info(self, *args, **kwargs):
-            pass
+            """No-op info logging stub used for dependency-free tests."""
 
         def error(self, *args, **kwargs):
-            pass
+            """No-op error logging stub used for dependency-free tests."""
 
     return _Logger()

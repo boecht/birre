@@ -11,7 +11,13 @@ import logging
 import tomllib
 from dotenv import load_dotenv
 
-from .constants import coerce_bool
+from .constants import (
+    DEFAULT_CONFIG_FILENAME,
+    LOCAL_CONFIG_FILENAME,
+    coerce_bool,
+)
+
+BITSIGHT_SECTION = "bitsight"
 
 DEFAULT_RISK_VECTOR_FILTER = ",".join(
     [
@@ -126,7 +132,7 @@ class LoggingSettings:
 def resolve_birre_settings(
     *,
     api_key_arg: Optional[str] = None,
-    config_path: str = "config.toml",
+    config_path: str = DEFAULT_CONFIG_FILENAME,
     subscription_folder_arg: Optional[str] = None,
     subscription_type_arg: Optional[str] = None,
     context_arg: Optional[str] = None,
@@ -139,12 +145,16 @@ def resolve_birre_settings(
     load_dotenv()
 
     cfg = load_config_layers(config_path)
-    base_cfg = _load_config(config_path) if config_path.endswith("config.toml") else {}
+    base_cfg = (
+        _load_config(config_path)
+        if config_path.endswith(DEFAULT_CONFIG_FILENAME)
+        else {}
+    )
     base_bitsight_cfg = (
-        base_cfg.get("bitsight", {}) if isinstance(base_cfg, dict) else {}
+        base_cfg.get(BITSIGHT_SECTION, {}) if isinstance(base_cfg, dict) else {}
     )
 
-    bitsight_cfg = cfg.get("bitsight", {}) if isinstance(cfg, dict) else {}
+    bitsight_cfg = cfg.get(BITSIGHT_SECTION, {}) if isinstance(cfg, dict) else {}
     runtime_cfg = (
         cfg.get("runtime")
         if isinstance(cfg, dict) and isinstance(cfg.get("runtime"), dict)
@@ -204,7 +214,8 @@ def resolve_birre_settings(
     warnings = []
     if base_api_key_cfg not in (None, ""):
         warnings.append(
-            "Avoid storing bitsight.api_key in config.toml; prefer config.local.toml, environment variables, or CLI overrides."
+            "Avoid storing bitsight.api_key in "
+            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
     if context_invalid:
         warnings.append(
@@ -337,7 +348,7 @@ def resolve_logging_settings(
 def resolve_application_settings(
     *,
     api_key_arg: Optional[str] = None,
-    config_path: str = "config.toml",
+    config_path: str = DEFAULT_CONFIG_FILENAME,
     subscription_folder_arg: Optional[str] = None,
     subscription_type_arg: Optional[str] = None,
     context_arg: Optional[str] = None,

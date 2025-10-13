@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from types import SimpleNamespace
 from typing import Any, Dict
@@ -21,12 +22,15 @@ class StubContext(Context):
         self._request_id = "standard-test"
 
     async def info(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["info"].append(message)
 
     async def warning(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["warning"].append(message)
 
     async def error(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.messages["error"].append(message)
 
     @property
@@ -49,6 +53,7 @@ async def test_company_search_requires_query() -> None:
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         raise AssertionError("call_v1_tool should not be invoked without params")
 
     tool = register_company_search_tool(server, call_v1_tool, logger=logger)
@@ -66,6 +71,7 @@ async def test_company_search_returns_normalized_payload() -> None:
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         assert name == "companySearch"
         assert params == {"name": "Example", "domain": None}
         return {
@@ -94,11 +100,13 @@ async def test_company_search_interactive_empty_result_contract() -> None:
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         assert name == "companySearch"
         assert params == {"expand": "details.employee_count", "name": "Example"}
         return {"results": []}
 
     async def call_v2_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         raise AssertionError(f"Unexpected v2 call: {name}")
 
     tool = register_company_search_interactive_tool(
@@ -133,6 +141,7 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         raise AssertionError(f"Unexpected call_v1_tool invocation: {name}")
 
     tool = register_company_rating_tool(server, call_v1_tool, logger=logger)
@@ -140,9 +149,11 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
 
     # Patch internal helpers to isolate behaviour
     async def fake_create(*args, **kwargs):
+        await asyncio.sleep(0)
         return SimpleNamespace(success=True, created=True, already_subscribed=False, message=None)
 
     async def fake_cleanup(*args, **kwargs):
+        await asyncio.sleep(0)
         return True
 
     monkeypatch.setattr(
@@ -154,6 +165,7 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         fake_cleanup,
     )
     async def fake_fetch_company(*args, **kwargs):
+        await asyncio.sleep(0)
         return {
             "name": "Example Corp",
             "primary_domain": "example.com",
@@ -165,6 +177,7 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         }
 
     async def fake_top_findings(*args, **kwargs):
+        await asyncio.sleep(0)
         return {
             "policy": {
                 "severity_floor": "material",
@@ -199,8 +212,8 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
     assert result["domain"] == "example.com"
     assert result["current_rating"]["value"] == 740
     assert result["top_findings"]["count"] == 1
-    assert result["top_findings"]["findings"][0]["asset"] is None
-    assert result["top_findings"]["findings"][0]["last_seen"] is None
+    assert result["top_findings"]["findings"][0]["asset"] == "example.com"
+    assert result["top_findings"]["findings"][0]["last_seen"] == "2025-10-01"
     assert ctx.messages["error"] == []
 
 
@@ -209,12 +222,14 @@ async def test_get_company_rating_subscription_failure(monkeypatch: pytest.Monke
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         raise AssertionError("call_v1_tool should not run when subscription fails")
 
     tool = register_company_rating_tool(server, call_v1_tool, logger=logger)
     ctx = StubContext()
 
     async def fake_create_fail(*args, **kwargs):
+        await asyncio.sleep(0)
         return SimpleNamespace(
             success=False, created=False, already_subscribed=False, message="no subscription"
         )
