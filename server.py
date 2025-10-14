@@ -19,7 +19,7 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME
-from src.config import resolve_application_settings
+from src.config import LoggingOverrides, resolve_application_settings
 from src.logging import configure_logging
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
 
@@ -135,17 +135,21 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    logging_overrides = LoggingOverrides(
+        level=args.log_level,
+        format=args.log_format,
+        file_path=args.log_file,
+        max_bytes=args.log_max_bytes,
+        backup_count=args.log_backup_count,
+    )
+
     runtime_settings, logging_settings = resolve_application_settings(
         api_key_arg=args.api_key,
         config_path=args.config_path,
         context_arg=args.context,
         risk_vector_filter_arg=args.risk_vector_filter,
         max_findings_arg=args.max_findings,
-        log_level_override=args.log_level,
-        log_format_override=args.log_format,
-        log_file_override=args.log_file,
-        log_max_bytes_override=args.log_max_bytes,
-        log_backup_count_override=args.log_backup_count,
+        logging_overrides=logging_overrides,
         subscription_folder_arg=args.subscription_folder,
         subscription_type_arg=args.subscription_type,
         debug_arg=args.debug,

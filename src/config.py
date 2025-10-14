@@ -259,6 +259,28 @@ def _coerce_positive_int(candidate: Optional[Any], default: int) -> int:
 
 
 @dataclass(frozen=True)
+class LoggingOverrides:
+    """Optional overrides for logging configuration resolution."""
+
+    level: Optional[str] = None
+    format: Optional[str] = None
+    file_path: Optional[str] = None
+    max_bytes: Optional[int] = None
+    backup_count: Optional[int] = None
+
+    def as_kwargs(self) -> Dict[str, Optional[Any]]:
+        """Map override values to ``resolve_logging_settings`` keyword arguments."""
+
+        return {
+            "level_override": self.level,
+            "format_override": self.format,
+            "file_override": self.file_path,
+            "max_bytes_override": self.max_bytes,
+            "backup_count_override": self.backup_count,
+        }
+
+
+@dataclass(frozen=True)
 class LoggingSettings:
     level: int
     format: str
@@ -475,11 +497,7 @@ def resolve_application_settings(
     debug_arg: Optional[bool] = None,
     risk_vector_filter_arg: Optional[str] = None,
     max_findings_arg: Optional[int] = None,
-    log_level_override: Optional[str] = None,
-    log_format_override: Optional[str] = None,
-    log_file_override: Optional[str] = None,
-    log_max_bytes_override: Optional[int] = None,
-    log_backup_count_override: Optional[int] = None,
+    logging_overrides: Optional[LoggingOverrides] = None,
     allow_insecure_tls_arg: Optional[bool] = None,
     ca_bundle_path_arg: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], LoggingSettings]:
@@ -495,13 +513,12 @@ def resolve_application_settings(
         allow_insecure_tls_arg=allow_insecure_tls_arg,
         ca_bundle_path_arg=ca_bundle_path_arg,
     )
+    logging_kwargs = (
+        logging_overrides.as_kwargs() if logging_overrides is not None else {}
+    )
     logging_settings = resolve_logging_settings(
         config_path=config_path,
-        level_override=log_level_override,
-        format_override=log_format_override,
-        file_override=log_file_override,
-        max_bytes_override=log_max_bytes_override,
-        backup_count_override=log_backup_count_override,
+        **logging_kwargs,
     )
     if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
         logging_settings = LoggingSettings(
@@ -519,6 +536,7 @@ __all__ = [
     "resolve_logging_settings",
     "resolve_application_settings",
     "load_config_layers",
+    "LoggingOverrides",
     "LoggingSettings",
     "LOG_FORMAT_TEXT",
     "LOG_FORMAT_JSON",
