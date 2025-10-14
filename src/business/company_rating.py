@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import heapq
@@ -554,6 +554,67 @@ def _normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any
     return items
 
 
+def _default_top_findings_payload(limit: int) -> Dict[str, Any]:
+    return {
+        "policy": {
+            "severity_floor": "material",
+            "supplements": [],
+            "max_items": limit,
+            "profile": "strict",
+        },
+        "count": 0,
+        "findings": [],
+    }
+
+
+def _emit_sorted_preview(ctx: Context, items: List[Any], label: str) -> None:
+    try:
+        preview_items = heapq.nlargest(15, items, key=_build_finding_score_tuple)
+        preview_items.sort(key=_build_finding_sort_key)
+        preview = []
+        for i, it in enumerate(preview_items[:15], start=1):
+            preview.append(
+                {
+                    "idx": i,
+                    "sev_num": _derive_numeric_severity_score(it),
+                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
+                    "importance": _derive_asset_importance_score(it),
+                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
+                    "risk_vector": it.get("risk_vector") if isinstance(it, dict) else None,
+                }
+            )
+        _debug(ctx, f"Sort preview ({label})", preview)
+    except Exception:
+        pass
+
+
+def _extract_results_from_payload(
+    payload: Dict[str, Any], ctx: Context, label: str
+) -> List[Any]:
+    results = payload.get("results") or []
+    if not isinstance(results, list):
+        return []
+    _emit_sorted_preview(ctx, results, label)
+    return results
+
+
+async def _fetch_and_normalize_findings(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    params: Dict[str, Any],
+    limit: int,
+    label: str,
+) -> Tuple[List[Dict[str, Any]], bool]:
+    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
+    if not isinstance(raw, dict):
+        return [], False
+    _debug(ctx, f"getCompaniesFindings raw response ({label})", raw)
+    results = _extract_results_from_payload(raw, ctx, label)
+    top_raw = _select_top_finding_candidates(results, limit)
+    findings = _normalize_top_findings(top_raw)
+    return findings, True
+
+
 async def _assemble_top_findings_section(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -576,50 +637,13 @@ async def _assemble_top_findings_section(
         "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
     }
 
-    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
-    if not isinstance(raw, dict):
-        return {
-            "policy": {
-                "severity_floor": "material",
-                "supplements": [],
-                "max_items": 10,
-                "profile": "strict",
-            },
-            "count": 0,
-            "findings": [],
-        }
+    top, strict_ok = await _fetch_and_normalize_findings(
+        call_v1_tool, ctx, params, limit, "strict"
+    )
+    if not strict_ok:
+        return _default_top_findings_payload(limit)
 
-    _debug(ctx, "getCompaniesFindings raw response", raw)
-
-    results = raw.get("results") or []
-    if not isinstance(results, list):
-        results = []
-
-    # DEBUG preview: top 15 without full sort
-    try:
-        preview_items = heapq.nlargest(15, results, key=_build_finding_score_tuple)
-        preview_items.sort(key=_build_finding_sort_key)
-        preview = []
-        for i, it in enumerate(preview_items[:15], start=1):
-            preview.append(
-                {
-                    "idx": i,
-                    "sev_num": _derive_numeric_severity_score(it),
-                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
-                    "importance": _derive_asset_importance_score(it),
-                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
-                    "risk_vector": it.get("risk_vector")
-                    if isinstance(it, dict)
-                    else None,
-                }
-            )
-        _debug(ctx, "Sort preview (strict)", preview)
-    except Exception:
-        pass
-    # Select only top 10 raw items, then normalize
-    top_raw = _select_top_finding_candidates(results, limit)
-    findings = _normalize_top_findings(top_raw)
-    top = findings[:limit]
+    top = top[:limit]
     profile = "strict"
     severity_floor = "material"
     supplements: List[str] = []
@@ -631,89 +655,25 @@ async def _assemble_top_findings_section(
         severity_floor = "moderate"
         relaxed_params = dict(params)
         relaxed_params["severity_category"] = "severe,material,moderate"
-        raw_relaxed = await call_v1_tool("getCompaniesFindings", ctx, relaxed_params)
-        if isinstance(raw_relaxed, dict):
-            _debug(ctx, "getCompaniesFindings raw response (relaxed)", raw_relaxed)
-            results_r = raw_relaxed.get("results") or []
-            if not isinstance(results_r, list):
-                results_r = []
-            raw_relaxed = None
-            # DEBUG preview: relaxed top 15
-            try:
-                preview_r_items = heapq.nlargest(
-                    15, results_r, key=_build_finding_score_tuple
-                )
-                preview_r_items.sort(key=_build_finding_sort_key)
-                preview_r = []
-                for i, it in enumerate(preview_r_items[:15], start=1):
-                    preview_r.append(
-                        {
-                            "idx": i,
-                            "sev_num": _derive_numeric_severity_score(it),
-                            "sev_cat": it.get("severity")
-                            if isinstance(it, dict)
-                            else None,
-                            "importance": _derive_asset_importance_score(it),
-                            "last_seen": it.get("last_seen")
-                            if isinstance(it, dict)
-                            else None,
-                            "risk_vector": it.get("risk_vector")
-                            if isinstance(it, dict)
-                            else None,
-                        }
-                    )
-                _debug(ctx, "Sort preview (relaxed)", preview_r)
-            except Exception:
-                pass
-            top_raw_r = _select_top_finding_candidates(results_r, limit)
-            findings_r = _normalize_top_findings(top_raw_r)
-            top = findings_r[:limit]
+        relaxed_findings, relaxed_ok = await _fetch_and_normalize_findings(
+            call_v1_tool, ctx, relaxed_params, limit, "relaxed"
+        )
+        if relaxed_ok and relaxed_findings:
+            top = relaxed_findings[:limit]
         # Third case: still < 3 after relaxed → append Web Application Security until limit is reached
         if len(top) < 3:
             web_params = dict(relaxed_params)
             web_params["risk_vector"] = "web_appsec"
-            raw_web = await call_v1_tool("getCompaniesFindings", ctx, web_params)
-            if isinstance(raw_web, dict):
-                _debug(ctx, "getCompaniesFindings raw response (web_appsec)", raw_web)
-                results_w = raw_web.get("results") or []
-                if not isinstance(results_w, list):
-                    results_w = []
-                raw_web = None
-                # DEBUG preview: web_appsec top 15
-                try:
-                    preview_w_items = heapq.nlargest(
-                        15, results_w, key=_build_finding_score_tuple
-                    )
-                    preview_w_items.sort(key=_build_finding_sort_key)
-                    preview_w = []
-                    for i, it in enumerate(preview_w_items[:15], start=1):
-                        preview_w.append(
-                            {
-                                "idx": i,
-                                "sev_num": _derive_numeric_severity_score(it),
-                                "sev_cat": it.get("severity")
-                                if isinstance(it, dict)
-                                else None,
-                                "importance": _derive_asset_importance_score(it),
-                                "last_seen": it.get("last_seen")
-                                if isinstance(it, dict)
-                                else None,
-                                "risk_vector": it.get("risk_vector")
-                                if isinstance(it, dict)
-                                else None,
-                            }
-                        )
-                    _debug(ctx, "Sort preview (web_appsec)", preview_w)
-                except Exception:
-                    pass
+            web_findings, web_ok = await _fetch_and_normalize_findings(
+                call_v1_tool, ctx, web_params, limit, "web_appsec"
+            )
+            if web_ok and web_findings:
                 needed = max(0, limit - len(top))
                 if needed > 0:
-                    top_raw_w = _select_top_finding_candidates(results_w, needed)
-                    findings_w = _normalize_top_findings(top_raw_w)
-                    top.extend(findings_w[:needed])
-                profile = "relaxed+web_appsec"
-                supplements = ["web_appsec"]
-                max_items = limit
+                    top.extend(web_findings[:needed])
+            profile = "relaxed+web_appsec"
+            supplements = ["web_appsec"]
+            max_items = limit
     for idx, entry in enumerate(top, start=1):
         if isinstance(entry, dict):
             entry["top"] = idx
