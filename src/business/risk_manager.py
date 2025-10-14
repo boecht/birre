@@ -5,7 +5,7 @@ import io
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
@@ -673,6 +673,185 @@ def _serialize_bulk_csv(domain: str, company_name: Optional[str]) -> str:
     return buffer.getvalue()
 
 
+def _normalize_domain(
+    domain: str,
+    *,
+    logger: logging.Logger,
+    ctx: Context,
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    domain_value = (domain or "").strip().lower()
+    if domain_value:
+        return domain_value, None
+
+    log_event(
+        logger,
+        "company_request.invalid_domain",
+        level=logging.WARNING,
+        ctx=ctx,
+        domain=domain,
+    )
+    return None, {"error": "Domain is required to request a company"}
+
+
+async def _resolve_folder_selection(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    *,
+    logger: logging.Logger,
+    domain_value: str,
+    selected_folder: Optional[str],
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    if not selected_folder:
+        return None, None
+
+    folder_guid = await _resolve_folder_guid(call_v1_tool, ctx, selected_folder)
+    if folder_guid is not None:
+        return folder_guid, None
+
+    log_event(
+        logger,
+        "company_request.folder_unknown",
+        level=logging.WARNING,
+        ctx=ctx,
+        domain=domain_value,
+        folder=selected_folder,
+    )
+    return None, {
+        "error": (
+            f"Unknown folder '{selected_folder}'. Call `company_search_interactive` "
+            "to inspect available folders first."
+        ),
+    }
+
+
+def _existing_requests_response(
+    *,
+    logger: logging.Logger,
+    ctx: Context,
+    domain_value: str,
+    existing: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    log_event(
+        logger,
+        "company_request.already_requested",
+        ctx=ctx,
+        domain=domain_value,
+        existing_count=len(existing),
+    )
+    return {
+        "status": "already_requested",
+        "domain": domain_value,
+        "requests": existing,
+        "guidance": {
+            "next_steps": "Monitor the existing request in BitSight or wait for fulfillment before retrying.",
+        },
+    }
+
+
+def _build_bulk_payload(
+    domain_value: str,
+    company_name: Optional[str],
+    folder_guid: Optional[str],
+    subscription_type: Optional[str],
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "file": _serialize_bulk_csv(domain_value, company_name),
+    }
+    if folder_guid:
+        payload["folder_guid"] = folder_guid
+    if subscription_type:
+        payload["subscription_type"] = subscription_type
+    return payload
+
+
+def _dry_run_response(
+    *,
+    logger: logging.Logger,
+    ctx: Context,
+    domain_value: str,
+    selected_folder: Optional[str],
+    subscription_type: Optional[str],
+    bulk_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    log_event(
+        logger,
+        "company_request.dry_run",
+        ctx=ctx,
+        domain=domain_value,
+        folder=selected_folder,
+        subscription_type=subscription_type,
+    )
+    return {
+        "status": "dry_run",
+        "domain": domain_value,
+        "folder": selected_folder,
+        "payload": bulk_payload,
+        "guidance": {
+            "confirmation": "Share the preview with the human operator before submitting the real request.",
+        },
+    }
+
+
+async def _submit_company_request(
+    call_v2_tool: CallV2Tool,
+    ctx: Context,
+    *,
+    logger: logging.Logger,
+    domain_value: str,
+    selected_folder: Optional[str],
+    subscription_type: Optional[str],
+    bulk_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    try:
+        result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
+        log_event(
+            logger,
+            "company_request.submitted_bulk",
+            ctx=ctx,
+            domain=domain_value,
+            folder=selected_folder,
+            subscription_type=subscription_type,
+        )
+        return {
+            "status": "submitted_v2_bulk",
+            "domain": domain_value,
+            "folder": selected_folder,
+            "subscription_type": subscription_type,
+            "result": result,
+        }
+    except Exception as exc:
+        log_event(
+            logger,
+            "company_request.bulk_failed",
+            level=logging.WARNING,
+            ctx=ctx,
+            domain=domain_value,
+            folder=selected_folder,
+            subscription_type=subscription_type,
+            error=str(exc),
+        )
+        payload = {"company_request": {"domain": domain_value}}
+        if subscription_type:
+            payload["company_request"]["subscription_type"] = subscription_type
+        result = await call_v2_tool("createCompanyRequest", ctx, payload)
+        log_event(
+            logger,
+            "company_request.submitted_single",
+            ctx=ctx,
+            domain=domain_value,
+            folder=selected_folder,
+            subscription_type=subscription_type,
+        )
+        return {
+            "status": "submitted_v2_single",
+            "domain": domain_value,
+            "folder": selected_folder,
+            "subscription_type": subscription_type,
+            "result": result,
+            "warning": "The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
+        }
+
+
 def register_request_company_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
@@ -692,17 +871,9 @@ def register_request_company_tool(
     ) -> Dict[str, Any]:
         """Submit a BitSight company onboarding request when an entity is missing."""
 
-        domain_value = (domain or "").strip().lower()
-        if not domain_value:
-            log_event(
-                logger,
-                "company_request.invalid_domain",
-                level=logging.WARNING,
-                ctx=ctx,
-                domain=domain,
-            )
-            return {"error": "Domain is required to request a company"}
-
+        domain_value, error = _normalize_domain(domain, logger=logger, ctx=ctx)
+        if error:
+            return error
         selected_folder = folder or default_folder
         folder_guid = None
         log_event(
@@ -713,117 +884,53 @@ def register_request_company_tool(
             folder=selected_folder,
             dry_run=dry_run,
         )
-        if selected_folder:
-            folder_guid = await _resolve_folder_guid(call_v1_tool, ctx, selected_folder)
-            if selected_folder and folder_guid is None:
-                log_event(
-                    logger,
-                    "company_request.folder_unknown",
-                    level=logging.WARNING,
-                    ctx=ctx,
-                    domain=domain_value,
-                    folder=selected_folder,
-                )
-                return {
-                    "error": f"Unknown folder '{selected_folder}'. Call `company_search_interactive` to inspect available folders first.",
-                }
+        folder_guid, error = await _resolve_folder_selection(
+            call_v1_tool,
+            ctx,
+            logger=logger,
+            domain_value=domain_value,
+            selected_folder=selected_folder,
+        )
+        if error:
+            return error
 
         existing = await _list_company_requests(call_v2_tool, ctx, domain_value)
         if existing:
-            log_event(
-                logger,
-                "company_request.already_requested",
+            return _existing_requests_response(
+                logger=logger,
                 ctx=ctx,
-                domain=domain_value,
-                existing_count=len(existing),
+                domain_value=domain_value,
+                existing=existing,
             )
-            return {
-                "status": "already_requested",
-                "domain": domain_value,
-                "requests": existing,
-                "guidance": {
-                    "next_steps": "Monitor the existing request in BitSight or wait for fulfillment before retrying.",
-                },
-            }
 
         subscription_type = default_type
 
-        bulk_payload = {
-            "file": _serialize_bulk_csv(domain_value, company_name),
-        }
-        if folder_guid:
-            bulk_payload["folder_guid"] = folder_guid
-        if subscription_type:
-            bulk_payload["subscription_type"] = subscription_type
+        bulk_payload = _build_bulk_payload(
+            domain_value,
+            company_name,
+            folder_guid,
+            subscription_type,
+        )
 
         if dry_run:
-            log_event(
-                logger,
-                "company_request.dry_run",
+            return _dry_run_response(
+                logger=logger,
                 ctx=ctx,
-                domain=domain_value,
-                folder=selected_folder,
+                domain_value=domain_value,
+                selected_folder=selected_folder,
                 subscription_type=subscription_type,
+                bulk_payload=bulk_payload,
             )
-            return {
-                "status": "dry_run",
-                "domain": domain_value,
-                "folder": selected_folder,
-                "payload": bulk_payload,
-                "guidance": {
-                    "confirmation": "Share the preview with the human operator before submitting the real request.",
-                },
-            }
 
-        try:
-            result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
-            log_event(
-                logger,
-                "company_request.submitted_bulk",
-                ctx=ctx,
-                domain=domain_value,
-                folder=selected_folder,
-                subscription_type=subscription_type,
-            )
-            return {
-                "status": "submitted_v2_bulk",
-                "domain": domain_value,
-                "folder": selected_folder,
-                "subscription_type": subscription_type,
-                "result": result,
-            }
-        except Exception as exc:
-            log_event(
-                logger,
-                "company_request.bulk_failed",
-                level=logging.WARNING,
-                ctx=ctx,
-                domain=domain_value,
-                folder=selected_folder,
-                subscription_type=subscription_type,
-                error=str(exc),
-            )
-            # Fall back to single-request endpoint which does not attach a folder.
-            payload = {"company_request": {"domain": domain_value}}
-            if subscription_type:
-                payload["company_request"]["subscription_type"] = subscription_type
-            result = await call_v2_tool("createCompanyRequest", ctx, payload)
-            log_event(
-                logger,
-                "company_request.submitted_single",
-                ctx=ctx,
-                domain=domain_value,
-                folder=selected_folder,
-                subscription_type=subscription_type,
-            )
-            return {
-                "status": "submitted_v2_single",
-                "domain": domain_value,
-                "folder": selected_folder,
-                "subscription_type": subscription_type,
-                "result": result,
-                "warning": "The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
-            }
+        return await _submit_company_request(
+            call_v2_tool,
+            ctx,
+            logger=logger,
+            domain_value=domain_value,
+            selected_folder=selected_folder,
+            subscription_type=subscription_type,
+            bulk_payload=bulk_payload,
+        )
 
     return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(
         request_company
