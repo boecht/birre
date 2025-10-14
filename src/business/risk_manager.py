@@ -228,6 +228,34 @@ async def _fetch_company_details(
     return details
 
 
+def _extract_folder_name(folder: Any) -> Optional[str]:
+    if not isinstance(folder, dict):
+        return None
+    folder_name = folder.get("name") or folder.get("description")
+    if not folder_name:
+        return None
+    return folder_name
+
+
+def _iter_folder_guids(folder: Dict[str, Any]) -> Iterable[str]:
+    company_ids = folder.get("companies")
+    if not isinstance(company_ids, list):
+        return ()
+    return (str(guid) for guid in company_ids if guid)
+
+
+def _iter_folder_memberships(
+    folders: Iterable[Any], guid_set: set[str]
+) -> Iterable[tuple[str, str]]:
+    for folder in folders:
+        folder_name = _extract_folder_name(folder)
+        if not folder_name:
+            continue
+        for guid in _iter_folder_guids(folder):
+            if guid in guid_set:
+                yield str(guid), folder_name
+
+
 async def _fetch_folder_memberships(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -237,7 +265,7 @@ async def _fetch_folder_memberships(
 ) -> Dict[str, List[str]]:
     """Build a mapping of company GUID to folder names."""
 
-    guid_set = {guid for guid in target_guids if guid}
+    guid_set = {str(guid) for guid in target_guids if guid}
     if not guid_set:
         return {}
 
@@ -248,20 +276,12 @@ async def _fetch_folder_memberships(
         logger.warning("folders.fetch_failed", exc_info=True)
         return {}
 
+    if not isinstance(folders, list):
+        return {}
+
     membership: defaultdict[str, List[str]] = defaultdict(list)
-    if isinstance(folders, list):
-        for folder in folders:
-            if not isinstance(folder, dict):
-                continue
-            folder_name = folder.get("name") or folder.get("description")
-            if not folder_name:
-                continue
-            company_ids = folder.get("companies") or []
-            if not isinstance(company_ids, list):
-                continue
-            for guid in company_ids:
-                if guid in guid_set:
-                    membership[guid].append(folder_name)
+    for guid, folder_name in _iter_folder_memberships(folders, guid_set):
+        membership[guid].append(folder_name)
     return dict(membership)
 
 
