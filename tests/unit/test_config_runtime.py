@@ -8,6 +8,8 @@ from src.config import (
     DEFAULT_MAX_FINDINGS,
     DEFAULT_RISK_VECTOR_FILTER,
     LoggingSettings,
+    RuntimeInputs,
+    TlsInputs,
     resolve_birre_settings,
     resolve_logging_settings,
 )
@@ -94,8 +96,8 @@ def test_cli_arg_overrides_env_and_sets_debug(
 
     settings = resolve_birre_settings(
         config_path=str(base),
-        api_key_arg="cli-key",
-        debug_arg=True,
+        api_key_input="cli-key",
+        runtime_inputs=RuntimeInputs(debug=True),
     )
 
     assert settings["api_key"] == "cli-key"
@@ -103,7 +105,9 @@ def test_cli_arg_overrides_env_and_sets_debug(
 
     # Calling again with debug disabled should drop the DEBUG env var
     resolve_birre_settings(
-        config_path=str(base), api_key_arg="cli-key", debug_arg=False
+        config_path=str(base),
+        api_key_input="cli-key",
+        runtime_inputs=RuntimeInputs(debug=False),
     )
     assert "DEBUG" not in os.environ
 
@@ -170,7 +174,8 @@ def test_ca_bundle_from_cli_overrides_env(
     ca_path.write_text("dummy", encoding="utf-8")
 
     settings = resolve_birre_settings(
-        config_path=str(base), ca_bundle_path_arg=str(ca_path)
+        config_path=str(base),
+        tls_inputs=TlsInputs(ca_bundle_path=str(ca_path)),
     )
 
     assert settings["ca_bundle_path"] == str(ca_path)
@@ -220,7 +225,8 @@ def test_empty_risk_filter_uses_default_and_warns(
     monkeypatch.delenv("BIRRE_RISK_VECTOR_FILTER", raising=False)
 
     settings = resolve_birre_settings(
-        config_path=str(base), risk_vector_filter_arg="   "
+        config_path=str(base),
+        runtime_inputs=RuntimeInputs(risk_vector_filter="   "),
     )
 
     assert settings["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
@@ -265,8 +271,10 @@ def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
 
     settings = resolve_birre_settings(
         config_path=str(base),
-        allow_insecure_tls_arg=True,
-        ca_bundle_path_arg=str(ca_path),
+        tls_inputs=TlsInputs(
+            allow_insecure=True,
+            ca_bundle_path=str(ca_path),
+        ),
     )
 
     assert settings["allow_insecure_tls"] is True

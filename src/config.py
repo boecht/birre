@@ -259,6 +259,55 @@ def _coerce_positive_int(candidate: Optional[Any], default: int) -> int:
 
 
 @dataclass(frozen=True)
+class SubscriptionInputs:
+    """Inputs that influence subscription resolution."""
+
+    folder: Optional[str] = None
+    type: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class RuntimeInputs:
+    """Inputs that influence runtime behaviour of the server."""
+
+    context: Optional[str] = None
+    debug: Optional[bool] = None
+    risk_vector_filter: Optional[str] = None
+    max_findings: Optional[int] = None
+    skip_startup_checks: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class TlsInputs:
+    """Inputs that control TLS verification behaviour."""
+
+    allow_insecure: Optional[bool] = None
+    ca_bundle_path: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class LoggingInputs:
+    """Inputs that influence logging configuration resolution."""
+
+    level: Optional[str] = None
+    format: Optional[str] = None
+    file_path: Optional[str] = None
+    max_bytes: Optional[int] = None
+    backup_count: Optional[int] = None
+
+    def as_kwargs(self) -> Dict[str, Optional[Any]]:
+        """Map provided values to ``resolve_logging_settings`` keyword arguments."""
+
+        return {
+            "level_override": self.level,
+            "format_override": self.format,
+            "file_override": self.file_path,
+            "max_bytes_override": self.max_bytes,
+            "backup_count_override": self.backup_count,
+        }
+
+
+@dataclass(frozen=True)
 class LoggingSettings:
     level: int
     format: str
@@ -273,16 +322,11 @@ class LoggingSettings:
 
 def resolve_birre_settings(
     *,
-    api_key_arg: Optional[str] = None,
+    api_key_input: Optional[str] = None,
     config_path: str = DEFAULT_CONFIG_FILENAME,
-    subscription_folder_arg: Optional[str] = None,
-    subscription_type_arg: Optional[str] = None,
-    context_arg: Optional[str] = None,
-    debug_arg: Optional[bool] = None,
-    risk_vector_filter_arg: Optional[str] = None,
-    max_findings_arg: Optional[int] = None,
-    allow_insecure_tls_arg: Optional[bool] = None,
-    ca_bundle_path_arg: Optional[str] = None,
+    subscription_inputs: Optional[SubscriptionInputs] = None,
+    runtime_inputs: Optional[RuntimeInputs] = None,
+    tls_inputs: Optional[TlsInputs] = None,
 ) -> Dict[str, Any]:
     """Resolve BiRRe runtime settings using config, env vars, and CLI overrides."""
 
@@ -318,16 +362,20 @@ def resolve_birre_settings(
     allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
     ca_bundle_env = os.getenv(ENV_CA_BUNDLE)
 
-    api_key = _first_truthy(api_key_arg, api_key_env, api_key_cfg)
+    subscription_inputs = subscription_inputs or SubscriptionInputs()
+    runtime_inputs = runtime_inputs or RuntimeInputs()
+    tls_inputs = tls_inputs or TlsInputs()
+
+    api_key = _first_truthy(api_key_input, api_key_env, api_key_cfg)
     subscription_folder = _first_truthy(
-        subscription_folder_arg, folder_env, folder_cfg
+        subscription_inputs.folder, folder_env, folder_cfg
     )
     subscription_type = _first_truthy(
-        subscription_type_arg, type_env, type_cfg
+        subscription_inputs.type, type_env, type_cfg
     )
 
     normalized_context, context_warning = _resolve_context_value(
-        context_arg, context_env, context_cfg
+        runtime_inputs.context, context_env, context_cfg
     )
 
     warnings = []
@@ -339,12 +387,16 @@ def resolve_birre_settings(
     if context_warning:
         warnings.append(context_warning)
 
-    skip_startup_checks = _resolve_bool_chain(startup_skip_cfg, startup_skip_env)
+    skip_startup_checks = _resolve_bool_chain(
+        startup_skip_cfg, startup_skip_env, runtime_inputs.skip_startup_checks
+    )
 
-    debug_enabled = _resolve_bool_chain(debug_cfg, debug_env, debug_arg)
+    debug_enabled = _resolve_bool_chain(
+        debug_cfg, debug_env, runtime_inputs.debug
+    )
 
     risk_vector_filter, risk_warning = _resolve_risk_vector_filter(
-        risk_vector_filter_arg, risk_filter_env, risk_filter_cfg
+        runtime_inputs.risk_vector_filter, risk_filter_env, risk_filter_cfg
     )
     if risk_warning:
         warnings.append(risk_warning)
@@ -352,11 +404,11 @@ def resolve_birre_settings(
     allow_insecure_tls = _resolve_bool_chain(
         allow_insecure_cfg,
         allow_insecure_env,
-        allow_insecure_tls_arg,
+        tls_inputs.allow_insecure,
     )
 
     ca_bundle_path, ca_warning = _resolve_ca_bundle_path(
-        ca_bundle_path_arg, ca_bundle_env, ca_bundle_cfg
+        tls_inputs.ca_bundle_path, ca_bundle_env, ca_bundle_cfg
     )
     if ca_warning:
         warnings.append(ca_warning)
@@ -370,7 +422,7 @@ def resolve_birre_settings(
     _apply_tls_environment(allow_insecure_tls, ca_bundle_path)
 
     max_findings, max_warning = _resolve_max_findings(
-        max_findings_arg, max_findings_env, max_findings_cfg
+        runtime_inputs.max_findings, max_findings_env, max_findings_cfg
     )
     if max_warning:
         warnings.append(max_warning)
@@ -467,41 +519,26 @@ def resolve_logging_settings(
 
 def resolve_application_settings(
     *,
-    api_key_arg: Optional[str] = None,
+    api_key_input: Optional[str] = None,
     config_path: str = DEFAULT_CONFIG_FILENAME,
-    subscription_folder_arg: Optional[str] = None,
-    subscription_type_arg: Optional[str] = None,
-    context_arg: Optional[str] = None,
-    debug_arg: Optional[bool] = None,
-    risk_vector_filter_arg: Optional[str] = None,
-    max_findings_arg: Optional[int] = None,
-    log_level_override: Optional[str] = None,
-    log_format_override: Optional[str] = None,
-    log_file_override: Optional[str] = None,
-    log_max_bytes_override: Optional[int] = None,
-    log_backup_count_override: Optional[int] = None,
-    allow_insecure_tls_arg: Optional[bool] = None,
-    ca_bundle_path_arg: Optional[str] = None,
+    subscription_inputs: Optional[SubscriptionInputs] = None,
+    runtime_inputs: Optional[RuntimeInputs] = None,
+    logging_inputs: Optional[LoggingInputs] = None,
+    tls_inputs: Optional[TlsInputs] = None,
 ) -> Tuple[Dict[str, Any], LoggingSettings]:
     runtime_settings = resolve_birre_settings(
-        api_key_arg=api_key_arg,
+        api_key_input=api_key_input,
         config_path=config_path,
-        subscription_folder_arg=subscription_folder_arg,
-        subscription_type_arg=subscription_type_arg,
-        context_arg=context_arg,
-        debug_arg=debug_arg,
-        risk_vector_filter_arg=risk_vector_filter_arg,
-        max_findings_arg=max_findings_arg,
-        allow_insecure_tls_arg=allow_insecure_tls_arg,
-        ca_bundle_path_arg=ca_bundle_path_arg,
+        subscription_inputs=subscription_inputs,
+        runtime_inputs=runtime_inputs,
+        tls_inputs=tls_inputs,
+    )
+    logging_kwargs = (
+        logging_inputs.as_kwargs() if logging_inputs is not None else {}
     )
     logging_settings = resolve_logging_settings(
         config_path=config_path,
-        level_override=log_level_override,
-        format_override=log_format_override,
-        file_override=log_file_override,
-        max_bytes_override=log_max_bytes_override,
-        backup_count_override=log_backup_count_override,
+        **logging_kwargs,
     )
     if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
         logging_settings = LoggingSettings(
@@ -519,6 +556,10 @@ __all__ = [
     "resolve_logging_settings",
     "resolve_application_settings",
     "load_config_layers",
+    "SubscriptionInputs",
+    "RuntimeInputs",
+    "TlsInputs",
+    "LoggingInputs",
     "LoggingSettings",
     "LOG_FORMAT_TEXT",
     "LOG_FORMAT_JSON",
