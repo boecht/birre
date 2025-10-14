@@ -673,6 +673,8 @@ async def _build_top_findings_selection(
     if len(selection.findings) >= 3:
         return selection
 
+    selection.profile = "relaxed"
+    selection.severity_floor = "moderate"
     relaxed_params = dict(base_params)
     relaxed_params["severity_category"] = "severe,material,moderate"
     relaxed_findings = await _request_top_findings(
@@ -680,8 +682,6 @@ async def _build_top_findings_selection(
     )
     if relaxed_findings:
         selection.findings = list(relaxed_findings)
-        selection.profile = "relaxed"
-        selection.severity_floor = "moderate"
     if len(selection.findings) >= 3:
         return selection
 
@@ -694,9 +694,9 @@ async def _build_top_findings_selection(
         needed = max(0, limit - len(selection.findings))
         if needed > 0:
             selection.findings.extend(web_findings[:needed])
-        if selection.findings:
-            selection.profile = "relaxed+web_appsec"
-            selection.supplements = ["web_appsec"]
+
+    selection.profile = "relaxed+web_appsec"
+    selection.supplements = ["web_appsec"]
 
     return selection
 
