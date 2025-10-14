@@ -268,22 +268,31 @@ def _rank_severity_category_value(val: Any) -> int:
 
 
 def _derive_numeric_severity_score(item: Any) -> float:
-    if isinstance(item, dict):
-        sv = item.get("severity")
-        if isinstance(sv, (int, float)):
-            return float(sv)
-        details_dict = item.get("details")
-        if isinstance(details_dict, dict):
-            sev2 = details_dict.get("severity")
-            if isinstance(sev2, (int, float)):
-                return float(sev2)
-            grade = details_dict.get("grade")
-            if isinstance(grade, (int, float)):
-                return float(grade)
-            cvss = details_dict.get("cvss")
-            base = cvss.get("base") if isinstance(cvss, dict) else None
-            if isinstance(base, (int, float)):
-                return float(base)
+    def _extract_numeric(value: Any) -> Optional[float]:
+        return float(value) if isinstance(value, (int, float)) else None
+
+    if not isinstance(item, dict):
+        return -1.0
+
+    direct = _extract_numeric(item.get("severity"))
+    if direct is not None:
+        return direct
+
+    details = item.get("details")
+    if not isinstance(details, dict):
+        return -1.0
+
+    for key in ("severity", "grade"):
+        candidate = _extract_numeric(details.get(key))
+        if candidate is not None:
+            return candidate
+
+    cvss = details.get("cvss")
+    if isinstance(cvss, dict):
+        base_score = _extract_numeric(cvss.get("base"))
+        if base_score is not None:
+            return base_score
+
     return -1.0
 
 
