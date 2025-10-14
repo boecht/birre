@@ -52,8 +52,19 @@ class ChannelNameFilter(logging.Filter):
         return True
 
 
+def _extract_record_field(record: logging.LogRecord, field: str) -> Optional[str]:
+    """Return a non-empty string value stored on a log record."""
+
+    value = record.__dict__.get(field)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
 class JsonLogFormatter(logging.Formatter):
     """Render log records as structured JSON lines."""
+
+    OPTIONAL_STR_FIELDS = ("event", "request_id", "tool", "company_guid")
 
     def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
         timestamp = datetime.fromtimestamp(record.created, timezone.utc).isoformat()
@@ -69,29 +80,18 @@ class JsonLogFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        event_name = record.__dict__.get("event")
-        if isinstance(event_name, str) and event_name:
-            payload["event"] = event_name
+        for field in self.OPTIONAL_STR_FIELDS:
+            value = _extract_record_field(record, field)
+            if value is not None:
+                payload[field] = value
 
-        request_id = record.__dict__.get("request_id")
-        if isinstance(request_id, str) and request_id:
-            payload["request_id"] = request_id
-
-        tool_name = record.__dict__.get("tool")
-        if isinstance(tool_name, str) and tool_name:
-            payload["tool"] = tool_name
-
-        company_guid = record.__dict__.get("company_guid")
-        if isinstance(company_guid, str) and company_guid:
-            payload["company_guid"] = company_guid
-
-        extras: Dict[str, Any] = {}
-        for key, value in record.__dict__.items():
-            if key in STANDARD_RECORD_KEYS or key in payload:
-                continue
-            if key.startswith("_"):
-                continue
-            extras[key] = value
+        extras = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in STANDARD_RECORD_KEYS
+            and key not in payload
+            and not key.startswith("_")
+        }
         if extras:
             payload["extras"] = extras
 
