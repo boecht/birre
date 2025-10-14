@@ -4,6 +4,7 @@ import csv
 import io
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from fastmcp import Context, FastMCP
@@ -169,6 +170,20 @@ MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = {
 }
 
 
+@dataclass(frozen=True)
+class CompanySearchInputs:
+    name: Optional[str]
+    domain: Optional[str]
+    term: str
+
+
+@dataclass(frozen=True)
+class CompanySearchDefaults:
+    folder: Optional[str]
+    subscription_type: Optional[str]
+    limit: int
+
+
 def _coerce_guid_list(guids: Any) -> List[str]:
     if isinstance(guids, str):
         return [guid.strip() for guid in guids.split(",") if guid.strip()]
@@ -285,53 +300,56 @@ async def _fetch_folder_memberships(
     return dict(membership)
 
 
-def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
+def _normalize_candidate_results(raw_result: Any) -> List[Any]:
     if isinstance(raw_result, dict):
-        if "results" in raw_result:
-            data = raw_result.get("results")
-        elif "companies" in raw_result:
-            data = raw_result.get("companies")
-        else:
-            data = [raw_result]
-    else:
-        data = raw_result
+        for key in ("results", "companies"):
+            value = raw_result.get(key)
+            if isinstance(value, list):
+                return value
+        return [raw_result]
+    if isinstance(raw_result, list):
+        return raw_result
+    return []
 
+
+def _build_candidate(entry: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(entry, dict):
+        return None
+
+    details = entry.get("details") if isinstance(entry.get("details"), dict) else {}
+    primary_domain = (
+        entry.get("primary_domain")
+        or entry.get("domain")
+        or entry.get("display_url")
+        or ""
+    )
+    website = (
+        entry.get("company_url")
+        or entry.get("homepage")
+        or entry.get("website")
+        or primary_domain
+    )
+
+    return {
+        "guid": entry.get("guid"),
+        "name": entry.get("name") or entry.get("display_name"),
+        "primary_domain": primary_domain,
+        "website": website,
+        "description": entry.get("description")
+        or entry.get("business_description"),
+        "employee_count": details.get("employee_count")
+        or entry.get("people_count"),
+        "in_portfolio": entry.get("in_portfolio"),
+        "subscription_type": entry.get("subscription_type"),
+    }
+
+
+def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
     candidates: List[Dict[str, Any]] = []
-    if not isinstance(data, list):
-        return candidates
-
-    for entry in data:
-        if not isinstance(entry, dict):
-            continue
-        details_value = entry.get("details")
-        details: Dict[str, Any] = (
-            details_value if isinstance(details_value, dict) else {}
-        )
-        primary_domain = (
-            entry.get("primary_domain")
-            or entry.get("domain")
-            or entry.get("display_url")
-            or ""
-        )
-        website = (
-            entry.get("company_url")
-            or entry.get("homepage")
-            or entry.get("website")
-            or primary_domain
-        )
-        candidate = {
-            "guid": entry.get("guid"),
-            "name": entry.get("name") or entry.get("display_name"),
-            "primary_domain": primary_domain,
-            "website": website,
-            "description": entry.get("description")
-            or entry.get("business_description"),
-            "employee_count": details.get("employee_count")
-            or entry.get("people_count"),
-            "in_portfolio": entry.get("in_portfolio"),
-            "subscription_type": entry.get("subscription_type"),
-        }
-        candidates.append(candidate)
+    for entry in _normalize_candidate_results(raw_result):
+        candidate = _build_candidate(entry)
+        if candidate is not None:
+            candidates.append(candidate)
     return candidates
 
 
@@ -376,6 +394,171 @@ def _format_result_entry(
     }
 
 
+def _validate_company_search_inputs(
+    name: Optional[str], domain: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    if name or domain:
+        return None
+    return {
+        "error": "Provide at least 'name' or 'domain' for the search",
+    }
+
+
+def _build_company_search_params(
+    name: Optional[str], domain: Optional[str]
+) -> tuple[Dict[str, Any], str]:
+    params: Dict[str, Any] = {"expand": "details.employee_count"}
+    if domain:
+        params["domain"] = domain
+        if name:
+            params["name"] = name
+    elif name:
+        params["name"] = name
+    search_term = domain or name or ""
+    return params, search_term
+
+
+async def _perform_company_search(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    search_params: Dict[str, Any],
+    logger: logging.Logger,
+    *,
+    name: Optional[str],
+    domain: Optional[str],
+) -> tuple[Optional[Any], Optional[Dict[str, Any]]]:
+    try:
+        result = await call_v1_tool("companySearch", ctx, search_params)
+    except Exception as exc:
+        await ctx.error(f"Company search failed: {exc}")
+        log_search_event(
+            logger,
+            "failure",
+            ctx=ctx,
+            company_name=name,
+            company_domain=domain,
+            error=str(exc),
+        )
+        return None, {"error": f"FastMCP company search failed: {exc}"}
+    return result, None
+
+
+def _build_empty_search_response(
+    search_term: str,
+    *,
+    default_folder: Optional[str],
+    default_type: Optional[str],
+) -> Dict[str, Any]:
+    return {
+        "count": 0,
+        "results": [],
+        "search_term": search_term,
+        "guidance": {
+            "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
+            "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
+            "default_folder": default_folder,
+            "default_subscription_type": default_type,
+        },
+        "truncated": False,
+    }
+
+
+def _build_guid_order(candidates: Iterable[Dict[str, Any]]) -> List[str]:
+    guid_order: List[str] = []
+    for candidate in candidates:
+        guid_value = candidate.get("guid")
+        if isinstance(guid_value, str):
+            guid_str = guid_value.strip()
+            if guid_str:
+                guid_order.append(guid_str)
+    return guid_order
+
+
+def _enrich_candidates(
+    candidates: Iterable[Dict[str, Any]],
+    details: Dict[str, Dict[str, Any]],
+    memberships: Dict[str, List[str]],
+) -> List[Dict[str, Any]]:
+    enriched: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        guid_any = candidate.get("guid")
+        if not isinstance(guid_any, str) or not guid_any:
+            continue
+        detail = details.get(guid_any) or {}
+        folders = memberships.get(guid_any) or []
+        enriched.append(_format_result_entry(candidate, detail, folders))
+    return enriched
+
+
+async def _build_company_search_response(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    *,
+    logger: logging.Logger,
+    raw_result: Any,
+    search: CompanySearchInputs,
+    defaults: CompanySearchDefaults,
+) -> Dict[str, Any]:
+    candidates = _extract_search_candidates(raw_result)
+    guid_order = _build_guid_order(candidates)
+
+    if not guid_order:
+        log_search_event(
+            logger,
+            "success",
+            ctx=ctx,
+            company_name=search.name,
+            company_domain=search.domain,
+            result_count=0,
+        )
+        return _build_empty_search_response(
+            search.term,
+            default_folder=defaults.folder,
+            default_type=defaults.subscription_type,
+        )
+
+    details = await _fetch_company_details(
+        call_v1_tool,
+        ctx,
+        guid_order,
+        logger=logger,
+        limit=defaults.limit,
+    )
+    memberships = await _fetch_folder_memberships(
+        call_v1_tool,
+        ctx,
+        guid_order,
+        logger=logger,
+    )
+
+    enriched = _enrich_candidates(candidates, details, memberships)
+    result_count = len(enriched)
+
+    log_search_event(
+        logger,
+        "success",
+        ctx=ctx,
+        company_name=search.name,
+        company_domain=search.domain,
+        result_count=result_count,
+    )
+
+    truncated = len(guid_order) > defaults.limit
+
+    return {
+        "count": result_count,
+        "results": enriched,
+        "search_term": search.term,
+        "guidance": {
+            "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
+            "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
+            "default_folder": defaults.folder,
+            "default_subscription_type": defaults.subscription_type,
+        },
+        "truncated": truncated,
+    }
+
+
 def register_company_search_interactive_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
@@ -394,20 +577,11 @@ def register_company_search_interactive_tool(
     ) -> Dict[str, Any]:
         """Return enriched search results for human-in-the-loop selection."""
 
-        if not name and not domain:
-            return {
-                "error": "Provide at least 'name' or 'domain' for the search",
-            }
+        validation_error = _validate_company_search_inputs(name, domain)
+        if validation_error:
+            return validation_error
 
-        search_params: Dict[str, Any] = {"expand": "details.employee_count"}
-        if domain:
-            search_params["domain"] = domain
-            if name:
-                search_params["name"] = name
-        else:
-            search_params["name"] = name
-
-        search_term = domain or name or ""
+        search_params, search_term = _build_company_search_params(name, domain)
 
         await ctx.info(f"risk-manager search for: {search_term}")
         log_search_event(
@@ -419,94 +593,31 @@ def register_company_search_interactive_tool(
             persona="risk_manager",
         )
 
-        try:
-            raw_result = await call_v1_tool("companySearch", ctx, search_params)
-        except Exception as exc:
-            await ctx.error(f"Company search failed: {exc}")
-            log_search_event(
-                logger,
-                "failure",
-                ctx=ctx,
-                company_name=name,
-                company_domain=domain,
-                error=str(exc),
-            )
-            return {"error": f"FastMCP company search failed: {exc}"}
-
-        candidates = _extract_search_candidates(raw_result)
-        guid_order: List[str] = []
-        for candidate in candidates:
-            guid_value = candidate.get("guid")
-            if isinstance(guid_value, str):
-                guid_str = guid_value.strip()
-                if guid_str:
-                    guid_order.append(guid_str)
-
-        if not guid_order:
-            log_search_event(
-                logger,
-                "success",
-                ctx=ctx,
-                company_name=name,
-                company_domain=domain,
-                result_count=0,
-            )
-            return {
-                "count": 0,
-                "results": [],
-                "search_term": search_term,
-                "guidance": {
-                    "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
-                    "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
-                    "default_folder": default_folder,
-                    "default_subscription_type": default_type,
-                },
-                "truncated": False,
-            }
-
-        details = await _fetch_company_details(
+        raw_result, failure_response = await _perform_company_search(
             call_v1_tool,
             ctx,
-            guid_order,
-            logger=logger,
+            search_params,
+            logger,
+            name=name,
+            domain=domain,
+        )
+        if failure_response is not None:
+            return failure_response
+
+        search = CompanySearchInputs(name=name, domain=domain, term=search_term)
+        defaults = CompanySearchDefaults(
+            folder=default_folder,
+            subscription_type=default_type,
             limit=effective_limit,
         )
-        memberships = await _fetch_folder_memberships(
-            call_v1_tool, ctx, guid_order, logger=logger
+        return await _build_company_search_response(
+            call_v1_tool,
+            ctx,
+            logger=logger,
+            raw_result=raw_result,
+            search=search,
+            defaults=defaults,
         )
-
-        enriched: List[Dict[str, Any]] = []
-        for candidate in candidates:
-            guid_any = candidate.get("guid")
-            if not isinstance(guid_any, str) or not guid_any:
-                continue
-            detail = details.get(guid_any) or {}
-            folders = memberships.get(guid_any) or []
-            enriched.append(_format_result_entry(candidate, detail, folders))
-
-        log_search_event(
-            logger,
-            "success",
-            ctx=ctx,
-            company_name=name,
-            company_domain=domain,
-            result_count=len(enriched),
-        )
-
-        truncated = len(guid_order) > effective_limit
-
-        return {
-            "count": len(enriched),
-            "results": enriched,
-            "search_term": search_term,
-            "guidance": {
-                "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
-                "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
-                "default_folder": default_folder,
-                "default_subscription_type": default_type,
-            },
-            "truncated": truncated,
-        }
 
     return business_server.tool(
         output_schema=COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA
