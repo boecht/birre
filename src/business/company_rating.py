@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import os
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -615,6 +616,91 @@ async def _fetch_and_normalize_findings(
     return findings, True
 
 
+@dataclass
+class _TopFindingsSelection:
+    findings: List[Dict[str, Any]]
+    severity_floor: str = "material"
+    profile: str = "strict"
+    supplements: List[str] = field(default_factory=list)
+    max_items: int = 0
+
+    def policy(self) -> Dict[str, Any]:
+        return {
+            "severity_floor": self.severity_floor,
+            "supplements": self.supplements,
+            "max_items": self.max_items,
+            "profile": self.profile,
+        }
+
+
+def _normalize_top_finding_limit(max_findings: int) -> int:
+    if isinstance(max_findings, int) and max_findings > 0:
+        return max_findings
+    return DEFAULT_MAX_FINDINGS
+
+
+async def _request_top_findings(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    params: Dict[str, Any],
+    limit: int,
+    label: str,
+) -> Optional[List[Dict[str, Any]]]:
+    findings, ok = await _fetch_and_normalize_findings(
+        call_v1_tool, ctx, params, limit, label
+    )
+    if not ok:
+        return None
+    return findings[:limit]
+
+
+async def _build_top_findings_selection(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    base_params: Dict[str, Any],
+    limit: int,
+) -> Optional[_TopFindingsSelection]:
+    strict_findings = await _request_top_findings(
+        call_v1_tool, ctx, base_params, limit, "strict"
+    )
+    if strict_findings is None:
+        return None
+
+    selection = _TopFindingsSelection(
+        findings=list(strict_findings),
+        max_items=limit,
+    )
+    if len(selection.findings) >= 3:
+        return selection
+
+    selection.profile = "relaxed"
+    selection.severity_floor = "moderate"
+    relaxed_params = dict(base_params)
+    relaxed_params["severity_category"] = "severe,material,moderate"
+    relaxed_findings = await _request_top_findings(
+        call_v1_tool, ctx, relaxed_params, limit, "relaxed"
+    )
+    if relaxed_findings:
+        selection.findings = list(relaxed_findings)
+    if len(selection.findings) >= 3:
+        return selection
+
+    web_params = dict(relaxed_params)
+    web_params["risk_vector"] = "web_appsec"
+    web_findings = await _request_top_findings(
+        call_v1_tool, ctx, web_params, limit, "web_appsec"
+    )
+    if web_findings:
+        needed = max(0, limit - len(selection.findings))
+        if needed > 0:
+            selection.findings.extend(web_findings[:needed])
+
+    selection.profile = "relaxed+web_appsec"
+    selection.supplements = ["web_appsec"]
+
+    return selection
+
+
 async def _assemble_top_findings_section(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -622,11 +708,7 @@ async def _assemble_top_findings_section(
     risk_vector_filter: str,
     max_findings: int,
 ) -> Dict[str, Any]:
-    limit = (
-        max_findings
-        if isinstance(max_findings, int) and max_findings > 0
-        else DEFAULT_MAX_FINDINGS
-    )
+    limit = _normalize_top_finding_limit(max_findings)
     params = {
         "guid": guid,
         "affects_rating": True,
@@ -637,58 +719,22 @@ async def _assemble_top_findings_section(
         "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
     }
 
-    top, strict_ok = await _fetch_and_normalize_findings(
-        call_v1_tool, ctx, params, limit, "strict"
+    selection = await _build_top_findings_selection(
+        call_v1_tool, ctx, params, limit
     )
-    if not strict_ok:
+    if selection is None:
         return _default_top_findings_payload(limit)
 
-    top = top[:limit]
-    profile = "strict"
-    severity_floor = "material"
-    supplements: List[str] = []
-    max_items = limit
-
-    # Automatic relaxed mode: if fewer than 3 findings, include 'moderate'
-    if len(top) < 3:
-        profile = "relaxed"
-        severity_floor = "moderate"
-        relaxed_params = dict(params)
-        relaxed_params["severity_category"] = "severe,material,moderate"
-        relaxed_findings, relaxed_ok = await _fetch_and_normalize_findings(
-            call_v1_tool, ctx, relaxed_params, limit, "relaxed"
-        )
-        if relaxed_ok and relaxed_findings:
-            top = relaxed_findings[:limit]
-        # Third case: still < 3 after relaxed → append Web Application Security until limit is reached
-        if len(top) < 3:
-            web_params = dict(relaxed_params)
-            web_params["risk_vector"] = "web_appsec"
-            web_findings, web_ok = await _fetch_and_normalize_findings(
-                call_v1_tool, ctx, web_params, limit, "web_appsec"
-            )
-            if web_ok and web_findings:
-                needed = max(0, limit - len(top))
-                if needed > 0:
-                    top.extend(web_findings[:needed])
-            profile = "relaxed+web_appsec"
-            supplements = ["web_appsec"]
-            max_items = limit
-    for idx, entry in enumerate(top, start=1):
+    for idx, entry in enumerate(selection.findings, start=1):
         if isinstance(entry, dict):
             entry["top"] = idx
 
-    _debug(ctx, "Normalized top findings", top)
+    _debug(ctx, "Normalized top findings", selection.findings)
 
     return {
-        "policy": {
-            "severity_floor": severity_floor,
-            "supplements": supplements,
-            "max_items": max_items,
-            "profile": profile,
-        },
-        "count": len(top),
-        "findings": top,
+        "policy": selection.policy(),
+        "count": len(selection.findings),
+        "findings": selection.findings,
     }
 
 
