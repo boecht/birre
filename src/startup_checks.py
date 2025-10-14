@@ -145,18 +145,14 @@ async def _check_subscription_quota(
     except Exception as exc:
         return f"Failed to query subscriptions: {exc.__class__.__name__}: {exc}"
 
-    details: Optional[Dict[str, Any]] = None
-    available_types: List[str] = []
-    if isinstance(raw, dict):
-        for key, value in raw.items():
-            if isinstance(key, str):
-                available_types.append(key)
-                if key == subscription_type and isinstance(value, dict):
-                    details = value
+    if not isinstance(raw, dict):
+        return "No subscription data returned"
 
+    available_types = [key for key in raw if isinstance(key, str)]
+    details = raw.get(subscription_type)
     raw = None  # free response
 
-    if details is None:
+    if not isinstance(details, dict):
         if available_types:
             return (
                 f"Subscription type '{subscription_type}' not found; available types:"
@@ -165,11 +161,11 @@ async def _check_subscription_quota(
         return "No subscription data returned"
 
     remaining = details.get("remaining")
-    if isinstance(remaining, int):
-        if remaining > 0:
-            return None
+    if not isinstance(remaining, int):
+        return f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
+    if remaining <= 0:
         return f"Subscription '{subscription_type}' has no remaining licenses"
-    return f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
+    return None
 
 
 async def _validate_subscription_folder(
