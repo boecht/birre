@@ -475,6 +475,79 @@ def _enrich_candidates(
     return enriched
 
 
+async def _build_company_search_response(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    *,
+    logger: logging.Logger,
+    name: Optional[str],
+    domain: Optional[str],
+    raw_result: Any,
+    search_term: str,
+    default_folder: Optional[str],
+    default_type: Optional[str],
+    limit: int,
+) -> Dict[str, Any]:
+    candidates = _extract_search_candidates(raw_result)
+    guid_order = _build_guid_order(candidates)
+
+    if not guid_order:
+        log_search_event(
+            logger,
+            "success",
+            ctx=ctx,
+            company_name=name,
+            company_domain=domain,
+            result_count=0,
+        )
+        return _build_empty_search_response(
+            search_term,
+            default_folder=default_folder,
+            default_type=default_type,
+        )
+
+    details = await _fetch_company_details(
+        call_v1_tool,
+        ctx,
+        guid_order,
+        logger=logger,
+        limit=limit,
+    )
+    memberships = await _fetch_folder_memberships(
+        call_v1_tool,
+        ctx,
+        guid_order,
+        logger=logger,
+    )
+
+    enriched = _enrich_candidates(candidates, details, memberships)
+    result_count = len(enriched)
+
+    log_search_event(
+        logger,
+        "success",
+        ctx=ctx,
+        company_name=name,
+        company_domain=domain,
+        result_count=result_count,
+    )
+
+    truncated = len(guid_order) > limit
+
+    return {
+        "count": result_count,
+        "results": enriched,
+        "search_term": search_term,
+        "guidance": {
+            "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
+            "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
+            "default_folder": default_folder,
+            "default_subscription_type": default_type,
+        },
+        "truncated": truncated,
+    }
+
+
 def register_company_search_interactive_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
@@ -520,60 +593,18 @@ def register_company_search_interactive_tool(
         if failure_response is not None:
             return failure_response
 
-        candidates = _extract_search_candidates(raw_result)
-        guid_order = _build_guid_order(candidates)
-
-        if not guid_order:
-            log_search_event(
-                logger,
-                "success",
-                ctx=ctx,
-                company_name=name,
-                company_domain=domain,
-                result_count=0,
-            )
-            return _build_empty_search_response(
-                search_term,
-                default_folder=default_folder,
-                default_type=default_type,
-            )
-
-        details = await _fetch_company_details(
+        return await _build_company_search_response(
             call_v1_tool,
             ctx,
-            guid_order,
             logger=logger,
+            name=name,
+            domain=domain,
+            raw_result=raw_result,
+            search_term=search_term,
+            default_folder=default_folder,
+            default_type=default_type,
             limit=effective_limit,
         )
-        memberships = await _fetch_folder_memberships(
-            call_v1_tool, ctx, guid_order, logger=logger
-        )
-
-        enriched = _enrich_candidates(candidates, details, memberships)
-
-        log_search_event(
-            logger,
-            "success",
-            ctx=ctx,
-            company_name=name,
-            company_domain=domain,
-            result_count=len(enriched),
-        )
-
-        truncated = len(guid_order) > effective_limit
-
-        return {
-            "count": len(enriched),
-            "results": enriched,
-            "search_term": search_term,
-            "guidance": {
-                "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
-                "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
-                "default_folder": default_folder,
-                "default_subscription_type": default_type,
-            },
-            "truncated": truncated,
-        }
 
     return business_server.tool(
         output_schema=COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA
