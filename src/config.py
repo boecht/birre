@@ -62,26 +62,165 @@ def _load_config(path: str) -> Dict[str, Any]:
         return {}
 
 
+def _apply_overlay_section(
+    base: Dict[str, Any],
+    section: str,
+    values: Any,
+) -> None:
+    """Apply a section from a local overlay configuration to the base config."""
+
+    if not isinstance(values, dict):
+        base[section] = values
+        return
+
+    base_section = base.get(section)
+    if not isinstance(base_section, dict):
+        base_section = {}
+    base[section] = {**base_section, **values}
+
+
 def load_config_layers(base_path: str) -> Dict[str, Any]:
     cfg = _load_config(base_path)
-    p = Path(base_path)
-    local_path = p.with_name(f"{p.stem}.local{p.suffix}")
-    if local_path.exists():
-        overlay = _load_config(str(local_path))
-        if isinstance(cfg, dict) and isinstance(overlay, dict):
-            for section, values in overlay.items():
-                if isinstance(values, dict):
-                    base_section = (
-                        cfg.get(section, {})
-                        if isinstance(cfg.get(section), dict)
-                        else {}
-                    )
-                    cfg[section] = {**base_section, **values}
-                else:
-                    cfg[section] = values
-        else:
-            cfg = overlay or cfg
+    path_obj = Path(base_path)
+    local_path = path_obj.with_name(f"{path_obj.stem}.local{path_obj.suffix}")
+
+    if not local_path.exists():
+        return cfg
+
+    overlay = _load_config(str(local_path))
+
+    if not isinstance(cfg, dict) or not isinstance(overlay, dict):
+        return overlay or cfg
+
+    for section, values in overlay.items():
+        _apply_overlay_section(cfg, section, values)
+
     return cfg
+
+
+def _get_dict_section(cfg: Any, section: str) -> Dict[str, Any]:
+    if isinstance(cfg, dict):
+        candidate = cfg.get(section)
+        if isinstance(candidate, dict):
+            return candidate
+    return {}
+
+
+def _load_base_config(config_path: str) -> Dict[str, Any]:
+    if config_path.endswith(DEFAULT_CONFIG_FILENAME):
+        return _load_config(config_path)
+    return {}
+
+
+def _first_truthy(*values: Optional[Any]) -> Optional[Any]:
+    for value in values:
+        if value:
+            return value
+    return None
+
+
+def _resolve_bool_chain(*values: Optional[Any], default: bool = False) -> bool:
+    result = default
+    for value in values:
+        result = coerce_bool(value, default=result)
+    return result
+
+
+def _resolve_context_value(
+    context_arg: Optional[str],
+    context_env: Optional[str],
+    context_cfg: Optional[Any],
+) -> Tuple[str, Optional[str]]:
+    requested = _first_truthy(context_arg, context_env, context_cfg)
+    normalized, invalid, candidate = _normalize_context(requested)
+    if invalid:
+        return normalized, (
+            f"Unknown context '{candidate}' requested; defaulting to 'standard'"
+        )
+    return normalized, None
+
+
+def _resolve_risk_vector_filter(
+    arg_value: Optional[str],
+    env_value: Optional[str],
+    cfg_value: Optional[Any],
+) -> Tuple[str, Optional[str]]:
+    raw = _first_truthy(arg_value, env_value, cfg_value)
+    if raw is None:
+        return DEFAULT_RISK_VECTOR_FILTER, None
+
+    raw_str = str(raw).strip()
+    if not raw_str:
+        return DEFAULT_RISK_VECTOR_FILTER, (
+            "Empty risk_vector_filter override; falling back to default configuration"
+        )
+    return raw_str, None
+
+
+def _resolve_ca_bundle_path(
+    arg_value: Optional[str],
+    env_value: Optional[str],
+    cfg_value: Optional[Any],
+) -> Tuple[Optional[str], Optional[str]]:
+    raw = _first_truthy(arg_value, env_value, cfg_value)
+    if raw is None:
+        return None, None
+
+    candidate = str(raw).strip()
+    if not candidate:
+        return None, (
+            "Empty ca_bundle_path override; ignoring custom CA bundle configuration"
+        )
+    return candidate, None
+
+
+def _resolve_max_findings(
+    arg_value: Optional[int],
+    env_value: Optional[str],
+    cfg_value: Optional[Any],
+) -> Tuple[int, Optional[str]]:
+    for candidate in (arg_value, env_value, cfg_value):
+        if candidate is not None:
+            raw = candidate
+            break
+    else:
+        raw = None
+
+    try:
+        return _coerce_positive_int(raw, DEFAULT_MAX_FINDINGS), None
+    except ValueError:
+        return DEFAULT_MAX_FINDINGS, (
+            "Invalid max_findings override; using default configuration"
+        )
+
+
+def _apply_tls_environment(allow_insecure_tls: bool, ca_bundle_path: Optional[str]) -> None:
+    if allow_insecure_tls:
+        os.environ[ENV_ALLOW_INSECURE_TLS] = "true"
+    else:
+        os.environ.pop(ENV_ALLOW_INSECURE_TLS, None)
+
+    if ca_bundle_path:
+        os.environ[ENV_CA_BUNDLE] = ca_bundle_path
+    else:
+        os.environ.pop(ENV_CA_BUNDLE, None)
+
+
+def _apply_runtime_environment(
+    *,
+    debug_enabled: bool,
+    context: str,
+    risk_vector_filter: str,
+    max_findings: int,
+) -> None:
+    if debug_enabled:
+        os.environ["DEBUG"] = "true"
+    else:
+        os.environ.pop("DEBUG", None)
+
+    os.environ["BIRRE_CONTEXT"] = context
+    os.environ[ENV_RISK_VECTOR_FILTER] = risk_vector_filter
+    os.environ[ENV_MAX_FINDINGS] = str(max_findings)
 
 
 def _normalize_context(value: Optional[object]) -> tuple[str, bool, object]:
@@ -150,62 +289,23 @@ def resolve_birre_settings(
     load_dotenv()
 
     cfg = load_config_layers(config_path)
-    base_cfg = (
-        _load_config(config_path)
-        if config_path.endswith(DEFAULT_CONFIG_FILENAME)
-        else {}
-    )
-    base_bitsight_cfg = (
-        base_cfg.get(BITSIGHT_SECTION, {}) if isinstance(base_cfg, dict) else {}
-    )
+    base_cfg = _load_base_config(config_path)
+    base_bitsight_cfg = _get_dict_section(base_cfg, BITSIGHT_SECTION)
 
-    bitsight_cfg = cfg.get(BITSIGHT_SECTION, {}) if isinstance(cfg, dict) else {}
-    runtime_cfg = (
-        cfg.get("runtime")
-        if isinstance(cfg, dict) and isinstance(cfg.get("runtime"), dict)
-        else {}
-    )
+    bitsight_cfg = _get_dict_section(cfg, BITSIGHT_SECTION)
+    runtime_cfg = _get_dict_section(cfg, "runtime")
 
-    base_api_key_cfg = (
-        base_bitsight_cfg.get("api_key")
-        if isinstance(base_bitsight_cfg, dict)
-        else None
-    )
-    api_key_cfg = (
-        bitsight_cfg.get("api_key") if isinstance(bitsight_cfg, dict) else None
-    )
-    folder_cfg = (
-        bitsight_cfg.get("subscription_folder")
-        if isinstance(bitsight_cfg, dict)
-        else None
-    )
-    type_cfg = (
-        bitsight_cfg.get("subscription_type")
-        if isinstance(bitsight_cfg, dict)
-        else None
-    )
+    api_key_cfg = bitsight_cfg.get("api_key")
+    folder_cfg = bitsight_cfg.get("subscription_folder")
+    type_cfg = bitsight_cfg.get("subscription_type")
 
-    startup_skip_cfg = (
-        runtime_cfg.get("skip_startup_checks")
-        if isinstance(runtime_cfg, dict)
-        else None
-    )
-    debug_cfg = runtime_cfg.get("debug") if isinstance(runtime_cfg, dict) else None
-    context_cfg = runtime_cfg.get("context") if isinstance(runtime_cfg, dict) else None
-    risk_filter_cfg = (
-        runtime_cfg.get("risk_vector_filter") if isinstance(runtime_cfg, dict) else None
-    )
-    max_findings_cfg = (
-        runtime_cfg.get("max_findings") if isinstance(runtime_cfg, dict) else None
-    )
-    allow_insecure_cfg = (
-        runtime_cfg.get("allow_insecure_tls")
-        if isinstance(runtime_cfg, dict)
-        else None
-    )
-    ca_bundle_cfg = (
-        runtime_cfg.get("ca_bundle_path") if isinstance(runtime_cfg, dict) else None
-    )
+    startup_skip_cfg = runtime_cfg.get("skip_startup_checks")
+    debug_cfg = runtime_cfg.get("debug")
+    context_cfg = runtime_cfg.get("context")
+    risk_filter_cfg = runtime_cfg.get("risk_vector_filter")
+    max_findings_cfg = runtime_cfg.get("max_findings")
+    allow_insecure_cfg = runtime_cfg.get("allow_insecure_tls")
+    ca_bundle_cfg = runtime_cfg.get("ca_bundle_path")
 
     api_key_env = os.getenv("BITSIGHT_API_KEY")
     folder_env = os.getenv("BIRRE_SUBSCRIPTION_FOLDER")
@@ -218,67 +318,48 @@ def resolve_birre_settings(
     allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
     ca_bundle_env = os.getenv(ENV_CA_BUNDLE)
 
-    api_key = api_key_arg or api_key_env or api_key_cfg
-    subscription_folder = subscription_folder_arg or folder_env or folder_cfg
-    subscription_type = subscription_type_arg or type_env or type_cfg
+    api_key = _first_truthy(api_key_arg, api_key_env, api_key_cfg)
+    subscription_folder = _first_truthy(
+        subscription_folder_arg, folder_env, folder_cfg
+    )
+    subscription_type = _first_truthy(
+        subscription_type_arg, type_env, type_cfg
+    )
 
-    normalized_context, context_invalid, context_requested = _normalize_context(
-        context_arg or context_env or context_cfg
+    normalized_context, context_warning = _resolve_context_value(
+        context_arg, context_env, context_cfg
     )
 
     warnings = []
-    if base_api_key_cfg not in (None, ""):
+    if base_bitsight_cfg.get("api_key") not in (None, ""):
         warnings.append(
             "Avoid storing bitsight.api_key in "
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
-    if context_invalid:
-        warnings.append(
-            f"Unknown context '{context_requested}' requested; defaulting to 'standard'"
-        )
+    if context_warning:
+        warnings.append(context_warning)
 
-    skip_startup_checks = coerce_bool(startup_skip_cfg)
-    skip_startup_checks = coerce_bool(startup_skip_env, default=skip_startup_checks)
+    skip_startup_checks = _resolve_bool_chain(startup_skip_cfg, startup_skip_env)
 
-    debug_enabled = coerce_bool(debug_cfg)
-    debug_enabled = coerce_bool(debug_env, default=debug_enabled)
-    debug_enabled = coerce_bool(debug_arg, default=debug_enabled)
+    debug_enabled = _resolve_bool_chain(debug_cfg, debug_env, debug_arg)
 
-    raw_filter = risk_vector_filter_arg or risk_filter_env or risk_filter_cfg
-    raw_filter_str = str(raw_filter).strip() if raw_filter is not None else ""
-    if raw_filter is not None and not raw_filter_str:
-        warnings.append(
-            "Empty risk_vector_filter override; falling back to default configuration"
-        )
-    risk_vector_filter = (
-        raw_filter_str if raw_filter_str else DEFAULT_RISK_VECTOR_FILTER
+    risk_vector_filter, risk_warning = _resolve_risk_vector_filter(
+        risk_vector_filter_arg, risk_filter_env, risk_filter_cfg
     )
+    if risk_warning:
+        warnings.append(risk_warning)
 
-    allow_insecure_tls = coerce_bool(allow_insecure_cfg)
-    allow_insecure_tls = coerce_bool(
+    allow_insecure_tls = _resolve_bool_chain(
+        allow_insecure_cfg,
         allow_insecure_env,
-        default=allow_insecure_tls,
-    )
-    allow_insecure_tls = coerce_bool(
         allow_insecure_tls_arg,
-        default=allow_insecure_tls,
     )
 
-    raw_ca_bundle = (
-        ca_bundle_path_arg or ca_bundle_env or ca_bundle_cfg
+    ca_bundle_path, ca_warning = _resolve_ca_bundle_path(
+        ca_bundle_path_arg, ca_bundle_env, ca_bundle_cfg
     )
-    ca_bundle_path: Optional[str]
-    if raw_ca_bundle is None:
-        ca_bundle_path = None
-    else:
-        ca_bundle_str = str(raw_ca_bundle).strip()
-        if not ca_bundle_str:
-            warnings.append(
-                "Empty ca_bundle_path override; ignoring custom CA bundle configuration"
-            )
-            ca_bundle_path = None
-        else:
-            ca_bundle_path = ca_bundle_str
+    if ca_warning:
+        warnings.append(ca_warning)
 
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
@@ -286,39 +367,20 @@ def resolve_birre_settings(
         )
         ca_bundle_path = None
 
-    if allow_insecure_tls:
-        os.environ[ENV_ALLOW_INSECURE_TLS] = "true"
-    else:
-        os.environ.pop(ENV_ALLOW_INSECURE_TLS, None)
+    _apply_tls_environment(allow_insecure_tls, ca_bundle_path)
 
-    if ca_bundle_path:
-        os.environ[ENV_CA_BUNDLE] = ca_bundle_path
-    else:
-        os.environ.pop(ENV_CA_BUNDLE, None)
+    max_findings, max_warning = _resolve_max_findings(
+        max_findings_arg, max_findings_env, max_findings_cfg
+    )
+    if max_warning:
+        warnings.append(max_warning)
 
-    if max_findings_arg is not None:
-        raw_max_findings = max_findings_arg
-    elif max_findings_env is not None:
-        raw_max_findings = max_findings_env
-    else:
-        raw_max_findings = max_findings_cfg
-    try:
-        max_findings = _coerce_positive_int(
-            raw_max_findings,
-            DEFAULT_MAX_FINDINGS,
-        )
-    except ValueError:
-        warnings.append("Invalid max_findings override; using default configuration")
-        max_findings = DEFAULT_MAX_FINDINGS
-
-    if debug_enabled:
-        os.environ["DEBUG"] = "true"
-    else:
-        os.environ.pop("DEBUG", None)
-
-    os.environ["BIRRE_CONTEXT"] = normalized_context
-    os.environ[ENV_RISK_VECTOR_FILTER] = risk_vector_filter
-    os.environ[ENV_MAX_FINDINGS] = str(max_findings)
+    _apply_runtime_environment(
+        debug_enabled=debug_enabled,
+        context=normalized_context,
+        risk_vector_filter=risk_vector_filter,
+        max_findings=max_findings,
+    )
 
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
