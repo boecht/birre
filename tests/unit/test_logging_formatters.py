@@ -3,7 +3,14 @@ import logging
 
 import pytest
 
-from src.logging import DEFAULT_TEXT_FORMAT, ChannelNameFilter, JsonLogFormatter
+from src.config import LoggingSettings
+from src.logging import (
+    DEFAULT_TEXT_FORMAT,
+    ChannelNameFilter,
+    JsonLogFormatter,
+    RequestContextAdapter,
+    configure_logging,
+)
 
 
 @pytest.fixture()
@@ -70,3 +77,73 @@ def test_json_formatter_includes_source_metadata(
     assert payload["function"] == "sample_record"
     assert payload["line"] == sample_record.lineno
     assert payload["message"] == "sample message"
+
+
+def test_request_context_adapter_merges_and_filters_extra() -> None:
+    base_extra = {"request_id": "base-id", "tool": "search"}
+    adapter = RequestContextAdapter(logging.getLogger("birre.adapter"), base_extra)
+
+    msg, kwargs = adapter.process(
+        "message",
+        {
+            "extra": {
+                "request_id": "override-id",
+                "user": "alice",
+                "tool": None,
+                "ignore": None,
+            }
+        },
+    )
+
+    assert msg == "message"
+    assert kwargs["extra"] == {
+        "request_id": "override-id",
+        "tool": "search",
+        "user": "alice",
+    }
+    assert base_extra == {"request_id": "base-id", "tool": "search"}
+
+
+def test_configure_logging_attaches_channel_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    root_logger = logging.getLogger()
+    original_handlers = list(root_logger.handlers)
+    original_level = root_logger.level
+
+    added_handler = None
+    try:
+        settings = LoggingSettings(
+            level=logging.INFO,
+            format="text",
+            file_path=None,
+            max_bytes=1024,
+            backup_count=3,
+        )
+
+        configure_logging(settings)
+
+        assert root_logger.level == logging.INFO
+        assert len(root_logger.handlers) == 1
+        handler = root_logger.handlers[0]
+        added_handler = handler
+        filters = getattr(handler, "filters", [])
+        assert any(isinstance(filt, ChannelNameFilter) for filt in filters)
+
+        record = logging.getLogger("birre.configure").makeRecord(
+            name="birre.configure",
+            level=logging.INFO,
+            fn=__file__,
+            lno=123,
+            msg="configured",
+            args=(),
+            exc_info=None,
+            func="test",
+        )
+        for filt in filters:
+            filt.filter(record)
+        assert getattr(record, "channel") == "birre"
+    finally:
+        if added_handler is not None:
+            added_handler.close()
+        root_logger.handlers = original_handlers
+        root_logger.setLevel(original_level)
+        monkeypatch.setattr("src.logging._configured_settings", None, raising=False)

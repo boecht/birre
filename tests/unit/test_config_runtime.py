@@ -4,7 +4,13 @@ from pathlib import Path
 import logging
 import pytest
 
-from src.config import LoggingSettings, resolve_birre_settings, resolve_logging_settings
+from src.config import (
+    DEFAULT_MAX_FINDINGS,
+    DEFAULT_RISK_VECTOR_FILTER,
+    LoggingSettings,
+    resolve_birre_settings,
+    resolve_logging_settings,
+)
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 
 
@@ -171,3 +177,102 @@ def test_ca_bundle_from_cli_overrides_env(
     assert settings["allow_insecure_tls"] is False
     assert os.environ["BIRRE_CA_BUNDLE"] == str(ca_path)
     assert "BIRRE_ALLOW_INSECURE_TLS" not in os.environ
+
+
+def test_invalid_context_falls_back_to_standard_with_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                "subscription_folder = \"API\"",
+                "subscription_type = \"continuous_monitoring\"",
+                "",
+                "[runtime]",
+                "context = \"invalid\"",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.delenv("BIRRE_CONTEXT", raising=False)
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["context"] == "standard"
+    assert settings["warnings"] == [
+        "Unknown context 'invalid' requested; defaulting to 'standard'"
+    ]
+    assert os.environ["BIRRE_CONTEXT"] == "standard"
+
+
+def test_empty_risk_filter_uses_default_and_warns(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.delenv("BIRRE_RISK_VECTOR_FILTER", raising=False)
+
+    settings = resolve_birre_settings(
+        config_path=str(base), risk_vector_filter_arg="   "
+    )
+
+    assert settings["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
+    assert settings["warnings"] == [
+        "Empty risk_vector_filter override; falling back to default configuration"
+    ]
+    assert os.environ["BIRRE_RISK_VECTOR_FILTER"] == DEFAULT_RISK_VECTOR_FILTER
+
+
+def test_invalid_max_findings_reverts_to_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_MAX_FINDINGS", "0")
+    monkeypatch.delenv("BIRRE_CONTEXT", raising=False)
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["max_findings"] == DEFAULT_MAX_FINDINGS
+    assert settings["warnings"] == [
+        "Invalid max_findings override; using default configuration"
+    ]
+    assert os.environ["BIRRE_MAX_FINDINGS"] == str(DEFAULT_MAX_FINDINGS)
+
+
+def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.delenv("BIRRE_ALLOW_INSECURE_TLS", raising=False)
+    monkeypatch.delenv("BIRRE_CA_BUNDLE", raising=False)
+
+    ca_path = tmp_path / "certs" / "bundle.pem"
+    ca_path.parent.mkdir(parents=True, exist_ok=True)
+    ca_path.write_text("dummy", encoding="utf-8")
+
+    settings = resolve_birre_settings(
+        config_path=str(base),
+        allow_insecure_tls_arg=True,
+        ca_bundle_path_arg=str(ca_path),
+    )
+
+    assert settings["allow_insecure_tls"] is True
+    assert settings["ca_bundle_path"] is None
+    assert settings["warnings"] == [
+        "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
+    ]
+    assert os.environ["BIRRE_ALLOW_INSECURE_TLS"] == "true"
+    assert "BIRRE_CA_BUNDLE" not in os.environ
