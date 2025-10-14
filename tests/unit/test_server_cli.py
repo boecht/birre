@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from types import SimpleNamespace
@@ -88,6 +89,7 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
         patch("server.run_offline_startup_checks", return_value=True) as offline_mock,
         patch("server.run_online_startup_checks", async_online) as online_mock,
         patch("server.create_birre_server", return_value=fake_server) as create_server,
+        patch("server.asyncio.run", wraps=asyncio.run) as asyncio_run,
     ):
         server.main()
 
@@ -104,5 +106,7 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     create_kwargs = create_server.call_args.kwargs
     assert create_kwargs["settings"] == runtime_settings
     assert create_kwargs["logger"] is root_logger
+
+    asyncio_run.assert_called_once()
 
     fake_server.run.assert_called_once()
