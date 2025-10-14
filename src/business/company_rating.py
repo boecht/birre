@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import heapq
@@ -554,6 +554,67 @@ def _normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any
     return items
 
 
+def _default_top_findings_payload(limit: int) -> Dict[str, Any]:
+    return {
+        "policy": {
+            "severity_floor": "material",
+            "supplements": [],
+            "max_items": limit,
+            "profile": "strict",
+        },
+        "count": 0,
+        "findings": [],
+    }
+
+
+def _emit_sorted_preview(ctx: Context, items: List[Any], label: str) -> None:
+    try:
+        preview_items = heapq.nlargest(15, items, key=_build_finding_score_tuple)
+        preview_items.sort(key=_build_finding_sort_key)
+        preview = []
+        for i, it in enumerate(preview_items[:15], start=1):
+            preview.append(
+                {
+                    "idx": i,
+                    "sev_num": _derive_numeric_severity_score(it),
+                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
+                    "importance": _derive_asset_importance_score(it),
+                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
+                    "risk_vector": it.get("risk_vector") if isinstance(it, dict) else None,
+                }
+            )
+        _debug(ctx, f"Sort preview ({label})", preview)
+    except Exception:
+        pass
+
+
+def _extract_results_from_payload(
+    payload: Dict[str, Any], ctx: Context, label: str
+) -> List[Any]:
+    results = payload.get("results") or []
+    if not isinstance(results, list):
+        return []
+    _emit_sorted_preview(ctx, results, label)
+    return results
+
+
+async def _fetch_and_normalize_findings(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    params: Dict[str, Any],
+    limit: int,
+    label: str,
+) -> Tuple[List[Dict[str, Any]], bool]:
+    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
+    if not isinstance(raw, dict):
+        return [], False
+    _debug(ctx, f"getCompaniesFindings raw response ({label})", raw)
+    results = _extract_results_from_payload(raw, ctx, label)
+    top_raw = _select_top_finding_candidates(results, limit)
+    findings = _normalize_top_findings(top_raw)
+    return findings, True
+
+
 async def _assemble_top_findings_section(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -576,50 +637,13 @@ async def _assemble_top_findings_section(
         "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
     }
 
-    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
-    if not isinstance(raw, dict):
-        return {
-            "policy": {
-                "severity_floor": "material",
-                "supplements": [],
-                "max_items": 10,
-                "profile": "strict",
-            },
-            "count": 0,
-            "findings": [],
-        }
+    top, strict_ok = await _fetch_and_normalize_findings(
+        call_v1_tool, ctx, params, limit, "strict"
+    )
+    if not strict_ok:
+        return _default_top_findings_payload(limit)
 
-    _debug(ctx, "getCompaniesFindings raw response", raw)
-
-    results = raw.get("results") or []
-    if not isinstance(results, list):
-        results = []
-
-    # DEBUG preview: top 15 without full sort
-    try:
-        preview_items = heapq.nlargest(15, results, key=_build_finding_score_tuple)
-        preview_items.sort(key=_build_finding_sort_key)
-        preview = []
-        for i, it in enumerate(preview_items[:15], start=1):
-            preview.append(
-                {
-                    "idx": i,
-                    "sev_num": _derive_numeric_severity_score(it),
-                    "sev_cat": it.get("severity") if isinstance(it, dict) else None,
-                    "importance": _derive_asset_importance_score(it),
-                    "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
-                    "risk_vector": it.get("risk_vector")
-                    if isinstance(it, dict)
-                    else None,
-                }
-            )
-        _debug(ctx, "Sort preview (strict)", preview)
-    except Exception:
-        pass
-    # Select only top 10 raw items, then normalize
-    top_raw = _select_top_finding_candidates(results, limit)
-    findings = _normalize_top_findings(top_raw)
-    top = findings[:limit]
+    top = top[:limit]
     profile = "strict"
     severity_floor = "material"
     supplements: List[str] = []
@@ -631,89 +655,25 @@ async def _assemble_top_findings_section(
         severity_floor = "moderate"
         relaxed_params = dict(params)
         relaxed_params["severity_category"] = "severe,material,moderate"
-        raw_relaxed = await call_v1_tool("getCompaniesFindings", ctx, relaxed_params)
-        if isinstance(raw_relaxed, dict):
-            _debug(ctx, "getCompaniesFindings raw response (relaxed)", raw_relaxed)
-            results_r = raw_relaxed.get("results") or []
-            if not isinstance(results_r, list):
-                results_r = []
-            raw_relaxed = None
-            # DEBUG preview: relaxed top 15
-            try:
-                preview_r_items = heapq.nlargest(
-                    15, results_r, key=_build_finding_score_tuple
-                )
-                preview_r_items.sort(key=_build_finding_sort_key)
-                preview_r = []
-                for i, it in enumerate(preview_r_items[:15], start=1):
-                    preview_r.append(
-                        {
-                            "idx": i,
-                            "sev_num": _derive_numeric_severity_score(it),
-                            "sev_cat": it.get("severity")
-                            if isinstance(it, dict)
-                            else None,
-                            "importance": _derive_asset_importance_score(it),
-                            "last_seen": it.get("last_seen")
-                            if isinstance(it, dict)
-                            else None,
-                            "risk_vector": it.get("risk_vector")
-                            if isinstance(it, dict)
-                            else None,
-                        }
-                    )
-                _debug(ctx, "Sort preview (relaxed)", preview_r)
-            except Exception:
-                pass
-            top_raw_r = _select_top_finding_candidates(results_r, limit)
-            findings_r = _normalize_top_findings(top_raw_r)
-            top = findings_r[:limit]
+        relaxed_findings, relaxed_ok = await _fetch_and_normalize_findings(
+            call_v1_tool, ctx, relaxed_params, limit, "relaxed"
+        )
+        if relaxed_ok and relaxed_findings:
+            top = relaxed_findings[:limit]
         # Third case: still < 3 after relaxed → append Web Application Security until limit is reached
         if len(top) < 3:
             web_params = dict(relaxed_params)
             web_params["risk_vector"] = "web_appsec"
-            raw_web = await call_v1_tool("getCompaniesFindings", ctx, web_params)
-            if isinstance(raw_web, dict):
-                _debug(ctx, "getCompaniesFindings raw response (web_appsec)", raw_web)
-                results_w = raw_web.get("results") or []
-                if not isinstance(results_w, list):
-                    results_w = []
-                raw_web = None
-                # DEBUG preview: web_appsec top 15
-                try:
-                    preview_w_items = heapq.nlargest(
-                        15, results_w, key=_build_finding_score_tuple
-                    )
-                    preview_w_items.sort(key=_build_finding_sort_key)
-                    preview_w = []
-                    for i, it in enumerate(preview_w_items[:15], start=1):
-                        preview_w.append(
-                            {
-                                "idx": i,
-                                "sev_num": _derive_numeric_severity_score(it),
-                                "sev_cat": it.get("severity")
-                                if isinstance(it, dict)
-                                else None,
-                                "importance": _derive_asset_importance_score(it),
-                                "last_seen": it.get("last_seen")
-                                if isinstance(it, dict)
-                                else None,
-                                "risk_vector": it.get("risk_vector")
-                                if isinstance(it, dict)
-                                else None,
-                            }
-                        )
-                    _debug(ctx, "Sort preview (web_appsec)", preview_w)
-                except Exception:
-                    pass
+            web_findings, web_ok = await _fetch_and_normalize_findings(
+                call_v1_tool, ctx, web_params, limit, "web_appsec"
+            )
+            if web_ok and web_findings:
                 needed = max(0, limit - len(top))
                 if needed > 0:
-                    top_raw_w = _select_top_finding_candidates(results_w, needed)
-                    findings_w = _normalize_top_findings(top_raw_w)
-                    top.extend(findings_w[:needed])
-                profile = "relaxed+web_appsec"
-                supplements = ["web_appsec"]
-                max_items = limit
+                    top.extend(web_findings[:needed])
+            profile = "relaxed+web_appsec"
+            supplements = ["web_appsec"]
+            max_items = limit
     for idx, entry in enumerate(top, start=1):
         if isinstance(entry, dict):
             entry["top"] = idx
@@ -755,6 +715,39 @@ def _debug(ctx: Context, message: str, obj: Any) -> None:
     return None
 
 
+def _top_findings_unavailable_payload() -> Dict[str, Any]:
+    return {
+        "policy": {
+            "severity_floor": "material",
+            "supplements": [],
+            "max_items": 0,
+            "profile": "unavailable",
+        },
+        "count": 0,
+        "findings": [],
+    }
+
+
+async def _retrieve_top_findings_payload(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    effective_filter: str,
+    effective_findings: int,
+) -> Dict[str, Any]:
+    try:
+        return await _assemble_top_findings_section(
+            call_v1_tool,
+            ctx,
+            guid,
+            effective_filter,
+            effective_findings,
+        )
+    except Exception as exc:  # pragma: no cover - defensive log
+        await ctx.warning(f"Failed to fetch top findings: {exc}")
+        return _top_findings_unavailable_payload()
+
+
 async def _fetch_company_profile_dict(
     call_v1_tool: CallV1Tool, ctx: Context, guid: str
 ) -> Dict[str, Any]:
@@ -787,6 +780,62 @@ def _build_rating_legend_entries() -> List[Dict[str, Any]]:
         {"color": "yellow", "min": 630, "max": 739},
         {"color": "green", "min": 740, "max": 900},
     ]
+
+
+def _extract_policy_profile(top_findings_payload: Dict[str, Any]) -> Optional[str]:
+    policy = top_findings_payload.get("policy")
+    if isinstance(policy, dict):
+        profile = policy.get("profile")
+        if isinstance(profile, str):
+            return profile
+    return None
+
+
+async def _build_rating_payload(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    effective_filter: str,
+    effective_findings: int,
+    logger: logging.Logger,
+) -> Dict[str, Any]:
+    log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
+
+    company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
+    current_value, color = _summarize_current_rating(company)
+    weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
+    top_findings_payload = await _retrieve_top_findings_payload(
+        call_v1_tool,
+        ctx,
+        guid,
+        effective_filter,
+        effective_findings,
+    )
+
+    primary_domain = (
+        company.get("primary_domain")
+        or company.get("display_url")
+        or ""
+    )
+    result = {
+        "name": company.get("name", ""),
+        "domain": primary_domain,
+        "current_rating": {"value": current_value, "color": color},
+        "trend_8_weeks": weekly_trend,
+        "trend_1_year": yearly_trend,
+        "top_findings": top_findings_payload,
+        "legend": {"rating": _build_rating_legend_entries()},
+    }
+
+    log_rating_event(
+        logger,
+        "fetch_success",
+        ctx=ctx,
+        company_guid=guid,
+        findings_count=top_findings_payload.get("count"),
+        policy=_extract_policy_profile(top_findings_payload),
+    )
+    return result
 
 
 def register_company_rating_tool(
@@ -884,7 +933,6 @@ def register_company_rating_tool(
         await ctx.info(f"Getting rating analytics for company: {guid}")
 
         # 1) Ensure access via subscription
-        auto_subscribed = False
         attempt: SubscriptionAttempt = await create_ephemeral_subscription(
             call_v1_tool, ctx, guid, logger=logger
         )
@@ -896,67 +944,19 @@ def register_company_rating_tool(
             return {"error": msg}
         auto_subscribed = attempt.created
 
+        result: Dict[str, Any]
         try:
-            log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
-
-            # 2) Fetch company profile
-            company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
-
-            # 3) Compute rating + trends
-            current_value, color = _summarize_current_rating(company)
-            weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
-
-            # 4) Fetch top findings
-            try:
-                top_findings_payload = await _assemble_top_findings_section(
-                    call_v1_tool,
-                    ctx,
-                    guid,
-                    effective_filter,
-                    effective_findings,
-                )
-            except Exception as exc:  # pragma: no cover - defensive log
-                await ctx.warning(f"Failed to fetch top findings: {exc}")
-                top_findings_payload = {
-                    "policy": {
-                        "severity_floor": "material",
-                        "supplements": [],
-                        "max_items": 0,
-                        "profile": "unavailable",
-                    },
-                    "count": 0,
-                    "findings": [],
-                }
-
-            # 5) Assemble result
-            result = {
-                "name": company.get("name", ""),
-                "domain": company.get("primary_domain")
-                or company.get("display_url")
-                or "",
-                "current_rating": {"value": current_value, "color": color},
-                "trend_8_weeks": weekly_trend,
-                "trend_1_year": yearly_trend,
-                "top_findings": top_findings_payload,
-                "legend": {"rating": _build_rating_legend_entries()},
-            }
-            log_rating_event(
+            result = await _build_rating_payload(
+                call_v1_tool,
+                ctx,
+                guid,
+                effective_filter,
+                effective_findings,
                 logger,
-                "fetch_success",
-                ctx=ctx,
-                company_guid=guid,
-                findings_count=top_findings_payload.get("count"),
-                policy=(
-                    top_findings_payload.get("policy", {}).get("profile")
-                    if isinstance(top_findings_payload.get("policy"), dict)
-                    else None
-                ),
             )
         except Exception as exc:  # pragma: no cover - defensive log
             error_message = f"Failed to build rating payload: {exc}"
             await ctx.error(error_message)
-            if auto_subscribed:
-                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
             log_rating_event(
                 logger,
                 "fetch_failure",
@@ -964,11 +964,10 @@ def register_company_rating_tool(
                 company_guid=guid,
                 error=str(exc),
             )
-            return {"error": error_message}
-
-        # 6) Cleanup subscription if created here
-        if auto_subscribed:
-            await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
+            result = {"error": error_message}
+        finally:
+            if auto_subscribed:
+                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
 
         return result
 
