@@ -715,6 +715,39 @@ def _debug(ctx: Context, message: str, obj: Any) -> None:
     return None
 
 
+def _top_findings_unavailable_payload() -> Dict[str, Any]:
+    return {
+        "policy": {
+            "severity_floor": "material",
+            "supplements": [],
+            "max_items": 0,
+            "profile": "unavailable",
+        },
+        "count": 0,
+        "findings": [],
+    }
+
+
+async def _retrieve_top_findings_payload(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    effective_filter: str,
+    effective_findings: int,
+) -> Dict[str, Any]:
+    try:
+        return await _assemble_top_findings_section(
+            call_v1_tool,
+            ctx,
+            guid,
+            effective_filter,
+            effective_findings,
+        )
+    except Exception as exc:  # pragma: no cover - defensive log
+        await ctx.warning(f"Failed to fetch top findings: {exc}")
+        return _top_findings_unavailable_payload()
+
+
 async def _fetch_company_profile_dict(
     call_v1_tool: CallV1Tool, ctx: Context, guid: str
 ) -> Dict[str, Any]:
@@ -747,6 +780,62 @@ def _build_rating_legend_entries() -> List[Dict[str, Any]]:
         {"color": "yellow", "min": 630, "max": 739},
         {"color": "green", "min": 740, "max": 900},
     ]
+
+
+def _extract_policy_profile(top_findings_payload: Dict[str, Any]) -> Optional[str]:
+    policy = top_findings_payload.get("policy")
+    if isinstance(policy, dict):
+        profile = policy.get("profile")
+        if isinstance(profile, str):
+            return profile
+    return None
+
+
+async def _build_rating_payload(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    effective_filter: str,
+    effective_findings: int,
+    logger: logging.Logger,
+) -> Dict[str, Any]:
+    log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
+
+    company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
+    current_value, color = _summarize_current_rating(company)
+    weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
+    top_findings_payload = await _retrieve_top_findings_payload(
+        call_v1_tool,
+        ctx,
+        guid,
+        effective_filter,
+        effective_findings,
+    )
+
+    primary_domain = (
+        company.get("primary_domain")
+        or company.get("display_url")
+        or ""
+    )
+    result = {
+        "name": company.get("name", ""),
+        "domain": primary_domain,
+        "current_rating": {"value": current_value, "color": color},
+        "trend_8_weeks": weekly_trend,
+        "trend_1_year": yearly_trend,
+        "top_findings": top_findings_payload,
+        "legend": {"rating": _build_rating_legend_entries()},
+    }
+
+    log_rating_event(
+        logger,
+        "fetch_success",
+        ctx=ctx,
+        company_guid=guid,
+        findings_count=top_findings_payload.get("count"),
+        policy=_extract_policy_profile(top_findings_payload),
+    )
+    return result
 
 
 def register_company_rating_tool(
@@ -844,7 +933,6 @@ def register_company_rating_tool(
         await ctx.info(f"Getting rating analytics for company: {guid}")
 
         # 1) Ensure access via subscription
-        auto_subscribed = False
         attempt: SubscriptionAttempt = await create_ephemeral_subscription(
             call_v1_tool, ctx, guid, logger=logger
         )
@@ -856,67 +944,19 @@ def register_company_rating_tool(
             return {"error": msg}
         auto_subscribed = attempt.created
 
+        result: Dict[str, Any]
         try:
-            log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
-
-            # 2) Fetch company profile
-            company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
-
-            # 3) Compute rating + trends
-            current_value, color = _summarize_current_rating(company)
-            weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
-
-            # 4) Fetch top findings
-            try:
-                top_findings_payload = await _assemble_top_findings_section(
-                    call_v1_tool,
-                    ctx,
-                    guid,
-                    effective_filter,
-                    effective_findings,
-                )
-            except Exception as exc:  # pragma: no cover - defensive log
-                await ctx.warning(f"Failed to fetch top findings: {exc}")
-                top_findings_payload = {
-                    "policy": {
-                        "severity_floor": "material",
-                        "supplements": [],
-                        "max_items": 0,
-                        "profile": "unavailable",
-                    },
-                    "count": 0,
-                    "findings": [],
-                }
-
-            # 5) Assemble result
-            result = {
-                "name": company.get("name", ""),
-                "domain": company.get("primary_domain")
-                or company.get("display_url")
-                or "",
-                "current_rating": {"value": current_value, "color": color},
-                "trend_8_weeks": weekly_trend,
-                "trend_1_year": yearly_trend,
-                "top_findings": top_findings_payload,
-                "legend": {"rating": _build_rating_legend_entries()},
-            }
-            log_rating_event(
+            result = await _build_rating_payload(
+                call_v1_tool,
+                ctx,
+                guid,
+                effective_filter,
+                effective_findings,
                 logger,
-                "fetch_success",
-                ctx=ctx,
-                company_guid=guid,
-                findings_count=top_findings_payload.get("count"),
-                policy=(
-                    top_findings_payload.get("policy", {}).get("profile")
-                    if isinstance(top_findings_payload.get("policy"), dict)
-                    else None
-                ),
             )
         except Exception as exc:  # pragma: no cover - defensive log
             error_message = f"Failed to build rating payload: {exc}"
             await ctx.error(error_message)
-            if auto_subscribed:
-                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
             log_rating_event(
                 logger,
                 "fetch_failure",
@@ -924,11 +964,10 @@ def register_company_rating_tool(
                 company_guid=guid,
                 error=str(exc),
             )
-            return {"error": error_message}
-
-        # 6) Cleanup subscription if created here
-        if auto_subscribed:
-            await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
+            result = {"error": error_message}
+        finally:
+            if auto_subscribed:
+                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
 
         return result
 
