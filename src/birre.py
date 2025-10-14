@@ -23,15 +23,14 @@ from .business import (
 )
 
 
-INSTRUCTIONS_MAP = {
+INSTRUCTIONS_MAP: Dict[str, str] = {
     "standard": (
         "BitSight rating retriever. Use `company_search` to locate a company, "
-        "then call `get_company_rating` with the chosen GUID.",
+        "then call `get_company_rating` with the chosen GUID."
     ),
     "risk_manager": (
-        "Risk manager persona. Start with `company_search_interactive` to review "
-        "matches, call `manage_subscriptions` to adjust coverage, and use "
-        "`request_company` when an entity is missing.",
+        "Risk manager persona. Start with `company_search_interactive` to review matches, "
+        "call `manage_subscriptions` to adjust coverage, and use `request_company` when an entity is missing."
     ),
 }
 
