@@ -285,53 +285,56 @@ async def _fetch_folder_memberships(
     return dict(membership)
 
 
-def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
+def _normalize_candidate_results(raw_result: Any) -> List[Any]:
     if isinstance(raw_result, dict):
-        if "results" in raw_result:
-            data = raw_result.get("results")
-        elif "companies" in raw_result:
-            data = raw_result.get("companies")
-        else:
-            data = [raw_result]
-    else:
-        data = raw_result
+        for key in ("results", "companies"):
+            value = raw_result.get(key)
+            if isinstance(value, list):
+                return value
+        return [raw_result]
+    if isinstance(raw_result, list):
+        return raw_result
+    return []
 
+
+def _build_candidate(entry: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(entry, dict):
+        return None
+
+    details = entry.get("details") if isinstance(entry.get("details"), dict) else {}
+    primary_domain = (
+        entry.get("primary_domain")
+        or entry.get("domain")
+        or entry.get("display_url")
+        or ""
+    )
+    website = (
+        entry.get("company_url")
+        or entry.get("homepage")
+        or entry.get("website")
+        or primary_domain
+    )
+
+    return {
+        "guid": entry.get("guid"),
+        "name": entry.get("name") or entry.get("display_name"),
+        "primary_domain": primary_domain,
+        "website": website,
+        "description": entry.get("description")
+        or entry.get("business_description"),
+        "employee_count": details.get("employee_count")
+        or entry.get("people_count"),
+        "in_portfolio": entry.get("in_portfolio"),
+        "subscription_type": entry.get("subscription_type"),
+    }
+
+
+def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
     candidates: List[Dict[str, Any]] = []
-    if not isinstance(data, list):
-        return candidates
-
-    for entry in data:
-        if not isinstance(entry, dict):
-            continue
-        details_value = entry.get("details")
-        details: Dict[str, Any] = (
-            details_value if isinstance(details_value, dict) else {}
-        )
-        primary_domain = (
-            entry.get("primary_domain")
-            or entry.get("domain")
-            or entry.get("display_url")
-            or ""
-        )
-        website = (
-            entry.get("company_url")
-            or entry.get("homepage")
-            or entry.get("website")
-            or primary_domain
-        )
-        candidate = {
-            "guid": entry.get("guid"),
-            "name": entry.get("name") or entry.get("display_name"),
-            "primary_domain": primary_domain,
-            "website": website,
-            "description": entry.get("description")
-            or entry.get("business_description"),
-            "employee_count": details.get("employee_count")
-            or entry.get("people_count"),
-            "in_portfolio": entry.get("in_portfolio"),
-            "subscription_type": entry.get("subscription_type"),
-        }
-        candidates.append(candidate)
+    for entry in _normalize_candidate_results(raw_result):
+        candidate = _build_candidate(entry)
+        if candidate is not None:
+            candidates.append(candidate)
     return candidates
 
 
