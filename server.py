@@ -211,7 +211,18 @@ def main() -> None:
         raise SystemExit(1)
 
     logger.info("Starting BiRRe FastMCP server")
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        print(
+            "\n"
+            "╭────────────────────────────────────────╮\n"
+            "│\033[0;31m  Keyboard interrupt received — stopping  \033[0m│\n"
+            "│\033[0;31m          BiRRe FastMCP server            \033[0m│\n"
+            "╰────────────────────────────────────────╯\n\033[0m",
+            file=sys.stderr,
+        )
+        logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
 
 
 if __name__ == "__main__":
