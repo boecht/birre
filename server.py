@@ -13,6 +13,10 @@ import logging
 import os
 import sys
 
+# FastMCP checks this flag during import time, so ensure it is enabled before
+# importing any modules that depend on FastMCP.
+os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
+
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME
 from src.config import resolve_application_settings
@@ -147,11 +151,6 @@ def main() -> None:
         debug_arg=args.debug,
         allow_insecure_tls_arg=args.allow_insecure_tls,
         ca_bundle_path_arg=args.ca_bundle_path,
-    )
-
-    os.environ.setdefault(
-        "FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER",
-        "true",
     )
 
     print(
