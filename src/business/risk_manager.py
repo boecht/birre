@@ -4,6 +4,7 @@ import csv
 import io
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from fastmcp import Context, FastMCP
@@ -167,6 +168,20 @@ MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = {
     ],
     "additionalProperties": True,
 }
+
+
+@dataclass(frozen=True)
+class CompanySearchInputs:
+    name: Optional[str]
+    domain: Optional[str]
+    term: str
+
+
+@dataclass(frozen=True)
+class CompanySearchDefaults:
+    folder: Optional[str]
+    subscription_type: Optional[str]
+    limit: int
 
 
 def _coerce_guid_list(guids: Any) -> List[str]:
@@ -480,13 +495,9 @@ async def _build_company_search_response(
     ctx: Context,
     *,
     logger: logging.Logger,
-    name: Optional[str],
-    domain: Optional[str],
     raw_result: Any,
-    search_term: str,
-    default_folder: Optional[str],
-    default_type: Optional[str],
-    limit: int,
+    search: CompanySearchInputs,
+    defaults: CompanySearchDefaults,
 ) -> Dict[str, Any]:
     candidates = _extract_search_candidates(raw_result)
     guid_order = _build_guid_order(candidates)
@@ -496,14 +507,14 @@ async def _build_company_search_response(
             logger,
             "success",
             ctx=ctx,
-            company_name=name,
-            company_domain=domain,
+            company_name=search.name,
+            company_domain=search.domain,
             result_count=0,
         )
         return _build_empty_search_response(
-            search_term,
-            default_folder=default_folder,
-            default_type=default_type,
+            search.term,
+            default_folder=defaults.folder,
+            default_type=defaults.subscription_type,
         )
 
     details = await _fetch_company_details(
@@ -511,7 +522,7 @@ async def _build_company_search_response(
         ctx,
         guid_order,
         logger=logger,
-        limit=limit,
+        limit=defaults.limit,
     )
     memberships = await _fetch_folder_memberships(
         call_v1_tool,
@@ -527,22 +538,22 @@ async def _build_company_search_response(
         logger,
         "success",
         ctx=ctx,
-        company_name=name,
-        company_domain=domain,
+        company_name=search.name,
+        company_domain=search.domain,
         result_count=result_count,
     )
 
-    truncated = len(guid_order) > limit
+    truncated = len(guid_order) > defaults.limit
 
     return {
         "count": result_count,
         "results": enriched,
-        "search_term": search_term,
+        "search_term": search.term,
         "guidance": {
             "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
             "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
-            "default_folder": default_folder,
-            "default_subscription_type": default_type,
+            "default_folder": defaults.folder,
+            "default_subscription_type": defaults.subscription_type,
         },
         "truncated": truncated,
     }
@@ -593,17 +604,19 @@ def register_company_search_interactive_tool(
         if failure_response is not None:
             return failure_response
 
+        search = CompanySearchInputs(name=name, domain=domain, term=search_term)
+        defaults = CompanySearchDefaults(
+            folder=default_folder,
+            subscription_type=default_type,
+            limit=effective_limit,
+        )
         return await _build_company_search_response(
             call_v1_tool,
             ctx,
             logger=logger,
-            name=name,
-            domain=domain,
             raw_result=raw_result,
-            search_term=search_term,
-            default_folder=default_folder,
-            default_type=default_type,
-            limit=effective_limit,
+            search=search,
+            defaults=defaults,
         )
 
     return business_server.tool(
