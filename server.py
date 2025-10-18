@@ -201,6 +201,9 @@ def main() -> None:
     configure_logging(logging_settings)
     logger = logging.getLogger("birre")
 
+    for message in runtime_settings.get("overrides", []):
+        logger.info(message)
+
     for message in runtime_settings.get("warnings", []):
         logger.warning(message)
 

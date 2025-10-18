@@ -62,13 +62,6 @@ EXPECTED_V2_KEEP = {
 }
 
 
-@pytest.fixture(autouse=True)
-def restore_subscription_env(monkeypatch):
-    monkeypatch.delenv("BIRRE_SUBSCRIPTION_FOLDER", raising=False)
-    monkeypatch.delenv("BIRRE_SUBSCRIPTION_TYPE", raising=False)
-    monkeypatch.delenv("BIRRE_ENABLE_V2", raising=False)
-
-
 @pytest.fixture
 def logger():
     return logging.getLogger("birre-tests")
@@ -101,13 +94,26 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
 
     monkeypatch.setattr(birre, "call_v1_openapi_tool", v1_recorder)
 
-    def capture_rating(server, call_v1_tool, *, logger, risk_vector_filter, max_findings):
+    def capture_rating(
+        server,
+        call_v1_tool,
+        *,
+        logger,
+        risk_vector_filter,
+        max_findings,
+        default_folder,
+        default_type,
+        debug_enabled,
+    ):
         recorded_calls["rating"] = {
             "server": server,
             "call_v1_tool": call_v1_tool,
             "logger": logger,
             "risk_vector_filter": risk_vector_filter,
             "max_findings": max_findings,
+            "default_folder": default_folder,
+            "default_type": default_type,
+            "debug_enabled": debug_enabled,
         }
 
     monkeypatch.setattr(birre, "register_company_rating_tool", capture_rating)
@@ -155,6 +161,9 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
 
     assert recorded_calls["rating"]["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
     assert recorded_calls["rating"]["max_findings"] == DEFAULT_MAX_FINDINGS
+    assert recorded_calls["rating"]["default_folder"] == "/tmp/subscriptions"
+    assert recorded_calls["rating"]["default_type"] == "managed"
+    assert recorded_calls["rating"]["debug_enabled"] is False
     assert "call_v1_tool" in recorded_calls["search"]
     call_v1_tool = recorded_calls["search"]["call_v1_tool"]
     assert isinstance(call_v1_tool, partial)
@@ -164,8 +173,8 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
 
     assert scheduled == [(("api-key", True, v1_server), EXPECTED_V1_KEEP)]
 
-    assert os.environ["BIRRE_SUBSCRIPTION_FOLDER"] == "/tmp/subscriptions"
-    assert os.environ["BIRRE_SUBSCRIPTION_TYPE"] == "managed"
+    assert "BIRRE_SUBSCRIPTION_FOLDER" not in os.environ
+    assert "BIRRE_SUBSCRIPTION_TYPE" not in os.environ
     assert not hasattr(server, "call_v2_tool")
 
 
@@ -199,8 +208,27 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     monkeypatch.setattr(birre, "call_v1_openapi_tool", v1_recorder)
     monkeypatch.setattr(birre, "call_v2_openapi_tool", v2_recorder)
 
-    def capture_rating(server, call_v1_tool, *, logger, risk_vector_filter, max_findings):
-        captures.setdefault("rating", []).append((server, risk_vector_filter, max_findings))
+    def capture_rating(
+        server,
+        call_v1_tool,
+        *,
+        logger,
+        risk_vector_filter,
+        max_findings,
+        default_folder,
+        default_type,
+        debug_enabled,
+    ):
+        captures.setdefault("rating", []).append(
+            (
+                server,
+                risk_vector_filter,
+                max_findings,
+                default_folder,
+                default_type,
+                debug_enabled,
+            )
+        )
 
     monkeypatch.setattr(birre, "register_company_rating_tool", capture_rating)
 
@@ -273,7 +301,9 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         }
     ]
 
-    assert captures["rating"] == [(server, "compromised_hosts", 7)]
+    assert captures["rating"] == [
+        (server, "compromised_hosts", 7, "folder", "type", False)
+    ]
     assert captures["search"] == [server]
     assert captures["interactive"] == [("folder", "type", 7)]
     assert captures["manage"] == [("folder", "type")]
@@ -286,7 +316,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
 
 
 @pytest.mark.asyncio
-async def test_create_birre_server_enables_v2_via_env(monkeypatch, logger):
+async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     v1_server = object()
     v2_server = object()
     scheduled = []
@@ -316,27 +346,19 @@ async def test_create_birre_server_enables_v2_via_env(monkeypatch, logger):
     monkeypatch.setattr(birre, "register_company_rating_tool", lambda *args, **kwargs: None)
     monkeypatch.setattr(birre, "register_company_search_tool", lambda *args, **kwargs: None)
 
-    monkeypatch.setenv("BIRRE_ENABLE_V2", "true")
+    server = birre.create_birre_server({"api_key": "key", "enable_v2": True}, logger)
 
-    server = birre.create_birre_server({"api_key": "key"}, logger)
-
-    assert hasattr(server, "call_v2_tool")
+    assert not hasattr(server, "call_v2_tool")
     assert server.name == "io.github.boecht.birre"
     assert server.extra_kwargs == {}
     assert server.call_v1_tool.func is v1_recorder
     assert server.call_v1_tool.args == (("key", True, v1_server),)
     assert server.call_v1_tool.keywords == {"logger": logger}
-    assert server.call_v2_tool.func is v2_recorder
-    assert server.call_v2_tool.args == (("key", True, v2_server),)
-    assert server.call_v2_tool.keywords == {"logger": logger}
+    assert scheduled == [(("key", True, v1_server), EXPECTED_V1_KEEP)]
 
     await server.call_v1_tool("companySearch", object(), {})
-    await server.call_v2_tool("getCompanyRequests", object(), {})
 
     assert v1_recorder.calls[0]["api_server"] == ("key", True, v1_server)
-    assert v2_recorder.calls[0]["api_server"] == ("key", True, v2_server)
+    assert v2_recorder.calls == []
 
-    assert scheduled == [
-        (("key", True, v1_server), EXPECTED_V1_KEEP),
-        (("key", True, v2_server), EXPECTED_V2_KEEP),
-    ]
+    assert scheduled == [(("key", True, v1_server), EXPECTED_V1_KEEP)]

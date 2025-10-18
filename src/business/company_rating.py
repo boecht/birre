@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import json
-import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
@@ -14,7 +13,6 @@ from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
 from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
-from src.constants import coerce_bool
 
 from .helpers import CallV1Tool
 from .helpers.subscription import (
@@ -568,7 +566,9 @@ def _default_top_findings_payload(limit: int) -> Dict[str, Any]:
     }
 
 
-def _emit_sorted_preview(ctx: Context, items: List[Any], label: str) -> None:
+def _emit_sorted_preview(
+    ctx: Context, items: List[Any], label: str, *, debug_enabled: bool
+) -> None:
     try:
         preview_items = heapq.nlargest(15, items, key=_build_finding_score_tuple)
         preview_items.sort(key=_build_finding_sort_key)
@@ -584,18 +584,27 @@ def _emit_sorted_preview(ctx: Context, items: List[Any], label: str) -> None:
                     "risk_vector": it.get("risk_vector") if isinstance(it, dict) else None,
                 }
             )
-        _debug(ctx, f"Sort preview ({label})", preview)
+        _debug(
+            ctx,
+            f"Sort preview ({label})",
+            preview,
+            debug_enabled=debug_enabled,
+        )
     except Exception:
         pass
 
 
 def _extract_results_from_payload(
-    payload: Dict[str, Any], ctx: Context, label: str
+    payload: Dict[str, Any],
+    ctx: Context,
+    label: str,
+    *,
+    debug_enabled: bool,
 ) -> List[Any]:
     results = payload.get("results") or []
     if not isinstance(results, list):
         return []
-    _emit_sorted_preview(ctx, results, label)
+    _emit_sorted_preview(ctx, results, label, debug_enabled=debug_enabled)
     return results
 
 
@@ -605,12 +614,21 @@ async def _fetch_and_normalize_findings(
     params: Dict[str, Any],
     limit: int,
     label: str,
+    *,
+    debug_enabled: bool,
 ) -> Tuple[List[Dict[str, Any]], bool]:
     raw = await call_v1_tool("getCompaniesFindings", ctx, params)
     if not isinstance(raw, dict):
         return [], False
-    _debug(ctx, f"getCompaniesFindings raw response ({label})", raw)
-    results = _extract_results_from_payload(raw, ctx, label)
+    _debug(
+        ctx,
+        f"getCompaniesFindings raw response ({label})",
+        raw,
+        debug_enabled=debug_enabled,
+    )
+    results = _extract_results_from_payload(
+        raw, ctx, label, debug_enabled=debug_enabled
+    )
     top_raw = _select_top_finding_candidates(results, limit)
     findings = _normalize_top_findings(top_raw)
     return findings, True
@@ -645,9 +663,16 @@ async def _request_top_findings(
     params: Dict[str, Any],
     limit: int,
     label: str,
+    *,
+    debug_enabled: bool,
 ) -> Optional[List[Dict[str, Any]]]:
     findings, ok = await _fetch_and_normalize_findings(
-        call_v1_tool, ctx, params, limit, label
+        call_v1_tool,
+        ctx,
+        params,
+        limit,
+        label,
+        debug_enabled=debug_enabled,
     )
     if not ok:
         return None
@@ -659,9 +684,16 @@ async def _build_top_findings_selection(
     ctx: Context,
     base_params: Dict[str, Any],
     limit: int,
+    *,
+    debug_enabled: bool,
 ) -> Optional[_TopFindingsSelection]:
     strict_findings = await _request_top_findings(
-        call_v1_tool, ctx, base_params, limit, "strict"
+        call_v1_tool,
+        ctx,
+        base_params,
+        limit,
+        "strict",
+        debug_enabled=debug_enabled,
     )
     if strict_findings is None:
         return None
@@ -678,7 +710,12 @@ async def _build_top_findings_selection(
     relaxed_params = dict(base_params)
     relaxed_params["severity_category"] = "severe,material,moderate"
     relaxed_findings = await _request_top_findings(
-        call_v1_tool, ctx, relaxed_params, limit, "relaxed"
+        call_v1_tool,
+        ctx,
+        relaxed_params,
+        limit,
+        "relaxed",
+        debug_enabled=debug_enabled,
     )
     if relaxed_findings:
         selection.findings = list(relaxed_findings)
@@ -688,7 +725,12 @@ async def _build_top_findings_selection(
     web_params = dict(relaxed_params)
     web_params["risk_vector"] = "web_appsec"
     web_findings = await _request_top_findings(
-        call_v1_tool, ctx, web_params, limit, "web_appsec"
+        call_v1_tool,
+        ctx,
+        web_params,
+        limit,
+        "web_appsec",
+        debug_enabled=debug_enabled,
     )
     if web_findings:
         needed = max(0, limit - len(selection.findings))
@@ -707,6 +749,8 @@ async def _assemble_top_findings_section(
     guid: str,
     risk_vector_filter: str,
     max_findings: int,
+    *,
+    debug_enabled: bool,
 ) -> Dict[str, Any]:
     limit = _normalize_top_finding_limit(max_findings)
     params = {
@@ -720,7 +764,11 @@ async def _assemble_top_findings_section(
     }
 
     selection = await _build_top_findings_selection(
-        call_v1_tool, ctx, params, limit
+        call_v1_tool,
+        ctx,
+        params,
+        limit,
+        debug_enabled=debug_enabled,
     )
     if selection is None:
         return _default_top_findings_payload(limit)
@@ -729,7 +777,12 @@ async def _assemble_top_findings_section(
         if isinstance(entry, dict):
             entry["top"] = idx
 
-    _debug(ctx, "Normalized top findings", selection.findings)
+    _debug(
+        ctx,
+        "Normalized top findings",
+        selection.findings,
+        debug_enabled=debug_enabled,
+    )
 
     return {
         "policy": selection.policy(),
@@ -738,10 +791,12 @@ async def _assemble_top_findings_section(
     }
 
 
-def _debug(ctx: Context, message: str, obj: Any) -> None:
+def _debug(
+    ctx: Context, message: str, obj: Any, *, debug_enabled: bool
+) -> None:
     """Emit a structured debug log if DEBUG env var is enabled."""
     try:
-        if not coerce_bool(os.getenv("DEBUG")):
+        if not debug_enabled:
             return None
 
         try:
@@ -780,6 +835,8 @@ async def _retrieve_top_findings_payload(
     guid: str,
     effective_filter: str,
     effective_findings: int,
+    *,
+    debug_enabled: bool,
 ) -> Dict[str, Any]:
     try:
         return await _assemble_top_findings_section(
@@ -788,6 +845,7 @@ async def _retrieve_top_findings_payload(
             guid,
             effective_filter,
             effective_findings,
+            debug_enabled=debug_enabled,
         )
     except Exception as exc:  # pragma: no cover - defensive log
         await ctx.warning(f"Failed to fetch top findings: {exc}")
@@ -844,6 +902,8 @@ async def _build_rating_payload(
     effective_filter: str,
     effective_findings: int,
     logger: logging.Logger,
+    *,
+    debug_enabled: bool,
 ) -> Dict[str, Any]:
     log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
 
@@ -856,6 +916,7 @@ async def _build_rating_payload(
         guid,
         effective_filter,
         effective_findings,
+        debug_enabled=debug_enabled,
     )
 
     primary_domain = (
@@ -891,6 +952,9 @@ def register_company_rating_tool(
     logger: logging.Logger,
     risk_vector_filter: Optional[str] = None,
     max_findings: Optional[int] = None,
+    default_folder: Optional[str] = None,
+    default_type: Optional[str] = None,
+    debug_enabled: bool = False,
 ) -> FunctionTool:
     effective_filter = (
         risk_vector_filter.strip()
@@ -980,7 +1044,13 @@ def register_company_rating_tool(
 
         # 1) Ensure access via subscription
         attempt: SubscriptionAttempt = await create_ephemeral_subscription(
-            call_v1_tool, ctx, guid, logger=logger
+            call_v1_tool,
+            ctx,
+            guid,
+            logger=logger,
+            default_folder=default_folder,
+            subscription_type=default_type,
+            debug_enabled=debug_enabled,
         )
         if not attempt.success:
             msg = attempt.message or (
@@ -999,6 +1069,7 @@ def register_company_rating_tool(
                 effective_filter,
                 effective_findings,
                 logger,
+                debug_enabled=debug_enabled,
             )
         except Exception as exc:  # pragma: no cover - defensive log
             error_message = f"Failed to build rating payload: {exc}"
@@ -1013,7 +1084,12 @@ def register_company_rating_tool(
             result = {"error": error_message}
         finally:
             if auto_subscribed:
-                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
+                await cleanup_ephemeral_subscription(
+                    call_v1_tool,
+                    ctx,
+                    guid,
+                    debug_enabled=debug_enabled,
+                )
 
         return result
 

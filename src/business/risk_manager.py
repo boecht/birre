@@ -1004,8 +1004,9 @@ def register_manage_subscriptions_tool(
         if normalized_action == "add" and not default_type:
             return {
                 "error": (
-                    "Subscription type is not configured. Set BIRRE_SUBSCRIPTION_TYPE "
-                    f"or update {DEFAULT_CONFIG_FILENAME}"
+                    "Subscription type is not configured. Provide a subscription_type via CLI "
+                    "arguments, set BIRRE_SUBSCRIPTION_TYPE in the environment, or update "
+                    f"{DEFAULT_CONFIG_FILENAME}."
                 ),
             }
 

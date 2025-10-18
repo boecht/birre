@@ -9,6 +9,7 @@ from src.config import (
     DEFAULT_RISK_VECTOR_FILTER,
     LoggingSettings,
     RuntimeInputs,
+    SubscriptionInputs,
     TlsInputs,
     resolve_birre_settings,
     resolve_logging_settings,
@@ -101,13 +102,19 @@ def test_cli_arg_overrides_env_and_sets_debug(
     )
 
     assert settings["api_key"] == "cli-key"
-    assert os.environ["DEBUG"] == "true"
-
-    # Calling again with debug disabled should drop the DEBUG env var
-    resolve_birre_settings(
-        config_path=str(base),
-        api_key_input="cli-key",
-        runtime_inputs=RuntimeInputs(debug=False),
+    assert settings["debug"] is True
+    assert any(
+        msg
+        == "Using BITSIGHT_API_KEY from command line arguments, overriding values from the environment."
+        for msg in settings["overrides"]
+    )
+    assert any(
+        msg
+        == (
+            "Using DEBUG from command line arguments, overriding values from the "
+            "environment, the configuration file, and the default configuration file."
+        )
+        for msg in settings["overrides"]
     )
     assert "DEBUG" not in os.environ
 
@@ -154,8 +161,7 @@ def test_allow_insecure_tls_from_env(
 
     assert settings["allow_insecure_tls"] is True
     assert settings["ca_bundle_path"] is None
-    assert os.environ["BIRRE_ALLOW_INSECURE_TLS"] == "true"
-    assert "BIRRE_CA_BUNDLE" not in os.environ
+    assert settings["overrides"] == []
 
 
 def test_ca_bundle_from_cli_overrides_env(
@@ -180,8 +186,7 @@ def test_ca_bundle_from_cli_overrides_env(
 
     assert settings["ca_bundle_path"] == str(ca_path)
     assert settings["allow_insecure_tls"] is False
-    assert os.environ["BIRRE_CA_BUNDLE"] == str(ca_path)
-    assert "BIRRE_ALLOW_INSECURE_TLS" not in os.environ
+    assert settings["overrides"] == []
 
 
 def test_invalid_context_falls_back_to_standard_with_warning(
@@ -212,7 +217,7 @@ def test_invalid_context_falls_back_to_standard_with_warning(
     assert settings["warnings"] == [
         "Unknown context 'invalid' requested; defaulting to 'standard'"
     ]
-    assert os.environ["BIRRE_CONTEXT"] == "standard"
+    assert "BIRRE_CONTEXT" not in os.environ
 
 
 def test_empty_risk_filter_uses_default_and_warns(
@@ -233,7 +238,97 @@ def test_empty_risk_filter_uses_default_and_warns(
     assert settings["warnings"] == [
         "Empty risk_vector_filter override; falling back to default configuration"
     ]
-    assert os.environ["BIRRE_RISK_VECTOR_FILTER"] == DEFAULT_RISK_VECTOR_FILTER
+
+
+def test_subscription_inputs_trim_whitespace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "  EnvFolder  ")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "   ")
+
+    settings = resolve_birre_settings(
+        config_path=str(base),
+        subscription_inputs=SubscriptionInputs(
+            folder="   ",
+            type="  cli-type  ",
+        ),
+    )
+
+    assert settings["subscription_folder"] == "EnvFolder"
+    assert settings["subscription_type"] == "cli-type"
+
+    folder_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_FOLDER" in msg
+    ]
+    type_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_TYPE" in msg
+    ]
+
+    assert folder_messages == [
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file and the default configuration file."
+    ]
+    assert type_messages == [
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file and the default configuration file."
+    ]
+
+
+def test_subscription_source_priority_skips_blank_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "  BaseFolder  "',
+                'subscription_type = " BaseType "',
+                "",
+                "[runtime]",
+                "skip_startup_checks = false",
+                "debug = false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    local = tmp_path / LOCAL_CONFIG_FILENAME
+    local.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "  LocalFolder  "',
+                'subscription_type = "   "',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "   ")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "\t")
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["subscription_folder"] == "LocalFolder"
+    assert settings["subscription_type"] == "BaseType"
+
+    folder_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_FOLDER" in msg
+    ]
+    type_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_TYPE" in msg
+    ]
+
+    assert folder_messages == [
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file and the default configuration file."
+    ]
+    assert type_messages == []
 
 
 def test_invalid_max_findings_reverts_to_default(
@@ -252,7 +347,6 @@ def test_invalid_max_findings_reverts_to_default(
     assert settings["warnings"] == [
         "Invalid max_findings override; using default configuration"
     ]
-    assert os.environ["BIRRE_MAX_FINDINGS"] == str(DEFAULT_MAX_FINDINGS)
 
 
 def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
@@ -282,5 +376,3 @@ def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
     assert settings["warnings"] == [
         "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
     ]
-    assert os.environ["BIRRE_ALLOW_INSECURE_TLS"] == "true"
-    assert "BIRRE_CA_BUNDLE" not in os.environ

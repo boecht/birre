@@ -1,11 +1,24 @@
-"""Configuration helpers for the BiRRe server."""
+"""Configuration helpers for the BiRRe server.
+
+Settings resolve according to the following precedence:
+
+1. Command line inputs
+2. Environment variables
+3. Local configuration overlays (``config.local.toml``)
+4. Primary configuration file (``config.toml``)
+5. Bundled defaults (``config.default.toml``)
+
+Blank or whitespace-only values are treated as "not provided" so they do not
+override lower-priority sources. Normalization happens before any setting is
+evaluated so downstream helpers never see untrimmed values.
+"""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Collection, Dict, Optional, Sequence, Tuple
 
 import logging
 import tomllib
@@ -112,6 +125,14 @@ def _load_base_config(config_path: str) -> Dict[str, Any]:
     return {}
 
 
+def _load_local_config(config_path: str) -> Dict[str, Any]:
+    path_obj = Path(config_path)
+    local_path = path_obj.with_name(f"{path_obj.stem}.local{path_obj.suffix}")
+    if not local_path.exists():
+        return {}
+    return _load_config(str(local_path))
+
+
 def _first_truthy(*values: Optional[Any]) -> Optional[Any]:
     for value in values:
         if value:
@@ -119,11 +140,372 @@ def _first_truthy(*values: Optional[Any]) -> Optional[Any]:
     return None
 
 
+def _value_provided(value: Optional[Any]) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) > 0
+    return True
+
+
+def _normalize_optional_str(value: Optional[Any]) -> Optional[str]:
+    """Normalize optional string-like inputs by trimming whitespace."""
+
+    if value is None:
+        return None
+    candidate = str(value).strip()
+    return candidate or None
+
+
+def _string_was_blank(value: Optional[Any]) -> bool:
+    if value is None:
+        return False
+    return str(value).strip() == ""
+
+
+def _join_sources(names: Sequence[str]) -> str:
+    if not names:
+        return ""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + f", and {names[-1]}"
+
+
+_SOURCE_LABELS = {
+    "cli": "command line arguments",
+    "env": "the environment",
+    "local": "the local configuration file",
+    "config": "the configuration file",
+    "base": "the default configuration file",
+}
+
+
+def _record_override_summary(
+    messages: list[str],
+    setting: str,
+    sources: Sequence[Tuple[str, Optional[Any]]],
+    blank_keys: Collection[str],
+    chosen_value: Optional[Any],
+) -> None:
+    if chosen_value is None:
+        return
+
+    blank_lookup = set(blank_keys)
+    chosen_index: Optional[int] = None
+    for index, (key, value) in enumerate(sources):
+        if key in blank_lookup:
+            continue
+        if value == chosen_value and _value_provided(value):
+            chosen_index = index
+            break
+
+    if chosen_index is None:
+        return
+
+    overridden_keys = [
+        source_key
+        for source_key, candidate in sources[chosen_index + 1 :]
+        if source_key not in blank_lookup and _value_provided(candidate)
+    ]
+
+    if not overridden_keys:
+        return
+
+    chosen_key = sources[chosen_index][0]
+
+    # Skip logs when the chosen source is config but nothing lower priority
+    # supplied a value; this matches the previous behaviour of ignoring
+    # "config over base" messages to avoid noisy defaults.
+    if chosen_key == "config" and not any(
+        _value_provided(candidate)
+        for source_key, candidate in sources[:chosen_index]
+        if source_key not in blank_lookup
+    ):
+        return
+
+    chosen_label = _SOURCE_LABELS.get(chosen_key, chosen_key)
+    overridden_labels = [_SOURCE_LABELS.get(k, k) for k in overridden_keys]
+    overridden_phrase = _join_sources(overridden_labels)
+    messages.append(
+        f"Using {setting} from {chosen_label}, overriding values from {overridden_phrase}."
+    )
+
+
+def _normalize_sources(
+    *sources: Tuple[str, Optional[Any]]
+) -> Tuple[
+    list[Tuple[str, Optional[str]]],
+    Dict[str, Optional[str]],
+    set[str],
+]:
+    normalized_list: list[Tuple[str, Optional[str]]] = []
+    normalized_map: Dict[str, Optional[str]] = {}
+    blank_keys: set[str] = set()
+
+    for key, raw in sources:
+        normalized = _normalize_optional_str(raw)
+        normalized_list.append((key, normalized))
+        normalized_map[key] = normalized
+        if _string_was_blank(raw):
+            blank_keys.add(key)
+
+    return normalized_list, normalized_map, blank_keys
+
+
+def _build_normalized_chain(
+    *sources: Tuple[str, Optional[Any]]
+) -> Tuple[
+    list[Tuple[str, Optional[str]]],
+    Dict[str, Optional[str]],
+    set[str],
+    Optional[str],
+]:
+    chain, mapping, blank_keys = _normalize_sources(*sources)
+    chosen = _first_truthy(*(value for _, value in chain))
+    return chain, mapping, blank_keys, chosen
+
+
+def _select_configured_value(
+    mapping: Dict[str, Optional[str]],
+    blank_keys: Collection[str],
+    *,
+    order: Sequence[str] = ("local", "config", "base"),
+) -> Tuple[Optional[str], bool]:
+    blank_lookup = set(blank_keys)
+    for key in order:
+        if key in blank_lookup:
+            return None, True
+        candidate = mapping.get(key)
+        if candidate is not None:
+            return candidate, False
+    return None, False
+
+
 def _resolve_bool_chain(*values: Optional[Any], default: bool = False) -> bool:
     result = default
     for value in values:
         result = coerce_bool(value, default=result)
     return result
+
+
+def _resolve_bool_setting(
+    setting: str,
+    *,
+    cli_value: Optional[Any],
+    env_value: Optional[Any],
+    runtime_layers: Dict[str, Dict[str, Any]],
+    config_key: str,
+    override_logs: list[str],
+) -> bool:
+    resolved = _resolve_bool_chain(
+        runtime_layers["base"].get(config_key),
+        runtime_layers["config"].get(config_key),
+        runtime_layers["local"].get(config_key),
+        env_value,
+        cli_value,
+    )
+    sources = [
+        ("cli", cli_value),
+        ("env", env_value),
+        ("local", runtime_layers["local"].get(config_key)),
+        ("config", runtime_layers["config"].get(config_key)),
+        ("base", runtime_layers["base"].get(config_key)),
+    ]
+    _record_override_summary(override_logs, setting, sources, (), resolved)
+    return resolved
+
+
+def _resolve_api_key(
+    api_key_input: Optional[str],
+    bitsight_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    chain, mapping, blank_keys, value = _build_normalized_chain(
+        ("cli", api_key_input),
+        ("env", os.getenv("BITSIGHT_API_KEY")),
+        ("local", bitsight_layers["local"].get("api_key")),
+        ("config", bitsight_layers["config"].get("api_key")),
+        ("base", bitsight_layers["base"].get("api_key")),
+    )
+    _record_override_summary(
+        override_logs,
+        "BITSIGHT_API_KEY",
+        chain,
+        blank_keys,
+        value,
+    )
+    warning = None
+    if mapping["base"] is not None:
+        warning = (
+            "Avoid storing bitsight.api_key in "
+            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
+        )
+    return value, warning
+
+
+def _resolve_subscription_setting(
+    setting: str,
+    *,
+    cli_value: Optional[str],
+    env_key: str,
+    config_key: str,
+    bitsight_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Optional[str]:
+    chain, _, blank_keys, value = _build_normalized_chain(
+        ("cli", cli_value),
+        ("env", os.getenv(env_key)),
+        ("local", bitsight_layers["local"].get(config_key)),
+        ("config", bitsight_layers["config"].get(config_key)),
+        ("base", bitsight_layers["base"].get(config_key)),
+    )
+    _record_override_summary(override_logs, setting, chain, blank_keys, value)
+    return value
+
+
+def _resolve_context_setting(
+    runtime_inputs: RuntimeInputs,
+    runtime_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Tuple[str, Optional[str]]:
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
+        ("cli", runtime_inputs.context),
+        ("env", os.getenv("BIRRE_CONTEXT")),
+        ("local", runtime_layers["local"].get("context")),
+        ("config", runtime_layers["config"].get("context")),
+        ("base", runtime_layers["base"].get("context")),
+    )
+    config_value = (
+        mapping["config"] if mapping["config"] is not None else mapping["base"]
+    )
+    normalized_context, warning = _resolve_context_value(
+        mapping["cli"],
+        mapping["env"],
+        config_value,
+    )
+    if not warning:
+        _record_override_summary(
+            override_logs,
+            "CONTEXT",
+            chain,
+            blank_keys,
+            normalized_context,
+        )
+    return normalized_context, warning
+
+
+def _resolve_risk_setting(
+    runtime_inputs: RuntimeInputs,
+    runtime_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Tuple[str, Optional[str]]:
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
+        ("cli", runtime_inputs.risk_vector_filter),
+        ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
+        ("local", runtime_layers["local"].get("risk_vector_filter")),
+        ("config", runtime_layers["config"].get("risk_vector_filter")),
+        ("base", runtime_layers["base"].get("risk_vector_filter")),
+    )
+    config_value, config_blank = _select_configured_value(mapping, blank_keys)
+    risk_vector_filter, warning = _resolve_risk_vector_filter(
+        mapping["cli"],
+        "cli" in blank_keys,
+        mapping["env"],
+        "env" in blank_keys,
+        config_value,
+        config_blank,
+    )
+    if not warning:
+        _record_override_summary(
+            override_logs,
+            "RISK_VECTOR_FILTER",
+            chain,
+            blank_keys,
+            risk_vector_filter,
+        )
+    return risk_vector_filter, warning
+
+
+def _resolve_tls_settings(
+    tls_inputs: TlsInputs,
+    runtime_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Tuple[bool, Optional[str], Optional[str]]:
+    allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
+    allow_insecure_tls = _resolve_bool_setting(
+        "ALLOW_INSECURE_TLS",
+        cli_value=tls_inputs.allow_insecure,
+        env_value=allow_insecure_env,
+        runtime_layers=runtime_layers,
+        config_key="allow_insecure_tls",
+        override_logs=override_logs,
+    )
+
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
+        ("cli", tls_inputs.ca_bundle_path),
+        ("env", os.getenv(ENV_CA_BUNDLE)),
+        ("local", runtime_layers["local"].get("ca_bundle_path")),
+        ("config", runtime_layers["config"].get("ca_bundle_path")),
+        ("base", runtime_layers["base"].get("ca_bundle_path")),
+    )
+    config_value, config_blank = _select_configured_value(mapping, blank_keys)
+    ca_bundle_path, warning = _resolve_ca_bundle_path(
+        mapping["cli"],
+        "cli" in blank_keys,
+        mapping["env"],
+        "env" in blank_keys,
+        config_value,
+        config_blank,
+    )
+    if not warning:
+        _record_override_summary(
+            override_logs,
+            "CA_BUNDLE_PATH",
+            chain,
+            blank_keys,
+            ca_bundle_path,
+        )
+    return allow_insecure_tls, ca_bundle_path, warning
+
+
+def _resolve_max_findings_setting(
+    runtime_inputs: RuntimeInputs,
+    runtime_layers: Dict[str, Dict[str, Any]],
+    override_logs: list[str],
+) -> Tuple[int, Optional[str]]:
+    max_findings_env = os.getenv(ENV_MAX_FINDINGS)
+    config_value = None
+    for source in ("local", "config", "base"):
+        candidate = runtime_layers[source].get("max_findings")
+        if candidate is not None:
+            config_value = candidate
+            break
+
+    max_value, warning = _resolve_max_findings(
+        runtime_inputs.max_findings,
+        max_findings_env,
+        config_value,
+    )
+    if not warning:
+        sources = [
+            ("cli", runtime_inputs.max_findings),
+            ("env", max_findings_env),
+            ("local", runtime_layers["local"].get("max_findings")),
+            ("config", runtime_layers["config"].get("max_findings")),
+            ("base", runtime_layers["base"].get("max_findings")),
+        ]
+        _record_override_summary(
+            override_logs,
+            "MAX_FINDINGS",
+            sources,
+            (),
+            max_value,
+        )
+    return max_value, warning
 
 
 def _resolve_context_value(
@@ -142,36 +524,48 @@ def _resolve_context_value(
 
 def _resolve_risk_vector_filter(
     arg_value: Optional[str],
+    arg_blank: bool,
     env_value: Optional[str],
-    cfg_value: Optional[Any],
+    env_blank: bool,
+    cfg_value: Optional[str],
+    cfg_blank: bool,
 ) -> Tuple[str, Optional[str]]:
-    raw = _first_truthy(arg_value, env_value, cfg_value)
-    if raw is None:
-        return DEFAULT_RISK_VECTOR_FILTER, None
+    for value, was_blank in (
+        (arg_value, arg_blank),
+        (env_value, env_blank),
+        (cfg_value, cfg_blank),
+    ):
+        if was_blank:
+            return DEFAULT_RISK_VECTOR_FILTER, (
+                "Empty risk_vector_filter override; falling back to default configuration"
+            )
+        if value is not None:
+            return value, None
 
-    raw_str = str(raw).strip()
-    if not raw_str:
-        return DEFAULT_RISK_VECTOR_FILTER, (
-            "Empty risk_vector_filter override; falling back to default configuration"
-        )
-    return raw_str, None
+    return DEFAULT_RISK_VECTOR_FILTER, None
 
 
 def _resolve_ca_bundle_path(
     arg_value: Optional[str],
+    arg_blank: bool,
     env_value: Optional[str],
-    cfg_value: Optional[Any],
+    env_blank: bool,
+    cfg_value: Optional[str],
+    cfg_blank: bool,
 ) -> Tuple[Optional[str], Optional[str]]:
-    raw = _first_truthy(arg_value, env_value, cfg_value)
-    if raw is None:
-        return None, None
+    for value, was_blank in (
+        (arg_value, arg_blank),
+        (env_value, env_blank),
+        (cfg_value, cfg_blank),
+    ):
+        if was_blank:
+            return None, (
+                "Empty ca_bundle_path override; ignoring custom CA bundle configuration"
+            )
+        if value is not None:
+            return value, None
 
-    candidate = str(raw).strip()
-    if not candidate:
-        return None, (
-            "Empty ca_bundle_path override; ignoring custom CA bundle configuration"
-        )
-    return candidate, None
+    return None, None
 
 
 def _resolve_max_findings(
@@ -192,35 +586,6 @@ def _resolve_max_findings(
         return DEFAULT_MAX_FINDINGS, (
             "Invalid max_findings override; using default configuration"
         )
-
-
-def _apply_tls_environment(allow_insecure_tls: bool, ca_bundle_path: Optional[str]) -> None:
-    if allow_insecure_tls:
-        os.environ[ENV_ALLOW_INSECURE_TLS] = "true"
-    else:
-        os.environ.pop(ENV_ALLOW_INSECURE_TLS, None)
-
-    if ca_bundle_path:
-        os.environ[ENV_CA_BUNDLE] = ca_bundle_path
-    else:
-        os.environ.pop(ENV_CA_BUNDLE, None)
-
-
-def _apply_runtime_environment(
-    *,
-    debug_enabled: bool,
-    context: str,
-    risk_vector_filter: str,
-    max_findings: int,
-) -> None:
-    if debug_enabled:
-        os.environ["DEBUG"] = "true"
-    else:
-        os.environ.pop("DEBUG", None)
-
-    os.environ["BIRRE_CONTEXT"] = context
-    os.environ[ENV_RISK_VECTOR_FILTER] = risk_vector_filter
-    os.environ[ENV_MAX_FINDINGS] = str(max_findings)
 
 
 def _normalize_context(value: Optional[object]) -> tuple[str, bool, object]:
@@ -332,83 +697,89 @@ def resolve_birre_settings(
 
     load_dotenv()
 
-    cfg = load_config_layers(config_path)
-    base_cfg = _load_base_config(config_path)
-    base_bitsight_cfg = _get_dict_section(base_cfg, BITSIGHT_SECTION)
+    config_data = _load_config(config_path)
+    local_data = _load_local_config(config_path)
+    base_data = _load_base_config(config_path)
 
-    bitsight_cfg = _get_dict_section(cfg, BITSIGHT_SECTION)
-    runtime_cfg = _get_dict_section(cfg, "runtime")
-
-    api_key_cfg = bitsight_cfg.get("api_key")
-    folder_cfg = bitsight_cfg.get("subscription_folder")
-    type_cfg = bitsight_cfg.get("subscription_type")
-
-    startup_skip_cfg = runtime_cfg.get("skip_startup_checks")
-    debug_cfg = runtime_cfg.get("debug")
-    context_cfg = runtime_cfg.get("context")
-    risk_filter_cfg = runtime_cfg.get("risk_vector_filter")
-    max_findings_cfg = runtime_cfg.get("max_findings")
-    allow_insecure_cfg = runtime_cfg.get("allow_insecure_tls")
-    ca_bundle_cfg = runtime_cfg.get("ca_bundle_path")
-
-    api_key_env = os.getenv("BITSIGHT_API_KEY")
-    folder_env = os.getenv("BIRRE_SUBSCRIPTION_FOLDER")
-    type_env = os.getenv("BIRRE_SUBSCRIPTION_TYPE")
-    startup_skip_env = os.getenv("BIRRE_SKIP_STARTUP_CHECKS")
-    debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
-    context_env = os.getenv("BIRRE_CONTEXT")
-    risk_filter_env = os.getenv(ENV_RISK_VECTOR_FILTER)
-    max_findings_env = os.getenv(ENV_MAX_FINDINGS)
-    allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
-    ca_bundle_env = os.getenv(ENV_CA_BUNDLE)
+    bitsight_layers = {
+        "local": _get_dict_section(local_data, BITSIGHT_SECTION),
+        "config": _get_dict_section(config_data, BITSIGHT_SECTION),
+        "base": _get_dict_section(base_data, BITSIGHT_SECTION),
+    }
+    runtime_layers = {
+        "local": _get_dict_section(local_data, "runtime"),
+        "config": _get_dict_section(config_data, "runtime"),
+        "base": _get_dict_section(base_data, "runtime"),
+    }
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
 
-    api_key = _first_truthy(api_key_input, api_key_env, api_key_cfg)
-    subscription_folder = _first_truthy(
-        subscription_inputs.folder, folder_env, folder_cfg
-    )
-    subscription_type = _first_truthy(
-        subscription_inputs.type, type_env, type_cfg
+    override_logs: list[str] = []
+    warnings: list[str] = []
+
+    api_key, base_warning = _resolve_api_key(api_key_input, bitsight_layers, override_logs)
+    if base_warning:
+        warnings.append(base_warning)
+
+    subscription_folder = _resolve_subscription_setting(
+        "SUBSCRIPTION_FOLDER",
+        cli_value=subscription_inputs.folder,
+        env_key="BIRRE_SUBSCRIPTION_FOLDER",
+        config_key="subscription_folder",
+        bitsight_layers=bitsight_layers,
+        override_logs=override_logs,
     )
 
-    normalized_context, context_warning = _resolve_context_value(
-        runtime_inputs.context, context_env, context_cfg
+    subscription_type = _resolve_subscription_setting(
+        "SUBSCRIPTION_TYPE",
+        cli_value=subscription_inputs.type,
+        env_key="BIRRE_SUBSCRIPTION_TYPE",
+        config_key="subscription_type",
+        bitsight_layers=bitsight_layers,
+        override_logs=override_logs,
     )
 
-    warnings = []
-    if base_bitsight_cfg.get("api_key") not in (None, ""):
-        warnings.append(
-            "Avoid storing bitsight.api_key in "
-            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
-        )
+    normalized_context, context_warning = _resolve_context_setting(
+        runtime_inputs,
+        runtime_layers,
+        override_logs,
+    )
     if context_warning:
         warnings.append(context_warning)
 
-    skip_startup_checks = _resolve_bool_chain(
-        startup_skip_cfg, startup_skip_env, runtime_inputs.skip_startup_checks
+    skip_startup_checks = _resolve_bool_setting(
+        "SKIP_STARTUP_CHECKS",
+        cli_value=runtime_inputs.skip_startup_checks,
+        env_value=os.getenv("BIRRE_SKIP_STARTUP_CHECKS"),
+        runtime_layers=runtime_layers,
+        config_key="skip_startup_checks",
+        override_logs=override_logs,
     )
 
-    debug_enabled = _resolve_bool_chain(
-        debug_cfg, debug_env, runtime_inputs.debug
+    debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
+    debug_enabled = _resolve_bool_setting(
+        "DEBUG",
+        cli_value=runtime_inputs.debug,
+        env_value=debug_env,
+        runtime_layers=runtime_layers,
+        config_key="debug",
+        override_logs=override_logs,
     )
 
-    risk_vector_filter, risk_warning = _resolve_risk_vector_filter(
-        runtime_inputs.risk_vector_filter, risk_filter_env, risk_filter_cfg
+    risk_vector_filter, risk_warning = _resolve_risk_setting(
+        runtime_inputs,
+        runtime_layers,
+        override_logs,
     )
     if risk_warning:
         warnings.append(risk_warning)
 
-    allow_insecure_tls = _resolve_bool_chain(
-        allow_insecure_cfg,
-        allow_insecure_env,
-        tls_inputs.allow_insecure,
-    )
-
-    ca_bundle_path, ca_warning = _resolve_ca_bundle_path(
-        tls_inputs.ca_bundle_path, ca_bundle_env, ca_bundle_cfg
+    allow_insecure_tls, ca_bundle_path, ca_warning = _resolve_tls_settings(
+        tls_inputs,
+        runtime_layers,
+        override_logs,
     )
     if ca_warning:
         warnings.append(ca_warning)
@@ -419,20 +790,15 @@ def resolve_birre_settings(
         )
         ca_bundle_path = None
 
-    _apply_tls_environment(allow_insecure_tls, ca_bundle_path)
-
-    max_findings, max_warning = _resolve_max_findings(
-        runtime_inputs.max_findings, max_findings_env, max_findings_cfg
+    max_value, max_warning = _resolve_max_findings_setting(
+        runtime_inputs,
+        runtime_layers,
+        override_logs,
     )
     if max_warning:
         warnings.append(max_warning)
 
-    _apply_runtime_environment(
-        debug_enabled=debug_enabled,
-        context=normalized_context,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-    )
+    # Environment variables are not mutated; downstream consumers rely on returned settings.
 
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
@@ -443,12 +809,13 @@ def resolve_birre_settings(
         "subscription_type": subscription_type,
         "context": normalized_context,
         "risk_vector_filter": risk_vector_filter,
-        "max_findings": max_findings,
+        "max_findings": max_value,
         "skip_startup_checks": skip_startup_checks,
         "debug": debug_enabled,
         "allow_insecure_tls": allow_insecure_tls,
         "ca_bundle_path": ca_bundle_path,
         "warnings": warnings,
+        "overrides": override_logs,
     }
 
 
@@ -476,16 +843,17 @@ def resolve_logging_settings(
         or DEFAULT_LOG_LEVEL
     )
     format_value = (
-        format_override
-        or os.getenv(ENV_LOG_FORMAT)
-        or config_section.get("format")
+        _normalize_optional_str(format_override)
+        or _normalize_optional_str(os.getenv(ENV_LOG_FORMAT))
+        or _normalize_optional_str(config_section.get("format"))
         or DEFAULT_LOG_FORMAT
     )
 
-    file_value = file_override or os.getenv(ENV_LOG_FILE) or config_section.get("file")
-    file_path = str(file_value).strip() if file_value else None
-    if file_path == "":
-        file_path = None
+    file_path = (
+        _normalize_optional_str(file_override)
+        or _normalize_optional_str(os.getenv(ENV_LOG_FILE))
+        or _normalize_optional_str(config_section.get("file"))
+    )
 
     max_bytes_value = (
         max_bytes_override
