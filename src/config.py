@@ -1,4 +1,15 @@
-"""Configuration helpers for the BiRRe server."""
+"""Configuration helpers for the BiRRe server.
+
+Settings are resolved by consulting inputs in priority order: command line
+arguments, environment variables, the optional ``*.local`` overlay,
+``config.toml`` (or the provided configuration file), and finally the default
+configuration file bundled with the application. Optional string inputs are
+normalized early—trimming whitespace and treating blank strings as
+``None``—so that downstream code never needs to reason about "empty but
+provided" values. Override logs are emitted only when the chosen value comes
+from a higher priority source than another non-blank candidate, ensuring that
+messages reflect real precedence decisions.
+"""
 
 from __future__ import annotations
 
@@ -171,35 +182,54 @@ _SOURCE_LABELS = {
 }
 
 
-def _record_override_message(
+def _record_override_summary(
     messages: list[str],
     setting: str,
     sources: Sequence[Tuple[str, Optional[Any]]],
+    blanks: Dict[str, bool],
+    chosen_value: Optional[Any],
 ) -> None:
-    for index, (key, value) in enumerate(sources):
-        if not _value_provided(value):
-            continue
-
-        if key == "config" and not any(
-            _value_provided(candidate) for _, candidate in sources[:index]
-        ):
-            continue
-
-        overridden_keys = [
-            source_key
-            for source_key, candidate in sources[index + 1 :]
-            if _value_provided(candidate)
-        ]
-        if not overridden_keys:
-            return
-
-        chosen_label = _SOURCE_LABELS.get(key, key)
-        overridden_labels = [_SOURCE_LABELS.get(k, k) for k in overridden_keys]
-        overridden_phrase = _join_sources(overridden_labels)
-        messages.append(
-            f"Using {setting} from {chosen_label}, overriding values from {overridden_phrase}."
-        )
+    if chosen_value is None:
         return
+
+    chosen_index: Optional[int] = None
+    for index, (key, value) in enumerate(sources):
+        if blanks.get(key):
+            continue
+        if value == chosen_value and _value_provided(value):
+            chosen_index = index
+            break
+
+    if chosen_index is None:
+        return
+
+    overridden_keys = [
+        source_key
+        for source_key, candidate in sources[chosen_index + 1 :]
+        if not blanks.get(source_key) and _value_provided(candidate)
+    ]
+
+    if not overridden_keys:
+        return
+
+    chosen_key = sources[chosen_index][0]
+
+    # Skip logs when the chosen source is config but nothing lower priority
+    # supplied a value; this matches the previous behaviour of ignoring
+    # "config over base" messages to avoid noisy defaults.
+    if chosen_key == "config" and not any(
+        _value_provided(candidate)
+        for source_key, candidate in sources[:chosen_index]
+        if not blanks.get(source_key)
+    ):
+        return
+
+    chosen_label = _SOURCE_LABELS.get(chosen_key, chosen_key)
+    overridden_labels = [_SOURCE_LABELS.get(k, k) for k in overridden_keys]
+    overridden_phrase = _join_sources(overridden_labels)
+    messages.append(
+        f"Using {setting} from {chosen_label}, overriding values from {overridden_phrase}."
+    )
 
 
 def _normalize_sources(
@@ -440,7 +470,7 @@ def resolve_birre_settings(
     override_logs: list[str] = []
     warnings: list[str] = []
 
-    api_key_chain, api_key_map, _ = _normalize_sources(
+    api_key_chain, api_key_map, api_key_blanks = _normalize_sources(
         ("cli", api_key_input),
         ("env", os.getenv("BITSIGHT_API_KEY")),
         ("local", bitsight_layers["local"].get("api_key")),
@@ -448,9 +478,15 @@ def resolve_birre_settings(
         ("base", bitsight_layers["base"].get("api_key")),
     )
     api_key = _first_truthy(*(value for _, value in api_key_chain))
-    _record_override_message(override_logs, "BITSIGHT_API_KEY", api_key_chain)
+    _record_override_summary(
+        override_logs,
+        "BITSIGHT_API_KEY",
+        api_key_chain,
+        api_key_blanks,
+        api_key,
+    )
 
-    folder_chain, _, _ = _normalize_sources(
+    folder_chain, _, folder_blanks = _normalize_sources(
         ("cli", subscription_inputs.folder),
         ("env", os.getenv("BIRRE_SUBSCRIPTION_FOLDER")),
         (
@@ -464,13 +500,15 @@ def resolve_birre_settings(
         ("base", bitsight_layers["base"].get("subscription_folder")),
     )
     subscription_folder = _first_truthy(*(value for _, value in folder_chain))
-    _record_override_message(
+    _record_override_summary(
         override_logs,
         "SUBSCRIPTION_FOLDER",
         folder_chain,
+        folder_blanks,
+        subscription_folder,
     )
 
-    type_chain, _, _ = _normalize_sources(
+    type_chain, _, type_blanks = _normalize_sources(
         ("cli", subscription_inputs.type),
         ("env", os.getenv("BIRRE_SUBSCRIPTION_TYPE")),
         ("local", bitsight_layers["local"].get("subscription_type")),
@@ -478,13 +516,15 @@ def resolve_birre_settings(
         ("base", bitsight_layers["base"].get("subscription_type")),
     )
     subscription_type = _first_truthy(*(value for _, value in type_chain))
-    _record_override_message(
+    _record_override_summary(
         override_logs,
         "SUBSCRIPTION_TYPE",
         type_chain,
+        type_blanks,
+        subscription_type,
     )
 
-    context_chain, context_map, _ = _normalize_sources(
+    context_chain, context_map, context_blanks = _normalize_sources(
         ("cli", runtime_inputs.context),
         ("env", os.getenv("BIRRE_CONTEXT")),
         ("local", runtime_layers["local"].get("context")),
@@ -502,7 +542,13 @@ def resolve_birre_settings(
     if context_warning:
         warnings.append(context_warning)
     else:
-        _record_override_message(override_logs, "CONTEXT", context_chain)
+        _record_override_summary(
+            override_logs,
+            "CONTEXT",
+            context_chain,
+            context_blanks,
+            normalized_context,
+        )
 
     if api_key_map["base"] is not None:
         warnings.append(
@@ -518,16 +564,19 @@ def resolve_birre_settings(
         startup_skip_env,
         runtime_inputs.skip_startup_checks,
     )
-    _record_override_message(
+    skip_sources = [
+        ("cli", runtime_inputs.skip_startup_checks),
+        ("env", startup_skip_env),
+        ("local", runtime_layers["local"].get("skip_startup_checks")),
+        ("config", runtime_layers["config"].get("skip_startup_checks")),
+        ("base", runtime_layers["base"].get("skip_startup_checks")),
+    ]
+    _record_override_summary(
         override_logs,
         "SKIP_STARTUP_CHECKS",
-        [
-            ("cli", runtime_inputs.skip_startup_checks),
-            ("env", startup_skip_env),
-            ("local", runtime_layers["local"].get("skip_startup_checks")),
-            ("config", runtime_layers["config"].get("skip_startup_checks")),
-            ("base", runtime_layers["base"].get("skip_startup_checks")),
-        ],
+        skip_sources,
+        {key: False for key, _ in skip_sources},
+        skip_startup_checks,
     )
 
     debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
@@ -538,16 +587,19 @@ def resolve_birre_settings(
         debug_env,
         runtime_inputs.debug,
     )
-    _record_override_message(
+    debug_sources = [
+        ("cli", runtime_inputs.debug),
+        ("env", debug_env),
+        ("local", runtime_layers["local"].get("debug")),
+        ("config", runtime_layers["config"].get("debug")),
+        ("base", runtime_layers["base"].get("debug")),
+    ]
+    _record_override_summary(
         override_logs,
         "DEBUG",
-        [
-            ("cli", runtime_inputs.debug),
-            ("env", debug_env),
-            ("local", runtime_layers["local"].get("debug")),
-            ("config", runtime_layers["config"].get("debug")),
-            ("base", runtime_layers["base"].get("debug")),
-        ],
+        debug_sources,
+        {key: False for key, _ in debug_sources},
+        debug_enabled,
     )
 
     risk_chain, risk_map, risk_blanks = _normalize_sources(
@@ -579,10 +631,12 @@ def resolve_birre_settings(
     if risk_warning:
         warnings.append(risk_warning)
     else:
-        _record_override_message(
+        _record_override_summary(
             override_logs,
             "RISK_VECTOR_FILTER",
             risk_chain,
+            risk_blanks,
+            risk_vector_filter,
         )
 
     allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
@@ -593,16 +647,19 @@ def resolve_birre_settings(
         allow_insecure_env,
         tls_inputs.allow_insecure,
     )
-    _record_override_message(
+    insecure_sources = [
+        ("cli", tls_inputs.allow_insecure),
+        ("env", allow_insecure_env),
+        ("local", runtime_layers["local"].get("allow_insecure_tls")),
+        ("config", runtime_layers["config"].get("allow_insecure_tls")),
+        ("base", runtime_layers["base"].get("allow_insecure_tls")),
+    ]
+    _record_override_summary(
         override_logs,
         "ALLOW_INSECURE_TLS",
-        [
-            ("cli", tls_inputs.allow_insecure),
-            ("env", allow_insecure_env),
-            ("local", runtime_layers["local"].get("allow_insecure_tls")),
-            ("config", runtime_layers["config"].get("allow_insecure_tls")),
-            ("base", runtime_layers["base"].get("allow_insecure_tls")),
-        ],
+        insecure_sources,
+        {key: False for key, _ in insecure_sources},
+        allow_insecure_tls,
     )
 
     ca_chain, ca_map, ca_blanks = _normalize_sources(
@@ -634,10 +691,12 @@ def resolve_birre_settings(
     if ca_warning:
         warnings.append(ca_warning)
     else:
-        _record_override_message(
+        _record_override_summary(
             override_logs,
             "CA_BUNDLE_PATH",
             ca_chain,
+            ca_blanks,
+            ca_bundle_path,
         )
 
     if allow_insecure_tls and ca_bundle_path:
@@ -663,16 +722,19 @@ def resolve_birre_settings(
     if max_warning:
         warnings.append(max_warning)
     else:
-        _record_override_message(
+        max_sources = [
+            ("cli", runtime_inputs.max_findings),
+            ("env", max_findings_env),
+            ("local", runtime_layers["local"].get("max_findings")),
+            ("config", runtime_layers["config"].get("max_findings")),
+            ("base", runtime_layers["base"].get("max_findings")),
+        ]
+        _record_override_summary(
             override_logs,
             "MAX_FINDINGS",
-            [
-                ("cli", runtime_inputs.max_findings),
-                ("env", max_findings_env),
-                ("local", runtime_layers["local"].get("max_findings")),
-                ("config", runtime_layers["config"].get("max_findings")),
-                ("base", runtime_layers["base"].get("max_findings")),
-            ],
+            max_sources,
+            {key: False for key, _ in max_sources},
+            max_value,
         )
 
     # Environment variables are not mutated; downstream consumers rely on returned settings.
