@@ -10,12 +10,7 @@ environment variable.
 import argparse
 import asyncio
 import logging
-import os
 import sys
-
-# FastMCP checks this flag during import time, so ensure it is enabled before
-# importing any modules that depend on FastMCP.
-os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME
@@ -200,6 +195,9 @@ def main() -> None:
 
     configure_logging(logging_settings)
     logger = logging.getLogger("birre")
+
+    for message in runtime_settings.get("overrides", []):
+        logger.info(message)
 
     for message in runtime_settings.get("warnings", []):
         logger.warning(message)

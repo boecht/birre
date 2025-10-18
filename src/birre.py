@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from functools import partial
 from typing import Awaitable, Callable, Dict, Any, Optional, Iterable
 
@@ -41,16 +40,6 @@ def _require_api_key(settings: Dict[str, Any]) -> str:
         raise ValueError("Resolved settings must include a non-empty 'api_key'")
     return str(resolved_api_key)
 
-
-def _propagate_subscription_environment(settings: Dict[str, Any]) -> None:
-    subscription_folder = settings.get("subscription_folder")
-    if subscription_folder is not None:
-        os.environ["BIRRE_SUBSCRIPTION_FOLDER"] = str(subscription_folder)
-    subscription_type = settings.get("subscription_type")
-    if subscription_type is not None:
-        os.environ["BIRRE_SUBSCRIPTION_TYPE"] = str(subscription_type)
-
-
 def _resolve_active_context(settings: Dict[str, Any]) -> str:
     return str(settings.get("context", "standard"))
 
@@ -86,9 +75,12 @@ def _resolve_tls_verification(settings: Dict[str, Any], logger: logging.Logger) 
 
 
 def _maybe_create_v2_api_server(
-    active_context: str, api_key: str, verify_option: bool | str
+    active_context: str,
+    api_key: str,
+    verify_option: bool | str,
+    enable_v2: bool,
 ) -> Optional[FastMCP]:
-    if active_context == "risk_manager" or coerce_bool(os.getenv("BIRRE_ENABLE_V2")):
+    if active_context == "risk_manager" or enable_v2:
         return create_v2_api_server(api_key, verify=verify_option)
     return None
 
@@ -180,14 +172,19 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
     settings = dict(settings)
     resolved_api_key = _require_api_key(settings)
 
-    _propagate_subscription_environment(settings)
     active_context = _resolve_active_context(settings)
     risk_vector_filter = _resolve_risk_vector_filter(settings)
     max_findings = _resolve_max_findings(settings)
     verify_option = _resolve_tls_verification(settings, logger)
+    enable_v2 = coerce_bool(settings.get("enable_v2"))
 
     v1_api_server = create_v1_api_server(resolved_api_key, verify=verify_option)
-    v2_api_server = _maybe_create_v2_api_server(active_context, resolved_api_key, verify_option)
+    v2_api_server = _maybe_create_v2_api_server(
+        active_context,
+        resolved_api_key,
+        verify_option,
+        enable_v2,
+    )
 
     business_server = FastMCP(
         name="io.github.boecht.birre",
@@ -228,6 +225,9 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
         logger=logger,
         risk_vector_filter=risk_vector_filter,
         max_findings=max_findings,
+        default_folder=settings.get("subscription_folder"),
+        default_type=settings.get("subscription_type"),
+        debug_enabled=coerce_bool(settings.get("debug")),
     )
 
     if active_context == "risk_manager":
