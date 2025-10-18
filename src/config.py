@@ -44,6 +44,52 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_MAX_BYTES = 10_000_000
 DEFAULT_BACKUP_COUNT = 5
 
+LOGGER = logging.getLogger(__name__)
+
+CLI_SOURCE = "command-line argument"
+ENV_SOURCE = "environment variable"
+LOCAL_SOURCE = "local config file"
+CONFIG_SOURCE = "config file"
+
+
+def _is_value_provided(value: Optional[Any]) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return True
+
+
+def _resolve_from_sources(
+    sources: Tuple[Tuple[str, Optional[Any]], ...],
+) -> Tuple[Optional[Any], Optional[str], Tuple[str, ...]]:
+    for idx, (label, value) in enumerate(sources):
+        if _is_value_provided(value):
+            overridden = tuple(
+                name
+                for name, candidate in sources[idx + 1 :]
+                if _is_value_provided(candidate)
+            )
+            return value, label, overridden
+    return None, None, ()
+
+
+def _format_source_list(sources: Tuple[str, ...]) -> str:
+    if not sources:
+        return ""
+    if len(sources) == 1:
+        return sources[0]
+    return ", ".join(sources[:-1]) + f" and {sources[-1]}"
+
+
+def _log_resolution(setting: str, source: Optional[str], overridden: Tuple[str, ...]) -> None:
+    if not source or not overridden:
+        return
+    message = (
+        f"{setting} resolved from {source} overriding {_format_source_list(overridden)}"
+    )
+    LOGGER.info(message)
+
 ENV_ALLOW_INSECURE_TLS = "BIRRE_ALLOW_INSECURE_TLS"
 ENV_CA_BUNDLE = "BIRRE_CA_BUNDLE"
 
@@ -194,35 +240,6 @@ def _resolve_max_findings(
         )
 
 
-def _apply_tls_environment(allow_insecure_tls: bool, ca_bundle_path: Optional[str]) -> None:
-    if allow_insecure_tls:
-        os.environ[ENV_ALLOW_INSECURE_TLS] = "true"
-    else:
-        os.environ.pop(ENV_ALLOW_INSECURE_TLS, None)
-
-    if ca_bundle_path:
-        os.environ[ENV_CA_BUNDLE] = ca_bundle_path
-    else:
-        os.environ.pop(ENV_CA_BUNDLE, None)
-
-
-def _apply_runtime_environment(
-    *,
-    debug_enabled: bool,
-    context: str,
-    risk_vector_filter: str,
-    max_findings: int,
-) -> None:
-    if debug_enabled:
-        os.environ["DEBUG"] = "true"
-    else:
-        os.environ.pop("DEBUG", None)
-
-    os.environ["BIRRE_CONTEXT"] = context
-    os.environ[ENV_RISK_VECTOR_FILTER] = risk_vector_filter
-    os.environ[ENV_MAX_FINDINGS] = str(max_findings)
-
-
 def _normalize_context(value: Optional[object]) -> tuple[str, bool, object]:
     raw = value if value not in (None, "") else None
     candidate: object = raw if raw is not None else "standard"
@@ -275,6 +292,7 @@ class RuntimeInputs:
     risk_vector_filter: Optional[str] = None
     max_findings: Optional[int] = None
     skip_startup_checks: Optional[bool] = None
+    enable_v2: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -336,12 +354,19 @@ def resolve_birre_settings(
     base_cfg = _load_base_config(config_path)
     base_bitsight_cfg = _get_dict_section(base_cfg, BITSIGHT_SECTION)
 
-    bitsight_cfg = _get_dict_section(cfg, BITSIGHT_SECTION)
     runtime_cfg = _get_dict_section(cfg, "runtime")
 
-    api_key_cfg = bitsight_cfg.get("api_key")
-    folder_cfg = bitsight_cfg.get("subscription_folder")
-    type_cfg = bitsight_cfg.get("subscription_type")
+    primary_cfg = _load_config(config_path)
+    primary_bitsight_cfg = _get_dict_section(primary_cfg, BITSIGHT_SECTION)
+    primary_runtime_cfg = _get_dict_section(primary_cfg, "runtime")
+
+    local_cfg_data: Dict[str, Any] = {}
+    path_obj = Path(config_path)
+    local_path = path_obj.with_name(f"{path_obj.stem}.local{path_obj.suffix}")
+    if local_path.exists():
+        local_cfg_data = _load_config(str(local_path))
+    local_bitsight_cfg = _get_dict_section(local_cfg_data, BITSIGHT_SECTION)
+    local_runtime_cfg = _get_dict_section(local_cfg_data, "runtime")
 
     startup_skip_cfg = runtime_cfg.get("skip_startup_checks")
     debug_cfg = runtime_cfg.get("debug")
@@ -350,6 +375,7 @@ def resolve_birre_settings(
     max_findings_cfg = runtime_cfg.get("max_findings")
     allow_insecure_cfg = runtime_cfg.get("allow_insecure_tls")
     ca_bundle_cfg = runtime_cfg.get("ca_bundle_path")
+    enable_v2_cfg = runtime_cfg.get("enable_v2")
 
     api_key_env = os.getenv("BITSIGHT_API_KEY")
     folder_env = os.getenv("BIRRE_SUBSCRIPTION_FOLDER")
@@ -361,22 +387,11 @@ def resolve_birre_settings(
     max_findings_env = os.getenv(ENV_MAX_FINDINGS)
     allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
     ca_bundle_env = os.getenv(ENV_CA_BUNDLE)
+    enable_v2_env = os.getenv("BIRRE_ENABLE_V2")
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
-
-    api_key = _first_truthy(api_key_input, api_key_env, api_key_cfg)
-    subscription_folder = _first_truthy(
-        subscription_inputs.folder, folder_env, folder_cfg
-    )
-    subscription_type = _first_truthy(
-        subscription_inputs.type, type_env, type_cfg
-    )
-
-    normalized_context, context_warning = _resolve_context_value(
-        runtime_inputs.context, context_env, context_cfg
-    )
 
     warnings = []
     if base_bitsight_cfg.get("api_key") not in (None, ""):
@@ -384,34 +399,135 @@ def resolve_birre_settings(
             "Avoid storing bitsight.api_key in "
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
+
+    api_key_value, api_key_source, api_key_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, api_key_input),
+            (ENV_SOURCE, api_key_env),
+            (LOCAL_SOURCE, local_bitsight_cfg.get("api_key")),
+            (CONFIG_SOURCE, primary_bitsight_cfg.get("api_key")),
+        )
+    )
+    api_key = str(api_key_value).strip() if api_key_value is not None else ""
+    if api_key:
+        _log_resolution("BITSIGHT_API_KEY", api_key_source, api_key_overridden)
+
+    folder_value, folder_source, folder_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, subscription_inputs.folder),
+            (ENV_SOURCE, folder_env),
+            (LOCAL_SOURCE, local_bitsight_cfg.get("subscription_folder")),
+            (CONFIG_SOURCE, primary_bitsight_cfg.get("subscription_folder")),
+        )
+    )
+    subscription_folder = (
+        str(folder_value).strip() if folder_value is not None else None
+    )
+    if subscription_folder == "":
+        subscription_folder = None
+    _log_resolution("SUBSCRIPTION_FOLDER", folder_source, folder_overridden)
+
+    type_value, type_source, type_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, subscription_inputs.type),
+            (ENV_SOURCE, type_env),
+            (LOCAL_SOURCE, local_bitsight_cfg.get("subscription_type")),
+            (CONFIG_SOURCE, primary_bitsight_cfg.get("subscription_type")),
+        )
+    )
+    subscription_type = str(type_value).strip() if type_value is not None else None
+    if subscription_type == "":
+        subscription_type = None
+    _log_resolution("SUBSCRIPTION_TYPE", type_source, type_overridden)
+
+    normalized_context, context_warning = _resolve_context_value(
+        runtime_inputs.context, context_env, context_cfg
+    )
     if context_warning:
         warnings.append(context_warning)
+    else:
+        _, context_source, context_overridden = _resolve_from_sources(
+            (
+                (CLI_SOURCE, runtime_inputs.context),
+                (ENV_SOURCE, context_env),
+                (LOCAL_SOURCE, local_runtime_cfg.get("context")),
+                (CONFIG_SOURCE, primary_runtime_cfg.get("context")),
+            )
+        )
+        _log_resolution("CONTEXT", context_source, context_overridden)
 
     skip_startup_checks = _resolve_bool_chain(
         startup_skip_cfg, startup_skip_env, runtime_inputs.skip_startup_checks
     )
+    _, skip_source, skip_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, runtime_inputs.skip_startup_checks),
+            (ENV_SOURCE, startup_skip_env),
+            (LOCAL_SOURCE, local_runtime_cfg.get("skip_startup_checks")),
+            (CONFIG_SOURCE, primary_runtime_cfg.get("skip_startup_checks")),
+        )
+    )
+    _log_resolution("SKIP_STARTUP_CHECKS", skip_source, skip_overridden)
 
     debug_enabled = _resolve_bool_chain(
         debug_cfg, debug_env, runtime_inputs.debug
     )
+    _, debug_source, debug_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, runtime_inputs.debug),
+            (ENV_SOURCE, debug_env),
+            (LOCAL_SOURCE, local_runtime_cfg.get("debug")),
+            (CONFIG_SOURCE, primary_runtime_cfg.get("debug")),
+        )
+    )
+    _log_resolution("DEBUG", debug_source, debug_overridden)
 
     risk_vector_filter, risk_warning = _resolve_risk_vector_filter(
         runtime_inputs.risk_vector_filter, risk_filter_env, risk_filter_cfg
     )
     if risk_warning:
         warnings.append(risk_warning)
+    else:
+        _, risk_source, risk_overridden = _resolve_from_sources(
+            (
+                (CLI_SOURCE, runtime_inputs.risk_vector_filter),
+                (ENV_SOURCE, risk_filter_env),
+                (LOCAL_SOURCE, local_runtime_cfg.get("risk_vector_filter")),
+                (CONFIG_SOURCE, primary_runtime_cfg.get("risk_vector_filter")),
+            )
+        )
+        _log_resolution("RISK_VECTOR_FILTER", risk_source, risk_overridden)
 
     allow_insecure_tls = _resolve_bool_chain(
         allow_insecure_cfg,
         allow_insecure_env,
         tls_inputs.allow_insecure,
     )
+    _, insecure_source, insecure_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, tls_inputs.allow_insecure),
+            (ENV_SOURCE, allow_insecure_env),
+            (LOCAL_SOURCE, local_runtime_cfg.get("allow_insecure_tls")),
+            (CONFIG_SOURCE, primary_runtime_cfg.get("allow_insecure_tls")),
+        )
+    )
+    _log_resolution("ALLOW_INSECURE_TLS", insecure_source, insecure_overridden)
 
     ca_bundle_path, ca_warning = _resolve_ca_bundle_path(
         tls_inputs.ca_bundle_path, ca_bundle_env, ca_bundle_cfg
     )
     if ca_warning:
         warnings.append(ca_warning)
+    else:
+        _, ca_source, ca_overridden = _resolve_from_sources(
+            (
+                (CLI_SOURCE, tls_inputs.ca_bundle_path),
+                (ENV_SOURCE, ca_bundle_env),
+                (LOCAL_SOURCE, local_runtime_cfg.get("ca_bundle_path")),
+                (CONFIG_SOURCE, primary_runtime_cfg.get("ca_bundle_path")),
+            )
+        )
+        _log_resolution("CA_BUNDLE_PATH", ca_source, ca_overridden)
 
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
@@ -419,20 +535,36 @@ def resolve_birre_settings(
         )
         ca_bundle_path = None
 
-    _apply_tls_environment(allow_insecure_tls, ca_bundle_path)
-
     max_findings, max_warning = _resolve_max_findings(
         runtime_inputs.max_findings, max_findings_env, max_findings_cfg
     )
     if max_warning:
         warnings.append(max_warning)
+    else:
+        _, max_source, max_overridden = _resolve_from_sources(
+            (
+                (CLI_SOURCE, runtime_inputs.max_findings),
+                (ENV_SOURCE, max_findings_env),
+                (LOCAL_SOURCE, local_runtime_cfg.get("max_findings")),
+                (CONFIG_SOURCE, primary_runtime_cfg.get("max_findings")),
+            )
+        )
+        _log_resolution("MAX_FINDINGS", max_source, max_overridden)
 
-    _apply_runtime_environment(
-        debug_enabled=debug_enabled,
-        context=normalized_context,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
+    enable_v2 = _resolve_bool_chain(
+        enable_v2_cfg,
+        enable_v2_env,
+        runtime_inputs.enable_v2,
     )
+    _, v2_source, v2_overridden = _resolve_from_sources(
+        (
+            (CLI_SOURCE, runtime_inputs.enable_v2),
+            (ENV_SOURCE, enable_v2_env),
+            (LOCAL_SOURCE, local_runtime_cfg.get("enable_v2")),
+            (CONFIG_SOURCE, primary_runtime_cfg.get("enable_v2")),
+        )
+    )
+    _log_resolution("ENABLE_V2", v2_source, v2_overridden)
 
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
@@ -448,6 +580,7 @@ def resolve_birre_settings(
         "debug": debug_enabled,
         "allow_insecure_tls": allow_insecure_tls,
         "ca_bundle_path": ca_bundle_path,
+        "enable_v2": enable_v2,
         "warnings": warnings,
     }
 

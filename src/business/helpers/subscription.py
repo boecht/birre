@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
-
-from src.constants import coerce_bool
 
 from . import CallV1Tool
 
@@ -41,25 +38,12 @@ def _extract_guid_values(response: Dict[str, Any], keys: Sequence[str]) -> List[
     return guids
 
 
-def _subscription_settings_from_env() -> Optional[Dict[str, str]]:
-    """Return the subscription payload base derived from environment variables."""
-
-    folder_name = os.getenv("BIRRE_SUBSCRIPTION_FOLDER")
-    subscription_type = os.getenv("BIRRE_SUBSCRIPTION_TYPE")
-
-    if not folder_name or not subscription_type:
-        return None
-
-    return {
-        "folder": [folder_name],
-        "type": subscription_type,
-    }
-
-
-async def _log_bulk_response(ctx: Context, result: Any, action: str) -> None:
+async def _log_bulk_response(
+    ctx: Context, result: Any, action: str, *, debug_enabled: bool
+) -> None:
     """Emit debug logging for bulk subscription responses when enabled."""
 
-    if not coerce_bool(os.getenv("DEBUG")):
+    if not debug_enabled:
         return
 
     if isinstance(result, dict):
@@ -147,29 +131,38 @@ async def create_ephemeral_subscription(
     guid: str,
     *,
     logger: logging.Logger,
+    default_folder: Optional[str],
+    default_type: Optional[str],
+    debug_enabled: bool,
 ) -> SubscriptionAttempt:
     """Guarantee that the target company is subscribed before fetching data."""
 
     try:
         await ctx.info(f"Ensuring BitSight subscription for company: {guid}")
 
-        subscription_base = _subscription_settings_from_env()
-
-        if not subscription_base:
+        if not default_folder or not default_type:
             message = (
-                "Subscription settings missing: require BIRRE_SUBSCRIPTION_FOLDER and "
-                "BIRRE_SUBSCRIPTION_TYPE (from config/env/CLI)."
+                "Subscription settings missing: configure subscription_folder and "
+                "subscription_type via CLI, environment, or configuration."
             )
             await ctx.error(message)
             return SubscriptionAttempt(False, False, False, message)
 
-        subscription_payload = {"add": [{**subscription_base, "guid": guid}]}
+        subscription_payload = {
+            "add": [
+                {
+                    "guid": guid,
+                    "folder": [str(default_folder)],
+                    "type": str(default_type),
+                }
+            ]
+        }
 
         result = await call_v1_tool(
             "manageSubscriptionsBulk", ctx, subscription_payload
         )
 
-        await _log_bulk_response(ctx, result, "add")
+        await _log_bulk_response(ctx, result, "add", debug_enabled=debug_enabled)
 
         return await _interpret_manage_subscription_response(ctx, result, guid)
 
@@ -188,6 +181,8 @@ async def cleanup_ephemeral_subscription(
     call_v1_tool: CallV1Tool,
     ctx: Context,
     guid: str,
+    *,
+    debug_enabled: bool,
 ) -> bool:
     """Revoke a temporary subscription once the data has been retrieved."""
 
@@ -197,7 +192,7 @@ async def cleanup_ephemeral_subscription(
         delete_payload = {"delete": [{"guid": guid}]}
         result = await call_v1_tool("manageSubscriptionsBulk", ctx, delete_payload)
 
-        await _log_bulk_response(ctx, result, "delete")
+        await _log_bulk_response(ctx, result, "delete", debug_enabled=debug_enabled)
 
         if isinstance(result, dict) and result.get("errors"):
             await ctx.error(

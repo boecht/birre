@@ -41,74 +41,101 @@ class StubContext(Context):
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_success() -> None:
     ctx = StubContext()
-    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "API")
-    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "continuous_monitoring")
-
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
         await asyncio.sleep(0)
         assert name == "manageSubscriptionsBulk"
         assert payload["add"][0]["guid"] == "guid-1"
+        assert payload["add"][0]["folder"] == ["API"]
+        assert payload["add"][0]["type"] == "continuous_monitoring"
         return {"added": ["guid-1"]}
 
-    attempt = await create_ephemeral_subscription(call_v1, ctx, "guid-1", logger=_logdummy())
+    attempt = await create_ephemeral_subscription(
+        call_v1,
+        ctx,
+        "guid-1",
+        logger=_logdummy(),
+        default_folder="API",
+        default_type="continuous_monitoring",
+        debug_enabled=False,
+    )
     assert attempt == SubscriptionAttempt(True, True, False, None)
     assert not ctx.messages["error"]
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_already_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_already_exists() -> None:
     ctx = StubContext()
-    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "API")
-    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "continuous_monitoring")
-
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
         await asyncio.sleep(0)
         return {"errors": [{"guid": "guid-1", "message": "Already exists"}]}
 
-    attempt = await create_ephemeral_subscription(call_v1, ctx, "guid-1", logger=_logdummy())
+    attempt = await create_ephemeral_subscription(
+        call_v1,
+        ctx,
+        "guid-1",
+        logger=_logdummy(),
+        default_folder="API",
+        default_type="continuous_monitoring",
+        debug_enabled=False,
+    )
     assert attempt == SubscriptionAttempt(True, False, True, "Already exists")
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_missing_config() -> None:
     ctx = StubContext()
-    monkeypatch.delenv("BIRRE_SUBSCRIPTION_FOLDER", raising=False)
-    monkeypatch.delenv("BIRRE_SUBSCRIPTION_TYPE", raising=False)
-
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
         await asyncio.sleep(0)
         raise AssertionError("call_v1 should not be invoked when config missing")
 
-    attempt = await create_ephemeral_subscription(call_v1, ctx, "guid-1", logger=_logdummy())
+    attempt = await create_ephemeral_subscription(
+        call_v1,
+        ctx,
+        "guid-1",
+        logger=_logdummy(),
+        default_folder=None,
+        default_type=None,
+        debug_enabled=False,
+    )
     assert not attempt.success
     assert "Subscription settings missing" in (attempt.message or "")
     assert ctx.messages["error"]
 
 
 @pytest.mark.asyncio
-async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cleanup_ephemeral_subscription_errors() -> None:
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
         await asyncio.sleep(0)
         return {"errors": ["boom"]}
 
-    result = await cleanup_ephemeral_subscription(call_v1, ctx, "guid-1")
+    result = await cleanup_ephemeral_subscription(
+        call_v1,
+        ctx,
+        "guid-1",
+        debug_enabled=False,
+    )
     assert result is False
     assert ctx.messages["error"]
 
 
 @pytest.mark.asyncio
-async def test_cleanup_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cleanup_ephemeral_subscription_success() -> None:
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
         await asyncio.sleep(0)
         return {"deleted": ["guid-1"]}
 
-    result = await cleanup_ephemeral_subscription(call_v1, ctx, "guid-1")
+    result = await cleanup_ephemeral_subscription(
+        call_v1,
+        ctx,
+        "guid-1",
+        debug_enabled=False,
+    )
     assert result is True
 
 

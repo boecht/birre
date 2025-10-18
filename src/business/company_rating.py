@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import json
-import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
@@ -14,7 +13,6 @@ from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
 from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
-from src.constants import coerce_bool
 
 from .helpers import CallV1Tool
 from .helpers.subscription import (
@@ -23,6 +21,14 @@ from .helpers.subscription import (
     create_ephemeral_subscription,
 )
 from ..logging import log_rating_event
+
+
+_DEBUG_ENABLED = False
+
+
+def _set_debug_enabled(enabled: bool) -> None:
+    global _DEBUG_ENABLED
+    _DEBUG_ENABLED = bool(enabled)
 
 
 _TREND_SCHEMA: Dict[str, Any] = {
@@ -739,21 +745,17 @@ async def _assemble_top_findings_section(
 
 
 def _debug(ctx: Context, message: str, obj: Any) -> None:
-    """Emit a structured debug log if DEBUG env var is enabled."""
-    try:
-        if not coerce_bool(os.getenv("DEBUG")):
-            return None
+    """Emit a structured debug log when runtime debug mode is enabled."""
+    if not _DEBUG_ENABLED:
+        return None
 
+    try:
         try:
             pretty = json.dumps(obj, indent=2, ensure_ascii=False)
         except Exception:
             pretty = str(obj)
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return None
-
+        loop = asyncio.get_running_loop()
         loop.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
     except Exception:
         return None
@@ -891,7 +893,21 @@ def register_company_rating_tool(
     logger: logging.Logger,
     risk_vector_filter: Optional[str] = None,
     max_findings: Optional[int] = None,
+    subscription_folder: Optional[str] = None,
+    subscription_type: Optional[str] = None,
+    debug_enabled: bool = False,
 ) -> FunctionTool:
+    _set_debug_enabled(debug_enabled)
+
+    def _normalize_subscription_value(value: Optional[Any]) -> Optional[str]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    default_folder = _normalize_subscription_value(subscription_folder)
+    default_type = _normalize_subscription_value(subscription_type)
+
     effective_filter = (
         risk_vector_filter.strip()
         if isinstance(risk_vector_filter, str) and risk_vector_filter.strip()
@@ -980,7 +996,13 @@ def register_company_rating_tool(
 
         # 1) Ensure access via subscription
         attempt: SubscriptionAttempt = await create_ephemeral_subscription(
-            call_v1_tool, ctx, guid, logger=logger
+            call_v1_tool,
+            ctx,
+            guid,
+            logger=logger,
+            default_folder=default_folder,
+            default_type=default_type,
+            debug_enabled=debug_enabled,
         )
         if not attempt.success:
             msg = attempt.message or (
@@ -1013,7 +1035,12 @@ def register_company_rating_tool(
             result = {"error": error_message}
         finally:
             if auto_subscribed:
-                await cleanup_ephemeral_subscription(call_v1_tool, ctx, guid)
+                await cleanup_ephemeral_subscription(
+                    call_v1_tool,
+                    ctx,
+                    guid,
+                    debug_enabled=debug_enabled,
+                )
 
         return result
 
