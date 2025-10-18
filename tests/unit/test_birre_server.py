@@ -316,7 +316,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
 
 
 @pytest.mark.asyncio
-async def test_create_birre_server_enables_v2_flag(monkeypatch, logger):
+async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     v1_server = object()
     v2_server = object()
     scheduled = []
@@ -348,23 +348,17 @@ async def test_create_birre_server_enables_v2_flag(monkeypatch, logger):
 
     server = birre.create_birre_server({"api_key": "key", "enable_v2": True}, logger)
 
-    assert hasattr(server, "call_v2_tool")
+    assert not hasattr(server, "call_v2_tool")
     assert server.name == "io.github.boecht.birre"
     assert server.extra_kwargs == {}
     assert server.call_v1_tool.func is v1_recorder
     assert server.call_v1_tool.args == (("key", True, v1_server),)
     assert server.call_v1_tool.keywords == {"logger": logger}
-    assert server.call_v2_tool.func is v2_recorder
-    assert server.call_v2_tool.args == (("key", True, v2_server),)
-    assert server.call_v2_tool.keywords == {"logger": logger}
+    assert scheduled == [(("key", True, v1_server), EXPECTED_V1_KEEP)]
 
     await server.call_v1_tool("companySearch", object(), {})
-    await server.call_v2_tool("getCompanyRequests", object(), {})
 
     assert v1_recorder.calls[0]["api_server"] == ("key", True, v1_server)
-    assert v2_recorder.calls[0]["api_server"] == ("key", True, v2_server)
+    assert v2_recorder.calls == []
 
-    assert scheduled == [
-        (("key", True, v1_server), EXPECTED_V1_KEEP),
-        (("key", True, v2_server), EXPECTED_V2_KEEP),
-    ]
+    assert scheduled == [(("key", True, v1_server), EXPECTED_V1_KEEP)]

@@ -9,6 +9,7 @@ from src.config import (
     DEFAULT_RISK_VECTOR_FILTER,
     LoggingSettings,
     RuntimeInputs,
+    SubscriptionInputs,
     TlsInputs,
     resolve_birre_settings,
     resolve_logging_settings,
@@ -236,6 +237,42 @@ def test_empty_risk_filter_uses_default_and_warns(
     assert settings["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
     assert settings["warnings"] == [
         "Empty risk_vector_filter override; falling back to default configuration"
+    ]
+
+
+def test_subscription_inputs_trim_whitespace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "  EnvFolder  ")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "   ")
+
+    settings = resolve_birre_settings(
+        config_path=str(base),
+        subscription_inputs=SubscriptionInputs(
+            folder="   ",
+            type="  cli-type  ",
+        ),
+    )
+
+    assert settings["subscription_folder"] == "EnvFolder"
+    assert settings["subscription_type"] == "cli-type"
+
+    folder_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_FOLDER" in msg
+    ]
+    type_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_TYPE" in msg
+    ]
+
+    assert folder_messages == [
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the default configuration file."
+    ]
+    assert type_messages == [
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the default configuration file."
     ]
 
 

@@ -78,9 +78,8 @@ def _maybe_create_v2_api_server(
     active_context: str,
     api_key: str,
     verify_option: bool | str,
-    enable_v2: bool,
 ) -> Optional[FastMCP]:
-    if active_context == "risk_manager" or enable_v2:
+    if active_context == "risk_manager":
         return create_v2_api_server(api_key, verify=verify_option)
     return None
 
@@ -176,14 +175,11 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
     risk_vector_filter = _resolve_risk_vector_filter(settings)
     max_findings = _resolve_max_findings(settings)
     verify_option = _resolve_tls_verification(settings, logger)
-    enable_v2 = coerce_bool(settings.get("enable_v2"))
-
     v1_api_server = create_v1_api_server(resolved_api_key, verify=verify_option)
     v2_api_server = _maybe_create_v2_api_server(
         active_context,
         resolved_api_key,
         verify_option,
-        enable_v2,
     )
 
     business_server = FastMCP(

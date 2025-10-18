@@ -1005,7 +1005,8 @@ def register_manage_subscriptions_tool(
             return {
                 "error": (
                     "Subscription type is not configured. Provide a subscription_type via CLI "
-                    f"arguments or update {DEFAULT_CONFIG_FILENAME}."
+                    "arguments, set BIRRE_SUBSCRIPTION_TYPE in the environment, or update "
+                    f"{DEFAULT_CONFIG_FILENAME}."
                 ),
             }
 
