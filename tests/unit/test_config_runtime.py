@@ -112,7 +112,7 @@ def test_cli_arg_overrides_env_and_sets_debug(
         msg
         == (
             "Using DEBUG from command line arguments, overriding values from the "
-            "environment and the default configuration file."
+            "environment, the configuration file, and the default configuration file."
         )
         for msg in settings["overrides"]
     )
@@ -269,10 +269,10 @@ def test_subscription_inputs_trim_whitespace(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file and the default configuration file."
     ]
     assert type_messages == [
-        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the default configuration file."
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file and the default configuration file."
     ]
 
 
@@ -326,7 +326,7 @@ def test_subscription_source_priority_skips_blank_values(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file and the default configuration file."
     ]
     assert type_messages == []
 

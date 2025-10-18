@@ -166,6 +166,7 @@ _SOURCE_LABELS = {
     "cli": "command line arguments",
     "env": "the environment",
     "local": "the local configuration file",
+    "config": "the configuration file",
     "base": "the default configuration file",
 }
 
@@ -173,21 +174,15 @@ _SOURCE_LABELS = {
 def _record_override_message(
     messages: list[str],
     setting: str,
-    *,
-    cli_value: Optional[Any] = None,
-    env_value: Optional[Any] = None,
-    local_config_value: Optional[Any] = None,
-    base_config_value: Optional[Any] = None,
+    sources: Sequence[Tuple[str, Optional[Any]]],
 ) -> None:
-    sources = [
-        ("cli", cli_value),
-        ("env", env_value),
-        ("local", local_config_value),
-        ("base", base_config_value),
-    ]
-
     for index, (key, value) in enumerate(sources):
         if not _value_provided(value):
+            continue
+
+        if key == "config" and not any(
+            _value_provided(candidate) for _, candidate in sources[:index]
+        ):
             continue
 
         overridden_keys = [
@@ -198,13 +193,33 @@ def _record_override_message(
         if not overridden_keys:
             return
 
-        chosen_label = _SOURCE_LABELS[key]
-        overridden_labels = [_SOURCE_LABELS[k] for k in overridden_keys]
+        chosen_label = _SOURCE_LABELS.get(key, key)
+        overridden_labels = [_SOURCE_LABELS.get(k, k) for k in overridden_keys]
         overridden_phrase = _join_sources(overridden_labels)
         messages.append(
             f"Using {setting} from {chosen_label}, overriding values from {overridden_phrase}."
         )
         return
+
+
+def _normalize_sources(
+    *sources: Tuple[str, Optional[Any]]
+) -> Tuple[
+    list[Tuple[str, Optional[str]]],
+    Dict[str, Optional[str]],
+    Dict[str, bool],
+]:
+    normalized_list: list[Tuple[str, Optional[str]]] = []
+    normalized_map: Dict[str, Optional[str]] = {}
+    blank_map: Dict[str, bool] = {}
+
+    for key, raw in sources:
+        normalized = _normalize_optional_str(raw)
+        normalized_list.append((key, normalized))
+        normalized_map[key] = normalized
+        blank_map[key] = _string_was_blank(raw)
+
+    return normalized_list, normalized_map, blank_map
 
 
 def _resolve_bool_chain(*values: Optional[Any], default: bool = False) -> bool:
@@ -403,184 +418,163 @@ def resolve_birre_settings(
 
     load_dotenv()
 
-    cfg = load_config_layers(config_path)
-    base_cfg = _load_base_config(config_path)
-    local_cfg = _load_local_config(config_path)
-    base_bitsight_cfg = _get_dict_section(base_cfg, BITSIGHT_SECTION)
-    local_bitsight_cfg = _get_dict_section(local_cfg, BITSIGHT_SECTION)
+    config_data = _load_config(config_path)
+    local_data = _load_local_config(config_path)
+    base_data = _load_base_config(config_path)
 
-    bitsight_cfg = _get_dict_section(cfg, BITSIGHT_SECTION)
-    runtime_cfg = _get_dict_section(cfg, "runtime")
-    base_runtime_cfg = _get_dict_section(base_cfg, "runtime")
-    local_runtime_cfg = _get_dict_section(local_cfg, "runtime")
-
-    api_key_cfg = _normalize_optional_str(bitsight_cfg.get("api_key"))
-    local_api_key_cfg = _normalize_optional_str(local_bitsight_cfg.get("api_key"))
-    base_api_key_cfg = _normalize_optional_str(base_bitsight_cfg.get("api_key"))
-
-    folder_cfg = _normalize_optional_str(bitsight_cfg.get("subscription_folder"))
-    type_cfg = _normalize_optional_str(bitsight_cfg.get("subscription_type"))
-    local_folder_cfg = _normalize_optional_str(
-        local_bitsight_cfg.get("subscription_folder")
-    )
-    local_type_cfg = _normalize_optional_str(local_bitsight_cfg.get("subscription_type"))
-    base_folder_cfg = _normalize_optional_str(
-        base_bitsight_cfg.get("subscription_folder")
-    )
-    base_type_cfg = _normalize_optional_str(base_bitsight_cfg.get("subscription_type"))
-
-    startup_skip_cfg = runtime_cfg.get("skip_startup_checks")
-    debug_cfg = runtime_cfg.get("debug")
-    context_cfg_raw = runtime_cfg.get("context")
-    context_cfg = _normalize_optional_str(context_cfg_raw)
-    risk_filter_cfg_raw = runtime_cfg.get("risk_vector_filter")
-    risk_filter_cfg = _normalize_optional_str(risk_filter_cfg_raw)
-    risk_filter_cfg_blank = _string_was_blank(risk_filter_cfg_raw)
-    max_findings_cfg = runtime_cfg.get("max_findings")
-    allow_insecure_cfg = runtime_cfg.get("allow_insecure_tls")
-    ca_bundle_cfg_raw = runtime_cfg.get("ca_bundle_path")
-    ca_bundle_cfg = _normalize_optional_str(ca_bundle_cfg_raw)
-    ca_bundle_cfg_blank = _string_was_blank(ca_bundle_cfg_raw)
-
-    api_key_env = _normalize_optional_str(os.getenv("BITSIGHT_API_KEY"))
-    folder_env = _normalize_optional_str(os.getenv("BIRRE_SUBSCRIPTION_FOLDER"))
-    type_env = _normalize_optional_str(os.getenv("BIRRE_SUBSCRIPTION_TYPE"))
-    startup_skip_env = os.getenv("BIRRE_SKIP_STARTUP_CHECKS")
-    debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
-    context_env_raw = os.getenv("BIRRE_CONTEXT")
-    context_env = _normalize_optional_str(context_env_raw)
-    risk_filter_env_raw = os.getenv(ENV_RISK_VECTOR_FILTER)
-    risk_filter_env = _normalize_optional_str(risk_filter_env_raw)
-    risk_filter_env_blank = _string_was_blank(risk_filter_env_raw)
-    max_findings_env = os.getenv(ENV_MAX_FINDINGS)
-    allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
-    ca_bundle_env_raw = os.getenv(ENV_CA_BUNDLE)
-    ca_bundle_env = _normalize_optional_str(ca_bundle_env_raw)
-    ca_bundle_env_blank = _string_was_blank(ca_bundle_env_raw)
+    bitsight_layers = {
+        "local": _get_dict_section(local_data, BITSIGHT_SECTION),
+        "config": _get_dict_section(config_data, BITSIGHT_SECTION),
+        "base": _get_dict_section(base_data, BITSIGHT_SECTION),
+    }
+    runtime_layers = {
+        "local": _get_dict_section(local_data, "runtime"),
+        "config": _get_dict_section(config_data, "runtime"),
+        "base": _get_dict_section(base_data, "runtime"),
+    }
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
 
-    local_context_cfg = _normalize_optional_str(local_runtime_cfg.get("context"))
-    base_context_cfg = _normalize_optional_str(base_runtime_cfg.get("context"))
-    local_risk_filter_cfg = _normalize_optional_str(
-        local_runtime_cfg.get("risk_vector_filter")
-    )
-    base_risk_filter_cfg = _normalize_optional_str(
-        base_runtime_cfg.get("risk_vector_filter")
-    )
-
     override_logs: list[str] = []
+    warnings: list[str] = []
 
-    api_key_cli = _normalize_optional_str(api_key_input)
-    api_key = _first_truthy(
-        api_key_cli,
-        api_key_env,
-        local_api_key_cfg,
-        api_key_cfg,
-        base_api_key_cfg,
+    api_key_chain, api_key_map, _ = _normalize_sources(
+        ("cli", api_key_input),
+        ("env", os.getenv("BITSIGHT_API_KEY")),
+        ("local", bitsight_layers["local"].get("api_key")),
+        ("config", bitsight_layers["config"].get("api_key")),
+        ("base", bitsight_layers["base"].get("api_key")),
     )
-    _record_override_message(
-        override_logs,
-        "BITSIGHT_API_KEY",
-        cli_value=api_key_cli,
-        env_value=api_key_env,
-        local_config_value=local_api_key_cfg,
-        base_config_value=base_api_key_cfg,
-    )
-    cli_folder = _normalize_optional_str(subscription_inputs.folder)
-    cli_type = _normalize_optional_str(subscription_inputs.type)
+    api_key = _first_truthy(*(value for _, value in api_key_chain))
+    _record_override_message(override_logs, "BITSIGHT_API_KEY", api_key_chain)
 
-    subscription_folder = _first_truthy(
-        cli_folder,
-        folder_env,
-        local_folder_cfg,
-        folder_cfg,
-        base_folder_cfg,
+    folder_chain, _, _ = _normalize_sources(
+        ("cli", subscription_inputs.folder),
+        ("env", os.getenv("BIRRE_SUBSCRIPTION_FOLDER")),
+        (
+            "local",
+            bitsight_layers["local"].get("subscription_folder"),
+        ),
+        (
+            "config",
+            bitsight_layers["config"].get("subscription_folder"),
+        ),
+        ("base", bitsight_layers["base"].get("subscription_folder")),
     )
+    subscription_folder = _first_truthy(*(value for _, value in folder_chain))
     _record_override_message(
         override_logs,
         "SUBSCRIPTION_FOLDER",
-        cli_value=cli_folder,
-        env_value=folder_env,
-        local_config_value=local_folder_cfg,
-        base_config_value=base_folder_cfg,
+        folder_chain,
     )
-    subscription_type = _first_truthy(
-        cli_type,
-        type_env,
-        local_type_cfg,
-        type_cfg,
-        base_type_cfg,
+
+    type_chain, _, _ = _normalize_sources(
+        ("cli", subscription_inputs.type),
+        ("env", os.getenv("BIRRE_SUBSCRIPTION_TYPE")),
+        ("local", bitsight_layers["local"].get("subscription_type")),
+        ("config", bitsight_layers["config"].get("subscription_type")),
+        ("base", bitsight_layers["base"].get("subscription_type")),
     )
+    subscription_type = _first_truthy(*(value for _, value in type_chain))
     _record_override_message(
         override_logs,
         "SUBSCRIPTION_TYPE",
-        cli_value=cli_type,
-        env_value=type_env,
-        local_config_value=local_type_cfg,
-        base_config_value=base_type_cfg,
+        type_chain,
     )
 
-    cli_context = _normalize_optional_str(runtime_inputs.context)
-    effective_context_cfg = context_cfg if context_cfg is not None else base_context_cfg
+    context_chain, context_map, _ = _normalize_sources(
+        ("cli", runtime_inputs.context),
+        ("env", os.getenv("BIRRE_CONTEXT")),
+        ("local", runtime_layers["local"].get("context")),
+        ("config", runtime_layers["config"].get("context")),
+        ("base", runtime_layers["base"].get("context")),
+    )
+    effective_context_cfg = (
+        context_map["config"] if context_map["config"] is not None else context_map["base"]
+    )
     normalized_context, context_warning = _resolve_context_value(
-        cli_context, context_env, effective_context_cfg
+        context_map["cli"],
+        context_map["env"],
+        effective_context_cfg,
     )
-
-    warnings = []
-    if context_warning is None:
-        _record_override_message(
-            override_logs,
-            "CONTEXT",
-            cli_value=cli_context,
-            env_value=context_env,
-            local_config_value=local_context_cfg,
-            base_config_value=base_context_cfg,
-        )
-    else:
+    if context_warning:
         warnings.append(context_warning)
+    else:
+        _record_override_message(override_logs, "CONTEXT", context_chain)
 
-    if base_api_key_cfg is not None:
+    if api_key_map["base"] is not None:
         warnings.append(
             "Avoid storing bitsight.api_key in "
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
 
+    startup_skip_env = os.getenv("BIRRE_SKIP_STARTUP_CHECKS")
     skip_startup_checks = _resolve_bool_chain(
-        startup_skip_cfg, startup_skip_env, runtime_inputs.skip_startup_checks
+        runtime_layers["base"].get("skip_startup_checks"),
+        runtime_layers["config"].get("skip_startup_checks"),
+        runtime_layers["local"].get("skip_startup_checks"),
+        startup_skip_env,
+        runtime_inputs.skip_startup_checks,
     )
     _record_override_message(
         override_logs,
         "SKIP_STARTUP_CHECKS",
-        cli_value=runtime_inputs.skip_startup_checks,
-        env_value=startup_skip_env,
-        local_config_value=local_runtime_cfg.get("skip_startup_checks"),
-        base_config_value=base_runtime_cfg.get("skip_startup_checks"),
+        [
+            ("cli", runtime_inputs.skip_startup_checks),
+            ("env", startup_skip_env),
+            ("local", runtime_layers["local"].get("skip_startup_checks")),
+            ("config", runtime_layers["config"].get("skip_startup_checks")),
+            ("base", runtime_layers["base"].get("skip_startup_checks")),
+        ],
     )
 
+    debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
     debug_enabled = _resolve_bool_chain(
-        debug_cfg, debug_env, runtime_inputs.debug
+        runtime_layers["base"].get("debug"),
+        runtime_layers["config"].get("debug"),
+        runtime_layers["local"].get("debug"),
+        debug_env,
+        runtime_inputs.debug,
     )
     _record_override_message(
         override_logs,
         "DEBUG",
-        cli_value=runtime_inputs.debug,
-        env_value=debug_env,
-        local_config_value=local_runtime_cfg.get("debug"),
-        base_config_value=base_runtime_cfg.get("debug"),
+        [
+            ("cli", runtime_inputs.debug),
+            ("env", debug_env),
+            ("local", runtime_layers["local"].get("debug")),
+            ("config", runtime_layers["config"].get("debug")),
+            ("base", runtime_layers["base"].get("debug")),
+        ],
     )
 
-    cli_risk_filter = _normalize_optional_str(runtime_inputs.risk_vector_filter)
-    cli_risk_blank = _string_was_blank(runtime_inputs.risk_vector_filter)
+    risk_chain, risk_map, risk_blanks = _normalize_sources(
+        ("cli", runtime_inputs.risk_vector_filter),
+        ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
+        ("local", runtime_layers["local"].get("risk_vector_filter")),
+        ("config", runtime_layers["config"].get("risk_vector_filter")),
+        ("base", runtime_layers["base"].get("risk_vector_filter")),
+    )
+    config_risk_value = None
+    config_risk_blank = False
+    for key in ("local", "config", "base"):
+        if risk_blanks[key]:
+            config_risk_blank = True
+            config_risk_value = None
+            break
+        if risk_map[key] is not None:
+            config_risk_value = risk_map[key]
+            break
+
     risk_vector_filter, risk_warning = _resolve_risk_vector_filter(
-        cli_risk_filter,
-        cli_risk_blank,
-        risk_filter_env,
-        risk_filter_env_blank,
-        risk_filter_cfg,
-        risk_filter_cfg_blank,
+        risk_map["cli"],
+        risk_blanks["cli"],
+        risk_map["env"],
+        risk_blanks["env"],
+        config_risk_value,
+        config_risk_blank,
     )
     if risk_warning:
         warnings.append(risk_warning)
@@ -588,35 +582,54 @@ def resolve_birre_settings(
         _record_override_message(
             override_logs,
             "RISK_VECTOR_FILTER",
-            cli_value=cli_risk_filter,
-            env_value=risk_filter_env,
-            local_config_value=local_risk_filter_cfg,
-            base_config_value=base_risk_filter_cfg,
+            risk_chain,
         )
 
+    allow_insecure_env = os.getenv(ENV_ALLOW_INSECURE_TLS)
     allow_insecure_tls = _resolve_bool_chain(
-        allow_insecure_cfg,
+        runtime_layers["base"].get("allow_insecure_tls"),
+        runtime_layers["config"].get("allow_insecure_tls"),
+        runtime_layers["local"].get("allow_insecure_tls"),
         allow_insecure_env,
         tls_inputs.allow_insecure,
     )
     _record_override_message(
         override_logs,
         "ALLOW_INSECURE_TLS",
-        cli_value=tls_inputs.allow_insecure,
-        env_value=allow_insecure_env,
-        local_config_value=local_runtime_cfg.get("allow_insecure_tls"),
-        base_config_value=base_runtime_cfg.get("allow_insecure_tls"),
+        [
+            ("cli", tls_inputs.allow_insecure),
+            ("env", allow_insecure_env),
+            ("local", runtime_layers["local"].get("allow_insecure_tls")),
+            ("config", runtime_layers["config"].get("allow_insecure_tls")),
+            ("base", runtime_layers["base"].get("allow_insecure_tls")),
+        ],
     )
 
-    cli_ca_bundle = _normalize_optional_str(tls_inputs.ca_bundle_path)
-    cli_ca_blank = _string_was_blank(tls_inputs.ca_bundle_path)
+    ca_chain, ca_map, ca_blanks = _normalize_sources(
+        ("cli", tls_inputs.ca_bundle_path),
+        ("env", os.getenv(ENV_CA_BUNDLE)),
+        ("local", runtime_layers["local"].get("ca_bundle_path")),
+        ("config", runtime_layers["config"].get("ca_bundle_path")),
+        ("base", runtime_layers["base"].get("ca_bundle_path")),
+    )
+    config_ca_value = None
+    config_ca_blank = False
+    for key in ("local", "config", "base"):
+        if ca_blanks[key]:
+            config_ca_blank = True
+            config_ca_value = None
+            break
+        if ca_map[key] is not None:
+            config_ca_value = ca_map[key]
+            break
+
     ca_bundle_path, ca_warning = _resolve_ca_bundle_path(
-        cli_ca_bundle,
-        cli_ca_blank,
-        ca_bundle_env,
-        ca_bundle_env_blank,
-        ca_bundle_cfg,
-        ca_bundle_cfg_blank,
+        ca_map["cli"],
+        ca_blanks["cli"],
+        ca_map["env"],
+        ca_blanks["env"],
+        config_ca_value,
+        config_ca_blank,
     )
     if ca_warning:
         warnings.append(ca_warning)
@@ -624,10 +637,7 @@ def resolve_birre_settings(
         _record_override_message(
             override_logs,
             "CA_BUNDLE_PATH",
-            cli_value=tls_inputs.ca_bundle_path,
-            env_value=ca_bundle_env,
-            local_config_value=local_runtime_cfg.get("ca_bundle_path"),
-            base_config_value=base_runtime_cfg.get("ca_bundle_path"),
+            ca_chain,
         )
 
     if allow_insecure_tls and ca_bundle_path:
@@ -636,19 +646,33 @@ def resolve_birre_settings(
         )
         ca_bundle_path = None
 
-    max_findings, max_warning = _resolve_max_findings(
-        runtime_inputs.max_findings, max_findings_env, max_findings_cfg
+    max_findings_env = os.getenv(ENV_MAX_FINDINGS)
+    max_findings_config_value: Optional[Any] = None
+    for source in ("local", "config", "base"):
+        candidate = runtime_layers[source].get("max_findings")
+        if candidate is not None:
+            max_findings_config_value = candidate
+            break
+
+    max_findings_result = _resolve_max_findings(
+        runtime_inputs.max_findings,
+        max_findings_env,
+        max_findings_config_value,
     )
+    max_value, max_warning = max_findings_result
     if max_warning:
         warnings.append(max_warning)
     else:
         _record_override_message(
             override_logs,
             "MAX_FINDINGS",
-            cli_value=runtime_inputs.max_findings,
-            env_value=max_findings_env,
-            local_config_value=local_runtime_cfg.get("max_findings"),
-            base_config_value=base_runtime_cfg.get("max_findings"),
+            [
+                ("cli", runtime_inputs.max_findings),
+                ("env", max_findings_env),
+                ("local", runtime_layers["local"].get("max_findings")),
+                ("config", runtime_layers["config"].get("max_findings")),
+                ("base", runtime_layers["base"].get("max_findings")),
+            ],
         )
 
     # Environment variables are not mutated; downstream consumers rely on returned settings.
@@ -662,7 +686,7 @@ def resolve_birre_settings(
         "subscription_type": subscription_type,
         "context": normalized_context,
         "risk_vector_filter": risk_vector_filter,
-        "max_findings": max_findings,
+        "max_findings": max_value,
         "skip_startup_checks": skip_startup_checks,
         "debug": debug_enabled,
         "allow_insecure_tls": allow_insecure_tls,
