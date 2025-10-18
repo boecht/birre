@@ -1,14 +1,16 @@
 """Configuration helpers for the BiRRe server.
 
-Settings are resolved by consulting inputs in priority order: command line
-arguments, environment variables, the optional ``*.local`` overlay,
-``config.toml`` (or the provided configuration file), and finally the default
-configuration file bundled with the application. Optional string inputs are
-normalized early—trimming whitespace and treating blank strings as
-``None``—so that downstream code never needs to reason about "empty but
-provided" values. Override logs are emitted only when the chosen value comes
-from a higher priority source than another non-blank candidate, ensuring that
-messages reflect real precedence decisions.
+Settings resolve according to the following precedence:
+
+1. Command line inputs
+2. Environment variables
+3. Local configuration overlays (``config.local.toml``)
+4. Primary configuration file (``config.toml``)
+5. Bundled defaults (``config.default.toml``)
+
+Blank or whitespace-only values are treated as "not provided" so they do not
+override lower-priority sources. Normalization happens before any setting is
+evaluated so downstream helpers never see untrimmed values.
 """
 
 from __future__ import annotations
