@@ -276,6 +276,61 @@ def test_subscription_inputs_trim_whitespace(
     ]
 
 
+def test_subscription_source_priority_skips_blank_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "  BaseFolder  "',
+                'subscription_type = " BaseType "',
+                "",
+                "[runtime]",
+                "skip_startup_checks = false",
+                "debug = false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    local = tmp_path / LOCAL_CONFIG_FILENAME
+    local.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "  LocalFolder  "',
+                'subscription_type = "   "',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_FOLDER", "   ")
+    monkeypatch.setenv("BIRRE_SUBSCRIPTION_TYPE", "\t")
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["subscription_folder"] == "LocalFolder"
+    assert settings["subscription_type"] == "BaseType"
+
+    folder_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_FOLDER" in msg
+    ]
+    type_messages = [
+        msg for msg in settings["overrides"] if "SUBSCRIPTION_TYPE" in msg
+    ]
+
+    assert folder_messages == [
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the default configuration file."
+    ]
+    assert type_messages == []
+
+
 def test_invalid_max_findings_reverts_to_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
