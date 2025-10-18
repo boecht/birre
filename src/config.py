@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Collection, Dict, Optional, Sequence, Tuple
 
 import logging
 import tomllib
@@ -188,15 +188,16 @@ def _record_override_summary(
     messages: list[str],
     setting: str,
     sources: Sequence[Tuple[str, Optional[Any]]],
-    blanks: Dict[str, bool],
+    blank_keys: Collection[str],
     chosen_value: Optional[Any],
 ) -> None:
     if chosen_value is None:
         return
 
+    blank_lookup = set(blank_keys)
     chosen_index: Optional[int] = None
     for index, (key, value) in enumerate(sources):
-        if blanks.get(key):
+        if key in blank_lookup:
             continue
         if value == chosen_value and _value_provided(value):
             chosen_index = index
@@ -208,7 +209,7 @@ def _record_override_summary(
     overridden_keys = [
         source_key
         for source_key, candidate in sources[chosen_index + 1 :]
-        if not blanks.get(source_key) and _value_provided(candidate)
+        if source_key not in blank_lookup and _value_provided(candidate)
     ]
 
     if not overridden_keys:
@@ -222,7 +223,7 @@ def _record_override_summary(
     if chosen_key == "config" and not any(
         _value_provided(candidate)
         for source_key, candidate in sources[:chosen_index]
-        if not blanks.get(source_key)
+        if source_key not in blank_lookup
     ):
         return
 
@@ -239,19 +240,20 @@ def _normalize_sources(
 ) -> Tuple[
     list[Tuple[str, Optional[str]]],
     Dict[str, Optional[str]],
-    Dict[str, bool],
+    set[str],
 ]:
     normalized_list: list[Tuple[str, Optional[str]]] = []
     normalized_map: Dict[str, Optional[str]] = {}
-    blank_map: Dict[str, bool] = {}
+    blank_keys: set[str] = set()
 
     for key, raw in sources:
         normalized = _normalize_optional_str(raw)
         normalized_list.append((key, normalized))
         normalized_map[key] = normalized
-        blank_map[key] = _string_was_blank(raw)
+        if _string_was_blank(raw):
+            blank_keys.add(key)
 
-    return normalized_list, normalized_map, blank_map
+    return normalized_list, normalized_map, blank_keys
 
 
 def _build_normalized_chain(
@@ -259,22 +261,23 @@ def _build_normalized_chain(
 ) -> Tuple[
     list[Tuple[str, Optional[str]]],
     Dict[str, Optional[str]],
-    Dict[str, bool],
+    set[str],
     Optional[str],
 ]:
-    chain, mapping, blanks = _normalize_sources(*sources)
+    chain, mapping, blank_keys = _normalize_sources(*sources)
     chosen = _first_truthy(*(value for _, value in chain))
-    return chain, mapping, blanks, chosen
+    return chain, mapping, blank_keys, chosen
 
 
 def _select_configured_value(
     mapping: Dict[str, Optional[str]],
-    blanks: Dict[str, bool],
+    blank_keys: Collection[str],
     *,
     order: Sequence[str] = ("local", "config", "base"),
 ) -> Tuple[Optional[str], bool]:
+    blank_lookup = set(blank_keys)
     for key in order:
-        if blanks[key]:
+        if key in blank_lookup:
             return None, True
         candidate = mapping.get(key)
         if candidate is not None:
@@ -312,8 +315,7 @@ def _resolve_bool_setting(
         ("config", runtime_layers["config"].get(config_key)),
         ("base", runtime_layers["base"].get(config_key)),
     ]
-    blanks = dict.fromkeys((key for key, _ in sources), False)
-    _record_override_summary(override_logs, setting, sources, blanks, resolved)
+    _record_override_summary(override_logs, setting, sources, (), resolved)
     return resolved
 
 
@@ -322,7 +324,7 @@ def _resolve_api_key(
     bitsight_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[Optional[str], Optional[str]]:
-    chain, mapping, blanks, value = _build_normalized_chain(
+    chain, mapping, blank_keys, value = _build_normalized_chain(
         ("cli", api_key_input),
         ("env", os.getenv("BITSIGHT_API_KEY")),
         ("local", bitsight_layers["local"].get("api_key")),
@@ -333,7 +335,7 @@ def _resolve_api_key(
         override_logs,
         "BITSIGHT_API_KEY",
         chain,
-        blanks,
+        blank_keys,
         value,
     )
     warning = None
@@ -354,14 +356,14 @@ def _resolve_subscription_setting(
     bitsight_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Optional[str]:
-    chain, _, blanks, value = _build_normalized_chain(
+    chain, _, blank_keys, value = _build_normalized_chain(
         ("cli", cli_value),
         ("env", os.getenv(env_key)),
         ("local", bitsight_layers["local"].get(config_key)),
         ("config", bitsight_layers["config"].get(config_key)),
         ("base", bitsight_layers["base"].get(config_key)),
     )
-    _record_override_summary(override_logs, setting, chain, blanks, value)
+    _record_override_summary(override_logs, setting, chain, blank_keys, value)
     return value
 
 
@@ -370,7 +372,7 @@ def _resolve_context_setting(
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
-    chain, mapping, blanks, _ = _build_normalized_chain(
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
         ("cli", runtime_inputs.context),
         ("env", os.getenv("BIRRE_CONTEXT")),
         ("local", runtime_layers["local"].get("context")),
@@ -390,7 +392,7 @@ def _resolve_context_setting(
             override_logs,
             "CONTEXT",
             chain,
-            blanks,
+            blank_keys,
             normalized_context,
         )
     return normalized_context, warning
@@ -401,19 +403,19 @@ def _resolve_risk_setting(
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
-    chain, mapping, blanks, _ = _build_normalized_chain(
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
         ("cli", runtime_inputs.risk_vector_filter),
         ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
         ("local", runtime_layers["local"].get("risk_vector_filter")),
         ("config", runtime_layers["config"].get("risk_vector_filter")),
         ("base", runtime_layers["base"].get("risk_vector_filter")),
     )
-    config_value, config_blank = _select_configured_value(mapping, blanks)
+    config_value, config_blank = _select_configured_value(mapping, blank_keys)
     risk_vector_filter, warning = _resolve_risk_vector_filter(
         mapping["cli"],
-        blanks["cli"],
+        "cli" in blank_keys,
         mapping["env"],
-        blanks["env"],
+        "env" in blank_keys,
         config_value,
         config_blank,
     )
@@ -422,7 +424,7 @@ def _resolve_risk_setting(
             override_logs,
             "RISK_VECTOR_FILTER",
             chain,
-            blanks,
+            blank_keys,
             risk_vector_filter,
         )
     return risk_vector_filter, warning
@@ -443,19 +445,19 @@ def _resolve_tls_settings(
         override_logs=override_logs,
     )
 
-    chain, mapping, blanks, _ = _build_normalized_chain(
+    chain, mapping, blank_keys, _ = _build_normalized_chain(
         ("cli", tls_inputs.ca_bundle_path),
         ("env", os.getenv(ENV_CA_BUNDLE)),
         ("local", runtime_layers["local"].get("ca_bundle_path")),
         ("config", runtime_layers["config"].get("ca_bundle_path")),
         ("base", runtime_layers["base"].get("ca_bundle_path")),
     )
-    config_value, config_blank = _select_configured_value(mapping, blanks)
+    config_value, config_blank = _select_configured_value(mapping, blank_keys)
     ca_bundle_path, warning = _resolve_ca_bundle_path(
         mapping["cli"],
-        blanks["cli"],
+        "cli" in blank_keys,
         mapping["env"],
-        blanks["env"],
+        "env" in blank_keys,
         config_value,
         config_blank,
     )
@@ -464,7 +466,7 @@ def _resolve_tls_settings(
             override_logs,
             "CA_BUNDLE_PATH",
             chain,
-            blanks,
+            blank_keys,
             ca_bundle_path,
         )
     return allow_insecure_tls, ca_bundle_path, warning
@@ -496,12 +498,11 @@ def _resolve_max_findings_setting(
             ("config", runtime_layers["config"].get("max_findings")),
             ("base", runtime_layers["base"].get("max_findings")),
         ]
-        blanks = dict.fromkeys((key for key, _ in sources), False)
         _record_override_summary(
             override_logs,
             "MAX_FINDINGS",
             sources,
-            blanks,
+            (),
             max_value,
         )
     return max_value, warning
