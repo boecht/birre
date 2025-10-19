@@ -12,6 +12,7 @@ requires-python = ">=3.10"
 dependencies = [
     "fastmcp==2.12.4",
     "dynaconf",
+    "pydantic>=2.6.0,<3",
     "python-dotenv",
     "httpx",
     "prance>=23.6.7",

@@ -10,164 +10,157 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
-from src.settings import DEFAULT_MAX_FINDINGS
+from pydantic import BaseModel, Field, field_validator, model_validator
+
 from src.constants import DEFAULT_CONFIG_FILENAME
+from src.settings import DEFAULT_MAX_FINDINGS
 
 from .helpers import CallV1Tool, CallV2Tool
 from ..logging import log_event, log_search_event
 
 
-_SUBSCRIPTION_SNAPSHOT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "active": {"type": "boolean"},
-        "subscription_type": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "folders": {
-            "type": "array",
-            "items": {"type": "string"},
-        },
-        "subscription_end_date": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-    },
-    "required": ["active", "subscription_type", "folders", "subscription_end_date"],
-    "additionalProperties": True,
-}
+class SubscriptionSnapshot(BaseModel):
+    active: bool
+    subscription_type: Optional[str] = None
+    folders: List[str] = Field(default_factory=list)
+    subscription_end_date: Optional[str] = None
 
-_COMPANY_INTERACTIVE_RESULT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "label": {"type": "string"},
-        "guid": {"type": "string"},
-        "name": {"type": "string"},
-        "primary_domain": {"type": "string"},
-        "website": {"type": "string"},
-        "description": {"type": "string"},
-        "employee_count": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
-        "subscription": _SUBSCRIPTION_SNAPSHOT_SCHEMA,
-    },
-    "required": [
-        "label",
-        "guid",
-        "name",
-        "primary_domain",
-        "website",
-        "description",
-        "employee_count",
-        "subscription",
-    ],
-    "additionalProperties": True,
-}
 
-COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "count": {"type": "integer", "minimum": 0},
-        "results": {
-            "type": "array",
-            "items": _COMPANY_INTERACTIVE_RESULT_SCHEMA,
-        },
-        "search_term": {"type": "string"},
-        "guidance": {
-            "type": "object",
-            "properties": {
-                "selection": {"type": "string"},
-                "if_missing": {"type": "string"},
-                "default_folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-                "default_subscription_type": {
-                    "anyOf": [{"type": "string"}, {"type": "null"}]
-                },
-            },
-            "required": ["selection", "if_missing", "default_folder", "default_subscription_type"],
-            "additionalProperties": True,
-        },
-        "truncated": {"type": "boolean"},
-    },
-    "required": [],
-    "anyOf": [
-        {"required": ["error"]},
-        {"required": ["count", "results", "guidance", "truncated"]},
-    ],
-    "additionalProperties": True,
-}
+class CompanyInteractiveResult(BaseModel):
+    label: str
+    guid: str
+    name: str
+    primary_domain: str
+    website: str
+    description: str
+    employee_count: Optional[int] = None
+    subscription: SubscriptionSnapshot
 
-REQUEST_COMPANY_OUTPUT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "status": {
-            "type": "string",
-            "enum": [
-                "already_requested",
-                "dry_run",
-                "submitted_v2_bulk",
-                "submitted_v2_single",
-            ],
-        },
-        "domain": {"type": "string"},
-        "requests": {
-            "type": "array",
-            "items": {"type": "object", "additionalProperties": True},
-        },
-        "guidance": {
-            "type": "object",
-            "properties": {
-                "next_steps": {"type": "string"},
-                "confirmation": {"type": "string"},
-            },
-            "additionalProperties": True,
-        },
-        "folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "payload": {"type": "object", "additionalProperties": True},
-        "subscription_type": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "result": {"type": "object", "additionalProperties": True},
-        "warning": {"type": "string"},
-    },
-    "required": [],
-    "anyOf": [
-        {"required": ["error"]},
-        {"required": ["status", "domain"]},
-    ],
-    "additionalProperties": True,
-}
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_input(cls, value: Any) -> Dict[str, Any]:
+        if not isinstance(value, dict):
+            return {
+                "label": "",
+                "guid": "",
+                "name": "",
+                "primary_domain": "",
+                "website": "",
+                "description": "",
+                "employee_count": None,
+                "subscription": {},
+            }
+        return {
+            "label": str(value.get("label") or ""),
+            "guid": str(value.get("guid") or ""),
+            "name": str(value.get("name") or ""),
+            "primary_domain": str(value.get("primary_domain") or ""),
+            "website": str(value.get("website") or ""),
+            "description": str(value.get("description") or ""),
+            "employee_count": value.get("employee_count"),
+            "subscription": value.get("subscription") or {},
+        }
 
-MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "status": {"type": "string", "enum": ["dry_run", "applied"]},
-        "action": {"type": "string"},
-        "guids": {
-            "type": "array",
-            "items": {"type": "string"},
-        },
-        "folder": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "payload": {"type": "object", "additionalProperties": True},
-        "guidance": {
-            "type": "object",
-            "properties": {
-                "confirmation": {"type": "string"},
-                "next_steps": {"type": "string"},
-            },
-            "additionalProperties": True,
-        },
-        "summary": {
-            "type": "object",
-            "properties": {
-                "added": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-                "deleted": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-                "modified": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-                "errors": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-            },
-            "additionalProperties": True,
-        },
-    },
-    "required": [],
-    "anyOf": [
-        {"required": ["error"]},
-        {"required": ["status", "action", "guids"]},
-    ],
-    "additionalProperties": True,
-}
+    @field_validator("employee_count", mode="before")
+    @classmethod
+    def _normalize_employee_count(cls, value: Any) -> Optional[int]:
+        if value is None or value == "":
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+
+class RiskManagerGuidance(BaseModel):
+    selection: Optional[str] = None
+    if_missing: Optional[str] = None
+    default_folder: Optional[str] = None
+    default_subscription_type: Optional[str] = None
+
+
+class CompanySearchInteractiveResponse(BaseModel):
+    error: Optional[str] = None
+    count: int = Field(default=0, ge=0)
+    results: List[CompanyInteractiveResult] = Field(default_factory=list)
+    search_term: Optional[str] = None
+    guidance: Optional[RiskManagerGuidance] = None
+    truncated: bool = False
+
+    def to_payload(self) -> Dict[str, Any]:
+        if self.error:
+            return {"error": self.error}
+        data = self.model_dump(exclude_unset=True)
+        data.pop("error", None)
+        return data
+
+
+class RequestGuidance(BaseModel):
+    next_steps: Optional[str] = None
+    confirmation: Optional[str] = None
+
+
+class RequestCompanyResponse(BaseModel):
+    error: Optional[str] = None
+    status: Optional[str] = None
+    domain: Optional[str] = None
+    requests: Optional[List[Dict[str, Any]]] = None
+    guidance: Optional[RequestGuidance] = None
+    folder: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
+    subscription_type: Optional[str] = None
+    result: Optional[Any] = None
+    warning: Optional[str] = None
+
+    def to_payload(self) -> Dict[str, Any]:
+        if self.error:
+            return {"error": self.error}
+        data = self.model_dump(exclude_unset=True)
+        data.pop("error", None)
+        return data
+
+
+class ManageSubscriptionsGuidance(BaseModel):
+    confirmation: Optional[str] = None
+    next_steps: Optional[str] = None
+
+
+class ManageSubscriptionsSummary(BaseModel):
+    added: List[Any] = Field(default_factory=list)
+    deleted: List[Any] = Field(default_factory=list)
+    modified: List[Any] = Field(default_factory=list)
+    errors: List[Any] = Field(default_factory=list)
+
+
+class ManageSubscriptionsResponse(BaseModel):
+    error: Optional[str] = None
+    status: Optional[str] = None
+    action: Optional[str] = None
+    guids: Optional[List[str]] = None
+    folder: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
+    guidance: Optional[ManageSubscriptionsGuidance] = None
+    summary: Optional[ManageSubscriptionsSummary] = None
+
+    def to_payload(self) -> Dict[str, Any]:
+        if self.error:
+            return {"error": self.error}
+        data = self.model_dump(exclude_unset=True)
+        data.pop("error", None)
+        return data
+
+
+COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: Dict[str, Any] = (
+    CompanySearchInteractiveResponse.model_json_schema()
+)
+
+REQUEST_COMPANY_OUTPUT_SCHEMA: Dict[str, Any] = (
+    RequestCompanyResponse.model_json_schema()
+)
+
+MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = (
+    ManageSubscriptionsResponse.model_json_schema()
+)
 
 
 @dataclass(frozen=True)
@@ -448,19 +441,19 @@ def _build_empty_search_response(
     *,
     default_folder: Optional[str],
     default_type: Optional[str],
-) -> Dict[str, Any]:
-    return {
-        "count": 0,
-        "results": [],
-        "search_term": search_term,
-        "guidance": {
-            "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
-            "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
-            "default_folder": default_folder,
-            "default_subscription_type": default_type,
-        },
-        "truncated": False,
-    }
+) -> CompanySearchInteractiveResponse:
+    return CompanySearchInteractiveResponse(
+        count=0,
+        results=[],
+        search_term=search_term,
+        guidance=RiskManagerGuidance(
+            selection="No matches were returned. Confirm the organization name or domain with the operator.",
+            if_missing="Invoke `request_company` to submit an onboarding request when the entity is absent.",
+            default_folder=default_folder,
+            default_subscription_type=default_type,
+        ),
+        truncated=False,
+    )
 
 
 def _build_guid_order(candidates: Iterable[Dict[str, Any]]) -> List[str]:
@@ -498,7 +491,7 @@ async def _build_company_search_response(
     raw_result: Any,
     search: CompanySearchInputs,
     defaults: CompanySearchDefaults,
-) -> Dict[str, Any]:
+) -> CompanySearchInteractiveResponse:
     candidates = _extract_search_candidates(raw_result)
     guid_order = _build_guid_order(candidates)
 
@@ -545,18 +538,22 @@ async def _build_company_search_response(
 
     truncated = len(guid_order) > defaults.limit
 
-    return {
-        "count": result_count,
-        "results": enriched,
-        "search_term": search.term,
-        "guidance": {
-            "selection": "Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
-            "if_missing": "If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
-            "default_folder": defaults.folder,
-            "default_subscription_type": defaults.subscription_type,
-        },
-        "truncated": truncated,
-    }
+    result_models = [
+        CompanyInteractiveResult.model_validate(entry) for entry in enriched
+    ]
+
+    return CompanySearchInteractiveResponse(
+        count=result_count,
+        results=result_models,
+        search_term=search.term,
+        guidance=RiskManagerGuidance(
+            selection="Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
+            if_missing="If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
+            default_folder=defaults.folder,
+            default_subscription_type=defaults.subscription_type,
+        ),
+        truncated=truncated,
+    )
 
 
 def register_company_search_interactive_tool(
@@ -579,7 +576,7 @@ def register_company_search_interactive_tool(
 
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
-            return validation_error
+            return CompanySearchInteractiveResponse(**validation_error).to_payload()
 
         search_params, search_term = _build_company_search_params(name, domain)
 
@@ -602,7 +599,7 @@ def register_company_search_interactive_tool(
             domain=domain,
         )
         if failure_response is not None:
-            return failure_response
+            return CompanySearchInteractiveResponse(**failure_response).to_payload()
 
         search = CompanySearchInputs(name=name, domain=domain, term=search_term)
         defaults = CompanySearchDefaults(
@@ -610,7 +607,7 @@ def register_company_search_interactive_tool(
             subscription_type=default_type,
             limit=effective_limit,
         )
-        return await _build_company_search_response(
+        response_model = await _build_company_search_response(
             call_v1_tool,
             ctx,
             logger=logger,
@@ -618,6 +615,7 @@ def register_company_search_interactive_tool(
             search=search,
             defaults=defaults,
         )
+        return response_model.to_payload()
 
     return business_server.tool(
         output_schema=COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA
@@ -730,7 +728,7 @@ def _existing_requests_response(
     ctx: Context,
     domain_value: str,
     existing: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+) -> RequestCompanyResponse:
     log_event(
         logger,
         "company_request.already_requested",
@@ -738,14 +736,14 @@ def _existing_requests_response(
         domain=domain_value,
         existing_count=len(existing),
     )
-    return {
-        "status": "already_requested",
-        "domain": domain_value,
-        "requests": existing,
-        "guidance": {
-            "next_steps": "Monitor the existing request in BitSight or wait for fulfillment before retrying.",
-        },
-    }
+    return RequestCompanyResponse(
+        status="already_requested",
+        domain=domain_value,
+        requests=existing,
+        guidance=RequestGuidance(
+            next_steps="Monitor the existing request in BitSight or wait for fulfillment before retrying."
+        ),
+    )
 
 
 def _build_bulk_payload(
@@ -772,7 +770,7 @@ def _dry_run_response(
     selected_folder: Optional[str],
     subscription_type: Optional[str],
     bulk_payload: Dict[str, Any],
-) -> Dict[str, Any]:
+) -> RequestCompanyResponse:
     log_event(
         logger,
         "company_request.dry_run",
@@ -781,15 +779,15 @@ def _dry_run_response(
         folder=selected_folder,
         subscription_type=subscription_type,
     )
-    return {
-        "status": "dry_run",
-        "domain": domain_value,
-        "folder": selected_folder,
-        "payload": bulk_payload,
-        "guidance": {
-            "confirmation": "Share the preview with the human operator before submitting the real request.",
-        },
-    }
+    return RequestCompanyResponse(
+        status="dry_run",
+        domain=domain_value,
+        folder=selected_folder,
+        payload=bulk_payload,
+        guidance=RequestGuidance(
+            confirmation="Share the preview with the human operator before submitting the real request."
+        ),
+    )
 
 
 async def _submit_company_request(
@@ -801,7 +799,7 @@ async def _submit_company_request(
     selected_folder: Optional[str],
     subscription_type: Optional[str],
     bulk_payload: Dict[str, Any],
-) -> Dict[str, Any]:
+) -> RequestCompanyResponse:
     try:
         result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
         log_event(
@@ -812,13 +810,13 @@ async def _submit_company_request(
             folder=selected_folder,
             subscription_type=subscription_type,
         )
-        return {
-            "status": "submitted_v2_bulk",
-            "domain": domain_value,
-            "folder": selected_folder,
-            "subscription_type": subscription_type,
-            "result": result,
-        }
+        return RequestCompanyResponse(
+            status="submitted_v2_bulk",
+            domain=domain_value,
+            folder=selected_folder,
+            subscription_type=subscription_type,
+            result=result,
+        )
     except Exception as exc:
         log_event(
             logger,
@@ -842,14 +840,14 @@ async def _submit_company_request(
             folder=selected_folder,
             subscription_type=subscription_type,
         )
-        return {
-            "status": "submitted_v2_single",
-            "domain": domain_value,
-            "folder": selected_folder,
-            "subscription_type": subscription_type,
-            "result": result,
-            "warning": "The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
-        }
+        return RequestCompanyResponse(
+            status="submitted_v2_single",
+            domain=domain_value,
+            folder=selected_folder,
+            subscription_type=subscription_type,
+            result=result,
+            warning="The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
+        )
 
 
 def register_request_company_tool(
@@ -873,7 +871,7 @@ def register_request_company_tool(
 
         domain_value, error = _normalize_domain(domain, logger=logger, ctx=ctx)
         if error:
-            return error
+            return RequestCompanyResponse(**error).to_payload()
         selected_folder = folder or default_folder
         folder_guid = None
         log_event(
@@ -892,7 +890,7 @@ def register_request_company_tool(
             selected_folder=selected_folder,
         )
         if error:
-            return error
+            return RequestCompanyResponse(**error).to_payload()
 
         existing = await _list_company_requests(call_v2_tool, ctx, domain_value)
         if existing:
@@ -901,7 +899,7 @@ def register_request_company_tool(
                 ctx=ctx,
                 domain_value=domain_value,
                 existing=existing,
-            )
+            ).to_payload()
 
         subscription_type = default_type
 
@@ -920,9 +918,9 @@ def register_request_company_tool(
                 selected_folder=selected_folder,
                 subscription_type=subscription_type,
                 bulk_payload=bulk_payload,
-            )
+            ).to_payload()
 
-        return await _submit_company_request(
+        response_model = await _submit_company_request(
             call_v2_tool,
             ctx,
             logger=logger,
@@ -931,6 +929,7 @@ def register_request_company_tool(
             subscription_type=subscription_type,
             bulk_payload=bulk_payload,
         )
+        return response_model.to_payload()
 
     return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(
         request_company
@@ -990,25 +989,25 @@ def register_manage_subscriptions_tool(
 
         normalized_action = _normalize_action(action)
         if normalized_action is None:
-            return {
-                "error": "Unsupported action. Use one of: add, subscribe, remove, delete, unsubscribe",
-            }
+            return ManageSubscriptionsResponse(
+                error="Unsupported action. Use one of: add, subscribe, remove, delete, unsubscribe"
+            ).to_payload()
 
         guid_list = _coerce_guid_list(guids)
         if not guid_list:
-            return {
-                "error": "At least one company GUID must be supplied",
-            }
+            return ManageSubscriptionsResponse(
+                error="At least one company GUID must be supplied"
+            ).to_payload()
 
         target_folder = folder or default_folder
         if normalized_action == "add" and not default_type:
-            return {
-                "error": (
+            return ManageSubscriptionsResponse(
+                error=(
                     "Subscription type is not configured. Provide a subscription_type via CLI "
                     "arguments, set BIRRE_SUBSCRIPTION_TYPE in the environment, or update "
                     f"{DEFAULT_CONFIG_FILENAME}."
-                ),
-            }
+                )
+            ).to_payload()
 
         payload = _build_subscription_payload(
             normalized_action,
@@ -1018,16 +1017,16 @@ def register_manage_subscriptions_tool(
         )
 
         if dry_run:
-            return {
-                "status": "dry_run",
-                "action": normalized_action,
-                "guids": guid_list,
-                "folder": target_folder,
-                "payload": payload,
-                "guidance": {
-                    "confirmation": "Review the payload with the human operator. Re-run with dry_run=false to apply changes.",
-                },
-            }
+            return ManageSubscriptionsResponse(
+                status="dry_run",
+                action=normalized_action,
+                guids=guid_list,
+                folder=target_folder,
+                payload=payload,
+                guidance=ManageSubscriptionsGuidance(
+                    confirmation="Review the payload with the human operator. Re-run with dry_run=false to apply changes."
+                ),
+            ).to_payload()
 
         await ctx.info(
             f"Executing manageSubscriptionsBulk action={normalized_action} for {len(guid_list)} companies"
@@ -1042,19 +1041,22 @@ def register_manage_subscriptions_tool(
                 extra={"action": normalized_action, "count": len(guid_list)},
                 exc_info=True,
             )
-            return {"error": f"manageSubscriptionsBulk failed: {exc}"}
+            return ManageSubscriptionsResponse(
+                error=f"manageSubscriptionsBulk failed: {exc}"
+            ).to_payload()
 
         summary = _summarize_bulk_result(result)
-        return {
-            "status": "applied",
-            "action": normalized_action,
-            "guids": guid_list,
-            "folder": target_folder,
-            "summary": summary,
-            "guidance": {
-                "next_steps": "Run `get_company_rating` for a sample GUID to verify post-change access.",
-            },
-        }
+        summary_model = ManageSubscriptionsSummary.model_validate(summary)
+        return ManageSubscriptionsResponse(
+            status="applied",
+            action=normalized_action,
+            guids=guid_list,
+            folder=target_folder,
+            summary=summary_model,
+            guidance=ManageSubscriptionsGuidance(
+                next_steps="Run `get_company_rating` for a sample GUID to verify post-change access."
+            ),
+        ).to_payload()
 
     return business_server.tool(output_schema=MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA)(
         manage_subscriptions

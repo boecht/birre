@@ -12,6 +12,8 @@ import asyncio
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
+from pydantic import BaseModel, Field, model_validator
+
 from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 from .helpers import CallV1Tool
@@ -23,137 +25,79 @@ from .helpers.subscription import (
 from ..logging import log_rating_event
 
 
-_TREND_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "direction": {"type": "string"},
-        "change": {"type": "number"},
-    },
-    "required": ["direction", "change"],
-    "additionalProperties": True,
-}
+class TrendSummary(BaseModel):
+    direction: str
+    change: float
 
-_FINDING_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "top": {"type": "integer", "minimum": 1},
-        "finding": {
-            "anyOf": [
-                {"type": "string"},
-                {"type": "null"},
-            ]
-        },
-        "details": {
-            "anyOf": [
-                {"type": "string"},
-                {"type": "null"},
-            ]
-        },
-        "asset": {
-            "anyOf": [
-                {"type": "string"},
-                {"type": "null"},
-            ]
-        },
-        "first_seen": {
-            "anyOf": [
-                {"type": "string"},
-                {"type": "null"},
-            ]
-        },
-        "last_seen": {
-            "anyOf": [
-                {"type": "string"},
-                {"type": "null"},
-            ]
-        },
-    },
-    "required": ["top", "finding", "details", "asset"],
-    "additionalProperties": True,
-}
 
-COMPANY_RATING_OUTPUT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "name": {"type": "string"},
-        "domain": {"type": "string"},
-        "current_rating": {
-            "type": "object",
-            "properties": {
-                "value": {"anyOf": [{"type": "number"}, {"type": "null"}]},
-                "color": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-            },
-            "required": ["value", "color"],
-            "additionalProperties": True,
-        },
-        "trend_8_weeks": _TREND_SCHEMA,
-        "trend_1_year": _TREND_SCHEMA,
-        "top_findings": {
-            "type": "object",
-            "properties": {
-                "policy": {
-                    "type": "object",
-                    "properties": {
-                        "severity_floor": {"type": "string"},
-                        "supplements": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                        "max_items": {"type": "integer", "minimum": 0},
-                        "profile": {"type": "string"},
-                    },
-                    "required": ["severity_floor", "supplements", "max_items", "profile"],
-                    "additionalProperties": True,
-                },
-                "count": {"type": "integer", "minimum": 0},
-                "findings": {
-                    "type": "array",
-                    "items": _FINDING_SCHEMA,
-                },
-            },
-            "required": ["policy", "count", "findings"],
-            "additionalProperties": True,
-        },
-        "legend": {
-            "type": "object",
-            "properties": {
-                "rating": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "color": {"type": "string"},
-                            "min": {"type": "integer"},
-                            "max": {"type": "integer"},
-                        },
-                        "required": ["color", "min", "max"],
-                        "additionalProperties": True,
-                    },
-                }
-            },
-            "required": ["rating"],
-            "additionalProperties": True,
-        },
-        "warning": {"type": "string"},
-    },
-    "required": [],
-    "anyOf": [
-        {"required": ["error"]},
-        {
-            "required": [
-                "name",
-                "domain",
-                "current_rating",
-                "trend_8_weeks",
-                "trend_1_year",
-                "top_findings",
-                "legend",
-            ]
-        },
-    ],
-    "additionalProperties": True,
-}
+class CurrentRating(BaseModel):
+    value: Optional[float] = None
+    color: Optional[str] = None
+
+
+class FindingSummary(BaseModel):
+    top: int
+    finding: Optional[str] = None
+    details: Optional[str] = None
+    asset: Optional[str] = None
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+
+
+class TopFindingsPolicy(BaseModel):
+    severity_floor: str
+    supplements: List[str]
+    max_items: int
+    profile: str
+
+
+class TopFindings(BaseModel):
+    policy: TopFindingsPolicy
+    findings: List[FindingSummary] = Field(default_factory=list)
+    count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_count(cls, values: Any) -> Dict[str, Any]:
+        if not isinstance(values, dict):
+            return {"policy": values, "findings": [], "count": 0}
+        findings = values.get("findings") or []
+        values = dict(values)
+        values.setdefault("findings", findings)
+        values.setdefault("count", len(findings))
+        return values
+
+
+class RatingLegendEntry(BaseModel):
+    color: str
+    min: int
+    max: int
+
+
+class RatingLegend(BaseModel):
+    rating: List[RatingLegendEntry]
+
+
+class CompanyRatingResponse(BaseModel):
+    error: Optional[str] = None
+    warning: Optional[str] = None
+    name: Optional[str] = None
+    domain: Optional[str] = None
+    current_rating: Optional[CurrentRating] = None
+    trend_8_weeks: Optional[TrendSummary] = None
+    trend_1_year: Optional[TrendSummary] = None
+    top_findings: Optional[TopFindings] = None
+    legend: Optional[RatingLegend] = None
+
+    def to_payload(self) -> Dict[str, Any]:
+        if self.error:
+            return {"error": self.error}
+        data = self.model_dump(exclude_unset=True)
+        data.pop("error", None)
+        return data
+
+
+COMPANY_RATING_OUTPUT_SCHEMA: Dict[str, Any] = CompanyRatingResponse.model_json_schema()
 
 
 def _rating_color(value: Optional[float]) -> Optional[str]:
@@ -816,17 +760,19 @@ def _debug(
     return None
 
 
-def _top_findings_unavailable_payload() -> Dict[str, Any]:
-    return {
-        "policy": {
-            "severity_floor": "material",
-            "supplements": [],
-            "max_items": 0,
-            "profile": "unavailable",
-        },
-        "count": 0,
-        "findings": [],
-    }
+def _top_findings_unavailable_payload() -> TopFindings:
+    return TopFindings.model_validate(
+        {
+            "policy": {
+                "severity_floor": "material",
+                "supplements": [],
+                "max_items": 0,
+                "profile": "unavailable",
+            },
+            "count": 0,
+            "findings": [],
+        }
+    )
 
 
 async def _retrieve_top_findings_payload(
@@ -837,9 +783,9 @@ async def _retrieve_top_findings_payload(
     effective_findings: int,
     *,
     debug_enabled: bool,
-) -> Dict[str, Any]:
+) -> TopFindings:
     try:
-        return await _assemble_top_findings_section(
+        payload = await _assemble_top_findings_section(
             call_v1_tool,
             ctx,
             guid,
@@ -847,6 +793,7 @@ async def _retrieve_top_findings_payload(
             effective_findings,
             debug_enabled=debug_enabled,
         )
+        return TopFindings.model_validate(payload)
     except Exception as exc:  # pragma: no cover - defensive log
         await ctx.warning(f"Failed to fetch top findings: {exc}")
         return _top_findings_unavailable_payload()
@@ -870,28 +817,33 @@ def _summarize_current_rating(company: Dict[str, Any]) -> tuple[Any, Any]:
 
 def _calculate_rating_trend_summaries(
     company: Dict[str, Any],
-) -> tuple[Dict[str, Any], Dict[str, Any]]:
+) -> tuple[TrendSummary, TrendSummary]:
     """Calculate 8-week and 1-year rating trends from the ratings series."""
     raw_ratings = company.get("ratings", [])
     weekly_series = _aggregate_ratings(raw_ratings, horizon_days=56, mode="weekly")
     yearly_series = _aggregate_ratings(raw_ratings, horizon_days=365, mode="monthly")
-    return _compute_trend(weekly_series), _compute_trend(yearly_series)
+    weekly = TrendSummary.model_validate(_compute_trend(weekly_series))
+    yearly = TrendSummary.model_validate(_compute_trend(yearly_series))
+    return weekly, yearly
 
 
-def _build_rating_legend_entries() -> List[Dict[str, Any]]:
+def _build_rating_legend_entries() -> List[RatingLegendEntry]:
     return [
-        {"color": "red", "min": 250, "max": 629},
-        {"color": "yellow", "min": 630, "max": 739},
-        {"color": "green", "min": 740, "max": 900},
+        RatingLegendEntry(color="red", min=250, max=629),
+        RatingLegendEntry(color="yellow", min=630, max=739),
+        RatingLegendEntry(color="green", min=740, max=900),
     ]
 
 
-def _extract_policy_profile(top_findings_payload: Dict[str, Any]) -> Optional[str]:
-    policy = top_findings_payload.get("policy")
-    if isinstance(policy, dict):
-        profile = policy.get("profile")
-        if isinstance(profile, str):
-            return profile
+def _extract_policy_profile(top_findings_payload: Any) -> Optional[str]:
+    if isinstance(top_findings_payload, TopFindings):
+        return top_findings_payload.policy.profile
+    if isinstance(top_findings_payload, dict):
+        policy = top_findings_payload.get("policy")
+        if isinstance(policy, dict):
+            profile = policy.get("profile")
+            if isinstance(profile, str):
+                return profile
     return None
 
 
@@ -904,13 +856,13 @@ async def _build_rating_payload(
     logger: logging.Logger,
     *,
     debug_enabled: bool,
-) -> Dict[str, Any]:
+) -> CompanyRatingResponse:
     log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
 
     company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
     current_value, color = _summarize_current_rating(company)
     weekly_trend, yearly_trend = _calculate_rating_trend_summaries(company)
-    top_findings_payload = await _retrieve_top_findings_payload(
+    top_findings = await _retrieve_top_findings_payload(
         call_v1_tool,
         ctx,
         guid,
@@ -924,25 +876,25 @@ async def _build_rating_payload(
         or company.get("display_url")
         or ""
     )
-    result = {
-        "name": company.get("name", ""),
-        "domain": primary_domain,
-        "current_rating": {"value": current_value, "color": color},
-        "trend_8_weeks": weekly_trend,
-        "trend_1_year": yearly_trend,
-        "top_findings": top_findings_payload,
-        "legend": {"rating": _build_rating_legend_entries()},
-    }
+    response = CompanyRatingResponse(
+        name=company.get("name", ""),
+        domain=primary_domain,
+        current_rating=CurrentRating(value=current_value, color=color),
+        trend_8_weeks=weekly_trend,
+        trend_1_year=yearly_trend,
+        top_findings=top_findings,
+        legend=RatingLegend(rating=_build_rating_legend_entries()),
+    )
 
     log_rating_event(
         logger,
         "fetch_success",
         ctx=ctx,
         company_guid=guid,
-        findings_count=top_findings_payload.get("count"),
-        policy=_extract_policy_profile(top_findings_payload),
+        findings_count=top_findings.count,
+        policy=_extract_policy_profile(top_findings),
     )
-    return result
+    return response
 
 
 def register_company_rating_tool(
@@ -1060,9 +1012,9 @@ def register_company_rating_tool(
             return {"error": msg}
         auto_subscribed = attempt.created
 
-        result: Dict[str, Any]
+        result_model: CompanyRatingResponse
         try:
-            result = await _build_rating_payload(
+            result_model = await _build_rating_payload(
                 call_v1_tool,
                 ctx,
                 guid,
@@ -1081,7 +1033,7 @@ def register_company_rating_tool(
                 company_guid=guid,
                 error=str(exc),
             )
-            result = {"error": error_message}
+            result_model = CompanyRatingResponse(error=error_message)
         finally:
             if auto_subscribed:
                 await cleanup_ephemeral_subscription(
@@ -1091,7 +1043,7 @@ def register_company_rating_tool(
                     debug_enabled=debug_enabled,
                 )
 
-        return result
+        return result_model.to_payload()
 
     return get_company_rating  # type: ignore[return-value]
 
