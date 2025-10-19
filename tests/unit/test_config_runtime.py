@@ -37,9 +37,16 @@ def write_config(path: Path, *, include_api_key: bool) -> None:
         "skip_startup_checks = false",
         "debug = false",
     ]
+    roles_block = [
+        "[roles]",
+        'context = "standard"',
+        f'risk_vector_filter = "{DEFAULT_RISK_VECTOR_FILTER}"',
+        f"max_findings = {DEFAULT_MAX_FINDINGS}",
+    ]
 
     path.write_text(
-        "\n".join(bitsight_block + ["", *runtime_block]) + "\n", encoding="utf-8"
+        "\n".join(bitsight_block + ["", *runtime_block, "", *roles_block]) + "\n",
+        encoding="utf-8",
     )
 
 
@@ -110,10 +117,7 @@ def test_cli_arg_overrides_env_and_sets_debug(
     )
     assert any(
         msg
-        == (
-            "Using DEBUG from command line arguments, overriding values from the "
-            "environment, the configuration file, and the default configuration file."
-        )
+        == "Using DEBUG from command line arguments, overriding values from the environment and the configuration file."
         for msg in settings["overrides"]
     )
     assert "DEBUG" not in os.environ
@@ -200,7 +204,7 @@ def test_invalid_context_falls_back_to_standard_with_warning(
                 "subscription_folder = \"API\"",
                 "subscription_type = \"continuous_monitoring\"",
                 "",
-                "[runtime]",
+                "[roles]",
                 "context = \"invalid\"",
             ]
         )
@@ -269,10 +273,10 @@ def test_subscription_inputs_trim_whitespace(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file."
     ]
     assert type_messages == [
-        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file."
     ]
 
 
@@ -326,7 +330,7 @@ def test_subscription_source_priority_skips_blank_values(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file."
     ]
     assert type_messages == []
 
@@ -376,3 +380,86 @@ def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
     assert settings["warnings"] == [
         "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
     ]
+
+
+def test_runtime_keys_outside_roles_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "API"',
+                'subscription_type = "continuous_monitoring"',
+                "",
+                "[runtime]",
+                'context = "standard"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["context"] == "standard"
+    assert settings["skip_startup_checks"] is False
+    assert {
+        "The configuration file [runtime] defines 'context', but this key belongs under [roles].",
+        "The configuration file [roles] defines 'skip_startup_checks', but this key belongs under [runtime].",
+    }.issubset(set(settings["warnings"]))
+
+
+def test_strict_mode_raises_on_misplaced_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[runtime]",
+                'context = "standard"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+
+    with pytest.raises(ValueError, match="Invalid configuration keys"):
+        resolve_birre_settings(config_path=str(base), strict_mode=True)
+
+
+def test_strict_env_flag_raises_on_misplaced_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[runtime]",
+                'context = "standard"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_STRICT_CONFIG", "true")
+
+    with pytest.raises(ValueError, match="Invalid configuration keys"):
+        resolve_birre_settings(config_path=str(base))

@@ -53,7 +53,7 @@
 
 ### Version 3.0 (Context Modes) — Functionally complete, needs hardening
 
-- Context selection now respected via CLI (`--context`), environment (`BIRRE_CONTEXT`), and config defaults
+- Context selection now respected via CLI (`--context`), environment (`BIRRE_CONTEXT`), and config defaults (`[roles].context`)
 - `risk_manager` persona ships with `company_search_interactive`, `manage_subscriptions`, and `request_company`; each tool returns enriched metadata and guidance for LLM-driven human confirmation (no direct `ctx.prompt` usage)
 - BitSight v2 bridge is auto-loaded for the request workflow (bulk path attempted, single-request fallback retained)
 - Offline unit tests exercise dry-run and fallback behaviour; live FastMCP smoke tests now cover the company search + rating workflows.
