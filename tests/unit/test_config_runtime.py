@@ -410,3 +410,56 @@ def test_runtime_keys_outside_roles_are_ignored(
 
     assert settings["context"] == "standard"
     assert settings["skip_startup_checks"] is False
+    assert {
+        "The configuration file [runtime] defines 'context', but this key belongs under [roles].",
+        "The configuration file [roles] defines 'skip_startup_checks', but this key belongs under [runtime].",
+    }.issubset(set(settings["warnings"]))
+
+
+def test_strict_mode_raises_on_misplaced_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[runtime]",
+                'context = "standard"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+
+    with pytest.raises(ValueError, match="Invalid configuration keys"):
+        resolve_birre_settings(config_path=str(base), strict_mode=True)
+
+
+def test_strict_env_flag_raises_on_misplaced_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[runtime]",
+                'context = "standard"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_STRICT_CONFIG", "true")
+
+    with pytest.raises(ValueError, match="Invalid configuration keys"):
+        resolve_birre_settings(config_path=str(base))
