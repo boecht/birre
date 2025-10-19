@@ -199,10 +199,7 @@ def _normalize_sources_for_key(
     normalized: List[Tuple[str, Optional[object]]] = []
     blanks: List[str] = []
     for layer, raw in sources:
-        try:
-            value, is_blank = _normalize_value(key, raw)
-        except ValueError:
-            raise
+        value, is_blank = _normalize_value(key, raw)
         if is_blank:
             blanks.append(layer)
             normalized.append((layer, None))
@@ -269,7 +266,7 @@ def _resolve_setting(
         if invalid_warning:
             warnings.append(invalid_warning)
             return default, None, None
-        raise exc
+        raise
 
     try:
         value, layer = _apply_precedence(
@@ -283,7 +280,7 @@ def _resolve_setting(
         if invalid_warning:
             warnings.append(invalid_warning)
             return default, None, None
-        raise exc
+        raise
 
     message: Optional[str] = None
     if layer:
