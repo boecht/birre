@@ -6,7 +6,6 @@ Settings resolve according to the following precedence:
 2. Environment variables
 3. Local configuration overlays (``config.local.toml``)
 4. Primary configuration file (``config.toml``)
-5. Bundled defaults (``config.default.toml``)
 
 Blank or whitespace-only values are treated as "not provided" so they do not
 override lower-priority sources. Normalization happens before any setting is
