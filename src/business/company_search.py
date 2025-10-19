@@ -163,8 +163,24 @@ def register_company_search_tool(
             params = {"name": name, "domain": domain}
             result = await call_v1_tool("companySearch", ctx, params)
             response_payload = CompanySearchResponse.from_raw(result).to_payload()
+            if "error" in response_payload:
+                error_message = response_payload["error"]
+                await ctx.warning(
+                    f"FastMCP companySearch returned an error response: {error_message}"
+                )
+                log_search_event(
+                    logger,
+                    "failure",
+                    ctx=ctx,
+                    company_name=name,
+                    company_domain=domain,
+                    error=error_message,
+                )
+                return response_payload
+
+            result_count = response_payload.get("count", 0)
             await ctx.info(
-                f"Found {response_payload['count']} companies using FastMCP companySearch"
+                f"Found {result_count} companies using FastMCP companySearch"
             )
             log_search_event(
                 logger,
@@ -172,7 +188,7 @@ def register_company_search_tool(
                 ctx=ctx,
                 company_name=name,
                 company_domain=domain,
-                result_count=response_payload.get("count"),
+                result_count=result_count,
             )
             return response_payload
 
