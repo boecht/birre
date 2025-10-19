@@ -20,7 +20,9 @@ uvx --from git+https://github.com/boecht/birre server.py
 
 ### Configuration
 
-Configuration sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
+BiRRe uses [Dynaconf](https://www.dynaconf.com/) for configuration layering.
+Sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
+Environment overrides follow the existing names (`BITSIGHT_API_KEY`, `BIRRE_*`).
 See the header in `config.toml` for available fields and details. For CLI options, run with `--help`.
 
 ### Run directly from GitHub with uvx

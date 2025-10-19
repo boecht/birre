@@ -7,8 +7,7 @@ from typing import Awaitable, Callable, Dict, Any, Optional, Iterable
 
 from fastmcp import FastMCP
 
-from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
-from src.constants import coerce_bool
+from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 from .apis import (
     call_v1_openapi_tool,
@@ -56,7 +55,7 @@ def _resolve_max_findings(settings: Dict[str, Any]) -> int:
 
 
 def _resolve_tls_verification(settings: Dict[str, Any], logger: logging.Logger) -> bool | str:
-    allow_insecure_tls = coerce_bool(settings.get("allow_insecure_tls"))
+    allow_insecure_tls = bool(settings.get("allow_insecure_tls"))
     ca_bundle_path = settings.get("ca_bundle_path")
     verify_option: bool | str = True
     if allow_insecure_tls:
@@ -223,7 +222,7 @@ def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> Fas
         max_findings=max_findings,
         default_folder=settings.get("subscription_folder"),
         default_type=settings.get("subscription_type"),
-        debug_enabled=coerce_bool(settings.get("debug")),
+        debug_enabled=bool(settings.get("debug")),
     )
 
     if active_context == "risk_manager":

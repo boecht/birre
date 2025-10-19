@@ -24,7 +24,7 @@ except ImportError:
     )
 
 from src.birre import create_birre_server  # ruff: noqa: E402
-from src.config import resolve_birre_settings  # ruff: noqa: E402
+from src.settings import resolve_birre_settings  # ruff: noqa: E402
 from src.logging import get_logger  # ruff: noqa: E402
 
 

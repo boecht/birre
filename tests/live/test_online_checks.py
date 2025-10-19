@@ -11,7 +11,7 @@ if getattr(fastmcp, "__FASTMCP_STUB__", False):
     )
 
 from src.birre import create_birre_server
-from src.config import resolve_birre_settings
+from src.settings import resolve_birre_settings
 from src.logging import get_logger
 from src.startup_checks import run_online_startup_checks
 

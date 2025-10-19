@@ -5,7 +5,7 @@ from functools import partial
 import pytest
 
 from src import birre
-from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 
 class DummyFastMCP:

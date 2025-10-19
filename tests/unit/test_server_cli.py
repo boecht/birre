@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import server
-from src.config import LoggingSettings
+from src.settings import LoggingSettings
 
 
 def _runtime_settings() -> dict:
@@ -45,10 +45,10 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(sys, "argv", ["server.py"])
 
     with (
-        patch(
-            "server.resolve_application_settings",
-            return_value=(runtime_settings, logging_settings),
-        ),
+        patch("server.load_settings", return_value=object()) as load_mock,
+        patch("server.apply_cli_overrides") as apply_mock,
+        patch("server.runtime_from_settings", return_value=runtime_settings),
+        patch("server.logging_from_settings", return_value=logging_settings),
         patch("server.configure_logging"),
         patch("server.logging.getLogger", return_value=root_logger),
         patch("server.run_offline_startup_checks", return_value=False) as offline_mock,
@@ -60,6 +60,8 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
             server.main()
 
     assert excinfo.value.code == 1
+    load_mock.assert_called_once()
+    apply_mock.assert_called_once()
     offline_mock.assert_called_once()
     assert offline_mock.call_args.kwargs["logger"] is root_logger
     online_mock.assert_not_called()
@@ -80,10 +82,10 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     async_online = AsyncMock(return_value=True)
 
     with (
-        patch(
-            "server.resolve_application_settings",
-            return_value=(runtime_settings, logging_settings),
-        ),
+        patch("server.load_settings", return_value=object()) as load_mock,
+        patch("server.apply_cli_overrides") as apply_mock,
+        patch("server.runtime_from_settings", return_value=runtime_settings),
+        patch("server.logging_from_settings", return_value=logging_settings),
         patch("server.configure_logging"),
         patch("server.logging.getLogger", return_value=root_logger),
         patch("server.run_offline_startup_checks", return_value=True) as offline_mock,
@@ -93,6 +95,8 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     ):
         server.main()
 
+    load_mock.assert_called_once()
+    apply_mock.assert_called_once()
     offline_mock.assert_called_once()
     assert offline_mock.call_args.kwargs["logger"] is root_logger
 

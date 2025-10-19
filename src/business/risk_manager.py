@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
-from src.config import DEFAULT_MAX_FINDINGS
+from src.settings import DEFAULT_MAX_FINDINGS
 from src.constants import DEFAULT_CONFIG_FILENAME
 
 from .helpers import CallV1Tool, CallV2Tool

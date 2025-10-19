@@ -11,6 +11,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastmcp==2.12.4",
+    "dynaconf",
     "python-dotenv",
     "httpx",
     "prance>=23.6.7",
