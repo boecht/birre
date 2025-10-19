@@ -150,13 +150,23 @@ def _value_provided(value: Optional[Any]) -> bool:
     return True
 
 
-def _normalize_optional_str(value: Optional[Any]) -> Optional[str]:
+def normalize_optional_str(value: Optional[Any]) -> Optional[str]:
     """Normalize optional string-like inputs by trimming whitespace."""
 
     if value is None:
         return None
     candidate = str(value).strip()
     return candidate or None
+
+
+def _normalize_optional_value(value: Optional[Any]) -> Optional[Any]:
+    """Normalize optional configuration values, preserving non-string types."""
+
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return normalize_optional_str(value)
+    return value
 
 
 def _string_was_blank(value: Optional[Any]) -> bool:
@@ -247,7 +257,7 @@ def _normalize_sources(
     blank_keys: set[str] = set()
 
     for key, raw in sources:
-        normalized = _normalize_optional_str(raw)
+        normalized = normalize_optional_str(raw)
         normalized_list.append((key, normalized))
         normalized_map[key] = normalized
         if _string_was_blank(raw):
@@ -477,16 +487,18 @@ def _resolve_max_findings_setting(
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[int, Optional[str]]:
-    max_findings_env = os.getenv(ENV_MAX_FINDINGS)
+    max_findings_env = normalize_optional_str(os.getenv(ENV_MAX_FINDINGS))
     config_value = None
     for source in ("local", "config", "base"):
-        candidate = runtime_layers[source].get("max_findings")
+        candidate = _normalize_optional_value(
+            runtime_layers[source].get("max_findings")
+        )
         if candidate is not None:
             config_value = candidate
             break
 
     max_value, warning = _resolve_max_findings(
-        runtime_inputs.max_findings,
+        _normalize_optional_value(runtime_inputs.max_findings),
         max_findings_env,
         config_value,
     )
@@ -569,14 +581,21 @@ def _resolve_ca_bundle_path(
 
 
 def _resolve_max_findings(
-    arg_value: Optional[int],
-    env_value: Optional[str],
+    arg_value: Optional[Any],
+    env_value: Optional[Any],
     cfg_value: Optional[Any],
 ) -> Tuple[int, Optional[str]]:
     for candidate in (arg_value, env_value, cfg_value):
-        if candidate is not None:
+        if candidate is None:
+            continue
+        if isinstance(candidate, str):
+            normalized = normalize_optional_str(candidate)
+            if normalized is None:
+                continue
+            raw = normalized
+        else:
             raw = candidate
-            break
+        break
     else:
         raw = None
 
@@ -837,33 +856,33 @@ def resolve_logging_settings(
                 config_section = candidate
 
     level_value = (
-        level_override
-        or os.getenv(ENV_LOG_LEVEL)
-        or config_section.get("level")
+        _normalize_optional_value(level_override)
+        or normalize_optional_str(os.getenv(ENV_LOG_LEVEL))
+        or _normalize_optional_value(config_section.get("level"))
         or DEFAULT_LOG_LEVEL
     )
     format_value = (
-        _normalize_optional_str(format_override)
-        or _normalize_optional_str(os.getenv(ENV_LOG_FORMAT))
-        or _normalize_optional_str(config_section.get("format"))
+        normalize_optional_str(format_override)
+        or normalize_optional_str(os.getenv(ENV_LOG_FORMAT))
+        or normalize_optional_str(config_section.get("format"))
         or DEFAULT_LOG_FORMAT
     )
 
     file_path = (
-        _normalize_optional_str(file_override)
-        or _normalize_optional_str(os.getenv(ENV_LOG_FILE))
-        or _normalize_optional_str(config_section.get("file"))
+        normalize_optional_str(file_override)
+        or normalize_optional_str(os.getenv(ENV_LOG_FILE))
+        or normalize_optional_str(config_section.get("file"))
     )
 
     max_bytes_value = (
-        max_bytes_override
-        or os.getenv(ENV_LOG_MAX_BYTES)
-        or config_section.get("max_bytes")
+        _normalize_optional_value(max_bytes_override)
+        or normalize_optional_str(os.getenv(ENV_LOG_MAX_BYTES))
+        or _normalize_optional_value(config_section.get("max_bytes"))
     )
     backup_count_value = (
-        backup_count_override
-        or os.getenv(ENV_LOG_BACKUP_COUNT)
-        or config_section.get("backup_count")
+        _normalize_optional_value(backup_count_override)
+        or normalize_optional_str(os.getenv(ENV_LOG_BACKUP_COUNT))
+        or _normalize_optional_value(config_section.get("backup_count"))
     )
 
     resolved_level = _resolve_level(level_value)

@@ -5,6 +5,10 @@ import logging
 import pytest
 
 from src.config import (
+    DEFAULT_BACKUP_COUNT,
+    DEFAULT_LOG_FORMAT,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_BYTES,
     DEFAULT_MAX_FINDINGS,
     DEFAULT_RISK_VECTOR_FILTER,
     LoggingSettings,
@@ -144,6 +148,34 @@ def test_resolve_logging_settings_overrides(
     )
     assert logging_settings.max_bytes == 4096
     assert logging_settings.backup_count == 2
+
+
+def test_resolve_logging_settings_ignores_blank_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key in (
+        "BIRRE_LOG_LEVEL",
+        "BIRRE_LOG_FORMAT",
+        "BIRRE_LOG_FILE",
+        "BIRRE_LOG_MAX_BYTES",
+        "BIRRE_LOG_BACKUP_COUNT",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("BIRRE_LOG_LEVEL", "   ")
+    monkeypatch.setenv("BIRRE_LOG_FORMAT", "\n")
+    monkeypatch.setenv("BIRRE_LOG_FILE", "\t")
+    monkeypatch.setenv("BIRRE_LOG_MAX_BYTES", "")
+    monkeypatch.setenv("BIRRE_LOG_BACKUP_COUNT", "  ")
+
+    logging_settings = resolve_logging_settings()
+
+    assert logging_settings.level == logging.INFO
+    assert logging.getLevelName(logging_settings.level) == DEFAULT_LOG_LEVEL
+    assert logging_settings.format == DEFAULT_LOG_FORMAT
+    assert logging_settings.file_path is None
+    assert logging_settings.max_bytes == DEFAULT_MAX_BYTES
+    assert logging_settings.backup_count == DEFAULT_BACKUP_COUNT
 
 
 def test_allow_insecure_tls_from_env(
@@ -347,6 +379,21 @@ def test_invalid_max_findings_reverts_to_default(
     assert settings["warnings"] == [
         "Invalid max_findings override; using default configuration"
     ]
+
+
+def test_max_findings_blank_values_are_ignored(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    write_config(base, include_api_key=False)
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+    monkeypatch.setenv("BIRRE_MAX_FINDINGS", "  ")
+
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["max_findings"] == DEFAULT_MAX_FINDINGS
+    assert settings["warnings"] == []
 
 
 def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
