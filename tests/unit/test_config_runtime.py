@@ -37,9 +37,16 @@ def write_config(path: Path, *, include_api_key: bool) -> None:
         "skip_startup_checks = false",
         "debug = false",
     ]
+    roles_block = [
+        "[roles]",
+        'context = "standard"',
+        f'risk_vector_filter = "{DEFAULT_RISK_VECTOR_FILTER}"',
+        f"max_findings = {DEFAULT_MAX_FINDINGS}",
+    ]
 
     path.write_text(
-        "\n".join(bitsight_block + ["", *runtime_block]) + "\n", encoding="utf-8"
+        "\n".join(bitsight_block + ["", *runtime_block, "", *roles_block]) + "\n",
+        encoding="utf-8",
     )
 
 
@@ -200,7 +207,7 @@ def test_invalid_context_falls_back_to_standard_with_warning(
                 "subscription_folder = \"API\"",
                 "subscription_type = \"continuous_monitoring\"",
                 "",
-                "[runtime]",
+                "[roles]",
                 "context = \"invalid\"",
             ]
         )
@@ -376,3 +383,51 @@ def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
     assert settings["warnings"] == [
         "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
     ]
+
+
+def test_context_in_runtime_section_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "API"',
+                'subscription_type = "continuous_monitoring"',
+                "",
+                "[runtime]",
+                'context = "standard"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+
+    with pytest.raises(ValueError, match=r"`context` must be configured under \[roles\]"):
+        resolve_birre_settings(config_path=str(base))
+
+
+def test_runtime_keys_in_roles_section_raise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / DEFAULT_CONFIG_FILENAME
+    base.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "API"',
+                'subscription_type = "continuous_monitoring"',
+                "",
+                "[roles]",
+                "skip_startup_checks = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
+
+    with pytest.raises(ValueError, match=r"`skip_startup_checks` must be configured under \[runtime\]"):
+        resolve_birre_settings(config_path=str(base))

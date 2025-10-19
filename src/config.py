@@ -6,7 +6,6 @@ Settings resolve according to the following precedence:
 2. Environment variables
 3. Local configuration overlays (``config.local.toml``)
 4. Primary configuration file (``config.toml``)
-5. Bundled defaults (``config.default.toml``)
 
 Blank or whitespace-only values are treated as "not provided" so they do not
 override lower-priority sources. Normalization happens before any setting is
@@ -31,6 +30,14 @@ from .constants import (
 )
 
 BITSIGHT_SECTION = "bitsight"
+
+ROLE_CONFIG_KEYS = {"context", "risk_vector_filter", "max_findings"}
+RUNTIME_CONFIG_KEYS = {
+    "skip_startup_checks",
+    "debug",
+    "allow_insecure_tls",
+    "ca_bundle_path",
+}
 
 DEFAULT_RISK_VECTOR_FILTER = ",".join(
     [
@@ -182,6 +189,71 @@ _SOURCE_LABELS = {
     "config": "the configuration file",
     "base": "the default configuration file",
 }
+
+
+_LAYER_LABELS = {
+    "config": "configuration file",
+    "local": "local configuration file",
+}
+
+
+def _describe_layer(layer: str, layer_paths: Dict[str, str]) -> str:
+    base = _LAYER_LABELS.get(layer, f"{layer} layer")
+    path = layer_paths.get(layer)
+    if not path:
+        return base
+    return f"{base} '{path}'"
+
+
+def _format_key_list(keys: Collection[str]) -> str:
+    formatted = [f"`{key}`" for key in sorted(keys)]
+    return _join_sources(formatted)
+
+
+def _raise_misplaced_keys(
+    *,
+    keys: Collection[str],
+    source_section: str,
+    target_section: str,
+    layer: str,
+    layer_paths: Dict[str, str],
+) -> None:
+    key_list = _format_key_list(keys)
+    layer_description = _describe_layer(layer, layer_paths)
+    raise ValueError(
+        f"{key_list} must be configured under [{target_section}]; "
+        f"found in [{source_section}] within the {layer_description}."
+    )
+
+
+def _validate_runtime_roles_allocation(
+    runtime_layers: Dict[str, Dict[str, Any]],
+    roles_layers: Dict[str, Dict[str, Any]],
+    layer_paths: Dict[str, str],
+) -> None:
+    for layer in ("config", "local"):
+        runtime_section = runtime_layers.get(layer, {})
+        roles_section = roles_layers.get(layer, {})
+
+        misplaced_runtime = ROLE_CONFIG_KEYS.intersection(runtime_section)
+        if misplaced_runtime:
+            _raise_misplaced_keys(
+                keys=misplaced_runtime,
+                source_section="runtime",
+                target_section="roles",
+                layer=layer,
+                layer_paths=layer_paths,
+            )
+
+        misplaced_roles = RUNTIME_CONFIG_KEYS.intersection(roles_section)
+        if misplaced_roles:
+            _raise_misplaced_keys(
+                keys=misplaced_roles,
+                source_section="roles",
+                target_section="runtime",
+                layer=layer,
+                layer_paths=layer_paths,
+            )
 
 
 def _record_override_summary(
@@ -369,15 +441,15 @@ def _resolve_subscription_setting(
 
 def _resolve_context_setting(
     runtime_inputs: RuntimeInputs,
-    runtime_layers: Dict[str, Dict[str, Any]],
+    roles_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
     chain, mapping, blank_keys, _ = _build_normalized_chain(
         ("cli", runtime_inputs.context),
         ("env", os.getenv("BIRRE_CONTEXT")),
-        ("local", runtime_layers["local"].get("context")),
-        ("config", runtime_layers["config"].get("context")),
-        ("base", runtime_layers["base"].get("context")),
+        ("local", roles_layers["local"].get("context")),
+        ("config", roles_layers["config"].get("context")),
+        ("base", roles_layers["base"].get("context")),
     )
     config_value = (
         mapping["config"] if mapping["config"] is not None else mapping["base"]
@@ -400,15 +472,15 @@ def _resolve_context_setting(
 
 def _resolve_risk_setting(
     runtime_inputs: RuntimeInputs,
-    runtime_layers: Dict[str, Dict[str, Any]],
+    roles_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
     chain, mapping, blank_keys, _ = _build_normalized_chain(
         ("cli", runtime_inputs.risk_vector_filter),
         ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
-        ("local", runtime_layers["local"].get("risk_vector_filter")),
-        ("config", runtime_layers["config"].get("risk_vector_filter")),
-        ("base", runtime_layers["base"].get("risk_vector_filter")),
+        ("local", roles_layers["local"].get("risk_vector_filter")),
+        ("config", roles_layers["config"].get("risk_vector_filter")),
+        ("base", roles_layers["base"].get("risk_vector_filter")),
     )
     config_value, config_blank = _select_configured_value(mapping, blank_keys)
     risk_vector_filter, warning = _resolve_risk_vector_filter(
@@ -474,13 +546,13 @@ def _resolve_tls_settings(
 
 def _resolve_max_findings_setting(
     runtime_inputs: RuntimeInputs,
-    runtime_layers: Dict[str, Dict[str, Any]],
+    roles_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[int, Optional[str]]:
     max_findings_env = os.getenv(ENV_MAX_FINDINGS)
     config_value = None
     for source in ("local", "config", "base"):
-        candidate = runtime_layers[source].get("max_findings")
+        candidate = roles_layers[source].get("max_findings")
         if candidate is not None:
             config_value = candidate
             break
@@ -494,9 +566,9 @@ def _resolve_max_findings_setting(
         sources = [
             ("cli", runtime_inputs.max_findings),
             ("env", max_findings_env),
-            ("local", runtime_layers["local"].get("max_findings")),
-            ("config", runtime_layers["config"].get("max_findings")),
-            ("base", runtime_layers["base"].get("max_findings")),
+            ("local", roles_layers["local"].get("max_findings")),
+            ("config", roles_layers["config"].get("max_findings")),
+            ("base", roles_layers["base"].get("max_findings")),
         ]
         _record_override_summary(
             override_logs,
@@ -697,6 +769,11 @@ def resolve_birre_settings(
 
     load_dotenv()
 
+    config_path_obj = Path(config_path)
+    local_path = config_path_obj.with_name(
+        f"{config_path_obj.stem}.local{config_path_obj.suffix}"
+    )
+
     config_data = _load_config(config_path)
     local_data = _load_local_config(config_path)
     base_data = _load_base_config(config_path)
@@ -711,6 +788,18 @@ def resolve_birre_settings(
         "config": _get_dict_section(config_data, "runtime"),
         "base": _get_dict_section(base_data, "runtime"),
     }
+    roles_layers = {
+        "local": _get_dict_section(local_data, "roles"),
+        "config": _get_dict_section(config_data, "roles"),
+        "base": _get_dict_section(base_data, "roles"),
+    }
+
+    layer_paths = {
+        "config": str(config_path_obj),
+        "local": str(local_path),
+    }
+
+    _validate_runtime_roles_allocation(runtime_layers, roles_layers, layer_paths)
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
@@ -743,7 +832,7 @@ def resolve_birre_settings(
 
     normalized_context, context_warning = _resolve_context_setting(
         runtime_inputs,
-        runtime_layers,
+        roles_layers,
         override_logs,
     )
     if context_warning:
@@ -770,7 +859,7 @@ def resolve_birre_settings(
 
     risk_vector_filter, risk_warning = _resolve_risk_setting(
         runtime_inputs,
-        runtime_layers,
+        roles_layers,
         override_logs,
     )
     if risk_warning:
@@ -792,7 +881,7 @@ def resolve_birre_settings(
 
     max_value, max_warning = _resolve_max_findings_setting(
         runtime_inputs,
-        runtime_layers,
+        roles_layers,
         override_logs,
     )
     if max_warning:
