@@ -31,6 +31,7 @@ from .constants import (
 
 BITSIGHT_SECTION = "bitsight"
 RUNTIME_SECTION = "runtime"
+ROLES_SECTION = "roles"
 
 SOURCE_CLI = "cli"
 SOURCE_ENV = "env"
@@ -137,6 +138,22 @@ def _get_dict_section(cfg: Any, section: str) -> Dict[str, Any]:
         if isinstance(candidate, dict):
             return candidate
     return {}
+
+
+def _get_layer_value(
+    primary_layers: Dict[str, Dict[str, Any]],
+    fallback_layers: Optional[Dict[str, Dict[str, Any]]],
+    source: str,
+    key: str,
+) -> Any:
+    """Fetch a configuration value from layered sections with optional fallback."""
+
+    value = primary_layers[source].get(key)
+    if value is None and fallback_layers is not None:
+        fallback_value = fallback_layers[source].get(key)
+        if fallback_value is not None:
+            return fallback_value
+    return value
 
 def _load_local_config(config_path: str) -> Dict[str, Any]:
     path_obj = Path(config_path)
@@ -394,14 +411,21 @@ def _resolve_subscription_setting(
 
 def _resolve_context_setting(
     runtime_inputs: RuntimeInputs,
+    roles_layers: Dict[str, Dict[str, Any]],
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
     chain = [
         (SOURCE_CLI, runtime_inputs.context),
         (SOURCE_ENV, os.getenv("BIRRE_CONTEXT")),
-        (SOURCE_LOCAL, runtime_layers[SOURCE_LOCAL].get(CONTEXT_FIELD)),
-        (SOURCE_CONFIG, runtime_layers[SOURCE_CONFIG].get(CONTEXT_FIELD)),
+        (
+            SOURCE_LOCAL,
+            _get_layer_value(roles_layers, runtime_layers, SOURCE_LOCAL, CONTEXT_FIELD),
+        ),
+        (
+            SOURCE_CONFIG,
+            _get_layer_value(roles_layers, runtime_layers, SOURCE_CONFIG, CONTEXT_FIELD),
+        ),
     ]
     normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
     chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
@@ -425,14 +449,25 @@ def _resolve_context_setting(
 
 def _resolve_risk_setting(
     runtime_inputs: RuntimeInputs,
+    roles_layers: Dict[str, Dict[str, Any]],
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
     chain = [
         (SOURCE_CLI, runtime_inputs.risk_vector_filter),
         (SOURCE_ENV, os.getenv(ENV_RISK_VECTOR_FILTER)),
-        (SOURCE_LOCAL, runtime_layers[SOURCE_LOCAL].get(RISK_VECTOR_FILTER_FIELD)),
-        (SOURCE_CONFIG, runtime_layers[SOURCE_CONFIG].get(RISK_VECTOR_FILTER_FIELD)),
+        (
+            SOURCE_LOCAL,
+            _get_layer_value(
+                roles_layers, runtime_layers, SOURCE_LOCAL, RISK_VECTOR_FILTER_FIELD
+            ),
+        ),
+        (
+            SOURCE_CONFIG,
+            _get_layer_value(
+                roles_layers, runtime_layers, SOURCE_CONFIG, RISK_VECTOR_FILTER_FIELD
+            ),
+        ),
     ]
     normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
     chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
@@ -503,6 +538,7 @@ def _resolve_tls_settings(
 
 def _resolve_max_findings_setting(
     runtime_inputs: RuntimeInputs,
+    roles_layers: Dict[str, Dict[str, Any]],
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[int, Optional[str]]:
@@ -510,7 +546,7 @@ def _resolve_max_findings_setting(
     config_value = None
     for source in (SOURCE_LOCAL, SOURCE_CONFIG):
         candidate = _normalize_optional_value(
-            runtime_layers[source].get(MAX_FINDINGS_FIELD)
+            _get_layer_value(roles_layers, runtime_layers, source, MAX_FINDINGS_FIELD)
         )
         if candidate is not None:
             config_value = candidate
@@ -525,8 +561,16 @@ def _resolve_max_findings_setting(
         sources = [
             (SOURCE_CLI, runtime_inputs.max_findings),
             (SOURCE_ENV, max_findings_env),
-            (SOURCE_LOCAL, runtime_layers[SOURCE_LOCAL].get(MAX_FINDINGS_FIELD)),
-            (SOURCE_CONFIG, runtime_layers[SOURCE_CONFIG].get(MAX_FINDINGS_FIELD)),
+            (
+                SOURCE_LOCAL,
+                _get_layer_value(roles_layers, runtime_layers, SOURCE_LOCAL, MAX_FINDINGS_FIELD),
+            ),
+            (
+                SOURCE_CONFIG,
+                _get_layer_value(
+                    roles_layers, runtime_layers, SOURCE_CONFIG, MAX_FINDINGS_FIELD
+                ),
+            ),
         ]
         normalized_chain, _, blank_keys = build_normalized_chain(sources)
         chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
@@ -735,6 +779,10 @@ def resolve_birre_settings(
         SOURCE_LOCAL: _get_dict_section(local_data, RUNTIME_SECTION),
         SOURCE_CONFIG: _get_dict_section(config_data, RUNTIME_SECTION),
     }
+    roles_layers = {
+        SOURCE_LOCAL: _get_dict_section(local_data, ROLES_SECTION),
+        SOURCE_CONFIG: _get_dict_section(config_data, ROLES_SECTION),
+    }
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
@@ -767,6 +815,7 @@ def resolve_birre_settings(
 
     normalized_context, context_warning = _resolve_context_setting(
         runtime_inputs,
+        roles_layers,
         runtime_layers,
         override_logs,
     )
@@ -794,6 +843,7 @@ def resolve_birre_settings(
 
     risk_vector_filter, risk_warning = _resolve_risk_setting(
         runtime_inputs,
+        roles_layers,
         runtime_layers,
         override_logs,
     )
@@ -816,6 +866,7 @@ def resolve_birre_settings(
 
     max_value, max_warning = _resolve_max_findings_setting(
         runtime_inputs,
+        roles_layers,
         runtime_layers,
         override_logs,
     )
