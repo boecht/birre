@@ -1,9 +1,16 @@
 """Utilities for resolving BiRRe configuration layers.
 
-Values resolve with a simple precedence chain: command line inputs override
-environment variables, which override the optional ``config.local.toml`` file,
-which in turn overrides ``config.toml``. Blank strings are treated as "not
-provided" so that lower-priority sources remain in effect.
+Settings resolve according to the following precedence:
+
+1. Command line inputs
+2. Environment variables
+3. Local configuration overlays (``config.local.toml``)
+4. Primary configuration file (``config.toml``)
+5. Bundled defaults (``config.default.toml``)
+
+Blank or whitespace-only values are treated as "not provided" so they do not
+override lower-priority sources. Normalization happens before any setting is
+evaluated so downstream helpers never see untrimmed values.
 """
 
 from __future__ import annotations
@@ -14,7 +21,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     List,
@@ -98,9 +104,6 @@ SOURCE_LABELS = {
 }
 
 _ENV_UNSET = object()
-ENV_STRICT_CONFIG = "BIRRE_STRICT_CONFIG"
-
-_AUDITED_CONFIG_PATHS: Set[str] = set()
 
 
 def _read_toml(path: Path) -> Dict[str, Any]:
@@ -244,7 +247,6 @@ def _resolve_setting(
     default: Optional[object] = None,
     blank_warning: Optional[str] = None,
     invalid_warning: Optional[str] = None,
-    postprocess: Optional[Callable[[Optional[object]], Optional[object]]] = None,
     record_override: bool = True,
 ) -> Tuple[Optional[object], Optional[str], Optional[str]]:
     """Resolve a setting from layered sources and optionally record overrides."""
@@ -278,8 +280,6 @@ def _resolve_setting(
             blank_warning=blank_warning,
             warnings=warnings,
         )
-        if postprocess and value is not None:
-            value = postprocess(value)
     except ValueError as exc:
         if invalid_warning:
             warnings.append(invalid_warning)
@@ -336,10 +336,7 @@ def _override_message(
 
 
 def _audit_config_sections(
-    config_data: Dict[str, Any],
-    local_data: Dict[str, Any],
-    *,
-    strict: bool,
+    config_data: Dict[str, Any], local_data: Dict[str, Any]
 ) -> List[str]:
     """Validate section/key placement and report misplaced or unused entries."""
 
@@ -365,58 +362,7 @@ def _audit_config_sections(
                         f"{label} [{section}] defines unused key '{key}'."
                     )
 
-    if strict and messages:
-        raise ValueError("Invalid configuration keys: " + " ".join(messages))
-
     return messages
-
-
-def _should_use_strict(strict_override: Optional[bool]) -> bool:
-    """Return True when strict config auditing is enabled."""
-
-    if strict_override is not None:
-        return bool(strict_override)
-    return coerce_bool(os.getenv(ENV_STRICT_CONFIG), default=False)
-
-
-def _load_and_audit(
-    config_path: str,
-    *,
-    strict: bool,
-    warnings: Optional[List[str]],
-) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Load layered config data and perform section audits when necessary."""
-
-    config_data, local_data = _load_layered_config(config_path)
-
-    resolved_path = str(Path(config_path).resolve())
-    messages: List[str] = []
-    if strict:
-        messages = _audit_config_sections(config_data, local_data, strict=True)
-    elif resolved_path not in _AUDITED_CONFIG_PATHS:
-        messages = _audit_config_sections(config_data, local_data, strict=False)
-        _AUDITED_CONFIG_PATHS.add(resolved_path)
-
-    if warnings is not None and messages:
-        warnings.extend(messages)
-    elif messages:
-        logger = logging.getLogger(__name__)
-        for message in messages:
-            logger.warning(message)
-
-    return config_data, local_data
-
-
-def _coerce_positive_int(value: Optional[object]) -> int:
-    if value is None:
-        raise ValueError("Value must be provided")
-    try:
-        integer = int(value)
-    except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
-        raise ValueError("Invalid integer value") from exc
-    if integer <= 0:
-        raise ValueError("Value must be positive")
-    return integer
 
 
 def _resolve_level(level_value: Optional[object]) -> int:
@@ -503,7 +449,6 @@ def resolve_birre_settings(
     subscription_inputs: Optional[SubscriptionInputs] = None,
     runtime_inputs: Optional[RuntimeInputs] = None,
     tls_inputs: Optional[TlsInputs] = None,
-    strict_mode: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Resolve BiRRe runtime settings using config, env vars, and CLI overrides."""
 
@@ -512,10 +457,10 @@ def resolve_birre_settings(
     overrides: List[str] = []
     warnings: List[str] = []
 
-    strict = _should_use_strict(strict_mode)
-    config_data, local_data = _load_and_audit(
-        config_path, strict=strict, warnings=warnings
-    )
+    config_data, local_data = _load_layered_config(config_path)
+    audit_messages = _audit_config_sections(config_data, local_data)
+    if audit_messages:
+        warnings.extend(audit_messages)
     sections = _collect_sections(
         config_data, local_data, BITSIGHT_SECTION, RUNTIME_SECTION, ROLES_SECTION
     )
@@ -657,7 +602,6 @@ def resolve_birre_settings(
         env_var=ENV_MAX_FINDINGS,
         section_layers=roles_layers,
         default=DEFAULT_MAX_FINDINGS,
-        postprocess=_coerce_positive_int,
         invalid_warning="Invalid max_findings override; using default configuration",
     )
 
@@ -696,15 +640,15 @@ def resolve_logging_settings(
     file_override: Optional[str] = None,
     max_bytes_override: Optional[int] = None,
     backup_count_override: Optional[int] = None,
-    strict_mode: Optional[bool] = None,
 ) -> LoggingSettings:
-    strict = _should_use_strict(strict_mode)
-
     logging_layers: Dict[str, Dict[str, Any]] = {"config": {}, "local": {}}
     if config_path:
-        config_data, local_data = _load_and_audit(
-            config_path, strict=strict, warnings=None
-        )
+        config_data, local_data = _load_layered_config(config_path)
+        audit_messages = _audit_config_sections(config_data, local_data)
+        if audit_messages:
+            logger = logging.getLogger(__name__)
+            for message in audit_messages:
+                logger.warning(message)
         sections = _collect_sections(config_data, local_data, LOGGING_SECTION)
         logging_layers = sections[LOGGING_SECTION]
 
@@ -755,7 +699,6 @@ def resolve_logging_settings(
         env_var=ENV_LOG_MAX_BYTES,
         section_layers=logging_layers,
         default=DEFAULT_MAX_BYTES,
-        postprocess=_coerce_positive_int,
         record_override=False,
     )
 
@@ -768,7 +711,6 @@ def resolve_logging_settings(
         env_var=ENV_LOG_BACKUP_COUNT,
         section_layers=logging_layers,
         default=DEFAULT_BACKUP_COUNT,
-        postprocess=_coerce_positive_int,
         record_override=False,
     )
 

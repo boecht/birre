@@ -335,7 +335,7 @@ def test_subscription_source_priority_skips_blank_values(
     assert type_messages == []
 
 
-def test_invalid_max_findings_reverts_to_default(
+def test_max_findings_allows_zero_override(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     base = tmp_path / DEFAULT_CONFIG_FILENAME
@@ -347,10 +347,8 @@ def test_invalid_max_findings_reverts_to_default(
 
     settings = resolve_birre_settings(config_path=str(base))
 
-    assert settings["max_findings"] == DEFAULT_MAX_FINDINGS
-    assert settings["warnings"] == [
-        "Invalid max_findings override; using default configuration"
-    ]
+    assert settings["max_findings"] == 0
+    assert settings["warnings"] == []
 
 
 def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
@@ -414,52 +412,3 @@ def test_runtime_keys_outside_roles_are_ignored(
         "The configuration file [runtime] defines 'context', but this key belongs under [roles].",
         "The configuration file [roles] defines 'skip_startup_checks', but this key belongs under [runtime].",
     }.issubset(set(settings["warnings"]))
-
-
-def test_strict_mode_raises_on_misplaced_keys(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    base = tmp_path / DEFAULT_CONFIG_FILENAME
-    base.write_text(
-        "\n".join(
-            [
-                "[runtime]",
-                'context = "standard"',
-                "",
-                "[roles]",
-                "skip_startup_checks = true",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
-
-    with pytest.raises(ValueError, match="Invalid configuration keys"):
-        resolve_birre_settings(config_path=str(base), strict_mode=True)
-
-
-def test_strict_env_flag_raises_on_misplaced_keys(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    base = tmp_path / DEFAULT_CONFIG_FILENAME
-    base.write_text(
-        "\n".join(
-            [
-                "[runtime]",
-                'context = "standard"',
-                "",
-                "[roles]",
-                "skip_startup_checks = true",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
-    monkeypatch.setenv("BIRRE_STRICT_CONFIG", "true")
-
-    with pytest.raises(ValueError, match="Invalid configuration keys"):
-        resolve_birre_settings(config_path=str(base))
