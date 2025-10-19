@@ -501,32 +501,58 @@ def _override_message(
     )
 
 
+def _iter_audit_layers(
+    config_data: Dict[str, Any], local_data: Dict[str, Any]
+) -> Iterable[Tuple[str, Dict[str, Any]]]:
+    for layer_name, layer_data in (("config", config_data), ("local", local_data)):
+        if isinstance(layer_data, dict):
+            yield layer_name, layer_data
+
+
+def _iter_section_entries(
+    layer_data: Mapping[str, Any]
+) -> Iterable[Tuple[str, frozenset[str], Dict[str, Any]]]:
+    for section, allowed_keys in CONFIG_SECTION_KEYS.items():
+        values = layer_data.get(section)
+        if isinstance(values, dict):
+            yield section, allowed_keys, values
+
+
+def _audit_key_message(label: str, section: str, key: str) -> str:
+    target_section = KEY_TO_SECTION.get(key)
+    if target_section:
+        return (
+            f"{label} [{section}] defines '{key}', but this key belongs under [{target_section}]."
+        )
+    return f"{label} [{section}] defines unused key '{key}'."
+
+
+def _audit_section_keys(
+    *,
+    label: str,
+    section: str,
+    values: Mapping[str, Any],
+    allowed_keys: frozenset[str],
+) -> Iterable[str]:
+    for key in values:
+        if key not in allowed_keys:
+            yield _audit_key_message(label, section, key)
+
+
 def _audit_config_sections(
     config_data: Dict[str, Any], local_data: Dict[str, Any]
 ) -> List[str]:
     """Validate section/key placement and report misplaced or unused entries."""
 
     messages: List[str] = []
-    for layer_name, layer_data in (("config", config_data), ("local", local_data)):
-        if not isinstance(layer_data, dict):
-            continue
-        for section, allowed_keys in CONFIG_SECTION_KEYS.items():
-            values = layer_data.get(section)
-            if not isinstance(values, dict):
-                continue
-            for key in values:
-                if key in allowed_keys:
-                    continue
-                label = SOURCE_LABELS.get(layer_name, layer_name).capitalize()
-                target_section = KEY_TO_SECTION.get(key)
-                if target_section:
-                    messages.append(
-                        f"{label} [{section}] defines '{key}', but this key belongs under [{target_section}]."
-                    )
-                else:
-                    messages.append(
-                        f"{label} [{section}] defines unused key '{key}'."
-                    )
+    for layer_name, layer_data in _iter_audit_layers(config_data, local_data):
+        label = SOURCE_LABELS.get(layer_name, layer_name).capitalize()
+        for section, allowed_keys, values in _iter_section_entries(layer_data):
+            messages.extend(
+                _audit_section_keys(
+                    label=label, section=section, values=values, allowed_keys=allowed_keys
+                )
+            )
 
     return messages
 
@@ -608,6 +634,152 @@ class LoggingSettings:
         return logging.getLevelName(self.level)
 
 
+def _resolve_subscription_settings(
+    *,
+    api_key_input: Optional[str],
+    subscription_inputs: SubscriptionInputs,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: List[str],
+    warnings: List[str],
+    config_path: str,
+) -> Tuple[object, Optional[object], Optional[object]]:
+    subscription_values = _resolve_group(
+        SUBSCRIPTION_SPECS,
+        cli_values={
+            "api_key": api_key_input,
+            "subscription_folder": subscription_inputs.folder,
+            "subscription_type": subscription_inputs.type,
+        },
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
+    )
+
+    api_key, api_layer, _ = subscription_values["api_key"]
+    if not api_key:
+        raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
+    if api_layer == "config" and Path(config_path).name == DEFAULT_CONFIG_FILENAME:
+        warnings.append(
+            "Avoid storing bitsight.api_key in "
+            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
+        )
+
+    subscription_folder = subscription_values["subscription_folder"][0]
+    subscription_type = subscription_values["subscription_type"][0]
+    return api_key, subscription_folder, subscription_type
+
+
+def _normalize_context_value(
+    value: Optional[object],
+    *,
+    context_message: Optional[str],
+    overrides: List[str],
+    warnings: List[str],
+) -> str:
+    if value is None:
+        return "standard"
+
+    candidate = str(value).strip().lower()
+    if candidate in {"standard", "risk_manager"}:
+        if context_message:
+            overrides.append(context_message)
+        return candidate
+
+    warnings.append(f"Unknown context '{value}' requested; defaulting to 'standard'")
+    return "standard"
+
+
+def _resolve_role_settings(
+    *,
+    runtime_inputs: RuntimeInputs,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: List[str],
+    warnings: List[str],
+) -> Tuple[str, Optional[object], Optional[object]]:
+    role_values = _resolve_group(
+        ROLE_SPECS,
+        cli_values={
+            "context": runtime_inputs.context,
+            "risk_vector_filter": runtime_inputs.risk_vector_filter,
+            "max_findings": runtime_inputs.max_findings,
+        },
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
+    )
+
+    context_value, _, context_message = role_values["context"]
+    normalized_context = _normalize_context_value(
+        context_value,
+        context_message=context_message,
+        overrides=overrides,
+        warnings=warnings,
+    )
+
+    risk_vector_filter = role_values["risk_vector_filter"][0]
+    max_findings_value = role_values["max_findings"][0]
+    return normalized_context, risk_vector_filter, max_findings_value
+
+
+def _resolve_runtime_settings(
+    *,
+    runtime_inputs: RuntimeInputs,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: List[str],
+    warnings: List[str],
+) -> Tuple[Optional[object], Optional[object]]:
+    runtime_values = _resolve_group(
+        RUNTIME_SPECS,
+        cli_values={
+            "skip_startup_checks": runtime_inputs.skip_startup_checks,
+            "debug": runtime_inputs.debug,
+        },
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
+        env_overrides={
+            "debug": os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
+        },
+    )
+
+    skip_startup_checks = runtime_values["skip_startup_checks"][0]
+    debug_value = runtime_values["debug"][0]
+    return skip_startup_checks, debug_value
+
+
+def _resolve_tls_settings(
+    *,
+    tls_inputs: TlsInputs,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: List[str],
+    warnings: List[str],
+) -> Tuple[Optional[object], Optional[str]]:
+    tls_values = _resolve_group(
+        TLS_SPECS,
+        cli_values={
+            "allow_insecure_tls": tls_inputs.allow_insecure,
+            "ca_bundle_path": tls_inputs.ca_bundle_path,
+        },
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
+    )
+
+    allow_insecure_value = tls_values["allow_insecure_tls"][0]
+    ca_bundle_path, _, ca_message = tls_values["ca_bundle_path"]
+
+    if allow_insecure_value and ca_bundle_path:
+        warnings.append(
+            "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
+        )
+        return allow_insecure_value, None
+
+    if ca_message:
+        overrides.append(ca_message)
+
+    return allow_insecure_value, ca_bundle_path
+
+
 def resolve_birre_settings(
     *,
     api_key_input: Optional[str] = None,
@@ -633,98 +805,46 @@ def resolve_birre_settings(
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
 
-    subscription_values = _resolve_group(
-        SUBSCRIPTION_SPECS,
-        cli_values={
-            "api_key": api_key_input,
-            "subscription_folder": subscription_inputs.folder,
-            "subscription_type": subscription_inputs.type,
-        },
+    (
+        api_key,
+        subscription_folder,
+        subscription_type,
+    ) = _resolve_subscription_settings(
+        api_key_input=api_key_input,
+        subscription_inputs=subscription_inputs,
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
+        config_path=config_path,
+    )
+
+    (
+        normalized_context_value,
+        risk_vector_filter,
+        max_findings_value,
+    ) = _resolve_role_settings(
+        runtime_inputs=runtime_inputs,
         sections=sections,
         overrides=overrides,
         warnings=warnings,
     )
 
-    api_key, api_layer, _ = subscription_values["api_key"]
-    if not api_key:
-        raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
-    if api_layer == "config" and Path(config_path).name == DEFAULT_CONFIG_FILENAME:
-        warnings.append(
-            "Avoid storing bitsight.api_key in "
-            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
-        )
-
-    subscription_folder = subscription_values["subscription_folder"][0]
-    subscription_type = subscription_values["subscription_type"][0]
-
-    role_values = _resolve_group(
-        ROLE_SPECS,
-        cli_values={
-            "context": runtime_inputs.context,
-            "risk_vector_filter": runtime_inputs.risk_vector_filter,
-            "max_findings": runtime_inputs.max_findings,
-        },
+    (
+        skip_startup_checks,
+        debug_value,
+    ) = _resolve_runtime_settings(
+        runtime_inputs=runtime_inputs,
         sections=sections,
         overrides=overrides,
         warnings=warnings,
     )
 
-    context_value, _, context_message = role_values["context"]
-    if context_value is None:
-        normalized_context_value = "standard"
-    else:
-        candidate = str(context_value).strip().lower()
-        if candidate in {"standard", "risk_manager"}:
-            normalized_context_value = candidate
-            if context_message:
-                overrides.append(context_message)
-        else:
-            normalized_context_value = "standard"
-            warnings.append(
-                f"Unknown context '{context_value}' requested; defaulting to 'standard'"
-            )
-            context_message = None
-
-    runtime_values = _resolve_group(
-        RUNTIME_SPECS,
-        cli_values={
-            "skip_startup_checks": runtime_inputs.skip_startup_checks,
-            "debug": runtime_inputs.debug,
-        },
-        sections=sections,
-        overrides=overrides,
-        warnings=warnings,
-        env_overrides={
-            "debug": os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
-        },
-    )
-
-    tls_values = _resolve_group(
-        TLS_SPECS,
-        cli_values={
-            "allow_insecure_tls": tls_inputs.allow_insecure,
-            "ca_bundle_path": tls_inputs.ca_bundle_path,
-        },
+    allow_insecure_value, ca_bundle_path = _resolve_tls_settings(
+        tls_inputs=tls_inputs,
         sections=sections,
         overrides=overrides,
         warnings=warnings,
     )
-
-    risk_vector_filter = role_values["risk_vector_filter"][0]
-    max_findings_value = role_values["max_findings"][0]
-    skip_startup_checks = runtime_values["skip_startup_checks"][0]
-    debug_value = runtime_values["debug"][0]
-    allow_insecure_value = tls_values["allow_insecure_tls"][0]
-    ca_bundle_path, _, ca_message = tls_values["ca_bundle_path"]
-
-    if allow_insecure_value and ca_bundle_path:
-        warnings.append(
-            "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
-        )
-        ca_bundle_path = None
-        ca_message = None
-    elif ca_message:
-        overrides.append(ca_message)
 
     return {
         "api_key": api_key,
