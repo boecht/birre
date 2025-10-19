@@ -9,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 from typing import Any, Dict, Optional
 
 from fastmcp import Context
-from src.config import LOG_FORMAT_JSON, LoggingSettings
+from src.settings import LOG_FORMAT_JSON, LoggingSettings
 
 STANDARD_RECORD_KEYS = {
     "name",

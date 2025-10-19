@@ -19,12 +19,17 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME
-from src.config import (
+from dataclasses import replace
+
+from src.settings import (
     LoggingInputs,
     RuntimeInputs,
     SubscriptionInputs,
     TlsInputs,
-    resolve_application_settings,
+    apply_cli_overrides,
+    load_settings,
+    logging_from_settings,
+    runtime_from_settings,
 )
 from src.logging import configure_logging
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
@@ -169,14 +174,20 @@ def main() -> None:
         ca_bundle_path=args.ca_bundle_path,
     )
 
-    runtime_settings, logging_settings = resolve_application_settings(
+    config_settings = load_settings(args.config_path)
+    apply_cli_overrides(
+        config_settings,
         api_key_input=args.api_key,
-        config_path=args.config_path,
         subscription_inputs=subscription_inputs,
         runtime_inputs=runtime_inputs,
-        logging_inputs=logging_inputs,
         tls_inputs=tls_inputs,
+        logging_inputs=logging_inputs,
     )
+
+    runtime_settings = runtime_from_settings(config_settings)
+    logging_settings = logging_from_settings(config_settings)
+    if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
+        logging_settings = replace(logging_settings, level=logging.DEBUG)
 
     print(
         "\n"

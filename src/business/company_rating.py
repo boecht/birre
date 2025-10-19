@@ -12,7 +12,7 @@ import asyncio
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
-from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 from .helpers import CallV1Tool
 from .helpers.subscription import (

@@ -3,9 +3,10 @@
 ## Precedence (lowest → highest):
 ##   config.toml  <  config.local.toml  <  environment variables  <  CLI flags
 ##
-## Only update values here to change project defaults.
-## Create config.local.toml to set your own values.
-## Environment and CLI equivalents are documented alongside each setting.
+## Dynaconf loads config.toml, then config.local.toml, then environment variables
+## (BITSIGHT_API_KEY plus BIRRE_* names), and finally CLI overrides. Only update
+## values here to change project defaults. Create config.local.toml to set your
+## own values. Environment and CLI equivalents are documented alongside each setting.
 
 [bitsight]
 # BitSight API key used to authenticate requests.
