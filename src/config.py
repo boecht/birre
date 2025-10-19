@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 from .constants import (
     DEFAULT_CONFIG_FILENAME,
     coerce_bool,
+    coerce_positive_int,
 )
 
 BITSIGHT_SECTION = "bitsight"
@@ -278,7 +279,7 @@ def _select_configured_value(
     return None, False
 
 
-def _resolve_bool_chain(*values: Optional[Any], default: bool = False) -> bool:
+def resolve_bool_chain(*values: Optional[Any], default: bool = False) -> bool:
     result = default
     for value in values:
         result = coerce_bool(value, default=result)
@@ -302,7 +303,7 @@ def _resolve_bool_setting(
     ]
     normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
     chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
-    resolved = _resolve_bool_chain(
+    resolved = resolve_bool_chain(
         mapping.get("config"),
         mapping.get("local"),
         mapping.get("env"),
@@ -600,7 +601,7 @@ def _resolve_max_findings(
         raw = None
 
     try:
-        return _coerce_positive_int(raw, DEFAULT_MAX_FINDINGS), None
+        return coerce_positive_int(raw, default=DEFAULT_MAX_FINDINGS), None
     except ValueError:
         return DEFAULT_MAX_FINDINGS, (
             "Invalid max_findings override; using default configuration"
@@ -628,18 +629,6 @@ def _resolve_level(level_value: Optional[str]) -> int:
     if upper not in mapping:
         raise ValueError(f"Unknown log level: {level_value}")
     return mapping[upper]
-
-
-def _coerce_positive_int(candidate: Optional[Any], default: int) -> int:
-    if candidate is None:
-        return default
-    try:
-        value = int(candidate)
-    except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
-        raise ValueError(f"Invalid integer value: {candidate}") from exc
-    if value <= 0:
-        raise ValueError(f"Value must be positive: {candidate}")
-    return value
 
 
 @dataclass(frozen=True)
@@ -886,9 +875,11 @@ def resolve_logging_settings(
     if resolved_format not in {LOG_FORMAT_TEXT, LOG_FORMAT_JSON}:
         raise ValueError(f"Unsupported log format: {format_value}")
 
-    resolved_max_bytes = _coerce_positive_int(max_bytes_value, DEFAULT_MAX_BYTES)
-    resolved_backup_count = _coerce_positive_int(
-        backup_count_value, DEFAULT_BACKUP_COUNT
+    resolved_max_bytes = coerce_positive_int(
+        max_bytes_value, default=DEFAULT_MAX_BYTES
+    )
+    resolved_backup_count = coerce_positive_int(
+        backup_count_value, default=DEFAULT_BACKUP_COUNT
     )
 
     return LoggingSettings(
@@ -939,6 +930,7 @@ __all__ = [
     "resolve_logging_settings",
     "resolve_application_settings",
     "load_config_layers",
+    "resolve_bool_chain",
     "SubscriptionInputs",
     "RuntimeInputs",
     "TlsInputs",

@@ -39,8 +39,30 @@ def coerce_bool(value: Optional[object], *, default: bool = False) -> bool:
         return default
 
 
+def coerce_positive_int(
+    candidate: Optional[object], *, default: Optional[int] = None
+) -> int:
+    """Coerce ``candidate`` into a positive integer, enforcing strict validation."""
+
+    if candidate is None:
+        if default is None:
+            raise ValueError("No integer value provided and no default specified")
+        return default
+
+    try:
+        value = int(candidate)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid integer value: {candidate}") from exc
+
+    if value <= 0:
+        raise ValueError(f"Value must be positive: {candidate}")
+
+    return value
+
+
 __all__ = [
     "coerce_bool",
+    "coerce_positive_int",
     "TRUTHY_STRINGS",
     "FALSY_STRINGS",
     "CONFIG_BASENAME",

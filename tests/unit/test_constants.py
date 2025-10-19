@@ -1,6 +1,16 @@
 import pytest
 
-from src.constants import FALSY_STRINGS, TRUTHY_STRINGS, coerce_bool
+from src.constants import (
+    FALSY_STRINGS,
+    TRUTHY_STRINGS,
+    coerce_bool,
+    coerce_positive_int,
+)
+
+
+# ---------------------------------------------------------------------------
+# ``coerce_bool``
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("value", sorted(TRUTHY_STRINGS))
@@ -44,3 +54,29 @@ def test_coerce_bool_falsy_non_strings(value: object) -> None:
 def test_coerce_bool_falls_back_to_default(value: object) -> None:
     assert coerce_bool(value, default=True) is True
     assert coerce_bool(value, default=False) is False
+
+
+# ---------------------------------------------------------------------------
+# ``coerce_positive_int``
+# ---------------------------------------------------------------------------
+
+
+def test_coerce_positive_int_accepts_positive_values() -> None:
+    assert coerce_positive_int("5", default=1) == 5
+    assert coerce_positive_int(3, default=1) == 3
+
+
+def test_coerce_positive_int_uses_default_for_none() -> None:
+    assert coerce_positive_int(None, default=7) == 7
+
+
+@pytest.mark.parametrize("value", [0, -1, "-2"])
+def test_coerce_positive_int_rejects_non_positive(value: object) -> None:
+    with pytest.raises(ValueError):
+        coerce_positive_int(value, default=1)
+
+
+@pytest.mark.parametrize("value", ["abc", object()])
+def test_coerce_positive_int_rejects_invalid(value: object) -> None:
+    with pytest.raises(ValueError):
+        coerce_positive_int(value, default=1)
