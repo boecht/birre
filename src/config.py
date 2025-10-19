@@ -132,7 +132,7 @@ def _first_truthy(*values: Optional[Any]) -> Optional[Any]:
     return None
 
 
-def _value_provided(value: Optional[Any]) -> bool:
+def value_provided(value: Optional[Any]) -> bool:
     if value is None:
         return False
     if isinstance(value, str):
@@ -159,12 +159,6 @@ def _normalize_optional_value(value: Optional[Any]) -> Optional[Any]:
     if isinstance(value, str):
         return normalize_optional_str(value)
     return value
-
-
-def _string_was_blank(value: Optional[Any]) -> bool:
-    if value is None:
-        return False
-    return str(value).strip() == ""
 
 
 def _join_sources(names: Sequence[str]) -> str:
@@ -206,7 +200,7 @@ def record_override_summary(
                 chosen_index = index
                 break
             continue
-        if not _value_provided(value):
+        if not value_provided(value):
             continue
         if value == chosen_value:
             chosen_index = index
@@ -218,7 +212,7 @@ def record_override_summary(
     overridden_keys = [
         source_key
         for source_key, candidate in sources[chosen_index + 1 :]
-        if source_key not in blank_lookup and _value_provided(candidate)
+        if source_key not in blank_lookup and value_provided(candidate)
     ]
 
     if not overridden_keys:
@@ -242,9 +236,11 @@ def build_normalized_chain(
 
     for key, raw in sources:
         normalized = _normalize_optional_value(raw)
+        if not value_provided(normalized):
+            normalized = None
         normalized_list.append((key, normalized))
         normalized_map[key] = normalized
-        if _string_was_blank(raw):
+        if raw is not None and not value_provided(raw):
             blank_keys.add(key)
 
     return normalized_list, normalized_map, blank_keys
@@ -258,7 +254,7 @@ def _determine_chain_choice(
     for key, value in sources:
         if key in blank_lookup:
             continue
-        if _value_provided(value):
+        if value_provided(value):
             return key, value
     return None, None
 
@@ -274,8 +270,11 @@ def _select_configured_value(
         if key in blank_lookup:
             return None, True
         candidate = mapping.get(key)
-        if candidate is not None:
-            return candidate, False
+        if candidate is None:
+            continue
+        if not value_provided(candidate):
+            return None, True
+        return candidate, False
     return None, False
 
 
