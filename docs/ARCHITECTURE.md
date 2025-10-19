@@ -109,12 +109,12 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 - Ephemeral subscription lifecycle management (create/cleanup)
 - Severity-aware top findings ranking (BitSight findings API)
 - Error handling and response normalization
-- Optional v2 preloading via `BIRRE_ENABLE_V2` for complementary endpoints (used when workflows require functionality v1 does not offer, such as bulk company requests)
+- Automatic v2 preloading when the risk-manager context is active for complementary endpoints (used when workflows require functionality v1 does not offer, such as bulk company requests)
 
 ### API Version Strategy
 
 - **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search, ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are disabled at startup to minimise surface area.
-- **v2 API (Complementary)**: The v2 schema can be preloaded by setting `BIRRE_ENABLE_V2=true`. Business tooling invokes v2 only when it provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains v1-centric unless optional features require it.
+- **v2 API (Complementary)**: The v2 schema loads automatically whenever the `risk_manager` context is selected. Business tooling invokes v2 only when it provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains v1-centric unless complementary features require it.
 - **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will continue to be layered on per feature; v2 augments v1 and there is no plan for a wholesale replacement.
 
 ## Implementation Details

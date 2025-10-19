@@ -65,7 +65,7 @@ BiRRe now supports context-specific toolsets:
   - `request_company`: Submit BitSight company requests (deduplicates existing requests, attempts v2 bulk workflow with folder targeting, falls back gracefully)
   - `company_search` and `get_company_rating` remain available for spot checks
 
-Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` config key. Invalid values default to `standard` with a warning.
+Select a context via `--context`, `BIRRE_CONTEXT`, or the `[roles].context` config key. Invalid values default to `standard` with a warning.
 
 ## BitSight API Documentation (v1 + v2 are complementary)
 
@@ -99,7 +99,7 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 - **Top Findings Summary**: Attach the most impactful vulnerabilities to the rating payload, using relaxed severity filters (severe/material first, then moderate with web-appsec padding when needed)
 - **Enhanced Sorting**: Prioritise findings by severity, asset importance, and recency to keep the worst issues on top
 - **Narrative Improvements**: Normalise detection/remediation text for quick consumption by MCP clients
-- **Configuration Hooks**: Continue to rely on v1 findings endpoints while keeping v2 tooling optional via `BIRRE_ENABLE_V2`
+- **Configuration Hooks**: Continue to rely on v1 findings endpoints while automatically loading the complementary v2 tooling when the risk-manager context is active
 
 ### Version 3.0: Context Modes (Current)
 

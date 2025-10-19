@@ -5,7 +5,7 @@
 - **Purpose:** Build a general-purpose MCP server for the BitSight security rating platform. This server exposes BitSight data retrieval/functionality as callable MCP "tools" (endpoints) to any client able to speak the Model Context Protocol (MCP).
 - **MCP Role:** This is a backend service ("MCP server"), not an LLM client, plugin, or IDE extension. It responds to standardized MCP method calls from AI clients; it does not initiate them.
 - **Deployment:** Service can be run locally or remotely (cloud/server), and must support multi-tenant LLM/AI agent access, with basic authentication in advanced versions.
-- **BitSight Interaction:** Business tools call BitSight v1 endpoints via FastMCP. The v2 schema is preloaded (enable with `BIRRE_ENABLE_V2=true`) for complementary features—v2 augments v1 and is used where it adds capabilities (e.g., bulk company requests).
+- **BitSight Interaction:** Business tools call BitSight v1 endpoints via FastMCP. The v2 schema is bundled and loads automatically when the `risk_manager` context is active to support complementary features (e.g., bulk company requests).
 
 ## 2. Functional Requirements, by Version
 
@@ -67,13 +67,13 @@
 ### Version 3.0 – Context Modes for Targeted Workflows
 
 - **Purpose:** Provide two streamlined server personas that expose only the tooling each role needs while preserving the underlying v1 FastMCP workflow.
-- **Context Selection:** Server accepts a context parameter (CLI flag `--context`, env `BIRRE_CONTEXT`, or config). Invalid values fall back to the default standard context with a warning.
+- **Context Selection:** Server accepts a context parameter (CLI flag `--context`, env `BIRRE_CONTEXT`, or config via `[roles].context`). Invalid values fall back to the default standard context with a warning.
 
 #### Context Definitions
 
 - **`standard` (default)**
   - **Audience:** Everyday users and agents that only need quick, single-company ratings.
-  - **Tools exposed:** `get_company_rating` (and any light-weight diagnostics required for support).
+  - **Tools exposed:** `company_search`, `get_company_rating` (and any light-weight diagnostics required for support).
   - **Behaviour:** Company lookup remains AI-driven (callers rely on upstream tooling to choose the GUID); rating tool continues to auto-manage ephemeral subscriptions.
 
 - **`risk_manager`**
