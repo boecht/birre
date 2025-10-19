@@ -159,8 +159,10 @@ def bind_request_context(
     tool: Optional[str] = None,
     **base_fields: Any,
 ) -> BoundLogger:
-    bound_logger = ensure_bound_logger(logger)
     """Bind request metadata onto a logger for contextual logging."""
+
+    base_logger = ensure_bound_logger(logger)
+    request_logger = base_logger.new()
 
     resolved_request_id = request_id or _extract_request_id(ctx) or str(uuid.uuid4())
     bound_fields: Dict[str, Any] = {"request_id": resolved_request_id}
@@ -175,7 +177,7 @@ def bind_request_context(
         if value is not None:
             bound_fields[key] = value
 
-    return bound_logger.bind(**bound_fields)
+    return request_logger.bind(**bound_fields)
 
 
 def log_event(
