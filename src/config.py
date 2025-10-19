@@ -304,6 +304,163 @@ def _resolve_setting(
     return value, layer, message
 
 
+@dataclass(frozen=True)
+class SettingSpec:
+    setting_name: str
+    key: str
+    section: Optional[str]
+    env_var: Optional[str] = None
+    default: Optional[object] = None
+    blank_warning: Optional[str] = None
+    invalid_warning: Optional[str] = None
+    record_override: bool = True
+
+
+def _resolve_group(
+    specs: Sequence[SettingSpec],
+    *,
+    cli_values: Mapping[str, Optional[object]],
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: List[str],
+    warnings: List[str],
+    env_overrides: Optional[Mapping[str, Optional[object]]] = None,
+) -> Dict[str, Tuple[Optional[object], Optional[str], Optional[str]]]:
+    """Resolve a batch of settings defined by ``specs``."""
+
+    results: Dict[str, Tuple[Optional[object], Optional[str], Optional[str]]] = {}
+    env_overrides = env_overrides or {}
+
+    for spec in specs:
+        section_layers = sections.get(spec.section) if spec.section else None
+        env_value = env_overrides.get(spec.key, _ENV_UNSET)
+        value, layer, message = _resolve_setting(
+            setting_name=spec.setting_name,
+            key=spec.key,
+            overrides=overrides,
+            warnings=warnings,
+            cli_value=cli_values.get(spec.key),
+            env_var=spec.env_var,
+            env_value=env_value,
+            section_layers=section_layers,
+            default=spec.default,
+            blank_warning=spec.blank_warning,
+            invalid_warning=spec.invalid_warning,
+            record_override=spec.record_override,
+        )
+        results[spec.key] = (value, layer, message)
+
+    return results
+
+
+SUBSCRIPTION_SPECS: Tuple[SettingSpec, ...] = (
+    SettingSpec("BITSIGHT_API_KEY", "api_key", BITSIGHT_SECTION, "BITSIGHT_API_KEY"),
+    SettingSpec(
+        "SUBSCRIPTION_FOLDER",
+        "subscription_folder",
+        BITSIGHT_SECTION,
+        "BIRRE_SUBSCRIPTION_FOLDER",
+    ),
+    SettingSpec(
+        "SUBSCRIPTION_TYPE",
+        "subscription_type",
+        BITSIGHT_SECTION,
+        "BIRRE_SUBSCRIPTION_TYPE",
+    ),
+)
+
+ROLE_SPECS: Tuple[SettingSpec, ...] = (
+    SettingSpec(
+        "CONTEXT",
+        "context",
+        ROLES_SECTION,
+        "BIRRE_CONTEXT",
+        default="standard",
+        record_override=False,
+    ),
+    SettingSpec(
+        "RISK_VECTOR_FILTER",
+        "risk_vector_filter",
+        ROLES_SECTION,
+        ENV_RISK_VECTOR_FILTER,
+        default=DEFAULT_RISK_VECTOR_FILTER,
+        blank_warning="Empty risk_vector_filter override; falling back to default configuration",
+    ),
+    SettingSpec(
+        "MAX_FINDINGS",
+        "max_findings",
+        ROLES_SECTION,
+        ENV_MAX_FINDINGS,
+        default=DEFAULT_MAX_FINDINGS,
+        invalid_warning="Invalid max_findings override; using default configuration",
+    ),
+)
+
+RUNTIME_SPECS: Tuple[SettingSpec, ...] = (
+    SettingSpec(
+        "SKIP_STARTUP_CHECKS",
+        "skip_startup_checks",
+        RUNTIME_SECTION,
+        "BIRRE_SKIP_STARTUP_CHECKS",
+        default=False,
+    ),
+    SettingSpec("DEBUG", "debug", RUNTIME_SECTION, default=False),
+)
+
+TLS_SPECS: Tuple[SettingSpec, ...] = (
+    SettingSpec(
+        "ALLOW_INSECURE_TLS",
+        "allow_insecure_tls",
+        RUNTIME_SECTION,
+        ENV_ALLOW_INSECURE_TLS,
+        default=False,
+    ),
+    SettingSpec(
+        "CA_BUNDLE_PATH",
+        "ca_bundle_path",
+        RUNTIME_SECTION,
+        ENV_CA_BUNDLE,
+        blank_warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
+        record_override=False,
+    ),
+)
+
+LOGGING_SPECS: Tuple[SettingSpec, ...] = (
+    SettingSpec(
+        "LOG_LEVEL",
+        "level",
+        LOGGING_SECTION,
+        ENV_LOG_LEVEL,
+        default=DEFAULT_LOG_LEVEL,
+        record_override=False,
+    ),
+    SettingSpec(
+        "LOG_FORMAT",
+        "format",
+        LOGGING_SECTION,
+        ENV_LOG_FORMAT,
+        default=DEFAULT_LOG_FORMAT,
+        record_override=False,
+    ),
+    SettingSpec("LOG_FILE", "file", LOGGING_SECTION, ENV_LOG_FILE, record_override=False),
+    SettingSpec(
+        "LOG_MAX_BYTES",
+        "max_bytes",
+        LOGGING_SECTION,
+        ENV_LOG_MAX_BYTES,
+        default=DEFAULT_MAX_BYTES,
+        record_override=False,
+    ),
+    SettingSpec(
+        "LOG_BACKUP_COUNT",
+        "backup_count",
+        LOGGING_SECTION,
+        ENV_LOG_BACKUP_COUNT,
+        default=DEFAULT_BACKUP_COUNT,
+        record_override=False,
+    ),
+)
+
+
 def _join_labels(names: Iterable[str]) -> str:
     labels = [SOURCE_LABELS.get(name, name) for name in names]
     if not labels:
@@ -467,29 +624,28 @@ def resolve_birre_settings(
     warnings: List[str] = []
 
     config_data, local_data = _load_layered_config(config_path)
-    audit_messages = _audit_config_sections(config_data, local_data)
-    if audit_messages:
-        warnings.extend(audit_messages)
+    warnings.extend(_audit_config_sections(config_data, local_data))
     sections = _collect_sections(
         config_data, local_data, BITSIGHT_SECTION, RUNTIME_SECTION, ROLES_SECTION
     )
-    bitsight_layers = sections[BITSIGHT_SECTION]
-    runtime_layers = sections[RUNTIME_SECTION]
-    roles_layers = sections[ROLES_SECTION]
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
 
-    api_key, api_layer, _ = _resolve_setting(
-        setting_name="BITSIGHT_API_KEY",
-        key="api_key",
+    subscription_values = _resolve_group(
+        SUBSCRIPTION_SPECS,
+        cli_values={
+            "api_key": api_key_input,
+            "subscription_folder": subscription_inputs.folder,
+            "subscription_type": subscription_inputs.type,
+        },
+        sections=sections,
         overrides=overrides,
         warnings=warnings,
-        cli_value=api_key_input,
-        env_var="BITSIGHT_API_KEY",
-        section_layers=bitsight_layers,
     )
+
+    api_key, api_layer, _ = subscription_values["api_key"]
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
     if api_layer == "config" and Path(config_path).name == DEFAULT_CONFIG_FILENAME:
@@ -498,38 +654,22 @@ def resolve_birre_settings(
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
 
-    subscription_folder, _, _ = _resolve_setting(
-        setting_name="SUBSCRIPTION_FOLDER",
-        key="subscription_folder",
+    subscription_folder = subscription_values["subscription_folder"][0]
+    subscription_type = subscription_values["subscription_type"][0]
+
+    role_values = _resolve_group(
+        ROLE_SPECS,
+        cli_values={
+            "context": runtime_inputs.context,
+            "risk_vector_filter": runtime_inputs.risk_vector_filter,
+            "max_findings": runtime_inputs.max_findings,
+        },
+        sections=sections,
         overrides=overrides,
         warnings=warnings,
-        cli_value=subscription_inputs.folder,
-        env_var="BIRRE_SUBSCRIPTION_FOLDER",
-        section_layers=bitsight_layers,
     )
 
-    subscription_type, _, _ = _resolve_setting(
-        setting_name="SUBSCRIPTION_TYPE",
-        key="subscription_type",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=subscription_inputs.type,
-        env_var="BIRRE_SUBSCRIPTION_TYPE",
-        section_layers=bitsight_layers,
-    )
-
-    context_value, _, context_message = _resolve_setting(
-        setting_name="CONTEXT",
-        key="context",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=runtime_inputs.context,
-        env_var="BIRRE_CONTEXT",
-        section_layers=roles_layers,
-        default="standard",
-        record_override=False,
-    )
-
+    context_value, _, context_message = role_values["context"]
     if context_value is None:
         normalized_context_value = "standard"
     else:
@@ -545,74 +685,37 @@ def resolve_birre_settings(
             )
             context_message = None
 
-    skip_startup_checks, _, _ = _resolve_setting(
-        setting_name="SKIP_STARTUP_CHECKS",
-        key="skip_startup_checks",
+    runtime_values = _resolve_group(
+        RUNTIME_SPECS,
+        cli_values={
+            "skip_startup_checks": runtime_inputs.skip_startup_checks,
+            "debug": runtime_inputs.debug,
+        },
+        sections=sections,
         overrides=overrides,
         warnings=warnings,
-        cli_value=runtime_inputs.skip_startup_checks,
-        env_var="BIRRE_SKIP_STARTUP_CHECKS",
-        section_layers=runtime_layers,
-        default=False,
+        env_overrides={
+            "debug": os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
+        },
     )
 
-    debug_value, _, _ = _resolve_setting(
-        setting_name="DEBUG",
-        key="debug",
+    tls_values = _resolve_group(
+        TLS_SPECS,
+        cli_values={
+            "allow_insecure_tls": tls_inputs.allow_insecure,
+            "ca_bundle_path": tls_inputs.ca_bundle_path,
+        },
+        sections=sections,
         overrides=overrides,
         warnings=warnings,
-        cli_value=runtime_inputs.debug,
-        env_value=os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
-        section_layers=runtime_layers,
-        default=False,
     )
 
-    risk_vector_filter, _, _ = _resolve_setting(
-        setting_name="RISK_VECTOR_FILTER",
-        key="risk_vector_filter",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=runtime_inputs.risk_vector_filter,
-        env_var=ENV_RISK_VECTOR_FILTER,
-        section_layers=roles_layers,
-        default=DEFAULT_RISK_VECTOR_FILTER,
-        blank_warning="Empty risk_vector_filter override; falling back to default configuration",
-    )
-
-    allow_insecure_value, _, _ = _resolve_setting(
-        setting_name="ALLOW_INSECURE_TLS",
-        key="allow_insecure_tls",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=tls_inputs.allow_insecure,
-        env_var=ENV_ALLOW_INSECURE_TLS,
-        section_layers=runtime_layers,
-        default=False,
-    )
-
-    ca_bundle_path, ca_layer, ca_message = _resolve_setting(
-        setting_name="CA_BUNDLE_PATH",
-        key="ca_bundle_path",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=tls_inputs.ca_bundle_path,
-        env_var=ENV_CA_BUNDLE,
-        section_layers=runtime_layers,
-        blank_warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
-        record_override=False,
-    )
-
-    max_findings_value, _, _ = _resolve_setting(
-        setting_name="MAX_FINDINGS",
-        key="max_findings",
-        overrides=overrides,
-        warnings=warnings,
-        cli_value=runtime_inputs.max_findings,
-        env_var=ENV_MAX_FINDINGS,
-        section_layers=roles_layers,
-        default=DEFAULT_MAX_FINDINGS,
-        invalid_warning="Invalid max_findings override; using default configuration",
-    )
+    risk_vector_filter = role_values["risk_vector_filter"][0]
+    max_findings_value = role_values["max_findings"][0]
+    skip_startup_checks = runtime_values["skip_startup_checks"][0]
+    debug_value = runtime_values["debug"][0]
+    allow_insecure_value = tls_values["allow_insecure_tls"][0]
+    ca_bundle_path, _, ca_message = tls_values["ca_bundle_path"]
 
     if allow_insecure_value and ca_bundle_path:
         warnings.append(
@@ -650,7 +753,9 @@ def resolve_logging_settings(
     max_bytes_override: Optional[int] = None,
     backup_count_override: Optional[int] = None,
 ) -> LoggingSettings:
-    logging_layers: Dict[str, Dict[str, Any]] = {"config": {}, "local": {}}
+    sections: Dict[str, Dict[str, Dict[str, Any]]] = {
+        LOGGING_SECTION: {"config": {}, "local": {}}
+    }
     if config_path:
         config_data, local_data = _load_layered_config(config_path)
         audit_messages = _audit_config_sections(config_data, local_data)
@@ -659,69 +764,26 @@ def resolve_logging_settings(
             for message in audit_messages:
                 logger.warning(message)
         sections = _collect_sections(config_data, local_data, LOGGING_SECTION)
-        logging_layers = sections[LOGGING_SECTION]
 
-    dummy_overrides: List[str] = []
-    dummy_warnings: List[str] = []
-
-    level_value, _, _ = _resolve_setting(
-        setting_name="LOG_LEVEL",
-        key="level",
-        overrides=dummy_overrides,
-        warnings=dummy_warnings,
-        cli_value=level_override,
-        env_var=ENV_LOG_LEVEL,
-        section_layers=logging_layers,
-        default=DEFAULT_LOG_LEVEL,
-        record_override=False,
+    resolved = _resolve_group(
+        LOGGING_SPECS,
+        cli_values={
+            "level": level_override,
+            "format": format_override,
+            "file": file_override,
+            "max_bytes": max_bytes_override,
+            "backup_count": backup_count_override,
+        },
+        sections=sections,
+        overrides=[],
+        warnings=[],
     )
 
-    format_value, _, _ = _resolve_setting(
-        setting_name="LOG_FORMAT",
-        key="format",
-        overrides=dummy_overrides,
-        warnings=dummy_warnings,
-        cli_value=format_override,
-        env_var=ENV_LOG_FORMAT,
-        section_layers=logging_layers,
-        default=DEFAULT_LOG_FORMAT,
-        record_override=False,
-    )
-
-    file_path, _, _ = _resolve_setting(
-        setting_name="LOG_FILE",
-        key="file",
-        overrides=dummy_overrides,
-        warnings=dummy_warnings,
-        cli_value=file_override,
-        env_var=ENV_LOG_FILE,
-        section_layers=logging_layers,
-        record_override=False,
-    )
-
-    max_bytes_value, _, _ = _resolve_setting(
-        setting_name="LOG_MAX_BYTES",
-        key="max_bytes",
-        overrides=dummy_overrides,
-        warnings=dummy_warnings,
-        cli_value=max_bytes_override,
-        env_var=ENV_LOG_MAX_BYTES,
-        section_layers=logging_layers,
-        default=DEFAULT_MAX_BYTES,
-        record_override=False,
-    )
-
-    backup_count_value, _, _ = _resolve_setting(
-        setting_name="LOG_BACKUP_COUNT",
-        key="backup_count",
-        overrides=dummy_overrides,
-        warnings=dummy_warnings,
-        cli_value=backup_count_override,
-        env_var=ENV_LOG_BACKUP_COUNT,
-        section_layers=logging_layers,
-        default=DEFAULT_BACKUP_COUNT,
-        record_override=False,
-    )
+    level_value = resolved["level"][0]
+    format_value = resolved["format"][0]
+    file_path = resolved["file"][0]
+    max_bytes_value = resolved["max_bytes"][0]
+    backup_count_value = resolved["backup_count"][0]
 
     level_number = _resolve_level(level_value)
 
