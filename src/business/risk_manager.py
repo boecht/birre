@@ -12,8 +12,8 @@ from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.config import DEFAULT_MAX_FINDINGS
 from src.constants import DEFAULT_CONFIG_FILENAME
+from src.settings import DEFAULT_MAX_FINDINGS
 
 from .helpers import CallV1Tool, CallV2Tool
 from ..logging import log_event, log_search_event

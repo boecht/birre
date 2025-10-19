@@ -14,7 +14,7 @@ from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, model_validator
 
-from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 from .helpers import CallV1Tool
 from .helpers.subscription import (

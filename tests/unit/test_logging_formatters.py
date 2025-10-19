@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from src.config import LoggingSettings
+from src.settings import LoggingSettings
 from src.logging import (
     DEFAULT_TEXT_FORMAT,
     ChannelNameFilter,
