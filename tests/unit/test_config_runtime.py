@@ -117,10 +117,7 @@ def test_cli_arg_overrides_env_and_sets_debug(
     )
     assert any(
         msg
-        == (
-            "Using DEBUG from command line arguments, overriding values from the "
-            "environment, the configuration file, and the default configuration file."
-        )
+        == "Using DEBUG from command line arguments, overriding values from the environment and the configuration file."
         for msg in settings["overrides"]
     )
     assert "DEBUG" not in os.environ
@@ -276,10 +273,10 @@ def test_subscription_inputs_trim_whitespace(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file."
     ]
     assert type_messages == [
-        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file."
     ]
 
 
@@ -333,7 +330,7 @@ def test_subscription_source_priority_skips_blank_values(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file."
     ]
     assert type_messages == []
 
@@ -385,7 +382,9 @@ def test_allow_insecure_tls_overrides_ca_bundle_with_warning(
     ]
 
 
-def test_context_in_runtime_section_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_runtime_keys_outside_roles_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     base = tmp_path / DEFAULT_CONFIG_FILENAME
     base.write_text(
         "\n".join(
@@ -396,28 +395,6 @@ def test_context_in_runtime_section_raises(tmp_path: Path, monkeypatch: pytest.M
                 "",
                 "[runtime]",
                 'context = "standard"',
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
-
-    with pytest.raises(ValueError, match=r"`context` must be configured under \[roles\]"):
-        resolve_birre_settings(config_path=str(base))
-
-
-def test_runtime_keys_in_roles_section_raise(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    base = tmp_path / DEFAULT_CONFIG_FILENAME
-    base.write_text(
-        "\n".join(
-            [
-                "[bitsight]",
-                'subscription_folder = "API"',
-                'subscription_type = "continuous_monitoring"',
                 "",
                 "[roles]",
                 "skip_startup_checks = true",
@@ -429,5 +406,7 @@ def test_runtime_keys_in_roles_section_raise(
 
     monkeypatch.setenv("BITSIGHT_API_KEY", "env-key")
 
-    with pytest.raises(ValueError, match=r"`skip_startup_checks` must be configured under \[runtime\]"):
-        resolve_birre_settings(config_path=str(base))
+    settings = resolve_birre_settings(config_path=str(base))
+
+    assert settings["context"] == "standard"
+    assert settings["skip_startup_checks"] is False
