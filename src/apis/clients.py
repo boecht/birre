@@ -1,106 +1,74 @@
 from __future__ import annotations
 
-import json
-from collections.abc import Mapping, MutableMapping
-from typing import Any, Iterator
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
 import httpx
 from fastmcp import FastMCP
+from prance import ResolvingParser
+from prance.util import resolver as prance_resolver
 
 
 SCHEMA_REF_PREFIX = "#/components/schemas/"
-def _extract_schemas(openapi_spec: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Return the schemas mapping from the OpenAPI spec if available."""
-
-    components = openapi_spec.get("components")
-    if not isinstance(components, Mapping):
-        return {}
-    schemas = components.get("schemas")
-    if isinstance(schemas, Mapping):
-        return schemas
-    return {}
 
 
-def _iter_response_maps(paths: Mapping[str, Any]) -> Iterator[MutableMapping[str, Any]]:
-    """Yield mutable response maps from the OpenAPI paths section."""
+def _wrap_schema_responses(spec: Any) -> None:
+    if not isinstance(spec, Mapping):
+        return
+
+    components = spec.get("components")
+    schemas: Mapping[str, Any] = {}
+    if isinstance(components, Mapping):
+        candidate = components.get("schemas")
+        if isinstance(candidate, Mapping):
+            schemas = candidate
+
+    paths = spec.get("paths")
+    if not isinstance(paths, Mapping):
+        return
 
     for path_item in paths.values():
         if not isinstance(path_item, Mapping):
             continue
-        for method, operation in path_item.items():
-            if method == "parameters" or not isinstance(operation, Mapping):
+        for operation in path_item.values():
+            if not isinstance(operation, Mapping):
                 continue
             responses = operation.get("responses")
-            if isinstance(responses, MutableMapping):
-                yield responses
-
-
-def _requires_schema_wrap(response: Any) -> bool:
-    if not isinstance(response, Mapping):
-        return False
-    if set(response.keys()) != {"$ref"}:
-        return False
-    ref_value = response.get("$ref")
-    return isinstance(ref_value, str) and ref_value.startswith(SCHEMA_REF_PREFIX)
-
-
-def _resolve_description(
-    *,
-    schema_name: str,
-    status_code: str,
-    schemas: Mapping[str, Any],
-) -> str:
-    schema_meta = schemas.get(schema_name)
-    if isinstance(schema_meta, Mapping):
-        meta_description = schema_meta.get("description")
-        if isinstance(meta_description, str):
-            stripped = meta_description.strip()
-            if stripped:
-                return stripped
-    return f"HTTP {status_code} response referencing schema {schema_name}"
-
-
-def _wrap_schema_reference(schema_ref: str, description: str) -> dict[str, Any]:
-    return {
-        "description": description,
-        "content": {
-            "application/json": {
-                "schema": {"$ref": schema_ref}
-            }
-        },
-    }
-
-
-def _normalize_schema_response_refs(openapi_spec: Any) -> None:
-    """Ensure response objects don't reference schemas directly."""
-
-    if not isinstance(openapi_spec, Mapping):  # Defensive guard for malformed specs
-        return
-
-    schemas = _extract_schemas(openapi_spec)
-    paths = openapi_spec.get("paths")
-    if not isinstance(paths, Mapping):
-        return
-
-    for responses in _iter_response_maps(paths):
-        for status_code, response in responses.items():
-            if not _requires_schema_wrap(response):
+            if not isinstance(responses, Mapping):
                 continue
-            schema_ref = response["$ref"]
-            schema_name = schema_ref.split("/")[-1]
-            description = _resolve_description(
-                schema_name=schema_name,
-                status_code=str(status_code),
-                schemas=schemas,
-            )
-            responses[status_code] = _wrap_schema_reference(schema_ref, description)
+            for status, response in list(responses.items()):
+                if not isinstance(response, Mapping):
+                    continue
+                if "content" in response:
+                    continue
+                ref = response.get("$ref")
+                if not (isinstance(ref, str) and ref.startswith(SCHEMA_REF_PREFIX)):
+                    continue
+
+                schema_name = ref.split("/")[-1]
+                description = ""
+                schema = schemas.get(schema_name)
+                if isinstance(schema, Mapping):
+                    maybe_description = schema.get("description")
+                    if isinstance(maybe_description, str):
+                        description = maybe_description
+
+                responses[status] = {
+                    "description": description,
+                    "content": {"application/json": {"schema": {"$ref": ref}}},
+                }
 
 
 def _load_api_spec(path: str) -> Any:
-    with open(path, "r", encoding="utf-8") as handle:
-        spec = json.load(handle)
-    _normalize_schema_response_refs(spec)
-    return spec
+    parser = ResolvingParser(
+        str(Path(path).resolve()),
+        strict=True,
+        resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
+    )
+    specification = parser.specification
+    _wrap_schema_responses(specification)
+    return specification
 
 
 def _create_client(
