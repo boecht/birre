@@ -230,6 +230,31 @@ def _apply_precedence(
     return default, None
 
 
+def _gather_sources(
+    key: str,
+    *,
+    cli_value: Optional[object],
+    env_var: Optional[str],
+    env_value: Optional[object],
+    section_layers: Optional[Dict[str, Dict[str, Any]]],
+) -> List[Tuple[str, Optional[object]]]:
+    """Assemble ordered configuration sources for ``key``."""
+
+    sources: List[Tuple[str, Optional[object]]] = [("cli", cli_value)]
+
+    if env_value is not _ENV_UNSET:
+        sources.append(("env", env_value))
+    else:
+        env_data = os.getenv(env_var) if env_var else None
+        sources.append(("env", env_data))
+
+    if section_layers is not None:
+        sources.append(("local", section_layers["local"].get(key)))
+        sources.append(("config", section_layers["config"].get(key)))
+
+    return sources
+
+
 def _resolve_setting(
     *,
     setting_name: str,
@@ -247,28 +272,16 @@ def _resolve_setting(
 ) -> Tuple[Optional[object], Optional[str], Optional[str]]:
     """Resolve a setting from layered sources and optionally record overrides."""
 
-    sources: List[Tuple[str, Optional[object]]] = [("cli", cli_value)]
-
-    if env_value is not _ENV_UNSET:
-        sources.append(("env", env_value))
-    elif env_var:
-        sources.append(("env", os.getenv(env_var)))
-    else:
-        sources.append(("env", None))
-
-    if section_layers is not None:
-        sources.append(("local", section_layers["local"].get(key)))
-        sources.append(("config", section_layers["config"].get(key)))
+    sources = _gather_sources(
+        key,
+        cli_value=cli_value,
+        env_var=env_var,
+        env_value=env_value,
+        section_layers=section_layers,
+    )
 
     try:
         normalized, blanks = _normalize_sources_for_key(key, sources)
-    except ValueError as exc:
-        if invalid_warning:
-            warnings.append(invalid_warning)
-            return default, None, None
-        raise
-
-    try:
         value, layer = _apply_precedence(
             normalized,
             blanks,
@@ -276,7 +289,7 @@ def _resolve_setting(
             blank_warning=blank_warning,
             warnings=warnings,
         )
-    except ValueError as exc:
+    except ValueError:
         if invalid_warning:
             warnings.append(invalid_warning)
             return default, None, None
