@@ -18,25 +18,12 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, List, Mapping, MutableSequence, Optional, Sequence, Tuple
 
 import tomllib
 from dotenv import load_dotenv
 
-from .constants import (
-    DEFAULT_CONFIG_FILENAME,
-    LOCAL_CONFIG_FILENAME,
-    coerce_bool,
-)
+from .constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME, coerce_bool
 
 BITSIGHT_SECTION = "bitsight"
 RUNTIME_SECTION = "runtime"
@@ -77,23 +64,21 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_MAX_BYTES = 10_000_000
 DEFAULT_BACKUP_COUNT = 5
 
-def _build_key_index(section_map: Mapping[str, Iterable[str]]) -> Dict[str, str]:
-    return {key: section for section, keys in section_map.items() for key in keys}
-
+BOOL_KEYS = {"skip_startup_checks", "debug", "allow_insecure_tls"}
+INT_KEYS = {"max_findings", "max_bytes", "backup_count"}
 
 CONFIG_SECTION_KEYS: Mapping[str, frozenset[str]] = {
     BITSIGHT_SECTION: frozenset({"api_key", "subscription_folder", "subscription_type"}),
-    RUNTIME_SECTION: frozenset(
-        {"skip_startup_checks", "debug", "allow_insecure_tls", "ca_bundle_path"}
-    ),
+    RUNTIME_SECTION: frozenset({"skip_startup_checks", "debug", "allow_insecure_tls", "ca_bundle_path"}),
     ROLES_SECTION: frozenset({"context", "risk_vector_filter", "max_findings"}),
     LOGGING_SECTION: frozenset({"level", "format", "file", "max_bytes", "backup_count"}),
 }
 
-KEY_TO_SECTION: Dict[str, str] = _build_key_index(CONFIG_SECTION_KEYS)
-
-BOOL_KEYS = {"skip_startup_checks", "debug", "allow_insecure_tls"}
-INT_KEYS = {"max_findings", "max_bytes", "backup_count"}
+KEY_TO_SECTION = {
+    key: section
+    for section, keys in CONFIG_SECTION_KEYS.items()
+    for key in keys
+}
 
 SOURCE_LABELS = {
     "cli": "command line arguments",
@@ -102,7 +87,7 @@ SOURCE_LABELS = {
     "config": "the configuration file",
 }
 
-_ENV_UNSET = object()
+_MISSING = object()
 
 
 def _read_toml(path: Path) -> Dict[str, Any]:
@@ -146,30 +131,12 @@ def _load_layered_config(config_path: str) -> Tuple[Dict[str, Any], Dict[str, An
     return config_data, local_data
 
 
-def _collect_sections(
-    config_data: Dict[str, Any], local_data: Dict[str, Any], *names: str
-) -> Dict[str, Dict[str, Dict[str, Any]]]:
-    return {
-        name: {
-            "config": _get_section(config_data, name),
-            "local": _get_section(local_data, name),
-        }
-        for name in names
-    }
-
-
-def _get_section(data: Dict[str, Any], name: str) -> Dict[str, Any]:
-    if not isinstance(data, dict):
-        return {}
+def _get_section(data: Mapping[str, Any], name: str) -> Dict[str, Any]:
     section = data.get(name)
-    if isinstance(section, dict):
-        return section
-    return {}
+    return dict(section) if isinstance(section, dict) else {}
 
 
 def _normalize_value(key: str, raw: Optional[object]) -> Tuple[Optional[object], bool]:
-    """Normalize a raw value for ``key`` and report whether it was blank."""
-
     if raw is None:
         return None, False
 
@@ -191,276 +158,6 @@ def _normalize_value(key: str, raw: Optional[object]) -> Tuple[Optional[object],
     return str(raw), False
 
 
-def _normalize_sources_for_key(
-    key: str, sources: Sequence[Tuple[str, Optional[object]]]
-) -> Tuple[List[Tuple[str, Optional[object]]], List[str]]:
-    """Normalize layered sources for ``key`` and capture blank layers."""
-
-    normalized: List[Tuple[str, Optional[object]]] = []
-    blanks: List[str] = []
-    for layer, raw in sources:
-        value, is_blank = _normalize_value(key, raw)
-        if is_blank:
-            blanks.append(layer)
-            normalized.append((layer, None))
-        else:
-            normalized.append((layer, value))
-    return normalized, blanks
-
-
-def _apply_precedence(
-    normalized: Sequence[Tuple[str, Optional[object]]],
-    blanks: Sequence[str],
-    *,
-    default: Optional[object],
-    blank_warning: Optional[str],
-    warnings: List[str],
-) -> Tuple[Optional[object], Optional[str]]:
-    """Return the highest-precedence non-null value while respecting blanks."""
-
-    blank_layers = set(blanks)
-    for layer, value in normalized:
-        if layer in blank_layers:
-            if blank_warning:
-                warnings.append(blank_warning)
-                return default, None
-            continue
-        if value is not None:
-            return value, layer
-    return default, None
-
-
-def _gather_sources(
-    key: str,
-    *,
-    cli_value: Optional[object],
-    env_var: Optional[str],
-    env_value: Optional[object],
-    section_layers: Optional[Dict[str, Dict[str, Any]]],
-) -> List[Tuple[str, Optional[object]]]:
-    """Assemble ordered configuration sources for ``key``."""
-
-    sources: List[Tuple[str, Optional[object]]] = [("cli", cli_value)]
-
-    if env_value is not _ENV_UNSET:
-        sources.append(("env", env_value))
-    else:
-        env_data = os.getenv(env_var) if env_var else None
-        sources.append(("env", env_data))
-
-    if section_layers is not None:
-        sources.append(("local", section_layers["local"].get(key)))
-        sources.append(("config", section_layers["config"].get(key)))
-
-    return sources
-
-
-def _resolve_setting(
-    *,
-    setting_name: str,
-    key: str,
-    overrides: List[str],
-    warnings: List[str],
-    cli_value: Optional[object] = None,
-    env_var: Optional[str] = None,
-    env_value: Optional[object] = _ENV_UNSET,
-    section_layers: Optional[Dict[str, Dict[str, Any]]] = None,
-    default: Optional[object] = None,
-    blank_warning: Optional[str] = None,
-    invalid_warning: Optional[str] = None,
-    record_override: bool = True,
-) -> Tuple[Optional[object], Optional[str], Optional[str]]:
-    """Resolve a setting from layered sources and optionally record overrides."""
-
-    sources = _gather_sources(
-        key,
-        cli_value=cli_value,
-        env_var=env_var,
-        env_value=env_value,
-        section_layers=section_layers,
-    )
-
-    try:
-        normalized, blanks = _normalize_sources_for_key(key, sources)
-        value, layer = _apply_precedence(
-            normalized,
-            blanks,
-            default=default,
-            blank_warning=blank_warning,
-            warnings=warnings,
-        )
-    except ValueError:
-        if invalid_warning:
-            warnings.append(invalid_warning)
-            return default, None, None
-        raise
-
-    message: Optional[str] = None
-    if layer:
-        message = _override_message(setting_name, normalized, layer)
-        if message and record_override:
-            overrides.append(message)
-
-    return value, layer, message
-
-
-@dataclass(frozen=True)
-class SettingSpec:
-    setting_name: str
-    key: str
-    section: Optional[str]
-    env_var: Optional[str] = None
-    default: Optional[object] = None
-    blank_warning: Optional[str] = None
-    invalid_warning: Optional[str] = None
-    record_override: bool = True
-
-
-def _resolve_group(
-    specs: Sequence[SettingSpec],
-    *,
-    cli_values: Mapping[str, Optional[object]],
-    sections: Mapping[str, Dict[str, Dict[str, Any]]],
-    overrides: List[str],
-    warnings: List[str],
-    env_overrides: Optional[Mapping[str, Optional[object]]] = None,
-) -> Dict[str, Tuple[Optional[object], Optional[str], Optional[str]]]:
-    """Resolve a batch of settings defined by ``specs``."""
-
-    results: Dict[str, Tuple[Optional[object], Optional[str], Optional[str]]] = {}
-    env_overrides = env_overrides or {}
-
-    for spec in specs:
-        section_layers = sections.get(spec.section) if spec.section else None
-        env_value = env_overrides.get(spec.key, _ENV_UNSET)
-        value, layer, message = _resolve_setting(
-            setting_name=spec.setting_name,
-            key=spec.key,
-            overrides=overrides,
-            warnings=warnings,
-            cli_value=cli_values.get(spec.key),
-            env_var=spec.env_var,
-            env_value=env_value,
-            section_layers=section_layers,
-            default=spec.default,
-            blank_warning=spec.blank_warning,
-            invalid_warning=spec.invalid_warning,
-            record_override=spec.record_override,
-        )
-        results[spec.key] = (value, layer, message)
-
-    return results
-
-
-SUBSCRIPTION_SPECS: Tuple[SettingSpec, ...] = (
-    SettingSpec("BITSIGHT_API_KEY", "api_key", BITSIGHT_SECTION, "BITSIGHT_API_KEY"),
-    SettingSpec(
-        "SUBSCRIPTION_FOLDER",
-        "subscription_folder",
-        BITSIGHT_SECTION,
-        "BIRRE_SUBSCRIPTION_FOLDER",
-    ),
-    SettingSpec(
-        "SUBSCRIPTION_TYPE",
-        "subscription_type",
-        BITSIGHT_SECTION,
-        "BIRRE_SUBSCRIPTION_TYPE",
-    ),
-)
-
-ROLE_SPECS: Tuple[SettingSpec, ...] = (
-    SettingSpec(
-        "CONTEXT",
-        "context",
-        ROLES_SECTION,
-        "BIRRE_CONTEXT",
-        default="standard",
-        record_override=False,
-    ),
-    SettingSpec(
-        "RISK_VECTOR_FILTER",
-        "risk_vector_filter",
-        ROLES_SECTION,
-        ENV_RISK_VECTOR_FILTER,
-        default=DEFAULT_RISK_VECTOR_FILTER,
-        blank_warning="Empty risk_vector_filter override; falling back to default configuration",
-    ),
-    SettingSpec(
-        "MAX_FINDINGS",
-        "max_findings",
-        ROLES_SECTION,
-        ENV_MAX_FINDINGS,
-        default=DEFAULT_MAX_FINDINGS,
-        invalid_warning="Invalid max_findings override; using default configuration",
-    ),
-)
-
-RUNTIME_SPECS: Tuple[SettingSpec, ...] = (
-    SettingSpec(
-        "SKIP_STARTUP_CHECKS",
-        "skip_startup_checks",
-        RUNTIME_SECTION,
-        "BIRRE_SKIP_STARTUP_CHECKS",
-        default=False,
-    ),
-    SettingSpec("DEBUG", "debug", RUNTIME_SECTION, default=False),
-)
-
-TLS_SPECS: Tuple[SettingSpec, ...] = (
-    SettingSpec(
-        "ALLOW_INSECURE_TLS",
-        "allow_insecure_tls",
-        RUNTIME_SECTION,
-        ENV_ALLOW_INSECURE_TLS,
-        default=False,
-    ),
-    SettingSpec(
-        "CA_BUNDLE_PATH",
-        "ca_bundle_path",
-        RUNTIME_SECTION,
-        ENV_CA_BUNDLE,
-        blank_warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
-        record_override=False,
-    ),
-)
-
-LOGGING_SPECS: Tuple[SettingSpec, ...] = (
-    SettingSpec(
-        "LOG_LEVEL",
-        "level",
-        LOGGING_SECTION,
-        ENV_LOG_LEVEL,
-        default=DEFAULT_LOG_LEVEL,
-        record_override=False,
-    ),
-    SettingSpec(
-        "LOG_FORMAT",
-        "format",
-        LOGGING_SECTION,
-        ENV_LOG_FORMAT,
-        default=DEFAULT_LOG_FORMAT,
-        record_override=False,
-    ),
-    SettingSpec("LOG_FILE", "file", LOGGING_SECTION, ENV_LOG_FILE, record_override=False),
-    SettingSpec(
-        "LOG_MAX_BYTES",
-        "max_bytes",
-        LOGGING_SECTION,
-        ENV_LOG_MAX_BYTES,
-        default=DEFAULT_MAX_BYTES,
-        record_override=False,
-    ),
-    SettingSpec(
-        "LOG_BACKUP_COUNT",
-        "backup_count",
-        LOGGING_SECTION,
-        ENV_LOG_BACKUP_COUNT,
-        default=DEFAULT_BACKUP_COUNT,
-        record_override=False,
-    ),
-)
-
-
 def _join_labels(names: Iterable[str]) -> str:
     labels = [SOURCE_LABELS.get(name, name) for name in names]
     if not labels:
@@ -472,11 +169,7 @@ def _join_labels(names: Iterable[str]) -> str:
     return ", ".join(labels[:-1]) + f", and {labels[-1]}"
 
 
-def _override_message(
-    setting: str,
-    normalized: Sequence[Tuple[str, Optional[object]]],
-    chosen_layer: Optional[str],
-) -> Optional[str]:
+def _override_message(setting: str, normalized: Sequence[Tuple[str, Optional[object]]], chosen_layer: Optional[str]) -> Optional[str]:
     if chosen_layer is None:
         return None
 
@@ -487,11 +180,7 @@ def _override_message(
     if chosen_index is None:
         return None
 
-    overridden = [
-        layer
-        for layer, value in normalized[chosen_index + 1 :]
-        if value is not None
-    ]
+    overridden = [layer for layer, value in normalized[chosen_index + 1 :] if value is not None]
     if not overridden:
         return None
 
@@ -501,91 +190,109 @@ def _override_message(
     )
 
 
-def _iter_audit_layers(
-    config_data: Dict[str, Any], local_data: Dict[str, Any]
-) -> Iterable[Tuple[str, Dict[str, Any]]]:
-    for layer_name, layer_data in (("config", config_data), ("local", local_data)):
-        if isinstance(layer_data, dict):
-            yield layer_name, layer_data
-
-
-def _iter_section_entries(
-    layer_data: Mapping[str, Any]
-) -> Iterable[Tuple[str, frozenset[str], Dict[str, Any]]]:
-    for section, allowed_keys in CONFIG_SECTION_KEYS.items():
-        values = layer_data.get(section)
-        if isinstance(values, dict):
-            yield section, allowed_keys, values
-
-
-def _audit_key_message(label: str, section: str, key: str) -> str:
-    target_section = KEY_TO_SECTION.get(key)
-    if target_section:
-        return (
-            f"{label} [{section}] defines '{key}', but this key belongs under [{target_section}]."
-        )
-    return f"{label} [{section}] defines unused key '{key}'."
-
-
-def _audit_section_keys(
-    *,
-    label: str,
-    section: str,
-    values: Mapping[str, Any],
-    allowed_keys: frozenset[str],
-) -> Iterable[str]:
-    for key in values:
-        if key not in allowed_keys:
-            yield _audit_key_message(label, section, key)
-
-
-def _audit_config_sections(
-    config_data: Dict[str, Any], local_data: Dict[str, Any]
-) -> List[str]:
-    """Validate section/key placement and report misplaced or unused entries."""
-
+def _audit_config_sections(config_data: Dict[str, Any], local_data: Dict[str, Any]) -> List[str]:
     messages: List[str] = []
-    for layer_name, layer_data in _iter_audit_layers(config_data, local_data):
+    for layer_name, layer_data in (("config", config_data), ("local", local_data)):
+        if not isinstance(layer_data, dict):
+            continue
         label = SOURCE_LABELS.get(layer_name, layer_name).capitalize()
-        for section, allowed_keys, values in _iter_section_entries(layer_data):
-            messages.extend(
-                _audit_section_keys(
-                    label=label, section=section, values=values, allowed_keys=allowed_keys
-                )
-            )
-
+        for section, allowed_keys in CONFIG_SECTION_KEYS.items():
+            values = layer_data.get(section)
+            if not isinstance(values, dict):
+                continue
+            for key in values:
+                if key in allowed_keys:
+                    continue
+                target_section = KEY_TO_SECTION.get(key)
+                if target_section:
+                    messages.append(
+                        f"{label} [{section}] defines '{key}', but this key belongs under [{target_section}]."
+                    )
+                else:
+                    messages.append(f"{label} [{section}] defines unused key '{key}'.")
     return messages
 
 
-def _resolve_level(level_value: Optional[object]) -> int:
-    mapping = logging.getLevelNamesMapping()
-    if level_value is None:
-        return mapping.get(DEFAULT_LOG_LEVEL, logging.INFO)
-    if isinstance(level_value, int):
-        return level_value
-    text = str(level_value).strip()
-    if not text:
-        return mapping.get(DEFAULT_LOG_LEVEL, logging.INFO)
-    upper = text.upper()
-    if upper.isdigit():
-        return int(upper)
-    if upper not in mapping:
-        raise ValueError(f"Unknown log level: {level_value}")
-    return mapping[upper]
+def _section_layers(config_data: Dict[str, Any], local_data: Dict[str, Any], names: Iterable[str]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    layers: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for name in names:
+        layers[name] = {
+            "config": _get_section(config_data, name),
+            "local": _get_section(local_data, name),
+        }
+    return layers
+
+
+def _resolve_value(
+    *,
+    key: str,
+    setting_name: str,
+    overrides: MutableSequence[str],
+    warnings: MutableSequence[str],
+    section_layers: Optional[Mapping[str, Dict[str, Any]]] = None,
+    cli_value: Optional[object] = None,
+    env_var: Optional[str] = None,
+    env_value: Optional[object] = _MISSING,
+    default: Optional[object] = None,
+    blank_warning: Optional[str] = None,
+    invalid_warning: Optional[str] = None,
+    record_override: bool = True,
+) -> Tuple[Optional[object], Optional[str], Optional[str]]:
+    sources: List[Tuple[str, Optional[object]]] = [("cli", cli_value)]
+
+    if env_var or env_value is not _MISSING:
+        env_raw = env_value if env_value is not _MISSING else os.getenv(env_var) if env_var else None
+        sources.append(("env", env_raw))
+
+    if section_layers is not None:
+        sources.append(("local", section_layers["local"].get(key)))
+        sources.append(("config", section_layers["config"].get(key)))
+
+    normalized: List[Tuple[str, Optional[object]]] = []
+    chosen_layer: Optional[str] = None
+    chosen_value: Optional[object] = None
+
+    for layer, raw in sources:
+        try:
+            value, is_blank = _normalize_value(key, raw)
+        except ValueError:
+            if invalid_warning:
+                warnings.append(invalid_warning)
+                return default, None, None
+            raise
+
+        if is_blank:
+            normalized.append((layer, None))
+            if blank_warning and chosen_layer is None:
+                warnings.append(blank_warning)
+                return default, None, None
+            continue
+
+        normalized.append((layer, value))
+        if chosen_layer is None and value is not None:
+            chosen_layer = layer
+            chosen_value = value
+
+    if chosen_layer is None:
+        return default, None, None
+
+    message: Optional[str] = None
+    if record_override:
+        message = _override_message(setting_name, normalized, chosen_layer)
+        if message:
+            overrides.append(message)
+
+    return chosen_value, chosen_layer, message
 
 
 @dataclass(frozen=True)
 class SubscriptionInputs:
-    """Inputs that influence subscription resolution."""
-
     folder: Optional[str] = None
     type: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class RuntimeInputs:
-    """Inputs that influence runtime behaviour of the server."""
-
     context: Optional[str] = None
     debug: Optional[bool] = None
     risk_vector_filter: Optional[str] = None
@@ -595,16 +302,12 @@ class RuntimeInputs:
 
 @dataclass(frozen=True)
 class TlsInputs:
-    """Inputs that control TLS verification behaviour."""
-
     allow_insecure: Optional[bool] = None
     ca_bundle_path: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class LoggingInputs:
-    """Inputs that influence logging configuration resolution."""
-
     level: Optional[str] = None
     format: Optional[str] = None
     file_path: Optional[str] = None
@@ -634,29 +337,41 @@ class LoggingSettings:
         return logging.getLevelName(self.level)
 
 
-def _resolve_subscription_settings(
+def _normalize_context(value: Optional[object], message: Optional[str], overrides: MutableSequence[str], warnings: MutableSequence[str]) -> str:
+    if value is None:
+        return "standard"
+
+    candidate = str(value).strip().lower()
+    if candidate in {"standard", "risk_manager"}:
+        if message:
+            overrides.append(message)
+        return candidate
+
+    warnings.append(f"Unknown context '{value}' requested; defaulting to 'standard'")
+    return "standard"
+
+
+def _resolve_subscription(
     *,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: MutableSequence[str],
+    warnings: MutableSequence[str],
     api_key_input: Optional[str],
     subscription_inputs: SubscriptionInputs,
-    sections: Mapping[str, Dict[str, Dict[str, Any]]],
-    overrides: List[str],
-    warnings: List[str],
     config_path: str,
-) -> Tuple[object, Optional[object], Optional[object]]:
-    subscription_values = _resolve_group(
-        SUBSCRIPTION_SPECS,
-        cli_values={
-            "api_key": api_key_input,
-            "subscription_folder": subscription_inputs.folder,
-            "subscription_type": subscription_inputs.type,
-        },
-        sections=sections,
+) -> Tuple[str, Optional[str], Optional[str]]:
+    bitsight_layers = sections[BITSIGHT_SECTION]
+
+    api_value, api_layer, _ = _resolve_value(
+        key="api_key",
+        setting_name="BITSIGHT_API_KEY",
         overrides=overrides,
         warnings=warnings,
+        section_layers=bitsight_layers,
+        cli_value=api_key_input,
+        env_var="BITSIGHT_API_KEY",
     )
-
-    api_key, api_layer, _ = subscription_values["api_key"]
-    if not api_key:
+    if not api_value:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
     if api_layer == "config" and Path(config_path).name == DEFAULT_CONFIG_FILENAME:
         warnings.append(
@@ -664,204 +379,241 @@ def _resolve_subscription_settings(
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
 
-    subscription_folder = subscription_values["subscription_folder"][0]
-    subscription_type = subscription_values["subscription_type"][0]
-    return api_key, subscription_folder, subscription_type
+    folder_value, _, _ = _resolve_value(
+        key="subscription_folder",
+        setting_name="SUBSCRIPTION_FOLDER",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=bitsight_layers,
+        cli_value=subscription_inputs.folder,
+        env_var="BIRRE_SUBSCRIPTION_FOLDER",
+    )
+
+    type_value, _, _ = _resolve_value(
+        key="subscription_type",
+        setting_name="SUBSCRIPTION_TYPE",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=bitsight_layers,
+        cli_value=subscription_inputs.type,
+        env_var="BIRRE_SUBSCRIPTION_TYPE",
+    )
+
+    return str(api_value), folder_value, type_value
 
 
-def _normalize_context_value(
-    value: Optional[object],
+def _resolve_roles(
     *,
-    context_message: Optional[str],
-    overrides: List[str],
-    warnings: List[str],
-) -> str:
-    if value is None:
-        return "standard"
-
-    candidate = str(value).strip().lower()
-    if candidate in {"standard", "risk_manager"}:
-        if context_message:
-            overrides.append(context_message)
-        return candidate
-
-    warnings.append(f"Unknown context '{value}' requested; defaulting to 'standard'")
-    return "standard"
-
-
-def _resolve_role_settings(
-    *,
-    runtime_inputs: RuntimeInputs,
     sections: Mapping[str, Dict[str, Dict[str, Any]]],
-    overrides: List[str],
-    warnings: List[str],
-) -> Tuple[str, Optional[object], Optional[object]]:
-    role_values = _resolve_group(
-        ROLE_SPECS,
-        cli_values={
-            "context": runtime_inputs.context,
-            "risk_vector_filter": runtime_inputs.risk_vector_filter,
-            "max_findings": runtime_inputs.max_findings,
-        },
-        sections=sections,
-        overrides=overrides,
-        warnings=warnings,
-    )
-
-    context_value, _, context_message = role_values["context"]
-    normalized_context = _normalize_context_value(
-        context_value,
-        context_message=context_message,
-        overrides=overrides,
-        warnings=warnings,
-    )
-
-    risk_vector_filter = role_values["risk_vector_filter"][0]
-    max_findings_value = role_values["max_findings"][0]
-    return normalized_context, risk_vector_filter, max_findings_value
-
-
-def _resolve_runtime_settings(
-    *,
+    overrides: MutableSequence[str],
+    warnings: MutableSequence[str],
     runtime_inputs: RuntimeInputs,
-    sections: Mapping[str, Dict[str, Dict[str, Any]]],
-    overrides: List[str],
-    warnings: List[str],
-) -> Tuple[Optional[object], Optional[object]]:
-    runtime_values = _resolve_group(
-        RUNTIME_SPECS,
-        cli_values={
-            "skip_startup_checks": runtime_inputs.skip_startup_checks,
-            "debug": runtime_inputs.debug,
-        },
-        sections=sections,
+) -> Tuple[str, str, int]:
+    role_layers = sections[ROLES_SECTION]
+
+    context_value, _, context_message = _resolve_value(
+        key="context",
+        setting_name="CONTEXT",
         overrides=overrides,
         warnings=warnings,
-        env_overrides={
-            "debug": os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
-        },
+        section_layers=role_layers,
+        cli_value=runtime_inputs.context,
+        env_var="BIRRE_CONTEXT",
+        default="standard",
+        record_override=False,
+    )
+    context = _normalize_context(context_value, context_message, overrides, warnings)
+
+    risk_value, _, _ = _resolve_value(
+        key="risk_vector_filter",
+        setting_name="RISK_VECTOR_FILTER",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=role_layers,
+        cli_value=runtime_inputs.risk_vector_filter,
+        env_var=ENV_RISK_VECTOR_FILTER,
+        default=DEFAULT_RISK_VECTOR_FILTER,
+        blank_warning="Empty risk_vector_filter override; falling back to default configuration",
+    )
+    if not isinstance(risk_value, str) or not risk_value:
+        risk = DEFAULT_RISK_VECTOR_FILTER
+    else:
+        risk = risk_value
+
+    max_findings_value, _, _ = _resolve_value(
+        key="max_findings",
+        setting_name="MAX_FINDINGS",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=role_layers,
+        cli_value=runtime_inputs.max_findings,
+        env_var=ENV_MAX_FINDINGS,
+        default=DEFAULT_MAX_FINDINGS,
+        invalid_warning="Invalid max_findings override; using default configuration",
+    )
+    max_findings = int(max_findings_value) if max_findings_value is not None else DEFAULT_MAX_FINDINGS
+
+    return context, risk, max_findings
+
+
+def _resolve_runtime(
+    *,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: MutableSequence[str],
+    warnings: MutableSequence[str],
+    runtime_inputs: RuntimeInputs,
+) -> Tuple[bool, bool]:
+    runtime_layers = sections[RUNTIME_SECTION]
+
+    skip_value, _, _ = _resolve_value(
+        key="skip_startup_checks",
+        setting_name="SKIP_STARTUP_CHECKS",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=runtime_layers,
+        cli_value=runtime_inputs.skip_startup_checks,
+        env_var="BIRRE_SKIP_STARTUP_CHECKS",
+        default=False,
     )
 
-    skip_startup_checks = runtime_values["skip_startup_checks"][0]
-    debug_value = runtime_values["debug"][0]
-    return skip_startup_checks, debug_value
+    debug_value, _, _ = _resolve_value(
+        key="debug",
+        setting_name="DEBUG",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=runtime_layers,
+        cli_value=runtime_inputs.debug,
+        env_value=os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
+        default=False,
+    )
+
+    return bool(skip_value), bool(debug_value)
 
 
-def _resolve_tls_settings(
+def _resolve_tls(
     *,
+    sections: Mapping[str, Dict[str, Dict[str, Any]]],
+    overrides: MutableSequence[str],
+    warnings: MutableSequence[str],
     tls_inputs: TlsInputs,
-    sections: Mapping[str, Dict[str, Dict[str, Any]]],
-    overrides: List[str],
-    warnings: List[str],
-) -> Tuple[Optional[object], Optional[str]]:
-    tls_values = _resolve_group(
-        TLS_SPECS,
-        cli_values={
-            "allow_insecure_tls": tls_inputs.allow_insecure,
-            "ca_bundle_path": tls_inputs.ca_bundle_path,
-        },
-        sections=sections,
+) -> Tuple[bool, Optional[str]]:
+    runtime_layers = sections[RUNTIME_SECTION]
+
+    allow_value, _, _ = _resolve_value(
+        key="allow_insecure_tls",
+        setting_name="ALLOW_INSECURE_TLS",
         overrides=overrides,
         warnings=warnings,
+        section_layers=runtime_layers,
+        cli_value=tls_inputs.allow_insecure,
+        env_var=ENV_ALLOW_INSECURE_TLS,
+        default=False,
     )
 
-    allow_insecure_value = tls_values["allow_insecure_tls"][0]
-    ca_bundle_path, _, ca_message = tls_values["ca_bundle_path"]
+    ca_value, _, _ = _resolve_value(
+        key="ca_bundle_path",
+        setting_name="CA_BUNDLE_PATH",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=runtime_layers,
+        cli_value=tls_inputs.ca_bundle_path,
+        env_var=ENV_CA_BUNDLE,
+        blank_warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
+        record_override=False,
+    )
 
-    if allow_insecure_value and ca_bundle_path:
-        warnings.append(
-            "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
-        )
-        return allow_insecure_value, None
+    allow_insecure = bool(allow_value)
+    if allow_insecure:
+        if ca_value:
+            warnings.append(
+                "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
+            )
+        return True, None
 
-    if ca_message:
-        overrides.append(ca_message)
-
-    return allow_insecure_value, ca_bundle_path
+    return False, ca_value if isinstance(ca_value, str) else ca_value
 
 
 def resolve_birre_settings(
     *,
-    api_key_input: Optional[str] = None,
     config_path: str = DEFAULT_CONFIG_FILENAME,
+    api_key_input: Optional[str] = None,
     subscription_inputs: Optional[SubscriptionInputs] = None,
     runtime_inputs: Optional[RuntimeInputs] = None,
     tls_inputs: Optional[TlsInputs] = None,
 ) -> Dict[str, Any]:
-    """Resolve BiRRe runtime settings using config, env vars, and CLI overrides."""
-
-    load_dotenv()
-
-    overrides: List[str] = []
-    warnings: List[str] = []
-
-    config_data, local_data = _load_layered_config(config_path)
-    warnings.extend(_audit_config_sections(config_data, local_data))
-    sections = _collect_sections(
-        config_data, local_data, BITSIGHT_SECTION, RUNTIME_SECTION, ROLES_SECTION
-    )
-
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
     tls_inputs = tls_inputs or TlsInputs()
 
-    (
-        api_key,
-        subscription_folder,
-        subscription_type,
-    ) = _resolve_subscription_settings(
-        api_key_input=api_key_input,
-        subscription_inputs=subscription_inputs,
+    load_dotenv()
+
+    config_data, local_data = _load_layered_config(config_path)
+    sections = _section_layers(config_data, local_data, (BITSIGHT_SECTION, RUNTIME_SECTION, ROLES_SECTION))
+
+    overrides: List[str] = []
+    warnings: List[str] = _audit_config_sections(config_data, local_data)
+
+    api_key, subscription_folder, subscription_type = _resolve_subscription(
         sections=sections,
         overrides=overrides,
         warnings=warnings,
+        api_key_input=api_key_input,
+        subscription_inputs=subscription_inputs,
         config_path=config_path,
     )
 
-    (
-        normalized_context_value,
-        risk_vector_filter,
-        max_findings_value,
-    ) = _resolve_role_settings(
-        runtime_inputs=runtime_inputs,
+    context, risk_vector_filter, max_findings = _resolve_roles(
         sections=sections,
         overrides=overrides,
         warnings=warnings,
+        runtime_inputs=runtime_inputs,
     )
 
-    (
-        skip_startup_checks,
-        debug_value,
-    ) = _resolve_runtime_settings(
-        runtime_inputs=runtime_inputs,
+    skip_startup_checks, debug_value = _resolve_runtime(
         sections=sections,
         overrides=overrides,
         warnings=warnings,
+        runtime_inputs=runtime_inputs,
     )
 
-    allow_insecure_value, ca_bundle_path = _resolve_tls_settings(
+    allow_insecure_tls, ca_bundle_path = _resolve_tls(
+        sections=sections,
+        overrides=overrides,
+        warnings=warnings,
         tls_inputs=tls_inputs,
-        sections=sections,
-        overrides=overrides,
-        warnings=warnings,
     )
 
     return {
         "api_key": api_key,
         "subscription_folder": subscription_folder,
         "subscription_type": subscription_type,
-        "context": normalized_context_value,
+        "context": context,
         "risk_vector_filter": risk_vector_filter,
-        "max_findings": int(max_findings_value)
-        if max_findings_value is not None
-        else DEFAULT_MAX_FINDINGS,
-        "skip_startup_checks": bool(skip_startup_checks),
-        "debug": bool(debug_value),
-        "allow_insecure_tls": bool(allow_insecure_value),
+        "max_findings": max_findings,
+        "skip_startup_checks": skip_startup_checks,
+        "debug": debug_value,
+        "allow_insecure_tls": allow_insecure_tls,
         "ca_bundle_path": ca_bundle_path,
         "warnings": warnings,
         "overrides": overrides,
     }
+
+
+def _resolve_level(level_value: Optional[object]) -> int:
+    mapping = logging.getLevelNamesMapping()
+    if level_value is None:
+        return mapping.get(DEFAULT_LOG_LEVEL, logging.INFO)
+    if isinstance(level_value, int):
+        return level_value
+    text = str(level_value).strip()
+    if not text:
+        return mapping.get(DEFAULT_LOG_LEVEL, logging.INFO)
+    upper = text.upper()
+    if upper.isdigit():
+        return int(upper)
+    if upper not in mapping:
+        raise ValueError(f"Unknown log level: {level_value}")
+    return mapping[upper]
 
 
 def resolve_logging_settings(
@@ -873,9 +625,13 @@ def resolve_logging_settings(
     max_bytes_override: Optional[int] = None,
     backup_count_override: Optional[int] = None,
 ) -> LoggingSettings:
+    overrides: List[str] = []
+    warnings: List[str] = []
+
     sections: Dict[str, Dict[str, Dict[str, Any]]] = {
         LOGGING_SECTION: {"config": {}, "local": {}}
     }
+
     if config_path:
         config_data, local_data = _load_layered_config(config_path)
         audit_messages = _audit_config_sections(config_data, local_data)
@@ -883,46 +639,83 @@ def resolve_logging_settings(
             logger = logging.getLogger(__name__)
             for message in audit_messages:
                 logger.warning(message)
-        sections = _collect_sections(config_data, local_data, LOGGING_SECTION)
+        sections = _section_layers(config_data, local_data, (LOGGING_SECTION,))
 
-    resolved = _resolve_group(
-        LOGGING_SPECS,
-        cli_values={
-            "level": level_override,
-            "format": format_override,
-            "file": file_override,
-            "max_bytes": max_bytes_override,
-            "backup_count": backup_count_override,
-        },
-        sections=sections,
-        overrides=[],
-        warnings=[],
+    logging_layers = sections[LOGGING_SECTION]
+
+    level_value, _, _ = _resolve_value(
+        key="level",
+        setting_name="LOG_LEVEL",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=logging_layers,
+        cli_value=level_override,
+        env_var=ENV_LOG_LEVEL,
+        default=DEFAULT_LOG_LEVEL,
+        record_override=False,
+    )
+    format_value, _, _ = _resolve_value(
+        key="format",
+        setting_name="LOG_FORMAT",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=logging_layers,
+        cli_value=format_override,
+        env_var=ENV_LOG_FORMAT,
+        default=DEFAULT_LOG_FORMAT,
+        record_override=False,
+    )
+    file_value, _, _ = _resolve_value(
+        key="file",
+        setting_name="LOG_FILE",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=logging_layers,
+        cli_value=file_override,
+        env_var=ENV_LOG_FILE,
+        record_override=False,
+    )
+    max_bytes_value, _, _ = _resolve_value(
+        key="max_bytes",
+        setting_name="LOG_MAX_BYTES",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=logging_layers,
+        cli_value=max_bytes_override,
+        env_var=ENV_LOG_MAX_BYTES,
+        default=DEFAULT_MAX_BYTES,
+        invalid_warning="Invalid max_bytes override; using default configuration",
+        record_override=False,
+    )
+    backup_count_value, _, _ = _resolve_value(
+        key="backup_count",
+        setting_name="LOG_BACKUP_COUNT",
+        overrides=overrides,
+        warnings=warnings,
+        section_layers=logging_layers,
+        cli_value=backup_count_override,
+        env_var=ENV_LOG_BACKUP_COUNT,
+        default=DEFAULT_BACKUP_COUNT,
+        invalid_warning="Invalid backup_count override; using default configuration",
+        record_override=False,
     )
 
-    level_value = resolved["level"][0]
-    format_value = resolved["format"][0]
-    file_path = resolved["file"][0]
-    max_bytes_value = resolved["max_bytes"][0]
-    backup_count_value = resolved["backup_count"][0]
-
     level_number = _resolve_level(level_value)
-
     if not isinstance(format_value, str):
         raise ValueError("Log format must resolve to a string")
     resolved_format = format_value.lower()
     if resolved_format not in {LOG_FORMAT_TEXT, LOG_FORMAT_JSON}:
         raise ValueError(f"Unsupported log format: {format_value}")
 
+    max_bytes = int(max_bytes_value) if max_bytes_value is not None else DEFAULT_MAX_BYTES
+    backup_count = int(backup_count_value) if backup_count_value is not None else DEFAULT_BACKUP_COUNT
+
     return LoggingSettings(
         level=level_number,
         format=resolved_format,
-        file_path=file_path,
-        max_bytes=int(max_bytes_value)
-        if max_bytes_value is not None
-        else DEFAULT_MAX_BYTES,
-        backup_count=int(backup_count_value)
-        if backup_count_value is not None
-        else DEFAULT_BACKUP_COUNT,
+        file_path=file_value,
+        max_bytes=max_bytes,
+        backup_count=backup_count,
     )
 
 
@@ -942,11 +735,10 @@ def resolve_application_settings(
         runtime_inputs=runtime_inputs,
         tls_inputs=tls_inputs,
     )
+
     logging_kwargs = logging_inputs.as_kwargs() if logging_inputs else {}
-    logging_settings = resolve_logging_settings(
-        config_path=config_path,
-        **logging_kwargs,
-    )
+    logging_settings = resolve_logging_settings(config_path=config_path, **logging_kwargs)
+
     if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
         logging_settings = LoggingSettings(
             level=logging.DEBUG,
@@ -955,23 +747,5 @@ def resolve_application_settings(
             max_bytes=logging_settings.max_bytes,
             backup_count=logging_settings.backup_count,
         )
+
     return runtime_settings, logging_settings
-
-
-__all__ = [
-    "resolve_birre_settings",
-    "resolve_logging_settings",
-    "resolve_application_settings",
-    "load_config_layers",
-    "SubscriptionInputs",
-    "RuntimeInputs",
-    "TlsInputs",
-    "LoggingInputs",
-    "LoggingSettings",
-    "LOG_FORMAT_TEXT",
-    "LOG_FORMAT_JSON",
-    "DEFAULT_RISK_VECTOR_FILTER",
-    "DEFAULT_MAX_FINDINGS",
-    "ENV_ALLOW_INSECURE_TLS",
-    "ENV_CA_BUNDLE",
-]
