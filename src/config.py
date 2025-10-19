@@ -69,6 +69,8 @@ SOURCE_LABELS = {
     "config": "the configuration file",
 }
 
+_ENV_UNSET = object()
+
 
 def _read_toml(path: Path) -> Dict[str, Any]:
     try:
@@ -111,6 +113,18 @@ def _load_layered_config(config_path: str) -> Tuple[Dict[str, Any], Dict[str, An
     return config_data, local_data
 
 
+def _collect_sections(
+    config_data: Dict[str, Any], local_data: Dict[str, Any], *names: str
+) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    return {
+        name: {
+            "config": _get_section(config_data, name),
+            "local": _get_section(local_data, name),
+        }
+        for name in names
+    }
+
+
 def _get_section(data: Dict[str, Any], name: str) -> Dict[str, Any]:
     if not isinstance(data, dict):
         return {}
@@ -151,6 +165,69 @@ def _normalize_sources(
         else:
             normalized.append((layer, normalizer(raw)))
     return normalized, blanks
+
+
+def _build_sources(
+    *,
+    cli_value: Optional[object] = None,
+    env_var: Optional[str] = None,
+    env_value: Optional[object] = _ENV_UNSET,
+    section_layers: Optional[Dict[str, Dict[str, Any]]] = None,
+    key: Optional[str] = None,
+) -> List[Tuple[str, Optional[object]]]:
+    sources: List[Tuple[str, Optional[object]]] = [("cli", cli_value)]
+
+    if env_value is not _ENV_UNSET:
+        sources.append(("env", env_value))
+    elif env_var:
+        sources.append(("env", os.getenv(env_var)))
+    else:
+        sources.append(("env", None))
+
+    if section_layers is not None and key is not None:
+        sources.append(("local", section_layers["local"].get(key)))
+        sources.append(("config", section_layers["config"].get(key)))
+
+    return sources
+
+
+def _resolve_value(
+    *,
+    sources: Sequence[Tuple[str, Optional[object]]],
+    normalizer: Callable[[Optional[object]], Optional[object]],
+    warnings: List[str],
+    default: Optional[object] = None,
+    blank_warning: Optional[str] = None,
+) -> Tuple[Optional[object], Optional[str], Sequence[Tuple[str, Optional[object]]]]:
+    normalized, blanks = _normalize_sources(sources, normalizer=normalizer)
+
+    if blank_warning is not None:
+        value, warning, layer = _precedence_with_blank(
+            normalized,
+            blanks,
+            default=default,
+            warning=blank_warning,
+        )
+        if warning:
+            warnings.append(warning)
+    else:
+        value, layer = _resolve_from_sources(normalized, default=default)
+
+    return value, layer, normalized
+
+
+def _record_override(
+    setting: str,
+    normalized: Sequence[Tuple[str, Optional[object]]],
+    layer: Optional[str],
+    overrides: List[str],
+) -> None:
+    if not layer:
+        return
+
+    message = _override_message(setting, normalized, layer)
+    if message:
+        overrides.append(message)
 
 
 def _resolve_from_sources(
@@ -322,19 +399,16 @@ def resolve_birre_settings(
     load_dotenv()
 
     config_data, local_data = _load_layered_config(config_path)
-
-    bitsight_layers = {
-        "config": _get_section(config_data, BITSIGHT_SECTION),
-        "local": _get_section(local_data, BITSIGHT_SECTION),
-    }
-    runtime_layers = {
-        "config": _get_section(config_data, RUNTIME_SECTION),
-        "local": _get_section(local_data, RUNTIME_SECTION),
-    }
-    roles_layers = {
-        "config": _get_section(config_data, ROLES_SECTION),
-        "local": _get_section(local_data, ROLES_SECTION),
-    }
+    sections = _collect_sections(
+        config_data,
+        local_data,
+        BITSIGHT_SECTION,
+        RUNTIME_SECTION,
+        ROLES_SECTION,
+    )
+    bitsight_layers = sections[BITSIGHT_SECTION]
+    runtime_layers = sections[RUNTIME_SECTION]
+    roles_layers = sections[ROLES_SECTION]
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
     runtime_inputs = runtime_inputs or RuntimeInputs()
@@ -343,18 +417,18 @@ def resolve_birre_settings(
     overrides: List[str] = []
     warnings: List[str] = []
 
-    api_sources = [
-        ("cli", api_key_input),
-        ("env", os.getenv("BITSIGHT_API_KEY")),
-        ("local", bitsight_layers["local"].get("api_key")),
-        ("config", bitsight_layers["config"].get("api_key")),
-    ]
-    normalized_api, _ = _normalize_sources(api_sources, normalizer=_normalize_string)
-    api_key, api_layer = _resolve_from_sources(normalized_api)
-    if api_layer:
-        message = _override_message("BITSIGHT_API_KEY", normalized_api, api_layer)
-        if message:
-            overrides.append(message)
+    api_sources = _build_sources(
+        cli_value=api_key_input,
+        env_var="BITSIGHT_API_KEY",
+        section_layers=bitsight_layers,
+        key="api_key",
+    )
+    api_key, api_layer, api_normalized = _resolve_value(
+        sources=api_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+    )
+    _record_override("BITSIGHT_API_KEY", api_normalized, api_layer, overrides)
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
     if api_layer == "config" and Path(config_path).name == DEFAULT_CONFIG_FILENAME:
@@ -363,177 +437,166 @@ def resolve_birre_settings(
             f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
         )
 
-    folder_sources = [
-        ("cli", subscription_inputs.folder),
-        ("env", os.getenv("BIRRE_SUBSCRIPTION_FOLDER")),
-        ("local", bitsight_layers["local"].get("subscription_folder")),
-        ("config", bitsight_layers["config"].get("subscription_folder")),
-    ]
-    normalized_folder, _ = _normalize_sources(
-        folder_sources, normalizer=_normalize_string
+    folder_sources = _build_sources(
+        cli_value=subscription_inputs.folder,
+        env_var="BIRRE_SUBSCRIPTION_FOLDER",
+        section_layers=bitsight_layers,
+        key="subscription_folder",
     )
-    subscription_folder, folder_layer = _resolve_from_sources(normalized_folder)
-    if folder_layer:
-        message = _override_message("SUBSCRIPTION_FOLDER", normalized_folder, folder_layer)
-        if message:
-            overrides.append(message)
+    subscription_folder, folder_layer, folder_normalized = _resolve_value(
+        sources=folder_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+    )
+    _record_override("SUBSCRIPTION_FOLDER", folder_normalized, folder_layer, overrides)
 
-    type_sources = [
-        ("cli", subscription_inputs.type),
-        ("env", os.getenv("BIRRE_SUBSCRIPTION_TYPE")),
-        ("local", bitsight_layers["local"].get("subscription_type")),
-        ("config", bitsight_layers["config"].get("subscription_type")),
-    ]
-    normalized_type, _ = _normalize_sources(type_sources, normalizer=_normalize_string)
-    subscription_type, type_layer = _resolve_from_sources(normalized_type)
-    if type_layer:
-        message = _override_message("SUBSCRIPTION_TYPE", normalized_type, type_layer)
-        if message:
-            overrides.append(message)
+    type_sources = _build_sources(
+        cli_value=subscription_inputs.type,
+        env_var="BIRRE_SUBSCRIPTION_TYPE",
+        section_layers=bitsight_layers,
+        key="subscription_type",
+    )
+    subscription_type, type_layer, type_normalized = _resolve_value(
+        sources=type_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+    )
+    _record_override("SUBSCRIPTION_TYPE", type_normalized, type_layer, overrides)
 
-    context_sources = [
-        ("cli", runtime_inputs.context),
-        ("env", os.getenv("BIRRE_CONTEXT")),
-        ("local", roles_layers["local"].get("context")),
-        ("config", roles_layers["config"].get("context")),
-    ]
-    normalized_context, _ = _normalize_sources(
-        context_sources, normalizer=_normalize_string
+    context_sources = _build_sources(
+        cli_value=runtime_inputs.context,
+        env_var="BIRRE_CONTEXT",
+        section_layers=roles_layers,
+        key="context",
     )
-    context_value, context_layer = _resolve_from_sources(
-        normalized_context, default="standard"
+    context_value, context_layer, context_normalized = _resolve_value(
+        sources=context_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+        default="standard",
     )
-    context_warning = None
     if context_value is None:
         normalized_context_value = "standard"
     else:
-        candidate = context_value.lower()
+        candidate = str(context_value).strip().lower()
         if candidate in {"standard", "risk_manager"}:
             normalized_context_value = candidate
         else:
             normalized_context_value = "standard"
-            context_warning = (
+            warnings.append(
                 f"Unknown context '{context_value}' requested; defaulting to 'standard'"
             )
-    if context_warning:
-        warnings.append(context_warning)
-    elif context_layer:
-        message = _override_message("CONTEXT", normalized_context, context_layer)
-        if message:
-            overrides.append(message)
+            context_layer = None
+    if context_layer:
+        _record_override("CONTEXT", context_normalized, context_layer, overrides)
 
-    skip_sources = [
-        ("cli", runtime_inputs.skip_startup_checks),
-        ("env", os.getenv("BIRRE_SKIP_STARTUP_CHECKS")),
-        ("local", runtime_layers["local"].get("skip_startup_checks")),
-        ("config", runtime_layers["config"].get("skip_startup_checks")),
-    ]
-    normalized_skip, _ = _normalize_sources(skip_sources, normalizer=_normalize_bool)
-    skip_startup_checks, skip_layer = _resolve_from_sources(
-        normalized_skip, default=False
+    skip_sources = _build_sources(
+        cli_value=runtime_inputs.skip_startup_checks,
+        env_var="BIRRE_SKIP_STARTUP_CHECKS",
+        section_layers=runtime_layers,
+        key="skip_startup_checks",
     )
-    if skip_layer:
-        message = _override_message("SKIP_STARTUP_CHECKS", normalized_skip, skip_layer)
-        if message:
-            overrides.append(message)
-
-    debug_env = os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG")
-    debug_sources = [
-        ("cli", runtime_inputs.debug),
-        ("env", debug_env),
-        ("local", runtime_layers["local"].get("debug")),
-        ("config", runtime_layers["config"].get("debug")),
-    ]
-    normalized_debug, _ = _normalize_sources(debug_sources, normalizer=_normalize_bool)
-    debug_enabled, debug_layer = _resolve_from_sources(normalized_debug, default=False)
-    if debug_layer:
-        message = _override_message("DEBUG", normalized_debug, debug_layer)
-        if message:
-            overrides.append(message)
-
-    risk_sources = [
-        ("cli", runtime_inputs.risk_vector_filter),
-        ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
-        ("local", roles_layers["local"].get("risk_vector_filter")),
-        ("config", roles_layers["config"].get("risk_vector_filter")),
-    ]
-    normalized_risk, risk_blanks = _normalize_sources(
-        risk_sources, normalizer=_normalize_string
+    skip_value, skip_layer, skip_normalized = _resolve_value(
+        sources=skip_sources,
+        normalizer=_normalize_bool,
+        warnings=warnings,
+        default=False,
     )
-    risk_vector_filter, risk_warning, risk_layer = _precedence_with_blank(
-        normalized_risk,
-        risk_blanks,
+    _record_override("SKIP_STARTUP_CHECKS", skip_normalized, skip_layer, overrides)
+    skip_startup_checks = bool(skip_value)
+
+    debug_sources = _build_sources(
+        cli_value=runtime_inputs.debug,
+        env_value=os.getenv("BIRRE_DEBUG") or os.getenv("DEBUG"),
+        section_layers=runtime_layers,
+        key="debug",
+    )
+    debug_value, debug_layer, debug_normalized = _resolve_value(
+        sources=debug_sources,
+        normalizer=_normalize_bool,
+        warnings=warnings,
+        default=False,
+    )
+    _record_override("DEBUG", debug_normalized, debug_layer, overrides)
+    debug_enabled = bool(debug_value)
+
+    risk_sources = _build_sources(
+        cli_value=runtime_inputs.risk_vector_filter,
+        env_var=ENV_RISK_VECTOR_FILTER,
+        section_layers=roles_layers,
+        key="risk_vector_filter",
+    )
+    risk_vector_filter, risk_layer, risk_normalized = _resolve_value(
+        sources=risk_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
         default=DEFAULT_RISK_VECTOR_FILTER,
-        warning="Empty risk_vector_filter override; falling back to default configuration",
+        blank_warning="Empty risk_vector_filter override; falling back to default configuration",
     )
-    if risk_warning:
-        warnings.append(risk_warning)
-    elif risk_layer:
-        message = _override_message("RISK_VECTOR_FILTER", normalized_risk, risk_layer)
-        if message:
-            overrides.append(message)
+    _record_override("RISK_VECTOR_FILTER", risk_normalized, risk_layer, overrides)
 
-    tls_sources = [
-        ("cli", tls_inputs.allow_insecure),
-        ("env", os.getenv(ENV_ALLOW_INSECURE_TLS)),
-        ("local", runtime_layers["local"].get("allow_insecure_tls")),
-        ("config", runtime_layers["config"].get("allow_insecure_tls")),
-    ]
-    normalized_tls, _ = _normalize_sources(tls_sources, normalizer=_normalize_bool)
-    allow_insecure_tls, allow_insecure_layer = _resolve_from_sources(
-        normalized_tls, default=False
+    tls_sources = _build_sources(
+        cli_value=tls_inputs.allow_insecure,
+        env_var=ENV_ALLOW_INSECURE_TLS,
+        section_layers=runtime_layers,
+        key="allow_insecure_tls",
     )
-    if allow_insecure_layer:
-        message = _override_message("ALLOW_INSECURE_TLS", normalized_tls, allow_insecure_layer)
-        if message:
-            overrides.append(message)
+    allow_insecure_value, allow_insecure_layer, allow_insecure_normalized = _resolve_value(
+        sources=tls_sources,
+        normalizer=_normalize_bool,
+        warnings=warnings,
+        default=False,
+    )
+    _record_override(
+        "ALLOW_INSECURE_TLS", allow_insecure_normalized, allow_insecure_layer, overrides
+    )
+    allow_insecure_tls = bool(allow_insecure_value)
 
-    ca_sources = [
-        ("cli", tls_inputs.ca_bundle_path),
-        ("env", os.getenv(ENV_CA_BUNDLE)),
-        ("local", runtime_layers["local"].get("ca_bundle_path")),
-        ("config", runtime_layers["config"].get("ca_bundle_path")),
-    ]
-    normalized_ca, ca_blanks = _normalize_sources(ca_sources, normalizer=_normalize_string)
-    ca_bundle_path, ca_warning, ca_layer = _precedence_with_blank(
-        normalized_ca,
-        ca_blanks,
-        default=None,
-        warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
+    ca_sources = _build_sources(
+        cli_value=tls_inputs.ca_bundle_path,
+        env_var=ENV_CA_BUNDLE,
+        section_layers=runtime_layers,
+        key="ca_bundle_path",
     )
-    if ca_warning:
-        warnings.append(ca_warning)
-    elif ca_layer:
-        message = _override_message("CA_BUNDLE_PATH", normalized_ca, ca_layer)
-        if message:
-            overrides.append(message)
+    ca_bundle_path, ca_layer, ca_normalized = _resolve_value(
+        sources=ca_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+        blank_warning="Empty ca_bundle_path override; ignoring custom CA bundle configuration",
+    )
+
+    max_sources = _build_sources(
+        cli_value=runtime_inputs.max_findings,
+        env_var=ENV_MAX_FINDINGS,
+        section_layers=roles_layers,
+        key="max_findings",
+    )
+    max_value, max_layer, max_normalized = _resolve_value(
+        sources=max_sources,
+        normalizer=_normalize_string,
+        warnings=warnings,
+    )
+    try:
+        if max_value is None:
+            max_findings = DEFAULT_MAX_FINDINGS
+        else:
+            max_findings = _coerce_positive_int(max_value)
+    except ValueError:
+        warnings.append("Invalid max_findings override; using default configuration")
+        max_findings = DEFAULT_MAX_FINDINGS
+        max_layer = None
+    if max_layer:
+        _record_override("MAX_FINDINGS", max_normalized, max_layer, overrides)
 
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
             "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
         )
         ca_bundle_path = None
+        ca_layer = None
 
-    max_sources = [
-        ("cli", runtime_inputs.max_findings),
-        ("env", os.getenv(ENV_MAX_FINDINGS)),
-        ("local", roles_layers["local"].get("max_findings")),
-        ("config", roles_layers["config"].get("max_findings")),
-    ]
-    normalized_max, _ = _normalize_sources(max_sources, normalizer=_normalize_string)
-    raw_max, max_layer = _resolve_from_sources(normalized_max)
-    try:
-        max_findings = _coerce_positive_int(raw_max) if raw_max is not None else DEFAULT_MAX_FINDINGS
-        if raw_max is None:
-            max_layer = None
-    except ValueError:
-        warnings.append("Invalid max_findings override; using default configuration")
-        max_findings = DEFAULT_MAX_FINDINGS
-        max_layer = None
-    if max_layer:
-        message = _override_message("MAX_FINDINGS", normalized_max, max_layer)
-        if message:
-            overrides.append(message)
+    if ca_layer:
+        _record_override("CA_BUNDLE_PATH", ca_normalized, ca_layer, overrides)
 
     return {
         "api_key": api_key,
@@ -564,60 +627,75 @@ def resolve_logging_settings(
     local_section: Dict[str, Any] = {}
     if config_path:
         config_data, local_data = _load_layered_config(config_path)
-        config_section = _get_section(config_data, LOGGING_SECTION)
-        local_section = _get_section(local_data, LOGGING_SECTION)
+        sections = _collect_sections(config_data, local_data, LOGGING_SECTION)
+        logging_layers = sections[LOGGING_SECTION]
+        config_section = logging_layers["config"]
+        local_section = logging_layers["local"]
 
-    level_sources = [
-        ("cli", level_override),
-        ("env", os.getenv(ENV_LOG_LEVEL)),
-        ("local", local_section.get("level")),
-        ("config", config_section.get("level")),
-    ]
-    normalized_level, _ = _normalize_sources(level_sources, normalizer=_normalize_string)
-    level_value, _ = _resolve_from_sources(
-        normalized_level, default=DEFAULT_LOG_LEVEL
+    logging_layers = {"config": config_section, "local": local_section}
+
+    level_sources = _build_sources(
+        cli_value=level_override,
+        env_var=ENV_LOG_LEVEL,
+        section_layers=logging_layers,
+        key="level",
+    )
+    level_value, _, _ = _resolve_value(
+        sources=level_sources,
+        normalizer=_normalize_string,
+        warnings=[],
+        default=DEFAULT_LOG_LEVEL,
     )
 
-    format_sources = [
-        ("cli", format_override),
-        ("env", os.getenv(ENV_LOG_FORMAT)),
-        ("local", local_section.get("format")),
-        ("config", config_section.get("format")),
-    ]
-    normalized_format, _ = _normalize_sources(format_sources, normalizer=_normalize_string)
-    format_value, _ = _resolve_from_sources(
-        normalized_format, default=DEFAULT_LOG_FORMAT
+    format_sources = _build_sources(
+        cli_value=format_override,
+        env_var=ENV_LOG_FORMAT,
+        section_layers=logging_layers,
+        key="format",
+    )
+    format_value, _, _ = _resolve_value(
+        sources=format_sources,
+        normalizer=_normalize_string,
+        warnings=[],
+        default=DEFAULT_LOG_FORMAT,
     )
 
-    file_sources = [
-        ("cli", file_override),
-        ("env", os.getenv(ENV_LOG_FILE)),
-        ("local", local_section.get("file")),
-        ("config", config_section.get("file")),
-    ]
-    normalized_file, _ = _normalize_sources(file_sources, normalizer=_normalize_string)
-    file_path, _ = _resolve_from_sources(normalized_file)
-
-    max_bytes_sources = [
-        ("cli", max_bytes_override),
-        ("env", os.getenv(ENV_LOG_MAX_BYTES)),
-        ("local", local_section.get("max_bytes")),
-        ("config", config_section.get("max_bytes")),
-    ]
-    normalized_max_bytes, _ = _normalize_sources(max_bytes_sources, normalizer=_normalize_string)
-    raw_max_bytes, _ = _resolve_from_sources(
-        normalized_max_bytes, default=str(DEFAULT_MAX_BYTES)
+    file_sources = _build_sources(
+        cli_value=file_override,
+        env_var=ENV_LOG_FILE,
+        section_layers=logging_layers,
+        key="file",
+    )
+    file_path, _, _ = _resolve_value(
+        sources=file_sources,
+        normalizer=_normalize_string,
+        warnings=[],
     )
 
-    backup_sources = [
-        ("cli", backup_count_override),
-        ("env", os.getenv(ENV_LOG_BACKUP_COUNT)),
-        ("local", local_section.get("backup_count")),
-        ("config", config_section.get("backup_count")),
-    ]
-    normalized_backup, _ = _normalize_sources(backup_sources, normalizer=_normalize_string)
-    raw_backup_count, _ = _resolve_from_sources(
-        normalized_backup, default=str(DEFAULT_BACKUP_COUNT)
+    max_bytes_sources = _build_sources(
+        cli_value=max_bytes_override,
+        env_var=ENV_LOG_MAX_BYTES,
+        section_layers=logging_layers,
+        key="max_bytes",
+    )
+    raw_max_bytes, _, _ = _resolve_value(
+        sources=max_bytes_sources,
+        normalizer=_normalize_string,
+        warnings=[],
+        default=str(DEFAULT_MAX_BYTES),
+    )
+
+    backup_sources = _build_sources(
+        cli_value=backup_count_override,
+        env_var=ENV_LOG_BACKUP_COUNT,
+        section_layers=logging_layers,
+        key="backup_count",
+    )
+    raw_backup_count, _, _ = _resolve_value(
+        sources=backup_sources,
+        normalizer=_normalize_string,
+        warnings=[],
+        default=str(DEFAULT_BACKUP_COUNT),
     )
 
     level_number = _resolve_level(level_value)
