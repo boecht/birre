@@ -21,12 +21,6 @@ from src.config import (
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 
 
-CONFIG_WARNING = (
-    "Avoid storing bitsight.api_key in "
-    f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
-)
-
-
 def write_config(path: Path, *, include_api_key: bool) -> None:
     bitsight_block = ["[bitsight]"]
     if include_api_key:
@@ -60,7 +54,7 @@ def write_local_config(path: Path, *, api_key: str) -> None:
     )
 
 
-def test_warns_only_when_base_config_defines_api_key(
+def test_config_api_key_does_not_emit_warning(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / DEFAULT_CONFIG_FILENAME
@@ -71,7 +65,7 @@ def test_warns_only_when_base_config_defines_api_key(
     settings = resolve_birre_settings(config_path=str(base))
 
     assert settings["api_key"] == "config-key"
-    assert settings["warnings"] == [CONFIG_WARNING]
+    assert settings["warnings"] == []
 
 
 def test_local_only_api_key_does_not_emit_warning(
@@ -116,7 +110,7 @@ def test_cli_arg_overrides_env_and_sets_debug(
         msg
         == (
             "Using DEBUG from command line arguments, overriding values from the "
-            "environment, the configuration file, and the default configuration file."
+            "environment and the configuration file."
         )
         for msg in settings["overrides"]
     )
@@ -301,10 +295,10 @@ def test_subscription_inputs_trim_whitespace(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the environment, overriding values from the configuration file."
     ]
     assert type_messages == [
-        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_TYPE from command line arguments, overriding values from the configuration file."
     ]
 
 
@@ -358,7 +352,7 @@ def test_subscription_source_priority_skips_blank_values(
     ]
 
     assert folder_messages == [
-        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file and the default configuration file."
+        "Using SUBSCRIPTION_FOLDER from the local configuration file, overriding values from the configuration file."
     ]
     assert type_messages == []
 
