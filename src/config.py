@@ -6,7 +6,6 @@ Settings resolve according to the following precedence:
 2. Environment variables
 3. Local configuration overlays (``config.local.toml``)
 4. Primary configuration file (``config.toml``)
-5. Bundled defaults (``config.default.toml``)
 
 Blank or whitespace-only values are treated as "not provided" so they do not
 override lower-priority sources. Normalization happens before any setting is
@@ -26,7 +25,6 @@ from dotenv import load_dotenv
 
 from .constants import (
     DEFAULT_CONFIG_FILENAME,
-    LOCAL_CONFIG_FILENAME,
     coerce_bool,
 )
 
@@ -118,13 +116,6 @@ def _get_dict_section(cfg: Any, section: str) -> Dict[str, Any]:
             return candidate
     return {}
 
-
-def _load_base_config(config_path: str) -> Dict[str, Any]:
-    if config_path.endswith(DEFAULT_CONFIG_FILENAME):
-        return _load_config(config_path)
-    return {}
-
-
 def _load_local_config(config_path: str) -> Dict[str, Any]:
     path_obj = Path(config_path)
     local_path = path_obj.with_name(f"{path_obj.stem}.local{path_obj.suffix}")
@@ -190,16 +181,16 @@ _SOURCE_LABELS = {
     "env": "the environment",
     "local": "the local configuration file",
     "config": "the configuration file",
-    "base": "the default configuration file",
 }
 
 
-def _record_override_summary(
+def record_override_summary(
     messages: list[str],
     setting: str,
     sources: Sequence[Tuple[str, Optional[Any]]],
     blank_keys: Collection[str],
     chosen_value: Optional[Any],
+    chosen_source: Optional[str] = None,
 ) -> None:
     if chosen_value is None:
         return
@@ -209,7 +200,14 @@ def _record_override_summary(
     for index, (key, value) in enumerate(sources):
         if key in blank_lookup:
             continue
-        if value == chosen_value and _value_provided(value):
+        if chosen_source is not None:
+            if key == chosen_source:
+                chosen_index = index
+                break
+            continue
+        if not _value_provided(value):
+            continue
+        if value == chosen_value:
             chosen_index = index
             break
 
@@ -226,17 +224,6 @@ def _record_override_summary(
         return
 
     chosen_key = sources[chosen_index][0]
-
-    # Skip logs when the chosen source is config but nothing lower priority
-    # supplied a value; this matches the previous behaviour of ignoring
-    # "config over base" messages to avoid noisy defaults.
-    if chosen_key == "config" and not any(
-        _value_provided(candidate)
-        for source_key, candidate in sources[:chosen_index]
-        if source_key not in blank_lookup
-    ):
-        return
-
     chosen_label = _SOURCE_LABELS.get(chosen_key, chosen_key)
     overridden_labels = [_SOURCE_LABELS.get(k, k) for k in overridden_keys]
     overridden_phrase = _join_sources(overridden_labels)
@@ -245,19 +232,15 @@ def _record_override_summary(
     )
 
 
-def _normalize_sources(
-    *sources: Tuple[str, Optional[Any]]
-) -> Tuple[
-    list[Tuple[str, Optional[str]]],
-    Dict[str, Optional[str]],
-    set[str],
-]:
-    normalized_list: list[Tuple[str, Optional[str]]] = []
-    normalized_map: Dict[str, Optional[str]] = {}
+def build_normalized_chain(
+    sources: Sequence[Tuple[str, Optional[Any]]]
+) -> Tuple[list[Tuple[str, Optional[Any]]], Dict[str, Optional[Any]], set[str]]:
+    normalized_list: list[Tuple[str, Optional[Any]]] = []
+    normalized_map: Dict[str, Optional[Any]] = {}
     blank_keys: set[str] = set()
 
     for key, raw in sources:
-        normalized = normalize_optional_str(raw)
+        normalized = _normalize_optional_value(raw)
         normalized_list.append((key, normalized))
         normalized_map[key] = normalized
         if _string_was_blank(raw):
@@ -266,25 +249,25 @@ def _normalize_sources(
     return normalized_list, normalized_map, blank_keys
 
 
-def _build_normalized_chain(
-    *sources: Tuple[str, Optional[Any]]
-) -> Tuple[
-    list[Tuple[str, Optional[str]]],
-    Dict[str, Optional[str]],
-    set[str],
-    Optional[str],
-]:
-    chain, mapping, blank_keys = _normalize_sources(*sources)
-    chosen = _first_truthy(*(value for _, value in chain))
-    return chain, mapping, blank_keys, chosen
+def _determine_chain_choice(
+    sources: Sequence[Tuple[str, Optional[Any]]],
+    blank_keys: Collection[str],
+) -> Tuple[Optional[str], Optional[Any]]:
+    blank_lookup = set(blank_keys)
+    for key, value in sources:
+        if key in blank_lookup:
+            continue
+        if _value_provided(value):
+            return key, value
+    return None, None
 
 
 def _select_configured_value(
-    mapping: Dict[str, Optional[str]],
+    mapping: Dict[str, Optional[Any]],
     blank_keys: Collection[str],
     *,
-    order: Sequence[str] = ("local", "config", "base"),
-) -> Tuple[Optional[str], bool]:
+    order: Sequence[str] = ("local", "config"),
+) -> Tuple[Optional[Any], bool]:
     blank_lookup = set(blank_keys)
     for key in order:
         if key in blank_lookup:
@@ -311,21 +294,28 @@ def _resolve_bool_setting(
     config_key: str,
     override_logs: list[str],
 ) -> bool:
-    resolved = _resolve_bool_chain(
-        runtime_layers["base"].get(config_key),
-        runtime_layers["config"].get(config_key),
-        runtime_layers["local"].get(config_key),
-        env_value,
-        cli_value,
-    )
-    sources = [
+    chain = [
         ("cli", cli_value),
         ("env", env_value),
         ("local", runtime_layers["local"].get(config_key)),
         ("config", runtime_layers["config"].get(config_key)),
-        ("base", runtime_layers["base"].get(config_key)),
     ]
-    _record_override_summary(override_logs, setting, sources, (), resolved)
+    normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
+    chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
+    resolved = _resolve_bool_chain(
+        mapping.get("config"),
+        mapping.get("local"),
+        mapping.get("env"),
+        mapping.get("cli"),
+    )
+    record_override_summary(
+        override_logs,
+        setting,
+        normalized_chain,
+        blank_keys,
+        resolved,
+        chosen_source,
+    )
     return resolved
 
 
@@ -334,27 +324,23 @@ def _resolve_api_key(
     bitsight_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[Optional[str], Optional[str]]:
-    chain, mapping, blank_keys, value = _build_normalized_chain(
+    chain = [
         ("cli", api_key_input),
         ("env", os.getenv("BITSIGHT_API_KEY")),
         ("local", bitsight_layers["local"].get("api_key")),
         ("config", bitsight_layers["config"].get("api_key")),
-        ("base", bitsight_layers["base"].get("api_key")),
-    )
-    _record_override_summary(
+    ]
+    normalized_chain, _, blank_keys = build_normalized_chain(chain)
+    chosen_source, value = _determine_chain_choice(normalized_chain, blank_keys)
+    record_override_summary(
         override_logs,
         "BITSIGHT_API_KEY",
-        chain,
+        normalized_chain,
         blank_keys,
         value,
+        chosen_source,
     )
-    warning = None
-    if mapping["base"] is not None:
-        warning = (
-            "Avoid storing bitsight.api_key in "
-            f"{DEFAULT_CONFIG_FILENAME}; prefer {LOCAL_CONFIG_FILENAME}, environment variables, or CLI overrides."
-        )
-    return value, warning
+    return value, None
 
 
 def _resolve_subscription_setting(
@@ -366,14 +352,22 @@ def _resolve_subscription_setting(
     bitsight_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Optional[str]:
-    chain, _, blank_keys, value = _build_normalized_chain(
+    chain = [
         ("cli", cli_value),
         ("env", os.getenv(env_key)),
         ("local", bitsight_layers["local"].get(config_key)),
         ("config", bitsight_layers["config"].get(config_key)),
-        ("base", bitsight_layers["base"].get(config_key)),
+    ]
+    normalized_chain, _, blank_keys = build_normalized_chain(chain)
+    chosen_source, value = _determine_chain_choice(normalized_chain, blank_keys)
+    record_override_summary(
+        override_logs,
+        setting,
+        normalized_chain,
+        blank_keys,
+        value,
+        chosen_source,
     )
-    _record_override_summary(override_logs, setting, chain, blank_keys, value)
     return value
 
 
@@ -382,28 +376,28 @@ def _resolve_context_setting(
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
-    chain, mapping, blank_keys, _ = _build_normalized_chain(
+    chain = [
         ("cli", runtime_inputs.context),
         ("env", os.getenv("BIRRE_CONTEXT")),
         ("local", runtime_layers["local"].get("context")),
         ("config", runtime_layers["config"].get("context")),
-        ("base", runtime_layers["base"].get("context")),
-    )
-    config_value = (
-        mapping["config"] if mapping["config"] is not None else mapping["base"]
-    )
+    ]
+    normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
+    chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
+    config_value = mapping.get("config")
     normalized_context, warning = _resolve_context_value(
-        mapping["cli"],
-        mapping["env"],
+        mapping.get("cli"),
+        mapping.get("env"),
         config_value,
     )
     if not warning:
-        _record_override_summary(
+        record_override_summary(
             override_logs,
             "CONTEXT",
-            chain,
+            normalized_chain,
             blank_keys,
             normalized_context,
+            chosen_source,
         )
     return normalized_context, warning
 
@@ -413,29 +407,31 @@ def _resolve_risk_setting(
     runtime_layers: Dict[str, Dict[str, Any]],
     override_logs: list[str],
 ) -> Tuple[str, Optional[str]]:
-    chain, mapping, blank_keys, _ = _build_normalized_chain(
+    chain = [
         ("cli", runtime_inputs.risk_vector_filter),
         ("env", os.getenv(ENV_RISK_VECTOR_FILTER)),
         ("local", runtime_layers["local"].get("risk_vector_filter")),
         ("config", runtime_layers["config"].get("risk_vector_filter")),
-        ("base", runtime_layers["base"].get("risk_vector_filter")),
-    )
+    ]
+    normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
+    chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
     config_value, config_blank = _select_configured_value(mapping, blank_keys)
     risk_vector_filter, warning = _resolve_risk_vector_filter(
-        mapping["cli"],
+        mapping.get("cli"),
         "cli" in blank_keys,
-        mapping["env"],
+        mapping.get("env"),
         "env" in blank_keys,
         config_value,
         config_blank,
     )
     if not warning:
-        _record_override_summary(
+        record_override_summary(
             override_logs,
             "RISK_VECTOR_FILTER",
-            chain,
+            normalized_chain,
             blank_keys,
             risk_vector_filter,
+            chosen_source,
         )
     return risk_vector_filter, warning
 
@@ -455,29 +451,31 @@ def _resolve_tls_settings(
         override_logs=override_logs,
     )
 
-    chain, mapping, blank_keys, _ = _build_normalized_chain(
+    chain = [
         ("cli", tls_inputs.ca_bundle_path),
         ("env", os.getenv(ENV_CA_BUNDLE)),
         ("local", runtime_layers["local"].get("ca_bundle_path")),
         ("config", runtime_layers["config"].get("ca_bundle_path")),
-        ("base", runtime_layers["base"].get("ca_bundle_path")),
-    )
+    ]
+    normalized_chain, mapping, blank_keys = build_normalized_chain(chain)
+    chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
     config_value, config_blank = _select_configured_value(mapping, blank_keys)
     ca_bundle_path, warning = _resolve_ca_bundle_path(
-        mapping["cli"],
+        mapping.get("cli"),
         "cli" in blank_keys,
-        mapping["env"],
+        mapping.get("env"),
         "env" in blank_keys,
         config_value,
         config_blank,
     )
     if not warning:
-        _record_override_summary(
+        record_override_summary(
             override_logs,
             "CA_BUNDLE_PATH",
-            chain,
+            normalized_chain,
             blank_keys,
             ca_bundle_path,
+            chosen_source,
         )
     return allow_insecure_tls, ca_bundle_path, warning
 
@@ -489,7 +487,7 @@ def _resolve_max_findings_setting(
 ) -> Tuple[int, Optional[str]]:
     max_findings_env = normalize_optional_str(os.getenv(ENV_MAX_FINDINGS))
     config_value = None
-    for source in ("local", "config", "base"):
+    for source in ("local", "config"):
         candidate = _normalize_optional_value(
             runtime_layers[source].get("max_findings")
         )
@@ -508,14 +506,16 @@ def _resolve_max_findings_setting(
             ("env", max_findings_env),
             ("local", runtime_layers["local"].get("max_findings")),
             ("config", runtime_layers["config"].get("max_findings")),
-            ("base", runtime_layers["base"].get("max_findings")),
         ]
-        _record_override_summary(
+        normalized_chain, _, blank_keys = build_normalized_chain(sources)
+        chosen_source, _ = _determine_chain_choice(normalized_chain, blank_keys)
+        record_override_summary(
             override_logs,
             "MAX_FINDINGS",
-            sources,
-            (),
+            normalized_chain,
+            blank_keys,
             max_value,
+            chosen_source,
         )
     return max_value, warning
 
@@ -718,17 +718,13 @@ def resolve_birre_settings(
 
     config_data = _load_config(config_path)
     local_data = _load_local_config(config_path)
-    base_data = _load_base_config(config_path)
-
     bitsight_layers = {
         "local": _get_dict_section(local_data, BITSIGHT_SECTION),
         "config": _get_dict_section(config_data, BITSIGHT_SECTION),
-        "base": _get_dict_section(base_data, BITSIGHT_SECTION),
     }
     runtime_layers = {
         "local": _get_dict_section(local_data, "runtime"),
         "config": _get_dict_section(config_data, "runtime"),
-        "base": _get_dict_section(base_data, "runtime"),
     }
 
     subscription_inputs = subscription_inputs or SubscriptionInputs()
@@ -738,9 +734,9 @@ def resolve_birre_settings(
     override_logs: list[str] = []
     warnings: list[str] = []
 
-    api_key, base_warning = _resolve_api_key(api_key_input, bitsight_layers, override_logs)
-    if base_warning:
-        warnings.append(base_warning)
+    api_key, api_warning = _resolve_api_key(api_key_input, bitsight_layers, override_logs)
+    if api_warning:
+        warnings.append(api_warning)
 
     subscription_folder = _resolve_subscription_setting(
         "SUBSCRIPTION_FOLDER",
