@@ -26,7 +26,7 @@ from src.config import (
     TlsInputs,
     resolve_application_settings,
 )
-from src.logging import configure_logging
+from src.logging import configure_logging, get_logger
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
 
 
@@ -199,15 +199,15 @@ def main() -> None:
     )
 
     configure_logging(logging_settings)
-    logger = logging.getLogger("birre")
+    logger = get_logger("birre")
 
     for message in runtime_settings.get("overrides", []):
-        logger.info(message)
+        logger.info("config.override", detail=message)
 
     for message in runtime_settings.get("warnings", []):
-        logger.warning(message)
+        logger.warning("config.warning", detail=message)
 
-    logger.info("Running offline startup checks")
+    logger.info("startup.offline_checks_begin")
     offline_ok = run_offline_startup_checks(
         has_api_key=bool(runtime_settings["api_key"]),  # CodeQL false positive
         subscription_folder=runtime_settings["subscription_folder"],
@@ -215,13 +215,13 @@ def main() -> None:
         logger=logger,
     )
     if not offline_ok:
-        logger.critical("Offline startup checks failed; aborting startup")
+        logger.critical("startup.offline_checks_failed")
         raise SystemExit(1)
 
-    logger.info("Preparing BiRRe FastMCP server")
+    logger.info("startup.prepare_server")
     server = create_birre_server(settings=runtime_settings, logger=logger)
 
-    logger.info("Running online startup checks")
+    logger.info("startup.online_checks_begin")
     call_v1_tool = getattr(server, "call_v1_tool", None)
     online_ok = asyncio.run(
         run_online_startup_checks(
@@ -235,10 +235,10 @@ def main() -> None:
         )
     )
     if not online_ok:
-        logger.critical("Online startup checks failed; aborting startup")
+        logger.critical("startup.online_checks_failed")
         raise SystemExit(1)
 
-    logger.info("Starting BiRRe FastMCP server")
+    logger.info("startup.server_start")
     try:
         server.run()
     except KeyboardInterrupt:
@@ -250,7 +250,7 @@ def main() -> None:
             "╰────────────────────────────────────────╯\n\033[0m",
             file=sys.stderr,
         )
-        logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
+        logger.info("startup.server_stopped", reason="keyboard_interrupt")
 
 
 if __name__ == "__main__":

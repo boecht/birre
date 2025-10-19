@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Mapping
 from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
+from structlog.stdlib import BoundLogger
+
+from src.logging import ensure_bound_logger
 
 
 def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
@@ -28,10 +30,11 @@ async def call_openapi_tool(
     ctx: Context,
     params: Dict[str, Any],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Any:
     """Invoke a FastMCP OpenAPI tool and normalize the result."""
 
+    logger = ensure_bound_logger(logger)
     if not isinstance(tool_name, str) or not tool_name.strip():
         raise ValueError("tool_name must be a non-empty string")
 
@@ -66,8 +69,8 @@ async def call_openapi_tool(
                         f"Failed to parse text content for '{resolved_tool_name}' as JSON"
                     )
                     logger.debug(
-                        "Unable to deserialize JSON payload from FastMCP tool response",
-                        extra={"tool": resolved_tool_name},
+                        "fastmcp.tool_response.unparseable_json",
+                        tool=resolved_tool_name,
                         exc_info=True,
                     )
                     return text
@@ -76,8 +79,8 @@ async def call_openapi_tool(
             f"FastMCP tool '{resolved_tool_name}' returned no structured data; passing raw result"
         )
         logger.warning(
-            "FastMCP tool returned unstructured payload; returning raw result",
-            extra={"tool": resolved_tool_name},
+            "fastmcp.tool_response.unstructured",
+            tool=resolved_tool_name,
         )
         return tool_result
     except httpx.HTTPStatusError as exc:
@@ -85,11 +88,9 @@ async def call_openapi_tool(
             f"FastMCP tool '{resolved_tool_name}' returned HTTP {exc.response.status_code}: {exc}"
         )
         logger.error(
-            "FastMCP tool returned HTTP error",
-            extra={
-                "tool": resolved_tool_name,
-                "status_code": exc.response.status_code,
-            },
+            "fastmcp.tool_response.http_error",
+            tool=resolved_tool_name,
+            status_code=exc.response.status_code,
             exc_info=True,
         )
         raise
@@ -98,8 +99,8 @@ async def call_openapi_tool(
             f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}"
         )
         logger.error(
-            "FastMCP tool execution failed",
-            extra={"tool": resolved_tool_name},
+            "fastmcp.tool_response.execution_failed",
+            tool=resolved_tool_name,
             exc_info=True,
         )
         raise
@@ -111,7 +112,7 @@ async def call_v1_openapi_tool(
     ctx: Context,
     params: Dict[str, Any],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Any:
     """Invoke a BitSight v1 FastMCP tool and normalize the result.
 

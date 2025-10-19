@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Optional
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
+from structlog.stdlib import BoundLogger
 
 from .helpers import CallV1Tool
-from ..logging import log_search_event
+from ..logging import ensure_bound_logger, log_search_event
 
 
 COMPANY_SUMMARY_SCHEMA: Dict[str, Any] = {
@@ -120,8 +120,9 @@ def register_company_search_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> FunctionTool:
+    logger = ensure_bound_logger(logger)
     @business_server.tool(output_schema=COMPANY_SEARCH_OUTPUT_SCHEMA)
     async def company_search(
         ctx: Context, name: Optional[str] = None, domain: Optional[str] = None
@@ -195,7 +196,11 @@ def register_company_search_tool(
         except Exception as exc:
             error_msg = f"FastMCP company search failed: {exc}"
             await ctx.error(error_msg)
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "company_search.failure",
+                error=str(exc),
+                exc_info=True,
+            )
             log_search_event(
                 logger,
                 "failure",

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
+
+from structlog.stdlib import BoundLogger
+
+from src.logging import ensure_bound_logger
 
 
 class ToolLoggingContext(Protocol):
@@ -29,8 +32,8 @@ SCHEMA_PATHS: tuple[Path, Path] = (
 class _StartupCheckContext:
     """Minimal context replicating FastMCP Context logging methods."""
 
-    def __init__(self, logger: logging.Logger) -> None:
-        self._logger = logger
+    def __init__(self, logger: BoundLogger) -> None:
+        self._logger = ensure_bound_logger(logger)
 
     async def info(self, message: str) -> None:
         await asyncio.to_thread(self._logger.info, message)
@@ -47,17 +50,21 @@ def run_offline_startup_checks(
     has_api_key: bool,
     subscription_folder: Optional[str],
     subscription_type: Optional[str],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> bool:
+    logger = ensure_bound_logger(logger)
     if not has_api_key:
-        logger.critical("offline.config.api_key: BITSIGHT_API_KEY is not set")
+        logger.critical("offline.config.api_key_missing")
         return False
 
-    logger.debug("offline.config.api_key: API key provided")
+    logger.debug("offline.config.api_key_present")
 
     for path in SCHEMA_PATHS:
         if not path.exists():
-            logger.critical("offline.config.schema:%s: Schema file missing", path.name)
+            logger.critical(
+                "offline.config.schema_missing",
+                schema=path.name,
+            )
             return False
 
         try:
@@ -65,33 +72,33 @@ def run_offline_startup_checks(
                 json.load(handle)
         except Exception as exc:  # pragma: no cover - defensive
             logger.critical(
-                "offline.config.schema:%s: Schema parse error: %s",
-                path.name,
-                exc,
+                "offline.config.schema_parse_failed",
+                schema=path.name,
+                error=str(exc),
+                exc_info=True,
             )
             return False
 
-        logger.debug("offline.config.schema:%s: Schema parsed successfully", path.name)
+        logger.debug(
+            "offline.config.schema_valid",
+            schema=path.name,
+        )
 
     if subscription_folder:
         logger.debug(
-            "offline.config.subscription_folder: Folder configured: %s",
-            subscription_folder,
+            "offline.config.subscription_folder_configured",
+            folder=subscription_folder,
         )
     else:
-        logger.warning(
-            "offline.config.subscription_folder: BIRRE_SUBSCRIPTION_FOLDER not set"
-        )
+        logger.warning("offline.config.subscription_folder_missing")
 
     if subscription_type:
         logger.debug(
-            "offline.config.subscription_type: Subscription type configured: %s",
-            subscription_type,
+            "offline.config.subscription_type_configured",
+            subscription_type=subscription_type,
         )
     else:
-        logger.warning(
-            "offline.config.subscription_type: BIRRE_SUBSCRIPTION_TYPE not set"
-        )
+        logger.warning("offline.config.subscription_type_missing")
 
     return True
 
@@ -172,12 +179,13 @@ async def _validate_subscription_folder(
     call_v1_tool: CallV1ToolFn,
     ctx: ToolLoggingContext,
     subscription_folder: Optional[str],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> bool:
+    logger = ensure_bound_logger(logger)
     if not subscription_folder:
         logger.warning(
-            "online.subscription_folder_exists: BIRRE_SUBSCRIPTION_FOLDER not set; "
-            "skipping folder validation"
+            "online.subscription_folder_missing",
+            action="skip_validation",
         )
         return True
 
@@ -185,12 +193,15 @@ async def _validate_subscription_folder(
         call_v1_tool, ctx, subscription_folder
     )
     if folder_issue is not None:
-        logger.critical("online.subscription_folder_exists: %s", folder_issue)
+        logger.critical(
+            "online.subscription_folder_invalid",
+            issue=folder_issue,
+        )
         return False
 
     logger.info(
-        "online.subscription_folder_exists: Folder '%s' verified via API",
-        subscription_folder,
+        "online.subscription_folder_verified",
+        folder=subscription_folder,
     )
     return True
 
@@ -199,12 +210,13 @@ async def _validate_subscription_quota(
     call_v1_tool: CallV1ToolFn,
     ctx: ToolLoggingContext,
     subscription_type: Optional[str],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> bool:
+    logger = ensure_bound_logger(logger)
     if not subscription_type:
         logger.warning(
-            "online.subscription_quota: BIRRE_SUBSCRIPTION_TYPE not set; "
-            "skipping quota validation"
+            "online.subscription_quota_missing",
+            action="skip_validation",
         )
         return True
 
@@ -212,12 +224,15 @@ async def _validate_subscription_quota(
         call_v1_tool, ctx, subscription_type
     )
     if quota_issue is not None:
-        logger.critical("online.subscription_quota: %s", quota_issue)
+        logger.critical(
+            "online.subscription_quota_failed",
+            issue=quota_issue,
+        )
         return False
 
     logger.info(
-        "online.subscription_quota: Subscription '%s' has remaining licenses",
-        subscription_type,
+        "online.subscription_quota_ok",
+        subscription_type=subscription_type,
     )
     return True
 
@@ -227,27 +242,32 @@ async def run_online_startup_checks(
     call_v1_tool: CallV1ToolFn,
     subscription_folder: Optional[str],
     subscription_type: Optional[str],
-    logger: logging.Logger,
+    logger: BoundLogger,
     skip_startup_checks: bool = False,
 ) -> bool:
+    logger = ensure_bound_logger(logger)
     if skip_startup_checks:
         logger.warning(
-            "online.startup_checks_skipped: Startup online checks skipped on request"
+            "online.startup_checks_skipped",
+            requested=True,
         )
         return True
 
     if call_v1_tool is None:
-        logger.critical("online.api_connectivity: v1 call tool unavailable")
+        logger.critical("online.api_connectivity_missing_tool")
         return False
 
     ctx = _StartupCheckContext(logger)
 
     connectivity_issue = await _check_api_connectivity(call_v1_tool, ctx)
     if connectivity_issue is not None:
-        logger.critical("online.api_connectivity: %s", connectivity_issue)
+        logger.critical(
+            "online.api_connectivity_failed",
+            issue=connectivity_issue,
+        )
         return False
 
-    logger.info("online.api_connectivity: Successfully called companySearch")
+    logger.info("online.api_connectivity_success")
 
     if not await _validate_subscription_folder(
         call_v1_tool, ctx, subscription_folder, logger

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from functools import partial
-from typing import Awaitable, Callable, Dict, Any, Optional, Iterable
+from typing import Any, Awaitable, Callable, Dict, Iterable, Optional
 
 from fastmcp import FastMCP
+from structlog.stdlib import BoundLogger
 
 from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 from src.constants import coerce_bool
+from .logging import ensure_bound_logger
 
 from .apis import (
     call_v1_openapi_tool,
@@ -55,21 +56,22 @@ def _resolve_max_findings(settings: Dict[str, Any]) -> int:
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(settings: Dict[str, Any], logger: logging.Logger) -> bool | str:
+def _resolve_tls_verification(settings: Dict[str, Any], logger: BoundLogger) -> bool | str:
+    logger = ensure_bound_logger(logger)
     allow_insecure_tls = coerce_bool(settings.get("allow_insecure_tls"))
     ca_bundle_path = settings.get("ca_bundle_path")
     verify_option: bool | str = True
     if allow_insecure_tls:
         logger.warning(
-            "HTTPS certificate verification disabled for BitSight API requests; "
-            "only enable this setting with a trusted proxy",
+            "tls.verification_disabled",
+            allow_insecure=True,
         )
         return False
     if ca_bundle_path:
         verify_option = str(ca_bundle_path)
         logger.info(
-            "Using custom CA bundle for BitSight API requests: %s",
-            verify_option,
+            "tls.custom_ca_bundle",
+            ca_bundle=verify_option,
         )
     return verify_option
 
@@ -108,11 +110,12 @@ def _configure_risk_manager_tools(
     business_server: FastMCP,
     settings: Dict[str, Any],
     call_v1_tool: Callable[..., Any],
-    logger: logging.Logger,
+    logger: BoundLogger,
     resolved_api_key: str,
     verify_option: bool | str,
     max_findings: int,
 ) -> None:
+    logger = ensure_bound_logger(logger)
     from src.business.risk_manager import (
         register_company_search_interactive_tool,
         register_manage_subscriptions_tool,
@@ -160,12 +163,13 @@ def _configure_risk_manager_tools(
 def _configure_standard_tools(
     business_server: FastMCP,
     call_v1_tool: Callable[..., Any],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> None:
+    logger = ensure_bound_logger(logger)
     register_company_search_tool(business_server, call_v1_tool, logger=logger)
 
 
-def create_birre_server(settings: Dict[str, Any], logger: logging.Logger) -> FastMCP:
+def create_birre_server(settings: Dict[str, Any], logger: BoundLogger) -> FastMCP:
     """Create and configure the BiRRe FastMCP business server using resolved settings."""
 
     settings = dict(settings)

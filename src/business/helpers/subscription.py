@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
+from structlog.stdlib import BoundLogger
 
+from ...logging import ensure_bound_logger
 from . import CallV1Tool
 
 
@@ -141,13 +142,14 @@ async def create_ephemeral_subscription(
     ctx: Context,
     guid: str,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     default_folder: Optional[str],
     subscription_type: Optional[str],
     debug_enabled: bool,
 ) -> SubscriptionAttempt:
     """Guarantee that the target company is subscribed before fetching data."""
 
+    logger = ensure_bound_logger(logger)
     try:
         await ctx.info(f"Ensuring BitSight subscription for company: {guid}")
 
@@ -175,8 +177,8 @@ async def create_ephemeral_subscription(
         message = f"Failed to ensure subscription for {guid}: {exc}"
         await ctx.error(message)
         logger.error(
-            "Subscription ensure failed",
-            extra={"guid": guid},
+            "subscriptions.ensure.failed",
+            guid=guid,
             exc_info=True,
         )
         return SubscriptionAttempt(False, False, False, message)

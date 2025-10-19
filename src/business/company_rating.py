@@ -11,6 +11,7 @@ import asyncio
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
+from structlog.stdlib import BoundLogger
 
 from src.config import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
@@ -20,7 +21,7 @@ from .helpers.subscription import (
     cleanup_ephemeral_subscription,
     create_ephemeral_subscription,
 )
-from ..logging import log_rating_event
+from ..logging import ensure_bound_logger, log_rating_event
 
 
 _TREND_SCHEMA: Dict[str, Any] = {
@@ -901,10 +902,12 @@ async def _build_rating_payload(
     guid: str,
     effective_filter: str,
     effective_findings: int,
-    logger: logging.Logger,
+    logger: BoundLogger,
     *,
     debug_enabled: bool,
 ) -> Dict[str, Any]:
+    logger = ensure_bound_logger(logger)
+
     log_rating_event(logger, "fetch_start", ctx=ctx, company_guid=guid)
 
     company = await _fetch_company_profile_dict(call_v1_tool, ctx, guid)
@@ -949,13 +952,15 @@ def register_company_rating_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     risk_vector_filter: Optional[str] = None,
     max_findings: Optional[int] = None,
     default_folder: Optional[str] = None,
     default_type: Optional[str] = None,
     debug_enabled: bool = False,
 ) -> FunctionTool:
+    logger = ensure_bound_logger(logger)
+
     effective_filter = (
         risk_vector_filter.strip()
         if isinstance(risk_vector_filter, str) and risk_vector_filter.strip()
