@@ -1,119 +1,103 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
+
+from pydantic import BaseModel, Field, model_validator
 
 from .helpers import CallV1Tool
 from ..logging import log_search_event
 
 
-COMPANY_SUMMARY_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "guid": {"type": "string"},
-        "name": {"type": "string"},
-        "domain": {"type": "string"},
-    },
-    "required": ["guid", "name", "domain"],
-    "additionalProperties": True,
-}
+class CompanySummary(BaseModel):
+    guid: str = Field(default="", description="BitSight company GUID")
+    name: str = Field(default="", description="Display name for the company")
+    domain: str = Field(default="", description="Primary domain or representative URL")
 
-COMPANY_SEARCH_OUTPUT_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "companies": {
-            "type": "array",
-            "items": COMPANY_SUMMARY_SCHEMA,
-        },
-        "count": {"type": "integer", "minimum": 0},
-    },
-    "required": [],
-    "anyOf": [
-        {"required": ["error"]},
-        {"required": ["companies", "count"]},
-    ],
-    "additionalProperties": True,
-}
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_input(cls, value: Any) -> Dict[str, str]:
+        if not isinstance(value, dict):
+            return {"guid": "", "name": "", "domain": ""}
 
+        def _first_present(candidates: Iterable[Any]) -> str:
+            for candidate in candidates:
+                if candidate:
+                    return str(candidate)
+            return ""
 
-def _extract_error(raw_result: Any) -> Optional[str]:
-    if isinstance(raw_result, dict) and raw_result.get("error"):
-        return f"BitSight API error: {raw_result['error']}"
-    return None
+        domain_value = _first_present(
+            (
+                value.get("primary_domain"),
+                value.get("display_url"),
+                value.get("domain"),
+                value.get("company_url"),
+            )
+        )
+
+        return {
+            "guid": str(value.get("guid") or ""),
+            "name": str(value.get("name") or ""),
+            "domain": domain_value,
+        }
 
 
-def _extract_companies_data(raw_result: Any) -> List[Any]:
-    if isinstance(raw_result, dict):
-        for key in ("results", "companies"):
-            if key in raw_result:
-                return raw_result.get(key) or []
-        if raw_result.get("guid"):
-            return [raw_result]
+class CompanySearchResponse(BaseModel):
+    error: Optional[str] = Field(default=None, description="Error message if the search failed")
+    companies: List[CompanySummary] = Field(default_factory=list)
+    count: int = Field(default=0, ge=0)
+
+    @staticmethod
+    def _extract_error(raw_result: Any) -> Optional[str]:
+        if isinstance(raw_result, dict) and raw_result.get("error"):
+            return f"BitSight API error: {raw_result['error']}"
+        return None
+
+    @staticmethod
+    def _extract_companies(raw_result: Any) -> List[Any]:
+        if isinstance(raw_result, dict):
+            for key in ("results", "companies"):
+                if key in raw_result:
+                    return raw_result.get(key) or []
+            if raw_result.get("guid"):
+                return [raw_result]
+            return []
+        if isinstance(raw_result, list):
+            return raw_result
         return []
-    if isinstance(raw_result, list):
-        return raw_result
-    return []
+
+    @classmethod
+    def from_raw(cls, raw_result: Any) -> "CompanySearchResponse":
+        error_message = cls._extract_error(raw_result)
+        if error_message:
+            return cls(error=error_message, companies=[], count=0)
+
+        company_models = [
+            CompanySummary.model_validate(candidate)
+            for candidate in cls._extract_companies(raw_result)
+            if isinstance(candidate, dict)
+        ]
+
+        return cls(companies=company_models, count=len(company_models))
+
+    def to_payload(self) -> Dict[str, Any]:
+        if self.error:
+            return {"error": self.error}
+        data = self.model_dump(exclude_unset=True)
+        data.pop("error", None)
+        return data
 
 
-def _normalize_company(company: Dict[str, Any]) -> Dict[str, Any]:
-    domain_candidates = (
-        company.get("primary_domain"),
-        company.get("display_url"),
-        company.get("domain"),
-        company.get("company_url"),
-    )
-    domain_value = next((value for value in domain_candidates if value), "")
-
-    return {
-        "guid": company.get("guid", ""),
-        "name": company.get("name", ""),
-        "domain": domain_value,
-    }
+COMPANY_SEARCH_OUTPUT_SCHEMA: Dict[str, Any] = CompanySearchResponse.model_json_schema()
 
 
 def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
     """Transform raw BitSight search results into the compact response shape."""
 
-    error_message = _extract_error(raw_result)
-    if error_message:
-        return {
-            "error": error_message,
-            "companies": [],
-            "count": 0,
-        }
-
-    companies: List[Dict[str, Any]] = [
-        {
-            "guid": str(company.get("guid") or ""),
-            "name": str(company.get("name") or ""),
-            "domain": str(
-                next(
-                    (
-                        value
-                        for value in (
-                            company.get("primary_domain"),
-                            company.get("display_url"),
-                            company.get("domain"),
-                            company.get("company_url"),
-                        )
-                        if value
-                    ),
-                    "",
-                )
-            ),
-        }
-        for company in _extract_companies_data(raw_result)
-        if isinstance(company, dict)
-    ]
-
-    return {
-        "companies": companies,
-        "count": len(companies),
-    }
+    return CompanySearchResponse.from_raw(raw_result).to_payload()
 
 
 def register_company_search_tool(
@@ -178,7 +162,7 @@ def register_company_search_tool(
         try:
             params = {"name": name, "domain": domain}
             result = await call_v1_tool("companySearch", ctx, params)
-            response_payload = normalize_company_search_results(result)
+            response_payload = CompanySearchResponse.from_raw(result).to_payload()
             await ctx.info(
                 f"Found {response_payload['count']} companies using FastMCP companySearch"
             )
