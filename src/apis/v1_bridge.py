@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Mapping
 from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
+
+from src.logging import BoundLogger
 
 
 def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
@@ -28,7 +29,7 @@ async def call_openapi_tool(
     ctx: Context,
     params: Dict[str, Any],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Any:
     """Invoke a FastMCP OpenAPI tool and normalize the result."""
 
@@ -67,7 +68,7 @@ async def call_openapi_tool(
                     )
                     logger.debug(
                         "Unable to deserialize JSON payload from FastMCP tool response",
-                        extra={"tool": resolved_tool_name},
+                        tool=resolved_tool_name,
                         exc_info=True,
                     )
                     return text
@@ -77,7 +78,7 @@ async def call_openapi_tool(
         )
         logger.warning(
             "FastMCP tool returned unstructured payload; returning raw result",
-            extra={"tool": resolved_tool_name},
+            tool=resolved_tool_name,
         )
         return tool_result
     except httpx.HTTPStatusError as exc:
@@ -86,10 +87,8 @@ async def call_openapi_tool(
         )
         logger.error(
             "FastMCP tool returned HTTP error",
-            extra={
-                "tool": resolved_tool_name,
-                "status_code": exc.response.status_code,
-            },
+            tool=resolved_tool_name,
+            status_code=exc.response.status_code,
             exc_info=True,
         )
         raise
@@ -99,7 +98,7 @@ async def call_openapi_tool(
         )
         logger.error(
             "FastMCP tool execution failed",
-            extra={"tool": resolved_tool_name},
+            tool=resolved_tool_name,
             exc_info=True,
         )
         raise
@@ -111,7 +110,7 @@ async def call_v1_openapi_tool(
     ctx: Context,
     params: Dict[str, Any],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Any:
     """Invoke a BitSight v1 FastMCP tool and normalize the result.
 
@@ -161,7 +160,7 @@ async def call_v2_openapi_tool(
     ctx: Context,
     params: Dict[str, Any],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Any:
     """Invoke a BitSight v2 FastMCP tool and normalize the result."""
 

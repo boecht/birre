@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Callable, Dict
 
 import pytest
@@ -9,6 +8,7 @@ from src.business.risk_manager import (
     register_manage_subscriptions_tool,
     register_request_company_tool,
 )
+from src.logging import get_logger
 
 
 class FakeContext(Context):
@@ -55,7 +55,7 @@ class BridgeStub:
 
 @pytest.mark.asyncio
 async def test_company_search_interactive_enriches_results() -> None:
-    logger = logging.getLogger("test.company_search_interactive")
+    logger = get_logger("test.company_search_interactive")
     server = FastMCP(name="TestServer")
 
     def company_search_handler(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -119,7 +119,7 @@ async def test_company_search_interactive_enriches_results() -> None:
 
 @pytest.mark.asyncio
 async def test_manage_subscriptions_dry_run_and_apply() -> None:
-    logger = logging.getLogger("test.manage_subscriptions")
+    logger = get_logger("test.manage_subscriptions")
     server = FastMCP(name="TestServer")
 
     def manage_handler(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -151,7 +151,7 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
 
 @pytest.mark.asyncio
 async def test_request_company_falls_back_to_single_endpoint() -> None:
-    logger = logging.getLogger("test.request_company")
+    logger = get_logger("test.request_company")
     server = FastMCP(name="TestServer")
 
     call_v1 = BridgeStub(

@@ -1,10 +1,10 @@
-import logging
 import os
 from functools import partial
 
 import pytest
 
 from src import birre
+from src.logging import BoundLogger, get_logger
 from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
 
@@ -32,7 +32,7 @@ class AsyncCallRecorder:
         ctx: object,
         params: dict[str, object],
         *,
-        logger: logging.Logger,
+        logger: BoundLogger,
     ) -> dict[str, object]:
         payload = {
             "api_server": api_server,
@@ -63,8 +63,8 @@ EXPECTED_V2_KEEP = {
 
 
 @pytest.fixture
-def logger():
-    return logging.getLogger("birre-tests")
+def logger() -> BoundLogger:
+    return get_logger("birre-tests")
 
 
 @pytest.mark.asyncio

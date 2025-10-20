@@ -18,7 +18,7 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME
-from src.logging import configure_logging
+from src.logging import configure_logging, get_logger
 from src.settings import (
     LoggingInputs,
     RuntimeInputs,
@@ -361,7 +361,7 @@ def _run_server(
     console.print(_banner(), markup=False)
 
     configure_logging(logging_settings)
-    logger = logging.getLogger("birre")
+    logger = get_logger("birre")
 
     for message in runtime_settings.get("overrides", []):
         logger.info(message)

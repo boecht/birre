@@ -1,4 +1,3 @@
-import logging
 import os
 
 import pytest
@@ -37,7 +36,7 @@ def live_server(live_runtime_settings: dict):
 async def test_run_online_startup_checks_live(
     live_runtime_settings: dict, live_server
 ) -> None:
-    logger = logging.getLogger("birre.live.startup")
+    logger = get_logger("birre.live.startup")
     call_v1_tool = getattr(live_server, "call_v1_tool", None)
     assert call_v1_tool is not None, "BiRRe server does not expose call_v1_tool"
 

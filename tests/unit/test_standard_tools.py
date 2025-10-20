@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from types import SimpleNamespace
 from typing import Any, Dict
 
@@ -12,6 +11,7 @@ from src.business.company_rating import (
     _normalize_finding_entry,
 )
 from src.business.risk_manager import register_company_search_interactive_tool
+from src.logging import BoundLogger, get_logger
 
 
 class StubContext(Context):
@@ -42,9 +42,9 @@ class StubContext(Context):
         return self._request_id
 
 
-def make_server() -> tuple[FastMCP, logging.Logger]:
+def make_server() -> tuple[FastMCP, BoundLogger]:
     server = FastMCP(name="TestServer")
-    logger = logging.getLogger("birre.test.standard")
+    logger = get_logger("birre.test.standard")
     return server, logger
 
 
