@@ -5,7 +5,8 @@ import logging
 import os
 import sys
 from dataclasses import replace
-from typing import Optional, Sequence
+from inspect import Parameter, Signature
+from typing import Any, Optional, Sequence
 
 import typer
 from rich.console import Console
@@ -452,45 +453,114 @@ def serve(
     )
 
 
+_STANDARD_COMMAND_SIGNATURE = Signature(
+    parameters=[
+        Parameter(
+            "api_key",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=ApiKeyOption,
+            default=None,
+        ),
+        Parameter(
+            "config_path",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=ConfigPathOption,
+            default=DEFAULT_CONFIG_FILENAME,
+        ),
+        Parameter(
+            "log_level",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=LogLevelOption,
+            default=None,
+        ),
+        Parameter(
+            "log_format",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=LogFormatOption,
+            default=None,
+        ),
+        Parameter(
+            "log_file",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=LogFileOption,
+            default=None,
+        ),
+        Parameter(
+            "log_max_bytes",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=LogMaxBytesOption,
+            default=None,
+        ),
+        Parameter(
+            "log_backup_count",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=LogBackupCountOption,
+            default=None,
+        ),
+        Parameter(
+            "skip_startup_checks",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=SkipStartupChecksOption,
+            default=None,
+        ),
+        Parameter(
+            "subscription_folder",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=SubscriptionFolderOption,
+            default=None,
+        ),
+        Parameter(
+            "subscription_type",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=SubscriptionTypeOption,
+            default=None,
+        ),
+        Parameter(
+            "risk_vector_filter",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=RiskVectorFilterOption,
+            default=None,
+        ),
+        Parameter(
+            "max_findings",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=MaxFindingsOption,
+            default=None,
+        ),
+        Parameter(
+            "debug",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=DebugOption,
+            default=None,
+        ),
+        Parameter(
+            "allow_insecure_tls",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=AllowInsecureTlsOption,
+            default=None,
+        ),
+        Parameter(
+            "ca_bundle_path",
+            kind=Parameter.KEYWORD_ONLY,
+            annotation=CaBundleOption,
+            default=None,
+        ),
+    ]
+)
+
+
 @app.command(help="Serve BiRRe using the standard tool persona.")
-def standard(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def standard(**cli_args: Any) -> None:
     """Run the BiRRe FastMCP server in the standard context."""
 
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
+        **cli_args,
         context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
         context_alias="standard",
     )
+
+
+standard.__signature__ = _STANDARD_COMMAND_SIGNATURE
 
 
 @app.command("risk-manager", help="Serve BiRRe using the risk manager persona.")
