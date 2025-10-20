@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Optional, Sequence
 
 import typer
@@ -38,6 +39,7 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+_CLI_PROG_NAME = Path(__file__).name
 _CONTEXT_CHOICES = {"standard", "risk_manager"}
 _LOG_FORMAT_CHOICES = {"text", "json"}
 _LOG_LEVEL_CHOICES = sorted(
@@ -595,13 +597,13 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     command = get_command(app)
     if args[0] in {"-h", "--help"}:
-        command.main(args=args, prog_name="server.py")
+        command.main(args=args, prog_name=_CLI_PROG_NAME)
         return
 
     if args[0].startswith("-"):
-        command.main(args=["serve", *args], prog_name="server.py")
+        command.main(args=["serve", *args], prog_name=_CLI_PROG_NAME)
     else:
-        command.main(args=args, prog_name="server.py")
+        command.main(args=args, prog_name=_CLI_PROG_NAME)
 
 
 if __name__ == "__main__":
