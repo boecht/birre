@@ -13,16 +13,24 @@ from prance.util import resolver as prance_resolver
 SCHEMA_REF_PREFIX = "#/components/schemas/"
 
 
-def _wrap_schema_responses(spec: Any) -> None:
+def _get_schema_definitions(spec: Any) -> Mapping[str, Any]:
     if not isinstance(spec, Mapping):
-        return
+        return {}
 
     components = spec.get("components")
-    schemas: Mapping[str, Any] = {}
-    if isinstance(components, Mapping):
-        candidate = components.get("schemas")
-        if isinstance(candidate, Mapping):
-            schemas = candidate
+    if not isinstance(components, Mapping):
+        return {}
+
+    schemas = components.get("schemas")
+    if not isinstance(schemas, Mapping):
+        return {}
+
+    return schemas
+
+
+def _iter_api_responses(spec: Any):
+    if not isinstance(spec, Mapping):
+        return
 
     paths = spec.get("paths")
     if not isinstance(paths, Mapping):
@@ -35,29 +43,44 @@ def _wrap_schema_responses(spec: Any) -> None:
             if not isinstance(operation, Mapping):
                 continue
             responses = operation.get("responses")
-            if not isinstance(responses, Mapping):
+            if isinstance(responses, Mapping):
+                yield responses
+
+
+def _schema_description(schemas: Mapping[str, Any], ref: str) -> str:
+    schema_name = ref.split("/")[-1]
+    schema = schemas.get(schema_name)
+    if isinstance(schema, Mapping):
+        maybe_description = schema.get("description")
+        if isinstance(maybe_description, str):
+            return maybe_description
+    return ""
+
+
+def _convert_response(response: Mapping[str, Any], schemas: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    if "content" in response:
+        return None
+
+    ref = response.get("$ref")
+    if not (isinstance(ref, str) and ref.startswith(SCHEMA_REF_PREFIX)):
+        return None
+
+    description = _schema_description(schemas, ref)
+    return {
+        "description": description,
+        "content": {"application/json": {"schema": {"$ref": ref}}},
+    }
+
+
+def _wrap_schema_responses(spec: Any) -> None:
+    schemas = _get_schema_definitions(spec)
+    for responses in _iter_api_responses(spec):
+        for status, response in responses.items():
+            if not isinstance(response, Mapping):
                 continue
-            for status, response in list(responses.items()):
-                if not isinstance(response, Mapping):
-                    continue
-                if "content" in response:
-                    continue
-                ref = response.get("$ref")
-                if not (isinstance(ref, str) and ref.startswith(SCHEMA_REF_PREFIX)):
-                    continue
-
-                schema_name = ref.split("/")[-1]
-                description = ""
-                schema = schemas.get(schema_name)
-                if isinstance(schema, Mapping):
-                    maybe_description = schema.get("description")
-                    if isinstance(maybe_description, str):
-                        description = maybe_description
-
-                responses[status] = {
-                    "description": description,
-                    "content": {"application/json": {"schema": {"$ref": ref}}},
-                }
+            replacement = _convert_response(response, schemas)
+            if replacement is not None:
+                responses[status] = replacement
 
 
 def _load_api_spec(path: str) -> Any:
