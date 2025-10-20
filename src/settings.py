@@ -196,6 +196,85 @@ def _apply_environment_overrides(settings: Dynaconf) -> None:
         settings.set(RUNTIME_DEBUG_KEY, debug_fallback)
 
 
+def _apply_api_key(settings: Dynaconf, api_key_input: Optional[str]) -> None:
+    if api_key_input:
+        settings.set(BITSIGHT_API_KEY_KEY, api_key_input)
+
+
+def _apply_subscription_inputs(
+    settings: Dynaconf, subscription_inputs: Optional[SubscriptionInputs]
+) -> None:
+    if subscription_inputs is None:
+        return
+
+    if subscription_inputs.folder is not None:
+        settings.set(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, subscription_inputs.folder.strip())
+    if subscription_inputs.type is not None:
+        settings.set(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_inputs.type.strip())
+
+
+def _apply_runtime_inputs(
+    settings: Dynaconf, runtime_inputs: Optional[RuntimeInputs]
+) -> None:
+    if runtime_inputs is None:
+        return
+
+    if runtime_inputs.context is not None:
+        settings.set(ROLE_CONTEXT_KEY, runtime_inputs.context.strip())
+    if runtime_inputs.debug is not None:
+        settings.set(RUNTIME_DEBUG_KEY, runtime_inputs.debug)
+    if runtime_inputs.risk_vector_filter is not None:
+        settings.set(
+            ROLE_RISK_VECTOR_FILTER_KEY, runtime_inputs.risk_vector_filter.strip()
+        )
+    if runtime_inputs.max_findings is not None:
+        settings.set(ROLE_MAX_FINDINGS_KEY, runtime_inputs.max_findings)
+    if runtime_inputs.skip_startup_checks is not None:
+        settings.set(
+            RUNTIME_SKIP_STARTUP_CHECKS_KEY, runtime_inputs.skip_startup_checks
+        )
+
+
+def _apply_tls_inputs(settings: Dynaconf, tls_inputs: Optional[TlsInputs]) -> None:
+    if tls_inputs is None:
+        return
+
+    if tls_inputs.allow_insecure is not None:
+        settings.set(RUNTIME_ALLOW_INSECURE_TLS_KEY, tls_inputs.allow_insecure)
+    if tls_inputs.ca_bundle_path is not None:
+        settings.set(
+            RUNTIME_CA_BUNDLE_PATH_KEY, tls_inputs.ca_bundle_path.strip()
+        )
+
+
+def _apply_logging_inputs(
+    settings: Dynaconf, logging_inputs: Optional[LoggingInputs]
+) -> None:
+    if logging_inputs is None:
+        return
+
+    kwargs = logging_inputs.as_kwargs()
+    level_override = kwargs["level_override"]
+    if level_override is not None:
+        settings.set(LOGGING_LEVEL_KEY, level_override.strip())
+
+    format_override = kwargs["format_override"]
+    if format_override is not None:
+        settings.set(LOGGING_FORMAT_KEY, format_override.strip())
+
+    file_override = kwargs["file_override"]
+    if file_override is not None:
+        settings.set(LOGGING_FILE_KEY, file_override.strip())
+
+    max_bytes_override = kwargs["max_bytes_override"]
+    if max_bytes_override is not None:
+        settings.set(LOGGING_MAX_BYTES_KEY, max_bytes_override)
+
+    backup_count_override = kwargs["backup_count_override"]
+    if backup_count_override is not None:
+        settings.set(LOGGING_BACKUP_COUNT_KEY, backup_count_override)
+
+
 def _apply_cli_overrides(
     settings: Dynaconf,
     *,
@@ -205,53 +284,11 @@ def _apply_cli_overrides(
     tls_inputs: Optional[TlsInputs],
     logging_inputs: Optional[LoggingInputs],
 ) -> None:
-    if api_key_input:
-        settings.set(BITSIGHT_API_KEY_KEY, api_key_input)
-
-    if subscription_inputs:
-        if subscription_inputs.folder is not None:
-            folder = subscription_inputs.folder.strip()
-            settings.set(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, folder)
-        if subscription_inputs.type is not None:
-            subscription_type = subscription_inputs.type.strip()
-            settings.set(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_type)
-
-    if runtime_inputs:
-        if runtime_inputs.context is not None:
-            settings.set(ROLE_CONTEXT_KEY, runtime_inputs.context.strip())
-        if runtime_inputs.debug is not None:
-            settings.set(RUNTIME_DEBUG_KEY, runtime_inputs.debug)
-        if runtime_inputs.risk_vector_filter is not None:
-            settings.set(
-                ROLE_RISK_VECTOR_FILTER_KEY, runtime_inputs.risk_vector_filter.strip()
-            )
-        if runtime_inputs.max_findings is not None:
-            settings.set(ROLE_MAX_FINDINGS_KEY, runtime_inputs.max_findings)
-        if runtime_inputs.skip_startup_checks is not None:
-            settings.set(
-                RUNTIME_SKIP_STARTUP_CHECKS_KEY, runtime_inputs.skip_startup_checks
-            )
-
-    if tls_inputs:
-        if tls_inputs.allow_insecure is not None:
-            settings.set(RUNTIME_ALLOW_INSECURE_TLS_KEY, tls_inputs.allow_insecure)
-        if tls_inputs.ca_bundle_path is not None:
-            settings.set(
-                RUNTIME_CA_BUNDLE_PATH_KEY, tls_inputs.ca_bundle_path.strip()
-            )
-
-    if logging_inputs:
-        kwargs = logging_inputs.as_kwargs()
-        if kwargs["level_override"] is not None:
-            settings.set(LOGGING_LEVEL_KEY, kwargs["level_override"].strip())
-        if kwargs["format_override"] is not None:
-            settings.set(LOGGING_FORMAT_KEY, kwargs["format_override"].strip())
-        if kwargs["file_override"] is not None:
-            settings.set(LOGGING_FILE_KEY, kwargs["file_override"].strip())
-        if kwargs["max_bytes_override"] is not None:
-            settings.set(LOGGING_MAX_BYTES_KEY, kwargs["max_bytes_override"])
-        if kwargs["backup_count_override"] is not None:
-            settings.set(LOGGING_BACKUP_COUNT_KEY, kwargs["backup_count_override"])
+    _apply_api_key(settings, api_key_input)
+    _apply_subscription_inputs(settings, subscription_inputs)
+    _apply_runtime_inputs(settings, runtime_inputs)
+    _apply_tls_inputs(settings, tls_inputs)
+    _apply_logging_inputs(settings, logging_inputs)
 
 
 def _build_dynaconf(config_path: Optional[str]) -> Dynaconf:
