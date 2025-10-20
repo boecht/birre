@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 
 from dynaconf import Dynaconf
 
@@ -117,6 +117,37 @@ class LoggingInputs:
             "max_bytes_override": self.max_bytes,
             "backup_count_override": self.backup_count,
         }
+
+
+@dataclass(frozen=True)
+class RuntimeSettings(Mapping[str, Any]):
+    api_key: str
+    subscription_folder: Optional[str]
+    subscription_type: Optional[str]
+    context: Optional[str]
+    risk_vector_filter: Optional[str]
+    max_findings: int
+    skip_startup_checks: bool
+    debug: bool
+    allow_insecure_tls: bool
+    ca_bundle_path: Optional[str]
+    warnings: Tuple[str, ...] = field(default_factory=tuple)
+    overrides: Tuple[str, ...] = field(default_factory=tuple)
+
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return getattr(self, key)
+        except AttributeError as exc:  # pragma: no cover - defensive
+            raise KeyError(key) from exc
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__dataclass_fields__.keys())
+
+    def __len__(self) -> int:
+        return len(self.__dataclass_fields__)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {field: getattr(self, field) for field in self.__dataclass_fields__}
 
 
 @dataclass(frozen=True)
@@ -381,7 +412,7 @@ def _resolve_subscription_value(settings: Dynaconf, key: str) -> Optional[str]:
     return _coerce_str(settings.get(key))
 
 
-def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
+def runtime_from_settings(settings: Dynaconf) -> RuntimeSettings:
     """Extract runtime settings and validation messages from Dynaconf."""
 
     warnings: list[str] = []
@@ -416,20 +447,20 @@ def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
         )
         ca_bundle_path = None
 
-    return {
-        "api_key": api_key,
-        "subscription_folder": subscription_folder,
-        "subscription_type": subscription_type,
-        "context": context,
-        "risk_vector_filter": risk_vector_filter,
-        "max_findings": max_findings,
-        "skip_startup_checks": skip_startup_checks,
-        "debug": debug_enabled,
-        "allow_insecure_tls": allow_insecure_tls,
-        "ca_bundle_path": ca_bundle_path,
-        "warnings": warnings,
-        "overrides": [],
-    }
+    return RuntimeSettings(
+        api_key=api_key,
+        subscription_folder=subscription_folder,
+        subscription_type=subscription_type,
+        context=context,
+        risk_vector_filter=risk_vector_filter,
+        max_findings=max_findings,
+        skip_startup_checks=skip_startup_checks,
+        debug=debug_enabled,
+        allow_insecure_tls=allow_insecure_tls,
+        ca_bundle_path=ca_bundle_path,
+        warnings=tuple(warnings),
+        overrides=tuple(),
+    )
 
 
 def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
@@ -475,7 +506,7 @@ def resolve_birre_settings(
     subscription_inputs: Optional[SubscriptionInputs] = None,
     runtime_inputs: Optional[RuntimeInputs] = None,
     tls_inputs: Optional[TlsInputs] = None,
-) -> Dict[str, Any]:
+) -> RuntimeSettings:
     settings = load_settings(config_path)
     apply_cli_overrides(
         settings,
@@ -518,7 +549,7 @@ def resolve_application_settings(
     runtime_inputs: Optional[RuntimeInputs] = None,
     logging_inputs: Optional[LoggingInputs] = None,
     tls_inputs: Optional[TlsInputs] = None,
-) -> Tuple[Dict[str, Any], LoggingSettings]:
+) -> Tuple[RuntimeSettings, LoggingSettings]:
     runtime_settings = resolve_birre_settings(
         api_key_input=api_key_input,
         config_path=config_path,
@@ -533,7 +564,7 @@ def resolve_application_settings(
         **logging_inputs.as_kwargs(),
     )
 
-    if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
+    if runtime_settings.debug and logging_settings.level > logging.DEBUG:
         logging_settings = LoggingSettings(
             level=logging.DEBUG,
             format=logging_settings.format,
@@ -565,6 +596,7 @@ __all__ = [
     "RuntimeInputs",
     "TlsInputs",
     "LoggingInputs",
+    "RuntimeSettings",
     "LoggingSettings",
     "resolve_birre_settings",
     "resolve_logging_settings",
