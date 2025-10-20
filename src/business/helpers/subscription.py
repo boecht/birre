@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
 
 from . import CallV1Tool
+from ...logging import BoundLogger
 
 
 class SubscriptionAttempt(NamedTuple):
@@ -141,7 +141,7 @@ async def create_ephemeral_subscription(
     ctx: Context,
     guid: str,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     default_folder: Optional[str],
     subscription_type: Optional[str],
     debug_enabled: bool,
@@ -175,8 +175,8 @@ async def create_ephemeral_subscription(
         message = f"Failed to ensure subscription for {guid}: {exc}"
         await ctx.error(message)
         logger.error(
-            "Subscription ensure failed",
-            extra={"guid": guid},
+            "subscription.ensure_failed",
+            guid=guid,
             exc_info=True,
         )
         return SubscriptionAttempt(False, False, False, message)

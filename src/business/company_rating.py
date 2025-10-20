@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,7 +21,7 @@ from .helpers.subscription import (
     cleanup_ephemeral_subscription,
     create_ephemeral_subscription,
 )
-from ..logging import log_rating_event
+from ..logging import BoundLogger, log_rating_event
 
 
 class TrendSummary(BaseModel):
@@ -853,7 +852,7 @@ async def _build_rating_payload(
     guid: str,
     effective_filter: str,
     effective_findings: int,
-    logger: logging.Logger,
+    logger: BoundLogger,
     *,
     debug_enabled: bool,
 ) -> CompanyRatingResponse:
@@ -901,7 +900,7 @@ def register_company_rating_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     risk_vector_filter: Optional[str] = None,
     max_findings: Optional[int] = None,
     default_folder: Optional[str] = None,

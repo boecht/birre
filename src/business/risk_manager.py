@@ -16,7 +16,7 @@ from src.constants import DEFAULT_CONFIG_FILENAME
 from src.settings import DEFAULT_MAX_FINDINGS
 
 from .helpers import CallV1Tool, CallV2Tool
-from ..logging import log_event, log_search_event
+from ..logging import BoundLogger, log_event, log_search_event
 
 
 class SubscriptionSnapshot(BaseModel):
@@ -204,7 +204,7 @@ async def _fetch_company_details(
     ctx: Context,
     guids: Sequence[str],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     limit: int,
 ) -> Dict[str, Dict[str, Any]]:
     """Retrieve detailed company records for the provided GUIDs."""
@@ -231,7 +231,8 @@ async def _fetch_company_details(
         except Exception as exc:  # pragma: no cover - defensive
             await ctx.warning(f"Failed to fetch company details for {guid_str}: {exc}")
             logger.warning(
-                "company_detail.fetch_failed", extra={"company_guid": guid_str}
+                "company_detail.fetch_failed",
+                company_guid=guid_str,
             )
     return details
 
@@ -269,7 +270,7 @@ async def _fetch_folder_memberships(
     ctx: Context,
     target_guids: Iterable[str],
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Dict[str, List[str]]:
     """Build a mapping of company GUID to folder names."""
 
@@ -281,7 +282,11 @@ async def _fetch_folder_memberships(
         folders = await call_v1_tool("getFolders", ctx, {})
     except Exception as exc:  # pragma: no cover - defensive
         await ctx.warning(f"Unable to fetch folder list: {exc}")
-        logger.warning("folders.fetch_failed", exc_info=True)
+        logger.warning(
+            "folders.fetch_failed",
+            error=str(exc),
+            exc_info=True,
+        )
         return {}
 
     if not isinstance(folders, list):
@@ -415,7 +420,7 @@ async def _perform_company_search(
     call_v1_tool: CallV1Tool,
     ctx: Context,
     search_params: Dict[str, Any],
-    logger: logging.Logger,
+    logger: BoundLogger,
     *,
     name: Optional[str],
     domain: Optional[str],
@@ -487,7 +492,7 @@ async def _build_company_search_response(
     call_v1_tool: CallV1Tool,
     ctx: Context,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     raw_result: Any,
     search: CompanySearchInputs,
     defaults: CompanySearchDefaults,
@@ -560,7 +565,7 @@ def register_company_search_interactive_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     default_folder: Optional[str],
     default_type: Optional[str],
     max_findings: int = DEFAULT_MAX_FINDINGS,
@@ -674,7 +679,7 @@ def _serialize_bulk_csv(domain: str, company_name: Optional[str]) -> str:
 def _normalize_domain(
     domain: str,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     ctx: Context,
 ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     domain_value = (domain or "").strip().lower()
@@ -695,7 +700,7 @@ async def _resolve_folder_selection(
     call_v1_tool: CallV1Tool,
     ctx: Context,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     domain_value: str,
     selected_folder: Optional[str],
 ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -724,7 +729,7 @@ async def _resolve_folder_selection(
 
 def _existing_requests_response(
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     ctx: Context,
     domain_value: str,
     existing: List[Dict[str, Any]],
@@ -764,7 +769,7 @@ def _build_bulk_payload(
 
 def _dry_run_response(
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     ctx: Context,
     domain_value: str,
     selected_folder: Optional[str],
@@ -794,7 +799,7 @@ async def _submit_company_request(
     call_v2_tool: CallV2Tool,
     ctx: Context,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     domain_value: str,
     selected_folder: Optional[str],
     subscription_type: Optional[str],
@@ -855,7 +860,7 @@ def register_request_company_tool(
     call_v1_tool: CallV1Tool,
     call_v2_tool: CallV2Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     default_folder: Optional[str],
     default_type: Optional[str],
 ) -> FunctionTool:
@@ -973,7 +978,7 @@ def register_manage_subscriptions_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
     default_folder: Optional[str],
     default_type: Optional[str],
 ) -> FunctionTool:
@@ -1038,7 +1043,8 @@ def register_manage_subscriptions_tool(
             await ctx.error(f"Subscription management failed: {exc}")
             logger.error(
                 "manage_subscriptions.failed",
-                extra={"action": normalized_action, "count": len(guid_list)},
+                action=normalized_action,
+                count=len(guid_list),
                 exc_info=True,
             )
             return ManageSubscriptionsResponse(

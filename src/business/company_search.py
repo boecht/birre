@@ -9,7 +9,7 @@ from fastmcp.tools.tool import FunctionTool
 from pydantic import BaseModel, Field, model_validator
 
 from .helpers import CallV1Tool
-from ..logging import log_search_event
+from ..logging import BoundLogger, log_search_event
 
 
 class CompanySummary(BaseModel):
@@ -104,7 +104,7 @@ def register_company_search_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     *,
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> FunctionTool:
     @business_server.tool(output_schema=COMPANY_SEARCH_OUTPUT_SCHEMA)
     async def company_search(
@@ -195,7 +195,11 @@ def register_company_search_tool(
         except Exception as exc:
             error_msg = f"FastMCP company search failed: {exc}"
             await ctx.error(error_msg)
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "company_search.error",
+                error=str(exc),
+                exc_info=True,
+            )
             log_search_event(
                 logger,
                 "failure",
