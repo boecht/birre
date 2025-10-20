@@ -193,8 +193,16 @@ def _coerce_runtime_settings(
     else:
         overrides_tuple = tuple(overrides_raw)
 
+    raw_api_key = data.get("api_key")
+    if raw_api_key is None:
+        api_key = ""
+    elif isinstance(raw_api_key, str):
+        api_key = raw_api_key
+    else:
+        api_key = str(raw_api_key)
+
     return RuntimeSettings(
-        api_key=str(data.get("api_key", "")),
+        api_key=api_key,
         subscription_folder=data.get("subscription_folder"),
         subscription_type=data.get("subscription_type"),
         context=data.get("context"),

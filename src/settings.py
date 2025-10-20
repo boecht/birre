@@ -459,7 +459,7 @@ def runtime_from_settings(settings: Dynaconf) -> RuntimeSettings:
         allow_insecure_tls=allow_insecure_tls,
         ca_bundle_path=ca_bundle_path,
         warnings=tuple(warnings),
-        overrides=tuple(),
+        overrides=(),
     )
 
 
