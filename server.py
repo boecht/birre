@@ -1,12 +1,13 @@
 """BiRRe FastMCP server entrypoint."""
 
 import asyncio
+import inspect
 import logging
 import os
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 import typer
 from rich.console import Console
@@ -531,53 +532,58 @@ def standard(
     )
 
 
-@app.command("risk-manager", help="Serve BiRRe using the risk manager persona.")
-def risk_manager(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
-    """Run the BiRRe FastMCP server in the risk manager context."""
+def _risk_manager_command(**options: Any) -> None:
+    """Implementation for the risk manager persona command."""
 
+    option_map: Mapping[str, Any] = options
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
+        api_key=option_map.get("api_key"),
+        config_path=option_map.get("config_path", DEFAULT_CONFIG_FILENAME),
         logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
+            level=option_map.get("log_level"),
+            format=option_map.get("log_format"),
+            file_path=option_map.get("log_file"),
+            max_bytes=option_map.get("log_max_bytes"),
+            backup_count=option_map.get("log_backup_count"),
         ),
         runtime_cli=_RuntimeCliOptions(
             context=None,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
+            debug=option_map.get("debug"),
+            risk_vector_filter=option_map.get("risk_vector_filter"),
+            max_findings=option_map.get("max_findings"),
+            skip_startup_checks=option_map.get("skip_startup_checks"),
         ),
         subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
+            folder=option_map.get("subscription_folder"),
+            type=option_map.get("subscription_type"),
         ),
         tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
+            allow_insecure=option_map.get("allow_insecure_tls"),
+            ca_bundle_path=option_map.get("ca_bundle_path"),
         ),
         context_alias="risk_manager",
     )
+
+
+_RISK_MANAGER_SIGNATURE = inspect.signature(standard)
+
+_RISK_MANAGER_SIGNATURE_PARAMETERS = tuple(_RISK_MANAGER_SIGNATURE.parameters.values())
+
+
+def _apply_signature(target: Any) -> None:
+    target.__signature__ = _RISK_MANAGER_SIGNATURE.replace(
+        parameters=_RISK_MANAGER_SIGNATURE_PARAMETERS
+    )
+    target.__annotations__ = getattr(standard, "__annotations__", {}).copy()
+
+
+_apply_signature(_risk_manager_command)
+
+risk_manager = app.command(
+    "risk-manager", help="Serve BiRRe using the risk manager persona."
+)(_risk_manager_command)
+_apply_signature(risk_manager)
+risk_manager.__doc__ = "Run the BiRRe FastMCP server in the risk manager context."
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
