@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Optional, Sequence
 
 import typer
@@ -288,28 +288,48 @@ CaBundleOption = Annotated[
 ]
 
 
+@dataclass(frozen=True)
+class _LoggingCliOptions:
+    level: Optional[str] = None
+    format: Optional[str] = None
+    file_path: Optional[str] = None
+    max_bytes: Optional[int] = None
+    backup_count: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class _RuntimeCliOptions:
+    context: Optional[str] = None
+    debug: Optional[bool] = None
+    risk_vector_filter: Optional[str] = None
+    max_findings: Optional[int] = None
+    skip_startup_checks: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class _SubscriptionCliOptions:
+    folder: Optional[str] = None
+    type: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class _TlsCliOptions:
+    allow_insecure: Optional[bool] = None
+    ca_bundle_path: Optional[str] = None
+
+
 def _run_server(
     *,
     api_key: Optional[str],
     config_path: str,
-    context: Optional[str],
-    log_level: Optional[str],
-    log_format: Optional[str],
-    log_file: Optional[str],
-    log_max_bytes: Optional[int],
-    log_backup_count: Optional[int],
-    skip_startup_checks: Optional[bool],
-    subscription_folder: Optional[str],
-    subscription_type: Optional[str],
-    risk_vector_filter: Optional[str],
-    max_findings: Optional[int],
-    debug: Optional[bool],
-    allow_insecure_tls: Optional[bool],
-    ca_bundle_path: Optional[str],
+    logging_cli: _LoggingCliOptions,
+    runtime_cli: _RuntimeCliOptions,
+    subscription_cli: _SubscriptionCliOptions,
+    tls_cli: _TlsCliOptions,
     context_alias: Optional[str] = None,
 ) -> None:
     alias_context = _normalize_context(context_alias) if context_alias else None
-    requested_context = _normalize_context(context)
+    requested_context = _normalize_context(runtime_cli.context)
     if alias_context and requested_context and alias_context != requested_context:
         raise typer.BadParameter(
             f"Context '{requested_context}' conflicts with the '{alias_context}' command.",
@@ -317,30 +337,30 @@ def _run_server(
         )
     normalized_context = alias_context or requested_context
 
-    normalized_log_format = _normalize_log_format(log_format)
-    normalized_log_level = _normalize_log_level(log_level)
+    normalized_log_format = _normalize_log_format(logging_cli.format)
+    normalized_log_level = _normalize_log_level(logging_cli.level)
 
     logging_inputs = LoggingInputs(
         level=normalized_log_level,
         format=normalized_log_format,
-        file_path=log_file,
-        max_bytes=log_max_bytes,
-        backup_count=log_backup_count,
+        file_path=logging_cli.file_path,
+        max_bytes=logging_cli.max_bytes,
+        backup_count=logging_cli.backup_count,
     )
     runtime_inputs = RuntimeInputs(
         context=normalized_context,
-        debug=debug,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        skip_startup_checks=skip_startup_checks,
+        debug=runtime_cli.debug,
+        risk_vector_filter=runtime_cli.risk_vector_filter,
+        max_findings=runtime_cli.max_findings,
+        skip_startup_checks=runtime_cli.skip_startup_checks,
     )
     subscription_inputs = SubscriptionInputs(
-        folder=subscription_folder,
-        type=subscription_type,
+        folder=subscription_cli.folder,
+        type=subscription_cli.type,
     )
     tls_inputs = TlsInputs(
-        allow_insecure=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
+        allow_insecure=tls_cli.allow_insecure,
+        ca_bundle_path=tls_cli.ca_bundle_path,
     )
 
     config_settings = load_settings(config_path)
@@ -385,8 +405,8 @@ def _run_server(
 
     logger.info("Running online startup checks")
     skip_checks = (
-        skip_startup_checks
-        if skip_startup_checks is not None
+        runtime_cli.skip_startup_checks
+        if runtime_cli.skip_startup_checks is not None
         else runtime_settings["skip_startup_checks"]
     )
     call_v1_tool = getattr(server, "call_v1_tool", None)
@@ -435,20 +455,28 @@ def serve(
     _run_server(
         api_key=api_key,
         config_path=config_path,
-        context=context,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
+        logging_cli=_LoggingCliOptions(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
+        runtime_cli=_RuntimeCliOptions(
+            context=context,
+            debug=debug,
+            risk_vector_filter=risk_vector_filter,
+            max_findings=max_findings,
+            skip_startup_checks=skip_startup_checks,
+        ),
+        subscription_cli=_SubscriptionCliOptions(
+            folder=subscription_folder,
+            type=subscription_type,
+        ),
+        tls_cli=_TlsCliOptions(
+            allow_insecure=allow_insecure_tls,
+            ca_bundle_path=ca_bundle_path,
+        ),
     )
 
 
@@ -475,20 +503,28 @@ def standard(
     _run_server(
         api_key=api_key,
         config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
+        logging_cli=_LoggingCliOptions(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
+        runtime_cli=_RuntimeCliOptions(
+            context=None,
+            debug=debug,
+            risk_vector_filter=risk_vector_filter,
+            max_findings=max_findings,
+            skip_startup_checks=skip_startup_checks,
+        ),
+        subscription_cli=_SubscriptionCliOptions(
+            folder=subscription_folder,
+            type=subscription_type,
+        ),
+        tls_cli=_TlsCliOptions(
+            allow_insecure=allow_insecure_tls,
+            ca_bundle_path=ca_bundle_path,
+        ),
         context_alias="standard",
     )
 
@@ -516,20 +552,28 @@ def risk_manager(
     _run_server(
         api_key=api_key,
         config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
+        logging_cli=_LoggingCliOptions(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
+        runtime_cli=_RuntimeCliOptions(
+            context=None,
+            debug=debug,
+            risk_vector_filter=risk_vector_filter,
+            max_findings=max_findings,
+            skip_startup_checks=skip_startup_checks,
+        ),
+        subscription_cli=_SubscriptionCliOptions(
+            folder=subscription_folder,
+            type=subscription_type,
+        ),
+        tls_cli=_TlsCliOptions(
+            allow_insecure=allow_insecure_tls,
+            ca_bundle_path=ca_bundle_path,
+        ),
         context_alias="risk_manager",
     )
 
@@ -542,20 +586,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         _run_server(
             api_key=None,
             config_path=DEFAULT_CONFIG_FILENAME,
-            context=None,
-            log_level=None,
-            log_format=None,
-            log_file=None,
-            log_max_bytes=None,
-            log_backup_count=None,
-            skip_startup_checks=None,
-            subscription_folder=None,
-            subscription_type=None,
-            risk_vector_filter=None,
-            max_findings=None,
-            debug=None,
-            allow_insecure_tls=None,
-            ca_bundle_path=None,
+            logging_cli=_LoggingCliOptions(),
+            runtime_cli=_RuntimeCliOptions(),
+            subscription_cli=_SubscriptionCliOptions(),
+            tls_cli=_TlsCliOptions(),
         )
         return
 
