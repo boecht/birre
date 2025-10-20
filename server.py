@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, replace
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
 
 import typer
 from rich.console import Console
@@ -287,6 +287,31 @@ CaBundleOption = Annotated[
     ),
 ]
 
+_COMMAND_NAMES = {"serve", "standard", "risk-manager"}
+_GLOBAL_VALUE_OPTIONS = {
+    "--bitsight-api-key",
+    "--config",
+    "--context",
+    "--log-level",
+    "--log-format",
+    "--log-file",
+    "--log-max-bytes",
+    "--log-backup-count",
+    "--subscription-folder",
+    "--subscription-type",
+    "--risk-vector-filter",
+    "--max-findings",
+    "--ca-bundle",
+}
+_GLOBAL_BOOL_FLAGS = {
+    "--skip-startup-checks",
+    "--no-skip-startup-checks",
+    "--debug",
+    "--no-debug",
+    "--allow-insecure-tls",
+    "--require-secure-tls",
+}
+
 
 @dataclass(frozen=True)
 class _LoggingCliOptions:
@@ -556,6 +581,43 @@ def risk_manager(ctx: typer.Context) -> None:
     )
 
 
+def _reorder_args_for_callback(args: Sequence[str]) -> List[str]:
+    if not args:
+        return list(args)
+
+    command = args[0]
+    if command not in _COMMAND_NAMES:
+        return list(args)
+
+    global_tokens: List[str] = []
+    remaining: List[str] = [command]
+
+    idx = 1
+    while idx < len(args):
+        token = args[idx]
+        if token == "--":
+            remaining.extend(args[idx:])
+            break
+
+        option_name, has_equals, _ = token.partition("=")
+        if option_name in _GLOBAL_VALUE_OPTIONS:
+            global_tokens.append(token)
+            if not has_equals:
+                idx += 1
+                if idx < len(args):
+                    global_tokens.append(args[idx])
+                else:
+                    break
+        elif option_name in _GLOBAL_BOOL_FLAGS:
+            global_tokens.append(token)
+        else:
+            remaining.append(token)
+
+        idx += 1
+
+    return [*global_tokens, *remaining]
+
+
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Main entry point for BiRRe MCP server."""
 
@@ -579,7 +641,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args[0].startswith("-"):
         command.main(args=["serve", *args], prog_name="server.py")
     else:
-        command.main(args=args, prog_name="server.py")
+        reordered = _reorder_args_for_callback(args)
+        command.main(args=reordered, prog_name="server.py")
 
 
 if __name__ == "__main__":
