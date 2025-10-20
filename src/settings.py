@@ -344,40 +344,54 @@ def _resolve_subscription_value(settings: Dynaconf, key: str) -> Optional[str]:
     return _coerce_str(settings.get(key))
 
 
-def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
-    """Extract runtime settings and validation messages from Dynaconf."""
-
-    warnings: list[str] = []
-
+def _require_api_key(settings: Dynaconf) -> str:
     api_key = _coerce_str(settings.get(BITSIGHT_API_KEY_KEY))
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
+    return api_key
 
-    subscription_folder = _resolve_subscription_value(
-        settings, BITSIGHT_SUBSCRIPTION_FOLDER_KEY
-    )
-    subscription_type = _resolve_subscription_value(
-        settings, BITSIGHT_SUBSCRIPTION_TYPE_KEY
-    )
 
-    context = _resolve_context(settings, warnings)
-    risk_vector_filter = _resolve_risk_vector_filter(settings, warnings)
-    max_findings = _resolve_max_findings(settings, warnings)
+def _resolve_subscription_settings(settings: Dynaconf) -> Tuple[Optional[str], Optional[str]]:
+    folder = _resolve_subscription_value(settings, BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+    subscription_type = _resolve_subscription_value(settings, BITSIGHT_SUBSCRIPTION_TYPE_KEY)
+    return folder, subscription_type
 
+
+def _resolve_runtime_flags(settings: Dynaconf) -> Tuple[bool, bool]:
     skip_startup_checks = _resolve_bool(
         settings, RUNTIME_SKIP_STARTUP_CHECKS_KEY, default=False
     )
     debug_enabled = _resolve_bool(settings, RUNTIME_DEBUG_KEY, default=False)
+    return skip_startup_checks, debug_enabled
+
+
+def _resolve_tls_settings(settings: Dynaconf, warnings: list[str]) -> Tuple[bool, Optional[str]]:
     allow_insecure_tls = _resolve_bool(
         settings, RUNTIME_ALLOW_INSECURE_TLS_KEY, default=False
     )
     ca_bundle_path = _coerce_str(settings.get(RUNTIME_CA_BUNDLE_PATH_KEY))
-
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
             "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
         )
         ca_bundle_path = None
+    return allow_insecure_tls, ca_bundle_path
+
+
+def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
+    """Extract runtime settings and validation messages from Dynaconf."""
+
+    warnings: list[str] = []
+
+    api_key = _require_api_key(settings)
+    subscription_folder, subscription_type = _resolve_subscription_settings(settings)
+
+    context = _resolve_context(settings, warnings)
+    risk_vector_filter = _resolve_risk_vector_filter(settings, warnings)
+    max_findings = _resolve_max_findings(settings, warnings)
+
+    skip_startup_checks, debug_enabled = _resolve_runtime_flags(settings)
+    allow_insecure_tls, ca_bundle_path = _resolve_tls_settings(settings, warnings)
 
     return {
         "api_key": api_key,

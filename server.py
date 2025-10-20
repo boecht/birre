@@ -4,13 +4,11 @@ import asyncio
 import logging
 import os
 import sys
-from dataclasses import replace
-from typing import Optional, Sequence
+from dataclasses import dataclass, replace
+from typing import Any, Callable, Dict, Optional, Sequence
 
-import typer
+import click
 from rich.console import Console
-from typing_extensions import Annotated
-from typer.main import get_command
 
 # FastMCP checks this flag during import time, so ensure it is enabled before
 # importing any modules that depend on FastMCP.
@@ -33,10 +31,7 @@ from src.startup_checks import run_offline_startup_checks, run_online_startup_ch
 
 console = Console(stderr=True)
 
-app = typer.Typer(
-    help="Run the BiRRe FastMCP server",
-    rich_markup_mode="rich",
-)
+app = click.Group(help="Run the BiRRe FastMCP server")
 
 _CONTEXT_CHOICES = {"standard", "risk_manager"}
 _LOG_FORMAT_CHOICES = {"text", "json"}
@@ -46,6 +41,7 @@ _LOG_LEVEL_CHOICES = sorted(
     if isinstance(name, str) and not name.isdigit()
 )
 _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
+_PROG_NAME = "server.py"
 
 
 def _banner() -> str:
@@ -86,7 +82,7 @@ def _normalize_context(value: Optional[str]) -> Optional[str]:
     if not candidate:
         return None
     if candidate not in _CONTEXT_CHOICES:
-        raise typer.BadParameter(
+        raise click.BadParameter(
             f"Context must be one of: {', '.join(sorted(_CONTEXT_CHOICES))}",
             param_hint="--context",
         )
@@ -100,7 +96,7 @@ def _normalize_log_format(value: Optional[str]) -> Optional[str]:
     if not candidate:
         return None
     if candidate not in _LOG_FORMAT_CHOICES:
-        raise typer.BadParameter(
+        raise click.BadParameter(
             "Log format must be either 'text' or 'json'",
             param_hint="--log-format",
         )
@@ -114,239 +110,77 @@ def _normalize_log_level(value: Optional[str]) -> Optional[str]:
     if not candidate:
         return None
     if candidate not in _LOG_LEVEL_SET:
-        raise typer.BadParameter(
+        raise click.BadParameter(
             f"Log level must be one of: {', '.join(_LOG_LEVEL_CHOICES)}",
             param_hint="--log-level",
         )
     return candidate
 
 
-ApiKeyOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--bitsight-api-key",
-        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
-        envvar="BITSIGHT_API_KEY",
-        show_envvar=True,
-        rich_help_panel="Authentication",
-    ),
-]
-ConfigPathOption = Annotated[
-    str,
-    typer.Option(
-        "--config",
-        help="Path to BiRRe config TOML",
-        show_default=True,
-        rich_help_panel="Configuration",
-    ),
-]
-ContextOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--context",
-        help="Tool persona to expose (standard or risk_manager)",
-        envvar="BIRRE_CONTEXT",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-]
-LogLevelOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--log-level",
-        help="Logging level (defaults to INFO unless overridden)",
-        envvar="BIRRE_LOG_LEVEL",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-]
-LogFormatOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--log-format",
-        help="Logging format (text or json)",
-        envvar="BIRRE_LOG_FORMAT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-]
-LogFileOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--log-file",
-        help="Log file path (adds rotating file handler)",
-        envvar="BIRRE_LOG_FILE",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-]
-LogMaxBytesOption = Annotated[
-    Optional[int],
-    typer.Option(
-        "--log-max-bytes",
-        help="Maximum size in bytes for rotating log files",
-        envvar="BIRRE_LOG_MAX_BYTES",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-]
-LogBackupCountOption = Annotated[
-    Optional[int],
-    typer.Option(
-        "--log-backup-count",
-        help="Number of rotating log file backups to keep",
-        envvar="BIRRE_LOG_BACKUP_COUNT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-]
-SkipStartupChecksOption = Annotated[
-    Optional[bool],
-    typer.Option(
-        "--skip-startup-checks/--no-skip-startup-checks",
-        help="Skip BitSight startup checks (not recommended)",
-        envvar="BIRRE_SKIP_STARTUP_CHECKS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-]
-SubscriptionFolderOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--subscription-folder",
-        help="Preferred BitSight subscription folder name (e.g. API), must exist",
-        envvar="BIRRE_SUBSCRIPTION_FOLDER",
-        show_envvar=True,
-        rich_help_panel="BitSight",
-    ),
-]
-SubscriptionTypeOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--subscription-type",
-        help="BitSight subscription type (e.g. continuous_monitoring)",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="BitSight",
-    ),
-]
-RiskVectorFilterOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--risk-vector-filter",
-        help="Override the default risk vectors used for top findings (comma-separated).",
-        envvar="BIRRE_RISK_VECTOR_FILTER",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-]
-MaxFindingsOption = Annotated[
-    Optional[int],
-    typer.Option(
-        "--max-findings",
-        help="Maximum number of findings/details to surface per company (default: 10).",
-        envvar="BIRRE_MAX_FINDINGS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-]
-DebugOption = Annotated[
-    Optional[bool],
-    typer.Option(
-        "--debug/--no-debug",
-        help="Enable verbose debug logging and diagnostic payloads",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-]
-AllowInsecureTlsOption = Annotated[
-    Optional[bool],
-    typer.Option(
-        "--allow-insecure-tls/--require-secure-tls",
-        help=(
-            "Disable HTTPS certificate verification for BitSight API requests. "
-            "Use only when behind a trusted intercepting proxy."
-        ),
-        envvar="BIRRE_ALLOW_INSECURE_TLS",
-        show_envvar=True,
-        rich_help_panel="TLS",
-    ),
-]
-CaBundleOption = Annotated[
-    Optional[str],
-    typer.Option(
-        "--ca-bundle",
-        help=(
-            "Path to a custom CA bundle for BitSight API HTTPS verification "
-            "(overrides system trust store)."
-        ),
-        envvar="BIRRE_CA_BUNDLE",
-        show_envvar=True,
-        rich_help_panel="TLS",
-    ),
-]
+@dataclass
+class _CliOptions:
+    api_key: Optional[str] = None
+    config_path: str = DEFAULT_CONFIG_FILENAME
+    context: Optional[str] = None
+    log_level: Optional[str] = None
+    log_format: Optional[str] = None
+    log_file: Optional[str] = None
+    log_max_bytes: Optional[int] = None
+    log_backup_count: Optional[int] = None
+    skip_startup_checks: Optional[bool] = None
+    subscription_folder: Optional[str] = None
+    subscription_type: Optional[str] = None
+    risk_vector_filter: Optional[str] = None
+    max_findings: Optional[int] = None
+    debug: Optional[bool] = None
+    allow_insecure_tls: Optional[bool] = None
+    ca_bundle_path: Optional[str] = None
 
 
 def _run_server(
+    options: _CliOptions,
     *,
-    api_key: Optional[str],
-    config_path: str,
-    context: Optional[str],
-    log_level: Optional[str],
-    log_format: Optional[str],
-    log_file: Optional[str],
-    log_max_bytes: Optional[int],
-    log_backup_count: Optional[int],
-    skip_startup_checks: Optional[bool],
-    subscription_folder: Optional[str],
-    subscription_type: Optional[str],
-    risk_vector_filter: Optional[str],
-    max_findings: Optional[int],
-    debug: Optional[bool],
-    allow_insecure_tls: Optional[bool],
-    ca_bundle_path: Optional[str],
     context_alias: Optional[str] = None,
 ) -> None:
     alias_context = _normalize_context(context_alias) if context_alias else None
-    requested_context = _normalize_context(context)
+    requested_context = _normalize_context(options.context)
     if alias_context and requested_context and alias_context != requested_context:
-        raise typer.BadParameter(
+        raise click.BadParameter(
             f"Context '{requested_context}' conflicts with the '{alias_context}' command.",
             param_hint="--context",
         )
     normalized_context = alias_context or requested_context
 
-    normalized_log_format = _normalize_log_format(log_format)
-    normalized_log_level = _normalize_log_level(log_level)
+    normalized_log_format = _normalize_log_format(options.log_format)
+    normalized_log_level = _normalize_log_level(options.log_level)
 
     logging_inputs = LoggingInputs(
         level=normalized_log_level,
         format=normalized_log_format,
-        file_path=log_file,
-        max_bytes=log_max_bytes,
-        backup_count=log_backup_count,
+        file_path=options.log_file,
+        max_bytes=options.log_max_bytes,
+        backup_count=options.log_backup_count,
     )
     runtime_inputs = RuntimeInputs(
         context=normalized_context,
-        debug=debug,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        skip_startup_checks=skip_startup_checks,
+        debug=options.debug,
+        risk_vector_filter=options.risk_vector_filter,
+        max_findings=options.max_findings,
+        skip_startup_checks=options.skip_startup_checks,
     )
     subscription_inputs = SubscriptionInputs(
-        folder=subscription_folder,
-        type=subscription_type,
+        folder=options.subscription_folder,
+        type=options.subscription_type,
     )
     tls_inputs = TlsInputs(
-        allow_insecure=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
+        allow_insecure=options.allow_insecure_tls,
+        ca_bundle_path=options.ca_bundle_path,
     )
 
-    config_settings = load_settings(config_path)
+    config_settings = load_settings(options.config_path)
     apply_cli_overrides(
         config_settings,
-        api_key_input=api_key,
+        api_key_input=options.api_key,
         subscription_inputs=subscription_inputs,
         runtime_inputs=runtime_inputs,
         tls_inputs=tls_inputs,
@@ -385,8 +219,8 @@ def _run_server(
 
     logger.info("Running online startup checks")
     skip_checks = (
-        skip_startup_checks
-        if skip_startup_checks is not None
+        options.skip_startup_checks
+        if options.skip_startup_checks is not None
         else runtime_settings["skip_startup_checks"]
     )
     call_v1_tool = getattr(server, "call_v1_tool", None)
@@ -411,127 +245,181 @@ def _run_server(
         logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
 
 
+def _cli_option_decorators(include_context: bool) -> Sequence[Callable[[Any], Callable[[Any], Any]]]:
+    options: list[Callable[[Any], Callable[[Any], Any]]] = [
+        click.option(
+            "--bitsight-api-key",
+            "api_key",
+            help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
+            envvar="BITSIGHT_API_KEY",
+            show_envvar=True,
+        ),
+        click.option(
+            "--config",
+            "config_path",
+            default=DEFAULT_CONFIG_FILENAME,
+            show_default=True,
+            help="Path to BiRRe config TOML",
+        ),
+    ]
+    if include_context:
+        options.append(
+            click.option(
+                "--context",
+                "context",
+                help="Tool persona to expose (standard or risk_manager)",
+                envvar="BIRRE_CONTEXT",
+                show_envvar=True,
+            )
+        )
+    options.extend(
+        [
+            click.option(
+                "--log-level",
+                "log_level",
+                help="Logging level (defaults to INFO unless overridden)",
+                envvar="BIRRE_LOG_LEVEL",
+                show_envvar=True,
+            ),
+            click.option(
+                "--log-format",
+                "log_format",
+                help="Logging format (text or json)",
+                envvar="BIRRE_LOG_FORMAT",
+                show_envvar=True,
+            ),
+            click.option(
+                "--log-file",
+                "log_file",
+                help="Log file path (adds rotating file handler)",
+                envvar="BIRRE_LOG_FILE",
+                show_envvar=True,
+            ),
+            click.option(
+                "--log-max-bytes",
+                "log_max_bytes",
+                type=int,
+                help="Maximum size in bytes for rotating log files",
+                envvar="BIRRE_LOG_MAX_BYTES",
+                show_envvar=True,
+            ),
+            click.option(
+                "--log-backup-count",
+                "log_backup_count",
+                type=int,
+                help="Number of rotating log file backups to keep",
+                envvar="BIRRE_LOG_BACKUP_COUNT",
+                show_envvar=True,
+            ),
+            click.option(
+                "--skip-startup-checks/--no-skip-startup-checks",
+                "skip_startup_checks",
+                default=None,
+                help="Skip BitSight startup checks (not recommended)",
+                envvar="BIRRE_SKIP_STARTUP_CHECKS",
+                show_envvar=True,
+            ),
+            click.option(
+                "--subscription-folder",
+                "subscription_folder",
+                help="Preferred BitSight subscription folder name (e.g. API), must exist",
+                envvar="BIRRE_SUBSCRIPTION_FOLDER",
+                show_envvar=True,
+            ),
+            click.option(
+                "--subscription-type",
+                "subscription_type",
+                help="BitSight subscription type (e.g. continuous_monitoring)",
+                envvar="BIRRE_SUBSCRIPTION_TYPE",
+                show_envvar=True,
+            ),
+            click.option(
+                "--risk-vector-filter",
+                "risk_vector_filter",
+                help=(
+                    "Override the default risk vectors used for top findings (comma-separated)."
+                ),
+                envvar="BIRRE_RISK_VECTOR_FILTER",
+                show_envvar=True,
+            ),
+            click.option(
+                "--max-findings",
+                "max_findings",
+                type=int,
+                help="Maximum number of findings/details to surface per company (default: 10).",
+                envvar="BIRRE_MAX_FINDINGS",
+                show_envvar=True,
+            ),
+            click.option(
+                "--debug/--no-debug",
+                "debug",
+                default=None,
+                help="Enable verbose debug logging and diagnostic payloads",
+                envvar="BIRRE_DEBUG",
+                show_envvar=True,
+            ),
+            click.option(
+                "--allow-insecure-tls/--require-secure-tls",
+                "allow_insecure_tls",
+                default=None,
+                help=(
+                    "Disable HTTPS certificate verification for BitSight API requests. "
+                    "Use only when behind a trusted intercepting proxy."
+                ),
+                envvar="BIRRE_ALLOW_INSECURE_TLS",
+                show_envvar=True,
+            ),
+            click.option(
+                "--ca-bundle",
+                "ca_bundle_path",
+                help=(
+                    "Path to a custom CA bundle for BitSight API HTTPS verification "
+                    "(overrides system trust store)."
+                ),
+                envvar="BIRRE_CA_BUNDLE",
+                show_envvar=True,
+            ),
+        ]
+    )
+    return options
+
+
+def _apply_cli_options(include_context: bool) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator(function: Callable[..., Any]) -> Callable[..., Any]:
+        for option in reversed(_cli_option_decorators(include_context)):
+            function = option(function)
+        return function
+
+    return decorator
+
+
+def _execute_cli_command(cli_kwargs: Dict[str, Any], *, context_alias: Optional[str]) -> None:
+    options = _CliOptions(**cli_kwargs)
+    _run_server(options, context_alias=context_alias)
+
+
 @app.command(help="Serve BiRRe with an explicitly selected context.")
-def serve(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    context: ContextOption = None,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+@_apply_cli_options(include_context=True)
+def serve(**cli_kwargs) -> None:
     """Run the BiRRe FastMCP server."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=context,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-    )
+    _execute_cli_command(dict(cli_kwargs), context_alias=None)
 
 
 @app.command(help="Serve BiRRe using the standard tool persona.")
-def standard(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+@_apply_cli_options(include_context=False)
+def standard(**cli_kwargs) -> None:
     """Run the BiRRe FastMCP server in the standard context."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-        context_alias="standard",
-    )
+    _execute_cli_command(dict(cli_kwargs), context_alias="standard")
 
 
 @app.command("risk-manager", help="Serve BiRRe using the risk manager persona.")
-def risk_manager(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+@_apply_cli_options(include_context=False)
+def risk_manager(**cli_kwargs) -> None:
     """Run the BiRRe FastMCP server in the risk manager context."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-        context_alias="risk_manager",
-    )
+    _execute_cli_command(dict(cli_kwargs), context_alias="risk_manager")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
@@ -539,35 +427,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
-        _run_server(
-            api_key=None,
-            config_path=DEFAULT_CONFIG_FILENAME,
-            context=None,
-            log_level=None,
-            log_format=None,
-            log_file=None,
-            log_max_bytes=None,
-            log_backup_count=None,
-            skip_startup_checks=None,
-            subscription_folder=None,
-            subscription_type=None,
-            risk_vector_filter=None,
-            max_findings=None,
-            debug=None,
-            allow_insecure_tls=None,
-            ca_bundle_path=None,
-        )
+        _run_server(_CliOptions())
         return
 
-    command = get_command(app)
     if args[0] in {"-h", "--help"}:
-        command.main(args=args, prog_name="server.py")
+        app.main(args=args, prog_name=_PROG_NAME)
         return
 
     if args[0].startswith("-"):
-        command.main(args=["serve", *args], prog_name="server.py")
+        app.main(args=["serve", *args], prog_name=_PROG_NAME)
     else:
-        command.main(args=args, prog_name="server.py")
+        app.main(args=args, prog_name=_PROG_NAME)
 
 
 if __name__ == "__main__":
