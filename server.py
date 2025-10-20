@@ -4,12 +4,13 @@ import asyncio
 import logging
 import os
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Optional, Sequence
 
 import typer
 from rich.console import Console
 from typing_extensions import Annotated
+from typer import Context
 from typer.main import get_command
 
 # FastMCP checks this flag during import time, so ensure it is enabled before
@@ -37,6 +38,57 @@ app = typer.Typer(
     help="Run the BiRRe FastMCP server",
     rich_markup_mode="rich",
 )
+
+_CONTEXT_OVERRIDE_MISSING = object()
+
+
+@dataclass
+class ServerCliOptions:
+    api_key: Optional[str]
+    config_path: str
+    context: Optional[str]
+    log_level: Optional[str]
+    log_format: Optional[str]
+    log_file: Optional[str]
+    log_max_bytes: Optional[int]
+    log_backup_count: Optional[int]
+    skip_startup_checks: Optional[bool]
+    subscription_folder: Optional[str]
+    subscription_type: Optional[str]
+    risk_vector_filter: Optional[str]
+    max_findings: Optional[int]
+    debug: Optional[bool]
+    allow_insecure_tls: Optional[bool]
+    ca_bundle_path: Optional[str]
+
+    def to_kwargs(
+        self,
+        *,
+        context_override: object = _CONTEXT_OVERRIDE_MISSING,
+    ) -> dict:
+        context_value = (
+            self.context
+            if context_override is _CONTEXT_OVERRIDE_MISSING
+            else context_override
+        )
+        return {
+            "api_key": self.api_key,
+            "config_path": self.config_path,
+            "context": context_value,
+            "log_level": self.log_level,
+            "log_format": self.log_format,
+            "log_file": self.log_file,
+            "log_max_bytes": self.log_max_bytes,
+            "log_backup_count": self.log_backup_count,
+            "skip_startup_checks": self.skip_startup_checks,
+            "subscription_folder": self.subscription_folder,
+            "subscription_type": self.subscription_type,
+            "risk_vector_filter": self.risk_vector_filter,
+            "max_findings": self.max_findings,
+            "debug": self.debug,
+            "allow_insecure_tls": self.allow_insecure_tls,
+            "ca_bundle_path": self.ca_bundle_path,
+        }
 
 _CONTEXT_CHOICES = {"standard", "risk_manager"}
 _LOG_FORMAT_CHOICES = {"text", "json"}
@@ -288,6 +340,61 @@ CaBundleOption = Annotated[
 ]
 
 
+@app.callback(invoke_without_command=True)
+def configure_server(
+    ctx: Context,
+    api_key: ApiKeyOption = None,
+    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
+    context: ContextOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
+    skip_startup_checks: SkipStartupChecksOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    risk_vector_filter: RiskVectorFilterOption = None,
+    max_findings: MaxFindingsOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle_path: CaBundleOption = None,
+) -> None:
+    ctx.obj = ServerCliOptions(
+        api_key=api_key,
+        config_path=config_path,
+        context=context,
+        log_level=log_level,
+        log_format=log_format,
+        log_file=log_file,
+        log_max_bytes=log_max_bytes,
+        log_backup_count=log_backup_count,
+        skip_startup_checks=skip_startup_checks,
+        subscription_folder=subscription_folder,
+        subscription_type=subscription_type,
+        risk_vector_filter=risk_vector_filter,
+        max_findings=max_findings,
+        debug=debug,
+        allow_insecure_tls=allow_insecure_tls,
+        ca_bundle_path=ca_bundle_path,
+    )
+
+    if ctx.invoked_subcommand is None:
+        _invoke_run_server(ctx.obj)
+
+
+def _invoke_run_server(
+    options: ServerCliOptions,
+    *,
+    context_alias: Optional[str] = None,
+    context_override: object = _CONTEXT_OVERRIDE_MISSING,
+) -> None:
+    _run_server(
+        **options.to_kwargs(context_override=context_override),
+        context_alias=context_alias,
+    )
+
+
 def _run_server(
     *,
     api_key: Optional[str],
@@ -412,162 +519,39 @@ def _run_server(
 
 
 @app.command(help="Serve BiRRe with an explicitly selected context.")
-def serve(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    context: ContextOption = None,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def serve(ctx: Context) -> None:
     """Run the BiRRe FastMCP server."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=context,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-    )
+    options = ctx.ensure_object(ServerCliOptions)
+    _invoke_run_server(options)
 
 
 @app.command(help="Serve BiRRe using the standard tool persona.")
-def standard(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def standard(ctx: Context) -> None:
     """Run the BiRRe FastMCP server in the standard context."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-        context_alias="standard",
-    )
+    options = ctx.ensure_object(ServerCliOptions)
+    _invoke_run_server(options, context_alias="standard", context_override=None)
 
 
 @app.command("risk-manager", help="Serve BiRRe using the risk manager persona.")
-def risk_manager(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def risk_manager(ctx: Context) -> None:
     """Run the BiRRe FastMCP server in the risk manager context."""
 
-    _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        context=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
-        skip_startup_checks=skip_startup_checks,
-        subscription_folder=subscription_folder,
-        subscription_type=subscription_type,
-        risk_vector_filter=risk_vector_filter,
-        max_findings=max_findings,
-        debug=debug,
-        allow_insecure_tls=allow_insecure_tls,
-        ca_bundle_path=ca_bundle_path,
-        context_alias="risk_manager",
-    )
+    options = ctx.ensure_object(ServerCliOptions)
+    _invoke_run_server(options, context_alias="risk_manager", context_override=None)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Main entry point for BiRRe MCP server."""
 
-    args = list(sys.argv[1:] if argv is None else argv)
-    if not args:
-        _run_server(
-            api_key=None,
-            config_path=DEFAULT_CONFIG_FILENAME,
-            context=None,
-            log_level=None,
-            log_format=None,
-            log_file=None,
-            log_max_bytes=None,
-            log_backup_count=None,
-            skip_startup_checks=None,
-            subscription_folder=None,
-            subscription_type=None,
-            risk_vector_filter=None,
-            max_findings=None,
-            debug=None,
-            allow_insecure_tls=None,
-            ca_bundle_path=None,
-        )
-        return
-
     command = get_command(app)
-    if args[0] in {"-h", "--help"}:
+    args = list(sys.argv[1:] if argv is None else argv)
+    try:
         command.main(args=args, prog_name="server.py")
-        return
-
-    if args[0].startswith("-"):
-        command.main(args=["serve", *args], prog_name="server.py")
-    else:
-        command.main(args=args, prog_name="server.py")
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            raise
 
 
 if __name__ == "__main__":
