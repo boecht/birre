@@ -40,22 +40,43 @@ _ALLOWED_CONTEXTS = {"standard", "risk_manager"}
 _TRUTHY = {"1", "true", "yes", "on"}
 _FALSY = {"0", "false", "no", "off"}
 
+# Dynaconf keys used throughout the module. Using constants helps avoid
+# duplication and keeps environment and configuration lookups consistent.
+BITSIGHT_API_KEY_KEY = "bitsight.api_key"
+BITSIGHT_SUBSCRIPTION_FOLDER_KEY = "bitsight.subscription_folder"
+BITSIGHT_SUBSCRIPTION_TYPE_KEY = "bitsight.subscription_type"
+
+ROLE_CONTEXT_KEY = "roles.context"
+ROLE_RISK_VECTOR_FILTER_KEY = "roles.risk_vector_filter"
+ROLE_MAX_FINDINGS_KEY = "roles.max_findings"
+
+RUNTIME_SKIP_STARTUP_CHECKS_KEY = "runtime.skip_startup_checks"
+RUNTIME_DEBUG_KEY = "runtime.debug"
+RUNTIME_ALLOW_INSECURE_TLS_KEY = "runtime.allow_insecure_tls"
+RUNTIME_CA_BUNDLE_PATH_KEY = "runtime.ca_bundle_path"
+
+LOGGING_LEVEL_KEY = "logging.level"
+LOGGING_FORMAT_KEY = "logging.format"
+LOGGING_FILE_KEY = "logging.file"
+LOGGING_MAX_BYTES_KEY = "logging.max_bytes"
+LOGGING_BACKUP_COUNT_KEY = "logging.backup_count"
+
 _ENVIRONMENT_MAP = {
-    "BITSIGHT_API_KEY": "bitsight.api_key",
-    "BIRRE_SUBSCRIPTION_FOLDER": "bitsight.subscription_folder",
-    "BIRRE_SUBSCRIPTION_TYPE": "bitsight.subscription_type",
-    "BIRRE_CONTEXT": "roles.context",
-    "BIRRE_RISK_VECTOR_FILTER": "roles.risk_vector_filter",
-    "BIRRE_MAX_FINDINGS": "roles.max_findings",
-    "BIRRE_SKIP_STARTUP_CHECKS": "runtime.skip_startup_checks",
-    "BIRRE_DEBUG": "runtime.debug",
-    "BIRRE_ALLOW_INSECURE_TLS": "runtime.allow_insecure_tls",
-    "BIRRE_CA_BUNDLE": "runtime.ca_bundle_path",
-    "BIRRE_LOG_LEVEL": "logging.level",
-    "BIRRE_LOG_FORMAT": "logging.format",
-    "BIRRE_LOG_FILE": "logging.file",
-    "BIRRE_LOG_MAX_BYTES": "logging.max_bytes",
-    "BIRRE_LOG_BACKUP_COUNT": "logging.backup_count",
+    "BITSIGHT_API_KEY": BITSIGHT_API_KEY_KEY,
+    "BIRRE_SUBSCRIPTION_FOLDER": BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
+    "BIRRE_SUBSCRIPTION_TYPE": BITSIGHT_SUBSCRIPTION_TYPE_KEY,
+    "BIRRE_CONTEXT": ROLE_CONTEXT_KEY,
+    "BIRRE_RISK_VECTOR_FILTER": ROLE_RISK_VECTOR_FILTER_KEY,
+    "BIRRE_MAX_FINDINGS": ROLE_MAX_FINDINGS_KEY,
+    "BIRRE_SKIP_STARTUP_CHECKS": RUNTIME_SKIP_STARTUP_CHECKS_KEY,
+    "BIRRE_DEBUG": RUNTIME_DEBUG_KEY,
+    "BIRRE_ALLOW_INSECURE_TLS": RUNTIME_ALLOW_INSECURE_TLS_KEY,
+    "BIRRE_CA_BUNDLE": RUNTIME_CA_BUNDLE_PATH_KEY,
+    "BIRRE_LOG_LEVEL": LOGGING_LEVEL_KEY,
+    "BIRRE_LOG_FORMAT": LOGGING_FORMAT_KEY,
+    "BIRRE_LOG_FILE": LOGGING_FILE_KEY,
+    "BIRRE_LOG_MAX_BYTES": LOGGING_MAX_BYTES_KEY,
+    "BIRRE_LOG_BACKUP_COUNT": LOGGING_BACKUP_COUNT_KEY,
 }
 
 
@@ -172,7 +193,7 @@ def _apply_environment_overrides(settings: Dynaconf) -> None:
         settings.set(key, raw)
     debug_fallback = os.getenv("DEBUG")
     if debug_fallback and debug_fallback.strip():
-        settings.set("runtime.debug", debug_fallback)
+        settings.set(RUNTIME_DEBUG_KEY, debug_fallback)
 
 
 def _apply_cli_overrides(
@@ -185,46 +206,52 @@ def _apply_cli_overrides(
     logging_inputs: Optional[LoggingInputs],
 ) -> None:
     if api_key_input:
-        settings.set("bitsight.api_key", api_key_input)
+        settings.set(BITSIGHT_API_KEY_KEY, api_key_input)
 
     if subscription_inputs:
         if subscription_inputs.folder is not None:
             folder = subscription_inputs.folder.strip()
-            settings.set("bitsight.subscription_folder", folder)
+            settings.set(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, folder)
         if subscription_inputs.type is not None:
             subscription_type = subscription_inputs.type.strip()
-            settings.set("bitsight.subscription_type", subscription_type)
+            settings.set(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_type)
 
     if runtime_inputs:
         if runtime_inputs.context is not None:
-            settings.set("roles.context", runtime_inputs.context.strip())
+            settings.set(ROLE_CONTEXT_KEY, runtime_inputs.context.strip())
         if runtime_inputs.debug is not None:
-            settings.set("runtime.debug", runtime_inputs.debug)
+            settings.set(RUNTIME_DEBUG_KEY, runtime_inputs.debug)
         if runtime_inputs.risk_vector_filter is not None:
-            settings.set("roles.risk_vector_filter", runtime_inputs.risk_vector_filter.strip())
+            settings.set(
+                ROLE_RISK_VECTOR_FILTER_KEY, runtime_inputs.risk_vector_filter.strip()
+            )
         if runtime_inputs.max_findings is not None:
-            settings.set("roles.max_findings", runtime_inputs.max_findings)
+            settings.set(ROLE_MAX_FINDINGS_KEY, runtime_inputs.max_findings)
         if runtime_inputs.skip_startup_checks is not None:
-            settings.set("runtime.skip_startup_checks", runtime_inputs.skip_startup_checks)
+            settings.set(
+                RUNTIME_SKIP_STARTUP_CHECKS_KEY, runtime_inputs.skip_startup_checks
+            )
 
     if tls_inputs:
         if tls_inputs.allow_insecure is not None:
-            settings.set("runtime.allow_insecure_tls", tls_inputs.allow_insecure)
+            settings.set(RUNTIME_ALLOW_INSECURE_TLS_KEY, tls_inputs.allow_insecure)
         if tls_inputs.ca_bundle_path is not None:
-            settings.set("runtime.ca_bundle_path", tls_inputs.ca_bundle_path.strip())
+            settings.set(
+                RUNTIME_CA_BUNDLE_PATH_KEY, tls_inputs.ca_bundle_path.strip()
+            )
 
     if logging_inputs:
         kwargs = logging_inputs.as_kwargs()
         if kwargs["level_override"] is not None:
-            settings.set("logging.level", kwargs["level_override"].strip())
+            settings.set(LOGGING_LEVEL_KEY, kwargs["level_override"].strip())
         if kwargs["format_override"] is not None:
-            settings.set("logging.format", kwargs["format_override"].strip())
+            settings.set(LOGGING_FORMAT_KEY, kwargs["format_override"].strip())
         if kwargs["file_override"] is not None:
-            settings.set("logging.file", kwargs["file_override"].strip())
+            settings.set(LOGGING_FILE_KEY, kwargs["file_override"].strip())
         if kwargs["max_bytes_override"] is not None:
-            settings.set("logging.max_bytes", kwargs["max_bytes_override"])
+            settings.set(LOGGING_MAX_BYTES_KEY, kwargs["max_bytes_override"])
         if kwargs["backup_count_override"] is not None:
-            settings.set("logging.backup_count", kwargs["backup_count_override"])
+            settings.set(LOGGING_BACKUP_COUNT_KEY, kwargs["backup_count_override"])
 
 
 def _build_dynaconf(config_path: Optional[str]) -> Dynaconf:
@@ -269,7 +296,7 @@ def apply_cli_overrides(
 
 
 def _resolve_context(settings: Dynaconf, warnings: list[str]) -> str:
-    raw_context = _coerce_str(settings.get("roles.context")) or "standard"
+    raw_context = _coerce_str(settings.get(ROLE_CONTEXT_KEY)) or "standard"
     normalized = raw_context.lower()
     if normalized not in _ALLOWED_CONTEXTS:
         warnings.append(
@@ -282,7 +309,7 @@ def _resolve_context(settings: Dynaconf, warnings: list[str]) -> str:
 def _resolve_risk_vector_filter(
     settings: Dynaconf, warnings: list[str]
 ) -> str:
-    raw_filter = settings.get("roles.risk_vector_filter")
+    raw_filter = settings.get(ROLE_RISK_VECTOR_FILTER_KEY)
     normalized = _coerce_str(raw_filter)
     if not normalized:
         warnings.append(
@@ -293,7 +320,7 @@ def _resolve_risk_vector_filter(
 
 
 def _resolve_max_findings(settings: Dynaconf, warnings: list[str]) -> int:
-    candidate = settings.get("roles.max_findings")
+    candidate = settings.get(ROLE_MAX_FINDINGS_KEY)
     value = _coerce_int(candidate)
     if value is None or value <= 0:
         warnings.append(
@@ -322,15 +349,15 @@ def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
 
     warnings: list[str] = []
 
-    api_key = _coerce_str(settings.get("bitsight.api_key"))
+    api_key = _coerce_str(settings.get(BITSIGHT_API_KEY_KEY))
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
 
     subscription_folder = _resolve_subscription_value(
-        settings, "bitsight.subscription_folder"
+        settings, BITSIGHT_SUBSCRIPTION_FOLDER_KEY
     )
     subscription_type = _resolve_subscription_value(
-        settings, "bitsight.subscription_type"
+        settings, BITSIGHT_SUBSCRIPTION_TYPE_KEY
     )
 
     context = _resolve_context(settings, warnings)
@@ -338,13 +365,13 @@ def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
     max_findings = _resolve_max_findings(settings, warnings)
 
     skip_startup_checks = _resolve_bool(
-        settings, "runtime.skip_startup_checks", default=False
+        settings, RUNTIME_SKIP_STARTUP_CHECKS_KEY, default=False
     )
-    debug_enabled = _resolve_bool(settings, "runtime.debug", default=False)
+    debug_enabled = _resolve_bool(settings, RUNTIME_DEBUG_KEY, default=False)
     allow_insecure_tls = _resolve_bool(
-        settings, "runtime.allow_insecure_tls", default=False
+        settings, RUNTIME_ALLOW_INSECURE_TLS_KEY, default=False
     )
-    ca_bundle_path = _coerce_str(settings.get("runtime.ca_bundle_path"))
+    ca_bundle_path = _coerce_str(settings.get(RUNTIME_CA_BUNDLE_PATH_KEY))
 
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
@@ -371,20 +398,20 @@ def runtime_from_settings(settings: Dynaconf) -> Dict[str, Any]:
 def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
     """Extract logging configuration from Dynaconf."""
 
-    level_value = _coerce_str(settings.get("logging.level")) or DEFAULT_LOG_LEVEL
+    level_value = _coerce_str(settings.get(LOGGING_LEVEL_KEY)) or DEFAULT_LOG_LEVEL
     format_value = (
-        _coerce_str(settings.get("logging.format")) or DEFAULT_LOG_FORMAT
+        _coerce_str(settings.get(LOGGING_FORMAT_KEY)) or DEFAULT_LOG_FORMAT
     ).lower()
     if format_value not in {LOG_FORMAT_TEXT, LOG_FORMAT_JSON}:
         raise ValueError(f"Unsupported log format: {format_value}")
 
-    file_path = _coerce_str(settings.get("logging.file"))
+    file_path = _coerce_str(settings.get(LOGGING_FILE_KEY))
 
-    max_bytes_value = _coerce_int(settings.get("logging.max_bytes"))
+    max_bytes_value = _coerce_int(settings.get(LOGGING_MAX_BYTES_KEY))
     if max_bytes_value is None or max_bytes_value <= 0:
         max_bytes_value = DEFAULT_MAX_BYTES
 
-    backup_count_value = _coerce_int(settings.get("logging.backup_count"))
+    backup_count_value = _coerce_int(settings.get(LOGGING_BACKUP_COUNT_KEY))
     if backup_count_value is None or backup_count_value <= 0:
         backup_count_value = DEFAULT_BACKUP_COUNT
 
