@@ -321,16 +321,25 @@ class _TlsCliOptions:
     ca_bundle_path: Optional[str] = None
 
 
-def _run_server(
-    *,
-    api_key: Optional[str],
-    config_path: str,
-    logging_cli: _LoggingCliOptions,
-    runtime_cli: _RuntimeCliOptions,
-    subscription_cli: _SubscriptionCliOptions,
-    tls_cli: _TlsCliOptions,
-    context_alias: Optional[str] = None,
-) -> None:
+@dataclass(frozen=True)
+class _ServerInvocationOptions:
+    api_key: Optional[str]
+    config_path: str
+    logging_cli: _LoggingCliOptions
+    runtime_cli: _RuntimeCliOptions
+    subscription_cli: _SubscriptionCliOptions
+    tls_cli: _TlsCliOptions
+    context_alias: Optional[str] = None
+
+
+def _run_server(options: _ServerInvocationOptions) -> None:
+    api_key = options.api_key
+    config_path = options.config_path
+    logging_cli = options.logging_cli
+    runtime_cli = options.runtime_cli
+    subscription_cli = options.subscription_cli
+    tls_cli = options.tls_cli
+    context_alias = options.context_alias
     alias_context = _normalize_context(context_alias) if context_alias else None
     requested_context = _normalize_context(runtime_cli.context)
     if alias_context and requested_context and alias_context != requested_context:
@@ -378,7 +387,7 @@ def _run_server(
 
     runtime_settings = runtime_from_settings(config_settings)
     logging_settings = logging_from_settings(config_settings)
-    if runtime_settings["debug"] and logging_settings.level > logging.DEBUG:
+    if runtime_settings.debug and logging_settings.level > logging.DEBUG:
         logging_settings = replace(logging_settings, level=logging.DEBUG)
 
     console.print(_banner(), markup=False)
@@ -386,17 +395,17 @@ def _run_server(
     configure_logging(logging_settings)
     logger = get_logger("birre")
 
-    for message in runtime_settings.get("overrides", []):
+    for message in runtime_settings.overrides:
         logger.info(message)
 
-    for message in runtime_settings.get("warnings", []):
+    for message in runtime_settings.warnings:
         logger.warning(message)
 
     logger.info("Running offline startup checks")
     offline_ok = run_offline_startup_checks(
-        has_api_key=bool(runtime_settings["api_key"]),  # CodeQL false positive
-        subscription_folder=runtime_settings["subscription_folder"],
-        subscription_type=runtime_settings["subscription_type"],
+        has_api_key=bool(runtime_settings.api_key),  # CodeQL false positive
+        subscription_folder=runtime_settings.subscription_folder,
+        subscription_type=runtime_settings.subscription_type,
         logger=logger,
     )
     if not offline_ok:
@@ -410,14 +419,14 @@ def _run_server(
     skip_checks = (
         runtime_cli.skip_startup_checks
         if runtime_cli.skip_startup_checks is not None
-        else runtime_settings["skip_startup_checks"]
+        else runtime_settings.skip_startup_checks
     )
     call_v1_tool = getattr(server, "call_v1_tool", None)
     online_ok = asyncio.run(
         run_online_startup_checks(
             call_v1_tool=call_v1_tool,
-            subscription_folder=runtime_settings["subscription_folder"],
-            subscription_type=runtime_settings["subscription_type"],
+            subscription_folder=runtime_settings.subscription_folder,
+            subscription_type=runtime_settings.subscription_type,
             logger=logger,
             skip_startup_checks=skip_checks,
         )
@@ -456,30 +465,32 @@ def serve(
     """Run the BiRRe FastMCP server."""
 
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=context,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
-        ),
+        _ServerInvocationOptions(
+            api_key=api_key,
+            config_path=config_path,
+            logging_cli=_LoggingCliOptions(
+                level=log_level,
+                format=log_format,
+                file_path=log_file,
+                max_bytes=log_max_bytes,
+                backup_count=log_backup_count,
+            ),
+            runtime_cli=_RuntimeCliOptions(
+                context=context,
+                debug=debug,
+                risk_vector_filter=risk_vector_filter,
+                max_findings=max_findings,
+                skip_startup_checks=skip_startup_checks,
+            ),
+            subscription_cli=_SubscriptionCliOptions(
+                folder=subscription_folder,
+                type=subscription_type,
+            ),
+            tls_cli=_TlsCliOptions(
+                allow_insecure=allow_insecure_tls,
+                ca_bundle_path=ca_bundle_path,
+            ),
+        )
     )
 
 
@@ -504,31 +515,33 @@ def standard(
     """Run the BiRRe FastMCP server in the standard context."""
 
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=None,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
-        ),
-        context_alias="standard",
+        _ServerInvocationOptions(
+            api_key=api_key,
+            config_path=config_path,
+            logging_cli=_LoggingCliOptions(
+                level=log_level,
+                format=log_format,
+                file_path=log_file,
+                max_bytes=log_max_bytes,
+                backup_count=log_backup_count,
+            ),
+            runtime_cli=_RuntimeCliOptions(
+                context=None,
+                debug=debug,
+                risk_vector_filter=risk_vector_filter,
+                max_findings=max_findings,
+                skip_startup_checks=skip_startup_checks,
+            ),
+            subscription_cli=_SubscriptionCliOptions(
+                folder=subscription_folder,
+                type=subscription_type,
+            ),
+            tls_cli=_TlsCliOptions(
+                allow_insecure=allow_insecure_tls,
+                ca_bundle_path=ca_bundle_path,
+            ),
+            context_alias="standard",
+        )
     )
 
 
@@ -537,31 +550,33 @@ def _risk_manager_command(**options: Any) -> None:
 
     option_map: Mapping[str, Any] = options
     _run_server(
-        api_key=option_map.get("api_key"),
-        config_path=option_map.get("config_path", DEFAULT_CONFIG_FILENAME),
-        logging_cli=_LoggingCliOptions(
-            level=option_map.get("log_level"),
-            format=option_map.get("log_format"),
-            file_path=option_map.get("log_file"),
-            max_bytes=option_map.get("log_max_bytes"),
-            backup_count=option_map.get("log_backup_count"),
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=None,
-            debug=option_map.get("debug"),
-            risk_vector_filter=option_map.get("risk_vector_filter"),
-            max_findings=option_map.get("max_findings"),
-            skip_startup_checks=option_map.get("skip_startup_checks"),
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=option_map.get("subscription_folder"),
-            type=option_map.get("subscription_type"),
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=option_map.get("allow_insecure_tls"),
-            ca_bundle_path=option_map.get("ca_bundle_path"),
-        ),
-        context_alias="risk_manager",
+        _ServerInvocationOptions(
+            api_key=option_map.get("api_key"),
+            config_path=option_map.get("config_path", DEFAULT_CONFIG_FILENAME),
+            logging_cli=_LoggingCliOptions(
+                level=option_map.get("log_level"),
+                format=option_map.get("log_format"),
+                file_path=option_map.get("log_file"),
+                max_bytes=option_map.get("log_max_bytes"),
+                backup_count=option_map.get("log_backup_count"),
+            ),
+            runtime_cli=_RuntimeCliOptions(
+                context=None,
+                debug=option_map.get("debug"),
+                risk_vector_filter=option_map.get("risk_vector_filter"),
+                max_findings=option_map.get("max_findings"),
+                skip_startup_checks=option_map.get("skip_startup_checks"),
+            ),
+            subscription_cli=_SubscriptionCliOptions(
+                folder=option_map.get("subscription_folder"),
+                type=option_map.get("subscription_type"),
+            ),
+            tls_cli=_TlsCliOptions(
+                allow_insecure=option_map.get("allow_insecure_tls"),
+                ca_bundle_path=option_map.get("ca_bundle_path"),
+            ),
+            context_alias="risk_manager",
+        )
     )
 
 
@@ -592,12 +607,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
         _run_server(
-            api_key=None,
-            config_path=DEFAULT_CONFIG_FILENAME,
-            logging_cli=_LoggingCliOptions(),
-            runtime_cli=_RuntimeCliOptions(),
-            subscription_cli=_SubscriptionCliOptions(),
-            tls_cli=_TlsCliOptions(),
+            _ServerInvocationOptions(
+                api_key=None,
+                config_path=DEFAULT_CONFIG_FILENAME,
+                logging_cli=_LoggingCliOptions(),
+                runtime_cli=_RuntimeCliOptions(),
+                subscription_cli=_SubscriptionCliOptions(),
+                tls_cli=_TlsCliOptions(),
+            )
         )
         return
 

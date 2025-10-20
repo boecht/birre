@@ -7,23 +7,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import server
-from src.settings import LoggingSettings
+from src.settings import LoggingSettings, RuntimeSettings
 
 
-def _runtime_settings() -> dict:
-    return {
-        "api_key": "test-key",
-        "subscription_folder": "API",
-        "subscription_type": "continuous_monitoring",
-        "risk_vector_filter": "botnet_infections",
-        "max_findings": 5,
-        "context": "standard",
-        "skip_startup_checks": False,
-        "debug": False,
-        "allow_insecure_tls": False,
-        "ca_bundle_path": None,
-        "warnings": ["reminder"],
-    }
+def _runtime_settings() -> RuntimeSettings:
+    return RuntimeSettings(
+        api_key="test-key",
+        subscription_folder="API",
+        subscription_type="continuous_monitoring",
+        risk_vector_filter="botnet_infections",
+        max_findings=5,
+        context="standard",
+        skip_startup_checks=False,
+        debug=False,
+        allow_insecure_tls=False,
+        ca_bundle_path=None,
+        warnings=("reminder",),
+    )
 
 
 def _logging_settings() -> LoggingSettings:

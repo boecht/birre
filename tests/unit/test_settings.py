@@ -12,6 +12,7 @@ from src.settings import (
     LoggingInputs,
     LoggingSettings,
     RuntimeInputs,
+    RuntimeSettings,
     SubscriptionInputs,
     TlsInputs,
     apply_cli_overrides,
@@ -62,16 +63,17 @@ def test_runtime_defaults_from_config(tmp_path: Path) -> None:
     settings_obj = load_settings(str(config_path))
     runtime = runtime_from_settings(settings_obj)
 
-    assert runtime["api_key"] == "file-key"
-    assert runtime["subscription_folder"] == "FileFolder"
-    assert runtime["subscription_type"] == "continuous_monitoring"
-    assert runtime["context"] == "standard"
-    assert runtime["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
-    assert runtime["max_findings"] == DEFAULT_MAX_FINDINGS
-    assert runtime["debug"] is False
-    assert runtime["allow_insecure_tls"] is False
-    assert runtime["warnings"] == []
-    assert runtime["overrides"] == []
+    assert isinstance(runtime, RuntimeSettings)
+    assert runtime.api_key == "file-key"
+    assert runtime.subscription_folder == "FileFolder"
+    assert runtime.subscription_type == "continuous_monitoring"
+    assert runtime.context == "standard"
+    assert runtime.risk_vector_filter == DEFAULT_RISK_VECTOR_FILTER
+    assert runtime.max_findings == DEFAULT_MAX_FINDINGS
+    assert runtime.debug is False
+    assert runtime.allow_insecure_tls is False
+    assert runtime.warnings == ()
+    assert runtime.overrides == ()
 
 
 def test_environment_overrides_take_precedence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -91,18 +93,18 @@ def test_environment_overrides_take_precedence(tmp_path: Path, monkeypatch: pyte
     settings_obj = load_settings(str(config_path))
     runtime = runtime_from_settings(settings_obj)
 
-    assert runtime["api_key"] == "env-key"
-    assert runtime["subscription_folder"] == "EnvFolder"
-    assert runtime["subscription_type"] == "env-type"
-    assert runtime["context"] == "risk_manager"
-    assert runtime["risk_vector_filter"] == "env1,env2"
-    assert runtime["max_findings"] == 25
-    assert runtime["skip_startup_checks"] is True
-    assert runtime["allow_insecure_tls"] is True
-    assert runtime["ca_bundle_path"] is None
-    assert runtime["warnings"] == [
+    assert runtime.api_key == "env-key"
+    assert runtime.subscription_folder == "EnvFolder"
+    assert runtime.subscription_type == "env-type"
+    assert runtime.context == "risk_manager"
+    assert runtime.risk_vector_filter == "env1,env2"
+    assert runtime.max_findings == 25
+    assert runtime.skip_startup_checks is True
+    assert runtime.allow_insecure_tls is True
+    assert runtime.ca_bundle_path is None
+    assert runtime.warnings == (
         "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled",
-    ]
+    )
 
 
 def test_cli_overrides_supersede_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -128,15 +130,15 @@ def test_cli_overrides_supersede_environment(tmp_path: Path, monkeypatch: pytest
     )
 
     runtime = runtime_from_settings(settings_obj)
-    assert runtime["api_key"] == "cli-key"
-    assert runtime["subscription_folder"] == "CliFolder"
-    assert runtime["subscription_type"] == "cli-type"
-    assert runtime["context"] == "risk_manager"
-    assert runtime["risk_vector_filter"] == "cliA,cliB"
-    assert runtime["max_findings"] == 5
-    assert runtime["skip_startup_checks"] is True
-    assert runtime["debug"] is True
-    assert runtime["ca_bundle_path"] == "/etc/ssl/custom.pem"
+    assert runtime.api_key == "cli-key"
+    assert runtime.subscription_folder == "CliFolder"
+    assert runtime.subscription_type == "cli-type"
+    assert runtime.context == "risk_manager"
+    assert runtime.risk_vector_filter == "cliA,cliB"
+    assert runtime.max_findings == 5
+    assert runtime.skip_startup_checks is True
+    assert runtime.debug is True
+    assert runtime.ca_bundle_path == "/etc/ssl/custom.pem"
 
 
 def test_blank_environment_values_are_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,9 +151,9 @@ def test_blank_environment_values_are_ignored(tmp_path: Path, monkeypatch: pytes
     settings_obj = load_settings(str(config_path))
     runtime = runtime_from_settings(settings_obj)
 
-    assert runtime["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
-    assert runtime["max_findings"] == DEFAULT_MAX_FINDINGS
-    assert runtime["warnings"] == []
+    assert runtime.risk_vector_filter == DEFAULT_RISK_VECTOR_FILTER
+    assert runtime.max_findings == DEFAULT_MAX_FINDINGS
+    assert runtime.warnings == ()
 
 
 def test_allow_insecure_tls_warning(tmp_path: Path) -> None:
@@ -166,11 +168,11 @@ def test_allow_insecure_tls_warning(tmp_path: Path) -> None:
     )
 
     runtime = runtime_from_settings(settings_obj)
-    assert runtime["allow_insecure_tls"] is True
-    assert runtime["ca_bundle_path"] is None
-    assert runtime["warnings"] == [
+    assert runtime.allow_insecure_tls is True
+    assert runtime.ca_bundle_path is None
+    assert runtime.warnings == (
         "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled",
-    ]
+    )
 
 
 def test_logging_overrides_follow_cli(tmp_path: Path) -> None:
@@ -210,8 +212,9 @@ def test_resolve_application_settings_combines_sections(tmp_path: Path) -> None:
         logging_inputs=LoggingInputs(level="WARNING"),
     )
 
-    assert runtime["api_key"] == "cli-key"
-    assert runtime["debug"] is True
+    assert isinstance(runtime, RuntimeSettings)
+    assert runtime.api_key == "cli-key"
+    assert runtime.debug is True
     assert logging_settings.level == logging.DEBUG
     assert logging_settings.format == DEFAULT_LOG_FORMAT
     assert logging_settings.max_bytes == 10_000_000
@@ -239,11 +242,11 @@ def test_invalid_values_fall_back_with_warnings(tmp_path: Path) -> None:
     settings_obj = load_settings(str(config_path))
     runtime = runtime_from_settings(settings_obj)
 
-    assert runtime["context"] == "standard"
-    assert runtime["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
-    assert runtime["max_findings"] == DEFAULT_MAX_FINDINGS
-    assert runtime["warnings"] == [
+    assert runtime.context == "standard"
+    assert runtime.risk_vector_filter == DEFAULT_RISK_VECTOR_FILTER
+    assert runtime.max_findings == DEFAULT_MAX_FINDINGS
+    assert runtime.warnings == (
         "Unknown context 'invalid' requested; defaulting to 'standard'",
         "Empty risk_vector_filter override; falling back to default configuration",
         "Invalid max_findings override; using default configuration",
-    ]
+    )

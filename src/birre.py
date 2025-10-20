@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Awaitable, Callable, Dict, Any, Optional, Iterable
+from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
 
 from fastmcp import FastMCP
 
-from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from src.settings import (
+    DEFAULT_MAX_FINDINGS,
+    DEFAULT_RISK_VECTOR_FILTER,
+    RuntimeSettings,
+)
 from src.logging import BoundLogger
 
 from .apis import (
@@ -33,30 +37,32 @@ INSTRUCTIONS_MAP: Dict[str, str] = {
 }
 
 
-def _require_api_key(settings: Dict[str, Any]) -> str:
-    resolved_api_key = settings.get("api_key")
+def _require_api_key(settings: RuntimeSettings) -> str:
+    resolved_api_key = settings.api_key
     if not resolved_api_key:
         raise ValueError("Resolved settings must include a non-empty 'api_key'")
     return str(resolved_api_key)
 
-def _resolve_active_context(settings: Dict[str, Any]) -> str:
-    return str(settings.get("context", "standard"))
+def _resolve_active_context(settings: RuntimeSettings) -> str:
+    return str(settings.context or "standard")
 
 
-def _resolve_risk_vector_filter(settings: Dict[str, Any]) -> str:
-    return str(settings.get("risk_vector_filter") or DEFAULT_RISK_VECTOR_FILTER)
+def _resolve_risk_vector_filter(settings: RuntimeSettings) -> str:
+    return str(settings.risk_vector_filter or DEFAULT_RISK_VECTOR_FILTER)
 
 
-def _resolve_max_findings(settings: Dict[str, Any]) -> int:
-    max_findings_value = settings.get("max_findings")
+def _resolve_max_findings(settings: RuntimeSettings) -> int:
+    max_findings_value = settings.max_findings
     if isinstance(max_findings_value, int) and max_findings_value > 0:
         return max_findings_value
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(settings: Dict[str, Any], logger: BoundLogger) -> bool | str:
-    allow_insecure_tls = bool(settings.get("allow_insecure_tls"))
-    ca_bundle_path = settings.get("ca_bundle_path")
+def _resolve_tls_verification(
+    settings: RuntimeSettings, logger: BoundLogger
+) -> bool | str:
+    allow_insecure_tls = bool(settings.allow_insecure_tls)
+    ca_bundle_path = settings.ca_bundle_path
     verify_option: bool | str = True
     if allow_insecure_tls:
         logger.warning(
@@ -105,7 +111,7 @@ def _schedule_tool_disablement(api_server: FastMCP, keep: Iterable[str]) -> None
 
 def _configure_risk_manager_tools(
     business_server: FastMCP,
-    settings: Dict[str, Any],
+    settings: RuntimeSettings,
     call_v1_tool: Callable[..., Any],
     logger: BoundLogger,
     resolved_api_key: str,
@@ -128,8 +134,8 @@ def _configure_risk_manager_tools(
         )
         setattr(business_server, "call_v2_tool", call_v2_tool)
 
-    default_folder = settings.get("subscription_folder")
-    default_type = settings.get("subscription_type")
+    default_folder = settings.subscription_folder
+    default_type = settings.subscription_type
 
     register_company_search_interactive_tool(
         business_server,
@@ -164,22 +170,71 @@ def _configure_standard_tools(
     register_company_search_tool(business_server, call_v1_tool, logger=logger)
 
 
-def create_birre_server(settings: Dict[str, Any], logger: BoundLogger) -> FastMCP:
+def _coerce_runtime_settings(
+    settings: RuntimeSettings | Mapping[str, Any]
+) -> RuntimeSettings:
+    if isinstance(settings, RuntimeSettings):
+        return settings
+
+    data = dict(settings)
+    max_findings = data.get("max_findings")
+    if not isinstance(max_findings, int) or max_findings <= 0:
+        max_findings = DEFAULT_MAX_FINDINGS
+
+    risk_vector_filter = data.get("risk_vector_filter") or DEFAULT_RISK_VECTOR_FILTER
+    warnings_raw = data.get("warnings", ())
+    if isinstance(warnings_raw, str):
+        warnings_tuple = (warnings_raw,)
+    else:
+        warnings_tuple = tuple(warnings_raw)
+    overrides_raw = data.get("overrides", ())
+    if isinstance(overrides_raw, str):
+        overrides_tuple = (overrides_raw,)
+    else:
+        overrides_tuple = tuple(overrides_raw)
+
+    raw_api_key = data.get("api_key")
+    if raw_api_key is None:
+        api_key = ""
+    elif isinstance(raw_api_key, str):
+        api_key = raw_api_key
+    else:
+        api_key = str(raw_api_key)
+
+    return RuntimeSettings(
+        api_key=api_key,
+        subscription_folder=data.get("subscription_folder"),
+        subscription_type=data.get("subscription_type"),
+        context=data.get("context"),
+        risk_vector_filter=risk_vector_filter,
+        max_findings=max_findings,
+        skip_startup_checks=bool(data.get("skip_startup_checks", False)),
+        debug=bool(data.get("debug", False)),
+        allow_insecure_tls=bool(data.get("allow_insecure_tls", False)),
+        ca_bundle_path=data.get("ca_bundle_path"),
+        warnings=warnings_tuple,
+        overrides=overrides_tuple,
+    )
+
+
+def create_birre_server(
+    settings: RuntimeSettings | Mapping[str, Any], logger: BoundLogger
+) -> FastMCP:
     """Create and configure the BiRRe FastMCP business server using resolved settings."""
 
-    settings = dict(settings)
-    resolved_api_key = _require_api_key(settings)
+    resolved_settings = _coerce_runtime_settings(settings)
+    resolved_api_key = _require_api_key(resolved_settings)
 
-    active_context = _resolve_active_context(settings)
-    risk_vector_filter = _resolve_risk_vector_filter(settings)
-    max_findings = _resolve_max_findings(settings)
-    verify_option = _resolve_tls_verification(settings, logger)
+    active_context = _resolve_active_context(resolved_settings)
+    risk_vector_filter = _resolve_risk_vector_filter(resolved_settings)
+    max_findings = _resolve_max_findings(resolved_settings)
+    verify_option = _resolve_tls_verification(resolved_settings, logger)
     v1_api_server = create_v1_api_server(resolved_api_key, verify=verify_option)
     v2_api_server = _maybe_create_v2_api_server(
         active_context,
-        resolved_api_key,
-        verify_option,
-    )
+            resolved_api_key,
+            verify_option,
+        )
 
     business_server = FastMCP(
         name="io.github.boecht.birre",
@@ -220,15 +275,15 @@ def create_birre_server(settings: Dict[str, Any], logger: BoundLogger) -> FastMC
         logger=logger,
         risk_vector_filter=risk_vector_filter,
         max_findings=max_findings,
-        default_folder=settings.get("subscription_folder"),
-        default_type=settings.get("subscription_type"),
-        debug_enabled=bool(settings.get("debug")),
+        default_folder=resolved_settings.subscription_folder,
+        default_type=resolved_settings.subscription_type,
+        debug_enabled=bool(resolved_settings.debug),
     )
 
     if active_context == "risk_manager":
         _configure_risk_manager_tools(
             business_server,
-            settings,
+            resolved_settings,
             call_v1_tool,
             logger,
             resolved_api_key,
