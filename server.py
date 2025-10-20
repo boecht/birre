@@ -318,6 +318,84 @@ class _TlsCliOptions:
     ca_bundle_path: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class _CliSharedOptions:
+    api_key: Optional[str]
+    config_path: str
+    logging: _LoggingCliOptions
+    runtime: _RuntimeCliOptions
+    subscription: _SubscriptionCliOptions
+    tls: _TlsCliOptions
+
+
+def _default_cli_options() -> _CliSharedOptions:
+    return _CliSharedOptions(
+        api_key=None,
+        config_path=DEFAULT_CONFIG_FILENAME,
+        logging=_LoggingCliOptions(),
+        runtime=_RuntimeCliOptions(),
+        subscription=_SubscriptionCliOptions(),
+        tls=_TlsCliOptions(),
+    )
+
+
+def _get_shared_cli_options(ctx: Optional[typer.Context]) -> _CliSharedOptions:
+    if ctx is None:
+        return _default_cli_options()
+    obj = getattr(ctx, "obj", None)
+    if isinstance(obj, _CliSharedOptions):
+        return obj
+    return _default_cli_options()
+
+
+@app.callback()
+def _store_shared_cli_options(
+    ctx: typer.Context,
+    api_key: ApiKeyOption = None,
+    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
+    context: ContextOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
+    skip_startup_checks: SkipStartupChecksOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    risk_vector_filter: RiskVectorFilterOption = None,
+    max_findings: MaxFindingsOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle_path: CaBundleOption = None,
+) -> None:
+    ctx.obj = _CliSharedOptions(
+        api_key=api_key,
+        config_path=config_path,
+        logging=_LoggingCliOptions(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
+        runtime=_RuntimeCliOptions(
+            context=context,
+            debug=debug,
+            risk_vector_filter=risk_vector_filter,
+            max_findings=max_findings,
+            skip_startup_checks=skip_startup_checks,
+        ),
+        subscription=_SubscriptionCliOptions(
+            folder=subscription_folder,
+            type=subscription_type,
+        ),
+        tls=_TlsCliOptions(
+            allow_insecure=allow_insecure_tls,
+            ca_bundle_path=ca_bundle_path,
+        ),
+    )
+
+
 def _run_server(
     *,
     api_key: Optional[str],
@@ -432,148 +510,48 @@ def _run_server(
 
 
 @app.command(help="Serve BiRRe with an explicitly selected context.")
-def serve(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    context: ContextOption = None,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def serve(ctx: typer.Context) -> None:
     """Run the BiRRe FastMCP server."""
 
+    options = _get_shared_cli_options(ctx)
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=context,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
-        ),
+        api_key=options.api_key,
+        config_path=options.config_path,
+        logging_cli=options.logging,
+        runtime_cli=options.runtime,
+        subscription_cli=options.subscription,
+        tls_cli=options.tls,
     )
 
 
 @app.command(help="Serve BiRRe using the standard tool persona.")
-def standard(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def standard(ctx: typer.Context) -> None:
     """Run the BiRRe FastMCP server in the standard context."""
 
+    options = _get_shared_cli_options(ctx)
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=None,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
-        ),
+        api_key=options.api_key,
+        config_path=options.config_path,
+        logging_cli=options.logging,
+        runtime_cli=options.runtime,
+        subscription_cli=options.subscription,
+        tls_cli=options.tls,
         context_alias="standard",
     )
 
 
 @app.command("risk-manager", help="Serve BiRRe using the risk manager persona.")
-def risk_manager(
-    api_key: ApiKeyOption = None,
-    config_path: ConfigPathOption = DEFAULT_CONFIG_FILENAME,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
-    log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
-    skip_startup_checks: SkipStartupChecksOption = None,
-    subscription_folder: SubscriptionFolderOption = None,
-    subscription_type: SubscriptionTypeOption = None,
-    risk_vector_filter: RiskVectorFilterOption = None,
-    max_findings: MaxFindingsOption = None,
-    debug: DebugOption = None,
-    allow_insecure_tls: AllowInsecureTlsOption = None,
-    ca_bundle_path: CaBundleOption = None,
-) -> None:
+def risk_manager(ctx: typer.Context) -> None:
     """Run the BiRRe FastMCP server in the risk manager context."""
 
+    options = _get_shared_cli_options(ctx)
     _run_server(
-        api_key=api_key,
-        config_path=config_path,
-        logging_cli=_LoggingCliOptions(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
-        runtime_cli=_RuntimeCliOptions(
-            context=None,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-        ),
-        subscription_cli=_SubscriptionCliOptions(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        tls_cli=_TlsCliOptions(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=ca_bundle_path,
-        ),
+        api_key=options.api_key,
+        config_path=options.config_path,
+        logging_cli=options.logging,
+        runtime_cli=options.runtime,
+        subscription_cli=options.subscription,
+        tls_cli=options.tls,
         context_alias="risk_manager",
     )
 
