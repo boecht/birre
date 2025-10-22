@@ -91,7 +91,7 @@ SubscriptionFolderOption = Annotated[
         help="BitSight subscription folder override",
         envvar="BIRRE_SUBSCRIPTION_FOLDER",
         show_envvar=True,
-        rich_help_panel="Subscription",
+        rich_help_panel="Runtime",
     ),
 ]
 
@@ -102,7 +102,7 @@ SubscriptionTypeOption = Annotated[
         help="BitSight subscription type override",
         envvar="BIRRE_SUBSCRIPTION_TYPE",
         show_envvar=True,
-        rich_help_panel="Subscription",
+        rich_help_panel="Runtime",
     ),
 ]
 
@@ -124,7 +124,7 @@ DebugOption = Annotated[
         help="Enable verbose diagnostics",
         envvar="BIRRE_DEBUG",
         show_envvar=True,
-        rich_help_panel="Runtime",
+        rich_help_panel="Diagnostics",
     ),
 ]
 
@@ -135,7 +135,7 @@ AllowInsecureTlsOption = Annotated[
         help="Disable TLS verification when contacting BitSight",
         envvar="BIRRE_ALLOW_INSECURE_TLS",
         show_envvar=True,
-        rich_help_panel="Security",
+        rich_help_panel="TLS",
     ),
 ]
 
@@ -146,7 +146,7 @@ CaBundleOption = Annotated[
         help="Path to a custom certificate authority bundle",
         envvar="BIRRE_CA_BUNDLE",
         show_envvar=True,
-        rich_help_panel="Security",
+        rich_help_panel="TLS",
     ),
 ]
 
@@ -868,7 +868,9 @@ def _prepare_server(runtime_settings, logger):
     return create_birre_server(settings=runtime_settings, logger=logger)
 
 
-@app.command(help="Start the BiRRe FastMCP server")
+@app.command(
+    help="Start the BiRRe FastMCP server with BitSight connectivity."
+)
 def run(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
@@ -888,6 +890,7 @@ def run(
     log_backup_count: LogBackupCountOption = None,
     profile: ProfilePathOption = None,
 ) -> None:
+    """Start the BiRRe FastMCP server with the configured runtime options."""
     invocation = _build_invocation(
         config_path=config,
         api_key=bitsight_api_key,
@@ -939,7 +942,9 @@ def run(
         logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
 
 
-@app.command(help="Execute startup checks without launching the server")
+@app.command(
+    help="Run startup checks without launching the BiRRe FastMCP server."
+)
 def checks_only(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
@@ -955,6 +960,7 @@ def checks_only(
     log_backup_count: LogBackupCountOption = None,
     online: OnlineFlagOption = False,
 ) -> None:
+    """Run BiRRe startup checks and exit with the resulting status."""
     invocation = _build_invocation(
         config_path=config,
         api_key=bitsight_api_key,
@@ -1034,13 +1040,16 @@ def _generate_local_config_content(values: Dict[str, Any], *, include_header: bo
     return "\n".join(lines)
 
 
-@app.command(help="Create or update config.local.toml interactively")
+@app.command(
+    help="Interactively create or update a local BiRRe configuration file."
+)
 def local_conf_create(
     output: LocalConfOutputOption = Path(LOCAL_CONFIG_FILENAME),
     subscription_type: SubscriptionTypeOption = None,
     debug: DebugOption = None,
     overwrite: OverwriteOption = False,
 ) -> None:
+    """Guide the user through generating a config.local.toml file."""
     if output.exists() and not overwrite:
         raise typer.BadParameter(
             f"{output} already exists; pass --overwrite to replace it",
@@ -1114,7 +1123,12 @@ def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
     )
 
 
-@app.command(help="Show resolved configuration layers and effective settings")
+@app.command(
+    help=(
+        "Inspect configuration sources and resolved settings.\n\n"
+        "Example: python server.py check-conf --config custom.toml"
+    )
+)
 def check_conf(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
@@ -1132,6 +1146,7 @@ def check_conf(
     log_max_bytes: LogMaxBytesOption = None,
     log_backup_count: LogBackupCountOption = None,
 ) -> None:
+    """Display configuration files, overrides, and effective values as Rich tables."""
     invocation = _build_invocation(
         config_path=config,
         api_key=bitsight_api_key,
@@ -1210,12 +1225,13 @@ def check_conf(
     _print_config_table("Effective configuration", effective_rows)
 
 
-@app.command(help="Validate or minimize a configuration file")
+@app.command(help="Validate or minimize a BiRRe configuration file before use.")
 def lint_config(
     config_file: Path = typer.Argument(..., help="Configuration TOML file to validate"),
     debug: DebugOption = None,
     minimize: MinimizeOption = False,
 ) -> None:
+    """Validate configuration syntax and optionally rewrite it in minimal form."""
     if not config_file.exists():
         raise typer.BadParameter(f"{config_file} does not exist", param_hint="config-file")
 
@@ -1269,7 +1285,12 @@ def _rotate_logs(base_path: Path, backup_count: int) -> None:
     base_path.touch()
 
 
-@app.command(help="Rotate or clear BiRRe log files")
+@app.command(
+    help=(
+        "Rotate or clear BiRRe log files based on the selected mode.\n\n"
+        "Example: python server.py reset-logs --log-file server.log --mode rotate"
+    )
+)
 def reset_logs(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     mode: LogResetModeOption = ...,
@@ -1280,6 +1301,7 @@ def reset_logs(
     log_max_bytes: LogMaxBytesOption = None,
     log_backup_count: LogBackupCountOption = None,
 ) -> None:
+    """Reset BiRRe log files by rotating archives or clearing the active file."""
     invocation = _build_invocation(
         config_path=config,
         api_key=None,
@@ -1320,8 +1342,9 @@ def reset_logs(
     stdout_console.print(f"[green]Log file cleared at[/green] {path}")
 
 
-@app.command(help="Show the BiRRe version")
+@app.command(help="Show the installed BiRRe package version.")
 def version() -> None:
+    """Print the BiRRe version discovered from the package metadata."""
     from importlib import metadata
 
     try:
@@ -1338,7 +1361,7 @@ def version() -> None:
     stdout_console.print(resolved_version)
 
 
-@app.command(help="Run diagnostics without starting the server")
+@app.command(help="Run diagnostics without starting the BiRRe server.")
 def test(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
@@ -1351,6 +1374,7 @@ def test(
     max_findings: MaxFindingsOption = None,
     online: OnlineFlagOption = False,
 ) -> None:
+    """Execute BiRRe diagnostics and optional online checks."""
     invocation = _build_invocation(
         config_path=config,
         api_key=bitsight_api_key,
@@ -1388,8 +1412,9 @@ def test(
     logger.info("Diagnostics completed successfully")
 
 
-@app.command(help="Print the project README")
+@app.command(help="Print the BiRRe README to standard output.")
 def readme() -> None:
+    """Display the project README for quick reference."""
     readme_path = PROJECT_ROOT / "README.md"
     if not readme_path.exists():
         raise typer.BadParameter("README.md not found in project root")
