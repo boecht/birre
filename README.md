@@ -20,49 +20,8 @@ uvx --from git+https://github.com/boecht/birre server.py
 
 ### Configuration
 
-BiRRe uses [Dynaconf](https://www.dynaconf.com/) for configuration layering.
-Sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
-Environment overrides follow the existing names (`BITSIGHT_API_KEY`, `BIRRE_*`).
-
-#### CLI option groups
-
-The CLI intentionally exposes only a small set of overrides; everything else should live in the TOML configuration.
-
-- **Authentication** – `--bitsight-api-key` (or `BITSIGHT_API_KEY`) lets you supply credentials without editing files.
-- **Runtime** – `--context` (serve command only) selects the persona; `--debug` accepts `true`/`false` to control verbose diagnostics.
-- **Logging** – `--log-level` and `--log-format` adjust verbosity and renderer without touching the config file.
-
-Example quick override:
-
-```bash
-uv run python server.py standard --log-level DEBUG --debug true
-```
-
-#### Config file example
-
-Advanced or persistent settings should be captured in TOML. Duplicate the project `config.toml` as `config.local.toml` and customise it, e.g.:
-
-```toml
-[bitsight]
-api_key = "${env:BITSIGHT_API_KEY}"
-subscription_folder = "API"
-subscription_type = "continuous_monitoring"
-
-[runtime]
-context = "risk_manager"
-skip_startup_checks = false
-allow_insecure_tls = false
-max_findings = 15
-
-[logging]
-level = "INFO"
-format = "json"
-file = "/var/log/birre/server.log"
-max_bytes = 10485760
-backup_count = 5
-```
-
-See the header in `config.toml` for the full list of keys and descriptions.
+Configuration sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
+See the descriptions in `config.toml` for available fields and details. For CLI options, run with `--help`.
 
 ### Run directly from GitHub with uvx
 
@@ -95,7 +54,7 @@ This project enables third-party access to Bitsight services through their publi
 
 ### Available Tools
 
-BiRRe now supports context-specific toolsets:
+BiRRe supports context-specific toolsets:
 
 - **`standard` context (default)** – quick rating workflows
   - `company_search`: Search BitSight for companies by name or domain
@@ -104,9 +63,9 @@ BiRRe now supports context-specific toolsets:
   - `company_search_interactive`: Enriched search results (name + GUID, domains, description, employee count, subscription folders) for human-in-the-loop selection
   - `manage_subscriptions`: Bulk subscribe/unsubscribe GUIDs with dry-run support and audit summaries
   - `request_company`: Submit BitSight company requests (deduplicates existing requests, attempts v2 bulk workflow with folder targeting, falls back gracefully)
-  - `company_search` and `get_company_rating` remain available for spot checks
+  - regular `company_search` and `get_company_rating` remain available for spot checks
 
-Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` config key. Invalid values default to `standard` with a warning.
+Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` config key.
 
 ## BitSight API Documentation (v1 + v2 are complementary)
 
@@ -129,25 +88,23 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ### Version 1.0: MVP
 
-- **Company Search**: Search for companies by name or domain via BitSight v1 `companySearch`
+- **Company Search**: Search for companies by name or domain via API v1 `companySearch`
 - **Company Rating**: Retrieve core rating details with automatic subscription management
 - **Ephemeral Subscriptions**: Subscribe/unsubscribe on demand to avoid license leakage
 - **Structured Error Handling**: Clear responses for quota/subscription failures
 - **uv/uvx Compatible**: Run easily with uv using PEP 723 inline script metadata
 
-### Version 2.0: Top Vulnerability Insights (Current)
+### Version 2.0: Top Vulnerability Insights
 
 - **Top Findings Summary**: Attach the most impactful vulnerabilities to the rating payload, using relaxed severity filters (severe/material first, then moderate with web-appsec padding when needed)
 - **Enhanced Sorting**: Prioritise findings by severity, asset importance, and recency to keep the worst issues on top
 - **Narrative Improvements**: Normalise detection/remediation text for quick consumption by MCP clients
-- **Configuration Hooks**: Continue to rely on v1 findings endpoints while keeping v2 tooling optional via `BIRRE_ENABLE_V2`
 
 ### Version 3.0: Context Modes (Current)
 
 - Two personas: `standard` (quick ratings) and `risk_manager` (subscription operations)
 - Context-driven tool filtering via CLI (`--context`), env (`BIRRE_CONTEXT`), or config
 - Risk manager tooling delivers enriched search data, dry-run batch subscription workflows, and company onboarding requests without in-tool prompts (LLMs coordinate user confirmations)
-- Optional BitSight v2 bridge loads automatically when the risk manager context is active
 
 ### Version 4.0: Caching Layer (Not Implemented)
 
