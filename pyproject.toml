@@ -34,5 +34,8 @@ where = ["src"]
 [tool.setuptools.package-dir]
 "" = "src"
 
+[tool.setuptools]
+py-modules = ["server"]
+
 [project.scripts]
 birre = "server:main"
