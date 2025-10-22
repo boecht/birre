@@ -9,6 +9,7 @@ import os
 import shutil
 import sys
 from dataclasses import dataclass, replace
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple
 
@@ -55,6 +56,16 @@ _LOG_LEVEL_CHOICES = sorted(
     if isinstance(name, str) and not name.isdigit()
 )
 _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
+
+
+class LogResetMode(str, Enum):
+    """Supported log reset strategies."""
+
+    ROTATE = "rotate"
+    CLEAR = "clear"
+
+    def __str__(self) -> str:  # pragma: no cover - Typer uses __str__ for help text
+        return self.value
 
 
 def _banner() -> str:
@@ -1171,6 +1182,13 @@ def reset_logs(
         help="Path to a configuration TOML file to load",
         rich_help_panel="Configuration",
     ),
+    mode: LogResetMode = typer.Option(
+        ...,
+        "--mode",
+        case_sensitive=False,
+        help="Log reset strategy: 'rotate' to perform log rotation or 'clear' to truncate the active log file",
+        rich_help_panel="Logging",
+    ),
     debug: Optional[bool] = typer.Option(
         None,
         "--debug/--no-debug",
@@ -1249,8 +1267,17 @@ def reset_logs(
 
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    _rotate_logs(path, logging_settings.backup_count)
-    stdout_console.print(f"[green]Log files rotated at[/green] {path}")
+
+    if mode is LogResetMode.ROTATE:
+        _rotate_logs(path, logging_settings.backup_count)
+        stdout_console.print(f"[green]Log files rotated at[/green] {path}")
+        return
+
+    try:
+        path.write_text("", encoding="utf-8")
+    except OSError as exc:
+        raise typer.BadParameter(f"Failed to clear log file: {exc}") from exc
+    stdout_console.print(f"[green]Log file cleared at[/green] {path}")
 
 
 @app.command(help="Show the BiRRe version")
