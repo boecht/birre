@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import typer
+from typer.testing import CliRunner
 
 import server
 from src.settings import LoggingSettings, RuntimeSettings
@@ -208,3 +209,50 @@ def test_invoke_server_disables_file_logging_via_sentinel() -> None:
     assert kwargs["file_path"] == ""
     load_mock.assert_called_once()
     apply_mock.assert_called_once()
+
+
+def test_check_conf_masks_api_key_and_labels_env() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        server.app,
+        ["check-conf"],
+        env={"BITSIGHT_API_KEY": "supersecretvalue"},
+        color=False,
+    )
+
+    assert result.exit_code == 0
+    rows = [line for line in result.stdout.splitlines() if "bitsight.api_key" in line]
+    assert rows, result.stdout
+    row = rows[0]
+    assert "supersecretvalue" not in row
+    assert row.count("*") >= 4
+    assert "ENV" in row
+
+
+def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        server.app,
+        ["check-conf", "--log-level", "DEBUG"],
+        env={"BITSIGHT_API_KEY": "maskedkey"},
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    lines = result.stdout.splitlines()
+
+    level_rows = [line for line in lines if "logging.level" in line]
+    assert level_rows, result.stdout
+    level_row = level_rows[0]
+    assert "CLI" in level_row
+    assert "DEBUG" in level_row
+
+    tls_rows = [line for line in lines if "runtime.allow_insecure_tls" in line]
+    assert tls_rows, result.stdout
+    tls_row = tls_rows[0]
+    assert "Default" in tls_row
+    assert "false" in tls_row.lower()
+
+    context_rows = [line for line in lines if "roles.context" in line]
+    assert context_rows, result.stdout
+    assert "Config File" in context_rows[0]

@@ -11,10 +11,12 @@ import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import typer
 from rich.console import Console
+from rich import box
+from rich.table import Table
 from typer.main import get_command
 
 # FastMCP checks this flag during import time, so ensure it is enabled before
@@ -56,6 +58,197 @@ _LOG_LEVEL_CHOICES = sorted(
     if isinstance(name, str) and not name.isdigit()
 )
 _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
+
+_SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
+
+
+def _mask_sensitive_string(value: str) -> str:
+    if not value:
+        return ""
+    if len(value) <= 4:
+        return "*" * len(value)
+    return f"{value[:2]}{'*' * (len(value) - 4)}{value[-2:]}"
+
+
+def _format_display_value(key: str, value: Any) -> str:
+    lowered_key = key.lower()
+    if key == "logging.file":
+        if value is None:
+            return "<stderr>"
+        if isinstance(value, str) and not value.strip():
+            return "<stderr>"
+
+    if value is None:
+        text = "<unset>"
+    elif isinstance(value, bool):
+        text = "true" if value else "false"
+    elif isinstance(value, (int, float)):
+        text = str(value)
+    elif isinstance(value, Path):
+        text = str(value)
+    else:
+        text = str(value)
+
+    if any(pattern in lowered_key for pattern in _SENSITIVE_KEY_PATTERNS):
+        original = value if isinstance(value, str) else text
+        return _mask_sensitive_string(original)
+    return text
+
+
+def _flatten_to_dotted(mapping: Mapping[str, Any], prefix: str = "") -> Dict[str, Any]:
+    flattened: Dict[str, Any] = {}
+    for key, value in mapping.items():
+        dotted = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, Mapping):
+            flattened.update(_flatten_to_dotted(value, dotted))
+        else:
+            flattened[dotted] = value
+    return flattened
+
+
+def _collect_config_file_entries(files: Sequence[Path]) -> Dict[str, Tuple[Any, str]]:
+    import tomllib
+
+    entries: Dict[str, Tuple[Any, str]] = {}
+    for file in files:
+        if not file.exists():
+            continue
+        with file.open("rb") as handle:
+            parsed = tomllib.load(handle)
+        flattened = _flatten_to_dotted(parsed)
+        for key, value in flattened.items():
+            entries[key] = (value, file.name)
+    return entries
+
+
+def _build_cli_source_labels(invocation: "_CliInvocation") -> Dict[str, str]:
+    labels: Dict[str, str] = {}
+    if invocation.auth.api_key:
+        labels["bitsight.api_key"] = "CLI"
+    if invocation.subscription.folder:
+        labels["bitsight.subscription_folder"] = "CLI"
+    if invocation.subscription.type:
+        labels["bitsight.subscription_type"] = "CLI"
+    if invocation.runtime.context:
+        labels["roles.context"] = "CLI"
+    if invocation.runtime.risk_vector_filter:
+        labels["roles.risk_vector_filter"] = "CLI"
+    if invocation.runtime.max_findings is not None:
+        labels["roles.max_findings"] = "CLI"
+    if invocation.runtime.debug is not None:
+        labels["runtime.debug"] = "CLI"
+    if invocation.runtime.skip_startup_checks is not None:
+        labels["runtime.skip_startup_checks"] = "CLI"
+    if invocation.tls.allow_insecure is not None:
+        labels["runtime.allow_insecure_tls"] = "CLI"
+    if invocation.tls.ca_bundle_path:
+        labels["runtime.ca_bundle_path"] = "CLI"
+    if invocation.logging.level:
+        labels["logging.level"] = "CLI"
+    if invocation.logging.format:
+        labels["logging.format"] = "CLI"
+    if invocation.logging.file_path is not None:
+        labels["logging.file"] = "CLI"
+    if invocation.logging.max_bytes is not None:
+        labels["logging.max_bytes"] = "CLI"
+    if invocation.logging.backup_count is not None:
+        labels["logging.backup_count"] = "CLI"
+    return labels
+
+
+def _build_env_source_labels(env_overrides: Mapping[str, str]) -> Dict[str, str]:
+    from src.settings import ENVVAR_TO_SETTINGS_KEY
+
+    labels: Dict[str, str] = {}
+    for env_var in env_overrides:
+        config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
+        if config_key:
+            labels[config_key] = f"ENV ({env_var})"
+    return labels
+
+
+def _build_cli_override_rows(invocation: "_CliInvocation") -> Sequence[Tuple[str, str, str]]:
+    rows: list[Tuple[str, str, str]] = []
+    for key, value in invocation.describe_cli_overrides().items():
+        rows.append((key, _format_display_value(key, value), "CLI"))
+    return rows
+
+
+def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[Tuple[str, str, str]]:
+    from src.settings import ENVVAR_TO_SETTINGS_KEY
+
+    rows: list[Tuple[str, str, str]] = []
+    for env_var, value in env_overrides.items():
+        config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
+        if not config_key:
+            continue
+        rows.append((config_key, _format_display_value(config_key, value), f"ENV ({env_var})"))
+    return rows
+
+
+_EFFECTIVE_CONFIG_KEY_ORDER: Tuple[str, ...] = (
+    "bitsight.api_key",
+    "bitsight.subscription_folder",
+    "bitsight.subscription_type",
+    "roles.context",
+    "roles.risk_vector_filter",
+    "roles.max_findings",
+    "runtime.debug",
+    "runtime.skip_startup_checks",
+    "runtime.allow_insecure_tls",
+    "runtime.ca_bundle_path",
+    "logging.level",
+    "logging.format",
+    "logging.file",
+    "logging.max_bytes",
+    "logging.backup_count",
+)
+
+
+def _effective_configuration_values(runtime_settings, logging_settings) -> Dict[str, Any]:
+    values: Dict[str, Any] = {
+        "bitsight.api_key": getattr(runtime_settings, "api_key", None),
+        "bitsight.subscription_folder": getattr(runtime_settings, "subscription_folder", None),
+        "bitsight.subscription_type": getattr(runtime_settings, "subscription_type", None),
+        "roles.context": getattr(runtime_settings, "context", None),
+        "roles.risk_vector_filter": getattr(runtime_settings, "risk_vector_filter", None),
+        "roles.max_findings": getattr(runtime_settings, "max_findings", None),
+        "runtime.debug": getattr(runtime_settings, "debug", None),
+        "runtime.skip_startup_checks": getattr(runtime_settings, "skip_startup_checks", None),
+        "runtime.allow_insecure_tls": getattr(runtime_settings, "allow_insecure_tls", None),
+        "runtime.ca_bundle_path": getattr(runtime_settings, "ca_bundle_path", None),
+        "logging.level": logging.getLevelName(getattr(logging_settings, "level", logging.INFO)),
+        "logging.format": getattr(logging_settings, "format", None),
+        "logging.file": getattr(logging_settings, "file_path", None),
+        "logging.max_bytes": getattr(logging_settings, "max_bytes", None),
+        "logging.backup_count": getattr(logging_settings, "backup_count", None),
+    }
+    return values
+
+
+def _determine_source_label(
+    key: str,
+    cli_labels: Mapping[str, str],
+    env_labels: Mapping[str, str],
+    config_entries: Mapping[str, Tuple[Any, str]],
+) -> str:
+    if key in cli_labels:
+        return cli_labels[key]
+    if key in env_labels:
+        return env_labels[key]
+    if key in config_entries:
+        return f"Config File ({config_entries[key][1]})"
+    return "Default"
+
+
+def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> None:
+    table = Table(title=title, box=box.SIMPLE_HEAVY)
+    table.add_column("Config Key", style="bold cyan")
+    table.add_column("Resolved Value", overflow="fold")
+    table.add_column("Source", style="magenta")
+    for key, value, source in rows:
+        table.add_row(key, value, source)
+    stdout_console.print(table)
 
 
 class LogResetMode(str, Enum):
@@ -201,38 +394,56 @@ class _CliInvocation:
     logging: _LoggingCliOverrides
     profile_path: Optional[Path] = None
 
-    def describe_cli_overrides(self) -> Dict[str, Any]:
-        details: Dict[str, Any] = {}
+    def describe_cli_overrides(self) -> Dict[str, str]:
+        details: Dict[str, str] = {}
         if self.auth.api_key:
-            details["bitsight.api_key"] = "******"
+            details["bitsight.api_key"] = _format_display_value("bitsight.api_key", self.auth.api_key)
         if self.subscription.folder:
-            details["bitsight.subscription_folder"] = self.subscription.folder
+            details["bitsight.subscription_folder"] = _format_display_value(
+                "bitsight.subscription_folder", self.subscription.folder
+            )
         if self.subscription.type:
-            details["bitsight.subscription_type"] = self.subscription.type
+            details["bitsight.subscription_type"] = _format_display_value(
+                "bitsight.subscription_type", self.subscription.type
+            )
         if self.runtime.context:
-            details["roles.context"] = self.runtime.context
+            details["roles.context"] = _format_display_value("roles.context", self.runtime.context)
         if self.runtime.risk_vector_filter:
-            details["roles.risk_vector_filter"] = self.runtime.risk_vector_filter
+            details["roles.risk_vector_filter"] = _format_display_value(
+                "roles.risk_vector_filter", self.runtime.risk_vector_filter
+            )
         if self.runtime.max_findings is not None:
-            details["roles.max_findings"] = self.runtime.max_findings
+            details["roles.max_findings"] = _format_display_value(
+                "roles.max_findings", self.runtime.max_findings
+            )
         if self.runtime.debug is not None:
-            details["runtime.debug"] = self.runtime.debug
+            details["runtime.debug"] = _format_display_value("runtime.debug", self.runtime.debug)
         if self.runtime.skip_startup_checks is not None:
-            details["runtime.skip_startup_checks"] = self.runtime.skip_startup_checks
+            details["runtime.skip_startup_checks"] = _format_display_value(
+                "runtime.skip_startup_checks", self.runtime.skip_startup_checks
+            )
         if self.tls.allow_insecure is not None:
-            details["runtime.allow_insecure_tls"] = self.tls.allow_insecure
+            details["runtime.allow_insecure_tls"] = _format_display_value(
+                "runtime.allow_insecure_tls", self.tls.allow_insecure
+            )
         if self.tls.ca_bundle_path:
-            details["runtime.ca_bundle_path"] = self.tls.ca_bundle_path
+            details["runtime.ca_bundle_path"] = _format_display_value(
+                "runtime.ca_bundle_path", self.tls.ca_bundle_path
+            )
         if self.logging.level:
-            details["logging.level"] = self.logging.level
+            details["logging.level"] = _format_display_value("logging.level", self.logging.level)
         if self.logging.format:
-            details["logging.format"] = self.logging.format
-        if self.logging.file_path:
-            details["logging.file"] = self.logging.file_path
+            details["logging.format"] = _format_display_value("logging.format", self.logging.format)
+        if self.logging.file_path is not None:
+            details["logging.file"] = _format_display_value("logging.file", self.logging.file_path)
         if self.logging.max_bytes is not None:
-            details["logging.max_bytes"] = self.logging.max_bytes
+            details["logging.max_bytes"] = _format_display_value(
+                "logging.max_bytes", self.logging.max_bytes
+            )
         if self.logging.backup_count is not None:
-            details["logging.backup_count"] = self.logging.backup_count
+            details["logging.backup_count"] = _format_display_value(
+                "logging.backup_count", self.logging.backup_count
+            )
         return details
 
 
@@ -901,13 +1112,6 @@ def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
     )
 
 
-def _format_mapping(mapping: Dict[str, Any]) -> str:
-    lines: list[str] = []
-    for key, value in mapping.items():
-        lines.append(f"- [bold]{key}[/bold]: {value}")
-    return "\n".join(lines)
-
-
 @app.command(help="Show resolved configuration layers and effective settings")
 def check_conf(
     config: Path = typer.Option(
@@ -1054,15 +1258,15 @@ def check_conf(
     runtime_settings, logging_settings, settings = _resolve_runtime_and_logging(invocation)
     files = _resolve_settings_files(invocation.config_path)
 
-    stdout_console.print("[bold]Configuration files[/bold]")
+    config_entries = _collect_config_file_entries(files)
+
+    files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
+    files_table.add_column("File", style="bold cyan")
+    files_table.add_column("Status", style="magenta")
     for file in files:
         status = "exists" if file.exists() else "missing"
-        stdout_console.print(f"- {file} ({status})")
-
-    cli_overrides = invocation.describe_cli_overrides()
-    if cli_overrides:
-        stdout_console.print("\n[bold]CLI overrides[/bold]")
-        stdout_console.print(_format_mapping(cli_overrides))
+        files_table.add_row(str(file), status)
+    stdout_console.print(files_table)
 
     env_overrides = {
         name: os.getenv(name)
@@ -1085,23 +1289,29 @@ def check_conf(
         )
         if os.getenv(name) is not None
     }
-    if env_overrides:
-        stdout_console.print("\n[bold]Environment overrides[/bold]")
-        stdout_console.print(_format_mapping(env_overrides))
+    env_labels = _build_env_source_labels(env_overrides)
+    env_rows = list(_build_env_override_rows(env_overrides))
+    if env_rows:
+        stdout_console.print()
+        _print_config_table("Environment overrides", env_rows)
 
-    stdout_console.print("\n[bold]Effective runtime settings[/bold]")
-    runtime_data = runtime_settings.as_dict() if hasattr(runtime_settings, "as_dict") else dict(runtime_settings)  # type: ignore[arg-type]
-    stdout_console.print(_format_mapping(runtime_data))
-
-    stdout_console.print("\n[bold]Effective logging settings[/bold]")
-    logging_data = {
-        "level": logging.getLevelName(logging_settings.level),
-        "format": logging_settings.format,
-        "file_path": logging_settings.file_path or "<stderr>",
-        "max_bytes": logging_settings.max_bytes,
-        "backup_count": logging_settings.backup_count,
+    cli_labels = {
+        key: label for key, label in _build_cli_source_labels(invocation).items() if key not in env_labels
     }
-    stdout_console.print(_format_mapping(logging_data))
+    cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
+    if cli_rows:
+        stdout_console.print()
+        _print_config_table("CLI overrides", cli_rows)
+
+    effective_values = _effective_configuration_values(runtime_settings, logging_settings)
+    effective_rows: list[Tuple[str, str, str]] = []
+    for key in _EFFECTIVE_CONFIG_KEY_ORDER:
+        display_value = _format_display_value(key, effective_values.get(key))
+        source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
+        effective_rows.append((key, display_value, source_label))
+
+    stdout_console.print()
+    _print_config_table("Effective configuration", effective_rows)
 
 
 @app.command(help="Validate or minimize a configuration file")
