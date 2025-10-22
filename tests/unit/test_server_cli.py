@@ -290,6 +290,32 @@ def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
     assert "api_key" in file_content
 
 
+def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join([
+        "",
+        "final-secret",
+        "",
+        "",
+        "",
+        "n",
+    ]) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "A value is required" in result.stdout
+    assert output_path.exists()
+    file_content = output_path.read_text(encoding="utf-8")
+    assert "final-secret" in file_content
+
+
 def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "config.local.toml"

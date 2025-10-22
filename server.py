@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Annotated, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 import typer
 from rich.console import Console
@@ -1003,6 +1003,47 @@ def _prompt_str(prompt: str, default: Optional[str], secret: bool = False) -> Op
     return value or None
 
 
+def _collect_or_prompt_string(
+    provided: Optional[str],
+    *,
+    prompt: str,
+    default: Optional[str],
+    secret: bool = False,
+    required: bool = False,
+    normalizer: Optional[Callable[[Optional[str]], Optional[str]]] = None,
+) -> Optional[str]:
+    """Return a CLI-provided string or interactively prompt for one."""
+
+    def _apply(value: Optional[str]) -> Optional[str]:
+        cleaned = _clean_string(value)
+        if cleaned is None:
+            return None
+        if normalizer is None:
+            return cleaned
+        return normalizer(cleaned)
+
+    if provided is not None:
+        return _apply(provided)
+
+    while True:
+        response = _prompt_str(prompt, default, secret=secret)
+        if response is None:
+            if required:
+                stdout_console.print("[red]A value is required.[/red]")
+                continue
+            return None
+        try:
+            normalized = _apply(response)
+        except typer.BadParameter as exc:  # pragma: no cover - defensive; normalizer raises
+            stdout_console.print(f"[red]{exc}[/red]")
+            continue
+
+        if normalized is None and required:
+            stdout_console.print("[red]A value is required.[/red]")
+            continue
+        return normalized
+
+
 def _generate_local_config_content(values: Dict[str, Any], *, include_header: bool = True) -> str:
     def format_value(value: Any) -> str:
         if isinstance(value, bool):
@@ -1082,18 +1123,25 @@ def local_conf_create(
         summary_rows.append((dotted_key, display_value, source))
 
     stdout_console.print("[bold]BiRRe local configuration generator[/bold]")
-    api_key = _prompt_str("BitSight API key", default=None, secret=True)
-    if api_key:
-        add_summary("bitsight", "api_key", api_key, "User Input")
+
+    api_key = _collect_or_prompt_string(
+        None,
+        prompt="BitSight API key",
+        default=None,
+        secret=True,
+        required=True,
+    )
+    add_summary("bitsight", "api_key", api_key, "User Input")
 
     default_subscription_folder_str = (
         str(default_subscription_folder)
         if default_subscription_folder is not None
         else ""
     )
-    subscription_folder = _prompt_str(
-        "Default subscription folder",
-        default_subscription_folder_str,
+    subscription_folder = _collect_or_prompt_string(
+        None,
+        prompt="Default subscription folder",
+        default=default_subscription_folder_str,
     )
     if subscription_folder is not None:
         folder_source = (
@@ -1104,44 +1152,43 @@ def local_conf_create(
         )
         add_summary("bitsight", "subscription_folder", subscription_folder, folder_source)
 
-    subscription_type_value: Optional[str]
-    if subscription_type is not None:
-        subscription_type_value = subscription_type.strip() or None
-        if subscription_type_value is not None:
-            add_summary(
-                "bitsight",
-                "subscription_type",
-                subscription_type_value,
-                "CLI Option",
-            )
-    else:
-        default_subscription_type_str = (
-            str(default_subscription_type)
-            if default_subscription_type is not None
-            else ""
-        )
-        subscription_type_value = _prompt_str(
-            "Default subscription type",
-            default_subscription_type_str,
-        )
-        if subscription_type_value is not None:
+    default_subscription_type_str = (
+        str(default_subscription_type)
+        if default_subscription_type is not None
+        else ""
+    )
+    subscription_type_value = _collect_or_prompt_string(
+        subscription_type,
+        prompt="Default subscription type",
+        default=default_subscription_type_str,
+    )
+    if subscription_type_value is not None:
+        if subscription_type is not None:
+            type_source = "CLI Option"
+        else:
             type_source = (
                 "Default"
                 if default_subscription_type_str
                 and subscription_type_value == default_subscription_type_str
                 else "User Input"
             )
-            add_summary("bitsight", "subscription_type", subscription_type_value, type_source)
+        add_summary("bitsight", "subscription_type", subscription_type_value, type_source)
 
     default_context_str = str(default_context or "standard")
-    context_value = _prompt_str(
-        "Default persona (standard or risk_manager)",
-        default_context_str,
+    default_context_normalized = (
+        _normalize_context(default_context_str) or _clean_string(default_context_str)
+    )
+    context_value = _collect_or_prompt_string(
+        None,
+        prompt="Default persona (standard or risk_manager)",
+        default=default_context_str,
+        normalizer=_normalize_context,
     )
     if context_value is not None:
         context_source = (
             "Default"
-            if context_value == default_context_str
+            if default_context_normalized is not None
+            and context_value == default_context_normalized
             else "User Input"
         )
         add_summary("roles", "context", context_value, context_source)
