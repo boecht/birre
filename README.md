@@ -23,7 +23,46 @@ uvx --from git+https://github.com/boecht/birre server.py
 BiRRe uses [Dynaconf](https://www.dynaconf.com/) for configuration layering.
 Sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
 Environment overrides follow the existing names (`BITSIGHT_API_KEY`, `BIRRE_*`).
-See the header in `config.toml` for available fields and details. For CLI options, run with `--help`.
+
+#### CLI option groups
+
+The CLI intentionally exposes only a small set of overrides; everything else should live in the TOML configuration.
+
+- **Authentication** – `--bitsight-api-key` (or `BITSIGHT_API_KEY`) lets you supply credentials without editing files.
+- **Runtime** – `--context` (serve command only) selects the persona; `--debug` accepts `true`/`false` to control verbose diagnostics.
+- **Logging** – `--log-level` and `--log-format` adjust verbosity and renderer without touching the config file.
+
+Example quick override:
+
+```bash
+uv run python server.py standard --log-level DEBUG --debug true
+```
+
+#### Config file example
+
+Advanced or persistent settings should be captured in TOML. Duplicate the project `config.toml` as `config.local.toml` and customise it, e.g.:
+
+```toml
+[bitsight]
+api_key = "${env:BITSIGHT_API_KEY}"
+subscription_folder = "API"
+subscription_type = "continuous_monitoring"
+
+[runtime]
+context = "risk_manager"
+skip_startup_checks = false
+allow_insecure_tls = false
+max_findings = 15
+
+[logging]
+level = "INFO"
+format = "json"
+file = "/var/log/birre/server.log"
+max_bytes = 10485760
+backup_count = 5
+```
+
+See the header in `config.toml` for the full list of keys and descriptions.
 
 ### Run directly from GitHub with uvx
 
