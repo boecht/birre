@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -256,3 +257,83 @@ def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
     context_rows = [line for line in lines if "roles.context" in line]
     assert context_rows, result.stdout
     assert "Config File" in context_rows[0]
+
+
+def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join(
+        [
+            "supersecretvalue",
+            "subscriptions",
+            "continuous_monitoring",
+            "standard",
+            "n",
+        ]
+    ) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    stdout = result.stdout
+    assert "Local configuration preview" in stdout
+    assert "bitsight.api_key" in stdout
+    assert "supersecretvalue" not in stdout
+    assert output_path.exists()
+    file_content = output_path.read_text(encoding="utf-8")
+    assert "bitsight" in file_content
+    assert "api_key" in file_content
+
+
+def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join(
+        [
+            "anothersecret",
+            "client-subscriptions",
+            "risk_manager",
+        ]
+    ) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        [
+            "local-conf-create",
+            "--output",
+            str(output_path),
+            "--subscription-type",
+            "vendor_monitoring",
+            "--debug",
+        ],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    stdout = result.stdout
+    assert "Default subscription type" not in stdout
+    assert "vendor_monitoring" in stdout
+    assert "CLI Option" in stdout
+
+
+def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    output_path.write_text("existing", encoding="utf-8")
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input="n\n",
+        color=False,
+    )
+
+    assert result.exit_code == 1
+    assert "Aborted" in result.stdout
+    assert output_path.read_text(encoding="utf-8") == "existing"

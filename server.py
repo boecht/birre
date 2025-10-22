@@ -1050,31 +1050,109 @@ def local_conf_create(
     overwrite: OverwriteOption = False,
 ) -> None:
     """Guide the user through generating a config.local.toml file."""
-    if output.exists() and not overwrite:
-        raise typer.BadParameter(
-            f"{output} already exists; pass --overwrite to replace it",
-            param_hint="--output",
-        )
+
+    if output.exists():
+        if overwrite:
+            stdout_console.print(
+                f"[yellow]Overwriting existing configuration at[/yellow] {output}"
+            )
+        else:
+            stdout_console.print(
+                f"[yellow]{output} already exists.[/yellow]"
+            )
+            if not typer.confirm("Overwrite this file?", default=False):
+                stdout_console.print(
+                    "[red]Aborted without changing the existing configuration.[/red]"
+                )
+                raise typer.Exit(code=1)
 
     defaults_settings = load_settings(DEFAULT_CONFIG_FILENAME)
     default_subscription_folder = defaults_settings.get("bitsight.subscription_folder")
-    default_subscription_type = subscription_type or defaults_settings.get(
-        "bitsight.subscription_type"
-    )
+    default_subscription_type = defaults_settings.get("bitsight.subscription_type")
     default_context = defaults_settings.get("roles.context", "standard")
+    default_debug = bool(defaults_settings.get("runtime.debug", False))
+
+    summary_rows: list[tuple[str, str, str]] = []
+
+    def add_summary(section: str, key: str, value: Any, source: str) -> None:
+        if value in (None, ""):
+            return
+        dotted_key = f"{section}.{key}" if section else key
+        display_value = _format_display_value(dotted_key, value)
+        summary_rows.append((dotted_key, display_value, source))
 
     stdout_console.print("[bold]BiRRe local configuration generator[/bold]")
     api_key = _prompt_str("BitSight API key", default=None, secret=True)
+    if api_key:
+        add_summary("bitsight", "api_key", api_key, "User Input")
+
+    default_subscription_folder_str = (
+        str(default_subscription_folder)
+        if default_subscription_folder is not None
+        else ""
+    )
     subscription_folder = _prompt_str(
-        "Default subscription folder", str(default_subscription_folder or ""),
+        "Default subscription folder",
+        default_subscription_folder_str,
     )
-    subscription_type_value = _prompt_str(
-        "Default subscription type", str(default_subscription_type or ""),
-    )
+    if subscription_folder is not None:
+        folder_source = (
+            "Default"
+            if default_subscription_folder_str
+            and subscription_folder == default_subscription_folder_str
+            else "User Input"
+        )
+        add_summary("bitsight", "subscription_folder", subscription_folder, folder_source)
+
+    subscription_type_value: Optional[str]
+    if subscription_type is not None:
+        subscription_type_value = subscription_type.strip() or None
+        if subscription_type_value is not None:
+            add_summary(
+                "bitsight",
+                "subscription_type",
+                subscription_type_value,
+                "CLI Option",
+            )
+    else:
+        default_subscription_type_str = (
+            str(default_subscription_type)
+            if default_subscription_type is not None
+            else ""
+        )
+        subscription_type_value = _prompt_str(
+            "Default subscription type",
+            default_subscription_type_str,
+        )
+        if subscription_type_value is not None:
+            type_source = (
+                "Default"
+                if default_subscription_type_str
+                and subscription_type_value == default_subscription_type_str
+                else "User Input"
+            )
+            add_summary("bitsight", "subscription_type", subscription_type_value, type_source)
+
+    default_context_str = str(default_context or "standard")
     context_value = _prompt_str(
-        "Default persona (standard or risk_manager)", str(default_context or "standard"),
+        "Default persona (standard or risk_manager)",
+        default_context_str,
     )
-    debug_value = debug if debug is not None else _prompt_bool("Enable debug mode?", default=False)
+    if context_value is not None:
+        context_source = (
+            "Default"
+            if context_value == default_context_str
+            else "User Input"
+        )
+        add_summary("roles", "context", context_value, context_source)
+
+    if debug is not None:
+        debug_value = debug
+        add_summary("runtime", "debug", debug_value, "CLI Option")
+    else:
+        debug_value = _prompt_bool("Enable debug mode?", default=default_debug)
+        debug_source = "Default" if debug_value == default_debug else "User Input"
+        add_summary("runtime", "debug", debug_value, debug_source)
 
     generated = {
         "bitsight": {
@@ -1097,12 +1175,33 @@ def local_conf_create(
             serializable[section] = filtered
 
     if not serializable:
-        raise typer.BadParameter("No values provided; aborting local configuration generation")
+        stdout_console.print(
+            "[red]No values provided; aborting local configuration generation.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    if summary_rows:
+        summary_rows.sort(key=lambda entry: entry[0])
+        preview = Table(title="Local configuration preview")
+        preview.add_column("Config Key", style="cyan")
+        preview.add_column("Value", style="magenta")
+        preview.add_column("Source", style="green")
+        for dotted_key, display_value, source in summary_rows:
+            preview.add_row(dotted_key, display_value, source)
+        stdout_console.print()
+        stdout_console.print(preview)
 
     content = _generate_local_config_content(serializable)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(content, encoding="utf-8")
-    stdout_console.print(f"[green]Configuration written to[/green] {output}")
+    try:
+        output.write_text(content, encoding="utf-8")
+    except OSError as error:
+        stdout_console.print(
+            f"[red]Failed to write configuration:[/red] {error}"
+        )
+        raise typer.Exit(code=1) from error
+
+    stdout_console.print(f"[green]Local configuration saved to[/green] {output}")
 
 
 def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
