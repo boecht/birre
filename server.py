@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Annotated, Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import typer
 from rich.console import Console
@@ -62,6 +62,226 @@ _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
 _SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
 
 
+# Reusable option annotations -------------------------------------------------
+
+ConfigPathOption = Annotated[
+    Path,
+    typer.Option(
+        "--config",
+        help="Path to a configuration TOML file to load",
+        rich_help_panel="Configuration",
+    ),
+]
+
+BitsightApiKeyOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--bitsight-api-key",
+        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
+        envvar="BITSIGHT_API_KEY",
+        show_envvar=True,
+        rich_help_panel="Authentication",
+    ),
+]
+
+SubscriptionFolderOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--subscription-folder",
+        help="BitSight subscription folder override",
+        envvar="BIRRE_SUBSCRIPTION_FOLDER",
+        show_envvar=True,
+        rich_help_panel="Subscription",
+    ),
+]
+
+SubscriptionTypeOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--subscription-type",
+        help="BitSight subscription type override",
+        envvar="BIRRE_SUBSCRIPTION_TYPE",
+        show_envvar=True,
+        rich_help_panel="Subscription",
+    ),
+]
+
+SkipStartupChecksOption = Annotated[
+    Optional[bool],
+    typer.Option(
+        "--skip-startup-checks/--no-skip-startup-checks",
+        help="Skip BitSight online startup checks",
+        envvar="BIRRE_SKIP_STARTUP_CHECKS",
+        show_envvar=True,
+        rich_help_panel="Runtime",
+    ),
+]
+
+DebugOption = Annotated[
+    Optional[bool],
+    typer.Option(
+        "--debug/--no-debug",
+        help="Enable verbose diagnostics",
+        envvar="BIRRE_DEBUG",
+        show_envvar=True,
+        rich_help_panel="Runtime",
+    ),
+]
+
+AllowInsecureTlsOption = Annotated[
+    Optional[bool],
+    typer.Option(
+        "--allow-insecure-tls/--enforce-tls",
+        help="Disable TLS verification when contacting BitSight",
+        envvar="BIRRE_ALLOW_INSECURE_TLS",
+        show_envvar=True,
+        rich_help_panel="Security",
+    ),
+]
+
+CaBundleOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--ca-bundle",
+        help="Path to a custom certificate authority bundle",
+        envvar="BIRRE_CA_BUNDLE",
+        show_envvar=True,
+        rich_help_panel="Security",
+    ),
+]
+
+ContextOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--context",
+        help="Tool persona to expose (standard or risk_manager)",
+        envvar="BIRRE_CONTEXT",
+        show_envvar=True,
+        rich_help_panel="Runtime",
+    ),
+]
+
+RiskVectorFilterOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--risk-vector-filter",
+        help="Comma separated list of BitSight risk vectors",
+        envvar="BIRRE_RISK_VECTOR_FILTER",
+        show_envvar=True,
+        rich_help_panel="Runtime",
+    ),
+]
+
+MaxFindingsOption = Annotated[
+    Optional[int],
+    typer.Option(
+        "--max-findings",
+        min=1,
+        help="Maximum number of findings to surface per company",
+        envvar="BIRRE_MAX_FINDINGS",
+        show_envvar=True,
+        rich_help_panel="Runtime",
+    ),
+]
+
+LogLevelOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--log-level",
+        help="Logging level (e.g. INFO, DEBUG)",
+        envvar="BIRRE_LOG_LEVEL",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+
+LogFormatOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--log-format",
+        help="Logging format (text or json)",
+        envvar="BIRRE_LOG_FORMAT",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+
+LogFileOption = Annotated[
+    Optional[str],
+    typer.Option(
+        "--log-file",
+        help="Path to a log file (use '-', none, or stderr to disable)",
+        envvar="BIRRE_LOG_FILE",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+
+LogMaxBytesOption = Annotated[
+    Optional[int],
+    typer.Option(
+        "--log-max-bytes",
+        min=1,
+        help="Maximum size in bytes for rotating log files",
+        envvar="BIRRE_LOG_MAX_BYTES",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+
+LogBackupCountOption = Annotated[
+    Optional[int],
+    typer.Option(
+        "--log-backup-count",
+        min=1,
+        help="Number of rotating log file backups to retain",
+        envvar="BIRRE_LOG_BACKUP_COUNT",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+
+ProfilePathOption = Annotated[
+    Optional[Path],
+    typer.Option(
+        "--profile",
+        help="Write Python profiling data to the provided path",
+        rich_help_panel="Diagnostics",
+    ),
+]
+
+OnlineFlagOption = Annotated[
+    bool,
+    typer.Option(
+        "--online/--offline",
+        help="Run BitSight network checks in addition to offline validation",
+        rich_help_panel="Diagnostics",
+    ),
+]
+
+LocalConfOutputOption = Annotated[
+    Path,
+    typer.Option(
+        "--output",
+        help="Destination local config file",
+    ),
+]
+
+OverwriteOption = Annotated[
+    bool,
+    typer.Option(
+        "--overwrite/--no-overwrite",
+        help="Allow overwriting an existing local configuration file",
+    ),
+]
+
+MinimizeOption = Annotated[
+    bool,
+    typer.Option(
+        "--minimize/--no-minimize",
+        help="Rewrite the configuration file with a minimal canonical layout",
+    ),
+]
 def _mask_sensitive_string(value: str) -> str:
     if not value:
         return ""
@@ -259,6 +479,17 @@ class LogResetMode(str, Enum):
 
     def __str__(self) -> str:  # pragma: no cover - Typer uses __str__ for help text
         return self.value
+
+
+LogResetModeOption = Annotated[
+    LogResetMode,
+    typer.Option(
+        "--mode",
+        case_sensitive=False,
+        help="Log reset strategy: 'rotate' to perform log rotation or 'clear' to truncate the active log file",
+        rich_help_panel="Logging",
+    ),
+]
 
 
 def _banner() -> str:
@@ -639,141 +870,23 @@ def _prepare_server(runtime_settings, logger):
 
 @app.command(help="Start the BiRRe FastMCP server")
 def run(
-    config: Path = typer.Option(
-        Path(DEFAULT_CONFIG_FILENAME),
-        "--config",
-        help="Path to a configuration TOML file to load",
-        rich_help_panel="Configuration",
-    ),
-    bitsight_api_key: Optional[str] = typer.Option(
-        None,
-        "--bitsight-api-key",
-        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
-        envvar="BITSIGHT_API_KEY",
-        show_envvar=True,
-        rich_help_panel="Authentication",
-    ),
-    subscription_folder: Optional[str] = typer.Option(
-        None,
-        "--subscription-folder",
-        help="BitSight subscription folder override",
-        envvar="BIRRE_SUBSCRIPTION_FOLDER",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    subscription_type: Optional[str] = typer.Option(
-        None,
-        "--subscription-type",
-        help="BitSight subscription type override",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    skip_startup_checks: Optional[bool] = typer.Option(
-        None,
-        "--skip-startup-checks/--no-skip-startup-checks",
-        help="Skip BitSight online startup checks",
-        envvar="BIRRE_SKIP_STARTUP_CHECKS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    allow_insecure_tls: Optional[bool] = typer.Option(
-        None,
-        "--allow-insecure-tls/--enforce-tls",
-        help="Disable TLS verification when contacting BitSight",
-        envvar="BIRRE_ALLOW_INSECURE_TLS",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    ca_bundle: Optional[str] = typer.Option(
-        None,
-        "--ca-bundle",
-        help="Path to a custom certificate authority bundle",
-        envvar="BIRRE_CA_BUNDLE",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    context: Optional[str] = typer.Option(
-        None,
-        "--context",
-        help="Tool persona to expose (standard or risk_manager)",
-        envvar="BIRRE_CONTEXT",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    risk_vector_filter: Optional[str] = typer.Option(
-        None,
-        "--risk-vector-filter",
-        help="Comma separated list of BitSight risk vectors",
-        envvar="BIRRE_RISK_VECTOR_FILTER",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    max_findings: Optional[int] = typer.Option(
-        None,
-        "--max-findings",
-        min=1,
-        help="Maximum number of findings to surface per company",
-        envvar="BIRRE_MAX_FINDINGS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    log_level: Optional[str] = typer.Option(
-        None,
-        "--log-level",
-        help="Logging level (e.g. INFO, DEBUG)",
-        envvar="BIRRE_LOG_LEVEL",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_format: Optional[str] = typer.Option(
-        None,
-        "--log-format",
-        help="Logging format (text or json)",
-        envvar="BIRRE_LOG_FORMAT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_file: Optional[str] = typer.Option(
-        None,
-        "--log-file",
-        help="Path to a log file (use '-', none, or stderr to disable)",
-        envvar="BIRRE_LOG_FILE",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_max_bytes: Optional[int] = typer.Option(
-        None,
-        "--log-max-bytes",
-        min=1,
-        help="Maximum size in bytes for rotating log files",
-        envvar="BIRRE_LOG_MAX_BYTES",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_backup_count: Optional[int] = typer.Option(
-        None,
-        "--log-backup-count",
-        min=1,
-        help="Number of rotating log file backups to retain",
-        envvar="BIRRE_LOG_BACKUP_COUNT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    profile: Optional[Path] = typer.Option(
-        None,
-        "--profile",
-        help="Write Python profiling data to the provided path",
-        rich_help_panel="Diagnostics",
-    ),
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    bitsight_api_key: BitsightApiKeyOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    skip_startup_checks: SkipStartupChecksOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle: CaBundleOption = None,
+    context: ContextOption = None,
+    risk_vector_filter: RiskVectorFilterOption = None,
+    max_findings: MaxFindingsOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
+    profile: ProfilePathOption = None,
 ) -> None:
     invocation = _build_invocation(
         config_path=config,
@@ -828,108 +941,19 @@ def run(
 
 @app.command(help="Execute startup checks without launching the server")
 def checks_only(
-    config: Path = typer.Option(
-        Path(DEFAULT_CONFIG_FILENAME),
-        "--config",
-        help="Path to a configuration TOML file to load",
-        rich_help_panel="Configuration",
-    ),
-    bitsight_api_key: Optional[str] = typer.Option(
-        None,
-        "--bitsight-api-key",
-        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
-        envvar="BITSIGHT_API_KEY",
-        show_envvar=True,
-        rich_help_panel="Authentication",
-    ),
-    subscription_folder: Optional[str] = typer.Option(
-        None,
-        "--subscription-folder",
-        help="BitSight subscription folder override",
-        envvar="BIRRE_SUBSCRIPTION_FOLDER",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    subscription_type: Optional[str] = typer.Option(
-        None,
-        "--subscription-type",
-        help="BitSight subscription type override",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    allow_insecure_tls: Optional[bool] = typer.Option(
-        None,
-        "--allow-insecure-tls/--enforce-tls",
-        help="Disable TLS verification when contacting BitSight",
-        envvar="BIRRE_ALLOW_INSECURE_TLS",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    ca_bundle: Optional[str] = typer.Option(
-        None,
-        "--ca-bundle",
-        help="Path to a custom certificate authority bundle",
-        envvar="BIRRE_CA_BUNDLE",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    log_level: Optional[str] = typer.Option(
-        None,
-        "--log-level",
-        help="Logging level (e.g. INFO, DEBUG)",
-        envvar="BIRRE_LOG_LEVEL",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_format: Optional[str] = typer.Option(
-        None,
-        "--log-format",
-        help="Logging format (text or json)",
-        envvar="BIRRE_LOG_FORMAT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_file: Optional[str] = typer.Option(
-        None,
-        "--log-file",
-        help="Path to a log file (use '-', none, or stderr to disable)",
-        envvar="BIRRE_LOG_FILE",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_max_bytes: Optional[int] = typer.Option(
-        None,
-        "--log-max-bytes",
-        min=1,
-        help="Maximum size in bytes for rotating log files",
-        envvar="BIRRE_LOG_MAX_BYTES",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_backup_count: Optional[int] = typer.Option(
-        None,
-        "--log-backup-count",
-        min=1,
-        help="Number of rotating log file backups to retain",
-        envvar="BIRRE_LOG_BACKUP_COUNT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    online: bool = typer.Option(
-        False,
-        "--online/--offline",
-        help="Run BitSight network checks in addition to offline validation",
-        rich_help_panel="Diagnostics",
-    ),
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    bitsight_api_key: BitsightApiKeyOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle: CaBundleOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
+    online: OnlineFlagOption = False,
 ) -> None:
     invocation = _build_invocation(
         config_path=config,
@@ -1012,32 +1036,10 @@ def _generate_local_config_content(values: Dict[str, Any], *, include_header: bo
 
 @app.command(help="Create or update config.local.toml interactively")
 def local_conf_create(
-    output: Path = typer.Option(
-        LOCAL_CONFIG_FILENAME,
-        "--output",
-        help="Destination local config file",
-    ),
-    subscription_type: Optional[str] = typer.Option(
-        None,
-        "--subscription-type",
-        help="BitSight subscription type override",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    overwrite: bool = typer.Option(
-        False,
-        "--overwrite/--no-overwrite",
-        help="Allow overwriting an existing local configuration file",
-    ),
+    output: LocalConfOutputOption = Path(LOCAL_CONFIG_FILENAME),
+    subscription_type: SubscriptionTypeOption = None,
+    debug: DebugOption = None,
+    overwrite: OverwriteOption = False,
 ) -> None:
     if output.exists() and not overwrite:
         raise typer.BadParameter(
@@ -1114,127 +1116,21 @@ def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
 
 @app.command(help="Show resolved configuration layers and effective settings")
 def check_conf(
-    config: Path = typer.Option(
-        Path(DEFAULT_CONFIG_FILENAME),
-        "--config",
-        help="Path to a configuration TOML file to load",
-        rich_help_panel="Configuration",
-    ),
-    bitsight_api_key: Optional[str] = typer.Option(
-        None,
-        "--bitsight-api-key",
-        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
-        envvar="BITSIGHT_API_KEY",
-        show_envvar=True,
-        rich_help_panel="Authentication",
-    ),
-    subscription_folder: Optional[str] = typer.Option(
-        None,
-        "--subscription-folder",
-        help="BitSight subscription folder override",
-        envvar="BIRRE_SUBSCRIPTION_FOLDER",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    subscription_type: Optional[str] = typer.Option(
-        None,
-        "--subscription-type",
-        help="BitSight subscription type override",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    context: Optional[str] = typer.Option(
-        None,
-        "--context",
-        help="Tool persona to expose (standard or risk_manager)",
-        envvar="BIRRE_CONTEXT",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    allow_insecure_tls: Optional[bool] = typer.Option(
-        None,
-        "--allow-insecure-tls/--enforce-tls",
-        help="Disable TLS verification when contacting BitSight",
-        envvar="BIRRE_ALLOW_INSECURE_TLS",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    ca_bundle: Optional[str] = typer.Option(
-        None,
-        "--ca-bundle",
-        help="Path to a custom certificate authority bundle",
-        envvar="BIRRE_CA_BUNDLE",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    risk_vector_filter: Optional[str] = typer.Option(
-        None,
-        "--risk-vector-filter",
-        help="Comma separated list of BitSight risk vectors",
-        envvar="BIRRE_RISK_VECTOR_FILTER",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    max_findings: Optional[int] = typer.Option(
-        None,
-        "--max-findings",
-        min=1,
-        help="Maximum number of findings to surface per company",
-        envvar="BIRRE_MAX_FINDINGS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    log_level: Optional[str] = typer.Option(
-        None,
-        "--log-level",
-        help="Logging level (e.g. INFO, DEBUG)",
-        envvar="BIRRE_LOG_LEVEL",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_format: Optional[str] = typer.Option(
-        None,
-        "--log-format",
-        help="Logging format (text or json)",
-        envvar="BIRRE_LOG_FORMAT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_file: Optional[str] = typer.Option(
-        None,
-        "--log-file",
-        help="Path to a log file (use '-', none, or stderr to disable)",
-        envvar="BIRRE_LOG_FILE",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_max_bytes: Optional[int] = typer.Option(
-        None,
-        "--log-max-bytes",
-        min=1,
-        help="Maximum size in bytes for rotating log files",
-        envvar="BIRRE_LOG_MAX_BYTES",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_backup_count: Optional[int] = typer.Option(
-        None,
-        "--log-backup-count",
-        min=1,
-        help="Number of rotating log file backups to retain",
-        envvar="BIRRE_LOG_BACKUP_COUNT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    bitsight_api_key: BitsightApiKeyOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    context: ContextOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle: CaBundleOption = None,
+    risk_vector_filter: RiskVectorFilterOption = None,
+    max_findings: MaxFindingsOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
 ) -> None:
     invocation = _build_invocation(
         config_path=config,
@@ -1317,19 +1213,8 @@ def check_conf(
 @app.command(help="Validate or minimize a configuration file")
 def lint_config(
     config_file: Path = typer.Argument(..., help="Configuration TOML file to validate"),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    minimize: bool = typer.Option(
-        False,
-        "--minimize/--no-minimize",
-        help="Rewrite the configuration file with a minimal canonical layout",
-    ),
+    debug: DebugOption = None,
+    minimize: MinimizeOption = False,
 ) -> None:
     if not config_file.exists():
         raise typer.BadParameter(f"{config_file} does not exist", param_hint="config-file")
@@ -1386,69 +1271,14 @@ def _rotate_logs(base_path: Path, backup_count: int) -> None:
 
 @app.command(help="Rotate or clear BiRRe log files")
 def reset_logs(
-    config: Path = typer.Option(
-        Path(DEFAULT_CONFIG_FILENAME),
-        "--config",
-        help="Path to a configuration TOML file to load",
-        rich_help_panel="Configuration",
-    ),
-    mode: LogResetMode = typer.Option(
-        ...,
-        "--mode",
-        case_sensitive=False,
-        help="Log reset strategy: 'rotate' to perform log rotation or 'clear' to truncate the active log file",
-        rich_help_panel="Logging",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    log_level: Optional[str] = typer.Option(
-        None,
-        "--log-level",
-        help="Logging level (e.g. INFO, DEBUG)",
-        envvar="BIRRE_LOG_LEVEL",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_format: Optional[str] = typer.Option(
-        None,
-        "--log-format",
-        help="Logging format (text or json)",
-        envvar="BIRRE_LOG_FORMAT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_file: Optional[str] = typer.Option(
-        None,
-        "--log-file",
-        help="Path to a log file (use '-', none, or stderr to disable)",
-        envvar="BIRRE_LOG_FILE",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_max_bytes: Optional[int] = typer.Option(
-        None,
-        "--log-max-bytes",
-        min=1,
-        help="Maximum size in bytes for rotating log files",
-        envvar="BIRRE_LOG_MAX_BYTES",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
-    log_backup_count: Optional[int] = typer.Option(
-        None,
-        "--log-backup-count",
-        min=1,
-        help="Number of rotating log file backups to retain",
-        envvar="BIRRE_LOG_BACKUP_COUNT",
-        show_envvar=True,
-        rich_help_panel="Logging",
-    ),
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    mode: LogResetModeOption = ...,
+    debug: DebugOption = None,
+    log_level: LogLevelOption = None,
+    log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    log_max_bytes: LogMaxBytesOption = None,
+    log_backup_count: LogBackupCountOption = None,
 ) -> None:
     invocation = _build_invocation(
         config_path=config,
@@ -1510,83 +1340,16 @@ def version() -> None:
 
 @app.command(help="Run diagnostics without starting the server")
 def test(
-    config: Path = typer.Option(
-        Path(DEFAULT_CONFIG_FILENAME),
-        "--config",
-        help="Path to a configuration TOML file to load",
-        rich_help_panel="Configuration",
-    ),
-    bitsight_api_key: Optional[str] = typer.Option(
-        None,
-        "--bitsight-api-key",
-        help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
-        envvar="BITSIGHT_API_KEY",
-        show_envvar=True,
-        rich_help_panel="Authentication",
-    ),
-    subscription_folder: Optional[str] = typer.Option(
-        None,
-        "--subscription-folder",
-        help="BitSight subscription folder override",
-        envvar="BIRRE_SUBSCRIPTION_FOLDER",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    subscription_type: Optional[str] = typer.Option(
-        None,
-        "--subscription-type",
-        help="BitSight subscription type override",
-        envvar="BIRRE_SUBSCRIPTION_TYPE",
-        show_envvar=True,
-        rich_help_panel="Subscription",
-    ),
-    debug: Optional[bool] = typer.Option(
-        None,
-        "--debug/--no-debug",
-        help="Enable verbose diagnostics",
-        envvar="BIRRE_DEBUG",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    allow_insecure_tls: Optional[bool] = typer.Option(
-        None,
-        "--allow-insecure-tls/--enforce-tls",
-        help="Disable TLS verification when contacting BitSight",
-        envvar="BIRRE_ALLOW_INSECURE_TLS",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    ca_bundle: Optional[str] = typer.Option(
-        None,
-        "--ca-bundle",
-        help="Path to a custom certificate authority bundle",
-        envvar="BIRRE_CA_BUNDLE",
-        show_envvar=True,
-        rich_help_panel="Security",
-    ),
-    risk_vector_filter: Optional[str] = typer.Option(
-        None,
-        "--risk-vector-filter",
-        help="Comma separated list of BitSight risk vectors",
-        envvar="BIRRE_RISK_VECTOR_FILTER",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    max_findings: Optional[int] = typer.Option(
-        None,
-        "--max-findings",
-        min=1,
-        help="Maximum number of findings to surface per company",
-        envvar="BIRRE_MAX_FINDINGS",
-        show_envvar=True,
-        rich_help_panel="Runtime",
-    ),
-    online: bool = typer.Option(
-        False,
-        "--online/--offline",
-        help="Run BitSight network checks in addition to offline validation",
-        rich_help_panel="Diagnostics",
-    ),
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    bitsight_api_key: BitsightApiKeyOption = None,
+    subscription_folder: SubscriptionFolderOption = None,
+    subscription_type: SubscriptionTypeOption = None,
+    debug: DebugOption = None,
+    allow_insecure_tls: AllowInsecureTlsOption = None,
+    ca_bundle: CaBundleOption = None,
+    risk_vector_filter: RiskVectorFilterOption = None,
+    max_findings: MaxFindingsOption = None,
+    online: OnlineFlagOption = False,
 ) -> None:
     invocation = _build_invocation(
         config_path=config,
