@@ -73,9 +73,9 @@ level = "INFO"
 # CLI: --log-format
 format = "text"
 
-# Optional log file path (leave unset to log to stderr only).
-# ENV: BIRRE_LOG_FILE
-# CLI: --log-file
+# Optional log file path (set empty, -, none, stderr, etc., or use --no-log-file for stderr-only).
+# ENV: BIRRE_LOG_FILE (empty or disable keyword to disable)
+# CLI: --log-file / --no-log-file
 file = "birre.log"
 
 # Maximum size in bytes for rotating log files.

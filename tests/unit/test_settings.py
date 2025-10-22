@@ -200,6 +200,34 @@ def test_logging_overrides_follow_cli(tmp_path: Path) -> None:
     assert logging_settings.backup_count == 2
 
 
+def test_logging_env_disable_sentinel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / DEFAULT_CONFIG_FILENAME
+    _write_base_config(config_path)
+
+    monkeypatch.setenv("BIRRE_LOG_FILE", "DISABLED")
+
+    settings_obj = load_settings(str(config_path))
+    logging_settings = logging_from_settings(settings_obj)
+
+    assert logging_settings.file_path is None
+
+
+def test_logging_config_disable_sentinel(tmp_path: Path) -> None:
+    config_path = tmp_path / DEFAULT_CONFIG_FILENAME
+    _write_base_config(config_path)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace('file = ""', 'file = "stderr"'),
+        encoding="utf-8",
+    )
+
+    settings_obj = load_settings(str(config_path))
+    logging_settings = logging_from_settings(settings_obj)
+
+    assert logging_settings.file_path is None
+
+
 def test_resolve_application_settings_combines_sections(tmp_path: Path) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)

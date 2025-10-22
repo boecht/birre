@@ -40,6 +40,25 @@ _ALLOWED_CONTEXTS = {"standard", "risk_manager"}
 _TRUTHY = {"1", "true", "yes", "on"}
 _FALSY = {"0", "false", "no", "off"}
 
+LOGFILE_DISABLE_SENTINELS = {
+    "-",
+    "disabled",
+    "disable",
+    "none",
+    "null",
+    "off",
+    "stderr",
+}
+
+
+def is_logfile_disabled_value(value: Optional[str]) -> bool:
+    if value is None:
+        return False
+    normalized = value.strip().lower()
+    if not normalized:
+        return False
+    return normalized in LOGFILE_DISABLE_SENTINELS
+
 # Dynaconf keys used throughout the module. Using constants helps avoid
 # duplication and keeps environment and configuration lookups consistent.
 BITSIGHT_API_KEY_KEY = "bitsight.api_key"
@@ -474,6 +493,8 @@ def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
         raise ValueError(f"Unsupported log format: {format_value}")
 
     file_path = _coerce_str(settings.get(LOGGING_FILE_KEY))
+    if is_logfile_disabled_value(file_path):
+        file_path = None
 
     max_bytes_value = _coerce_int(settings.get(LOGGING_MAX_BYTES_KEY))
     if max_bytes_value is None or max_bytes_value <= 0:
@@ -586,8 +607,10 @@ __all__ = [
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_MAX_BYTES",
     "DEFAULT_BACKUP_COUNT",
+    "LOGFILE_DISABLE_SENTINELS",
     "LOG_FORMAT_TEXT",
     "LOG_FORMAT_JSON",
+    "is_logfile_disabled_value",
     "load_settings",
     "apply_cli_overrides",
     "runtime_from_settings",
