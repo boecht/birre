@@ -26,6 +26,7 @@ from src.settings import (
     SubscriptionInputs,
     TlsInputs,
     apply_cli_overrides,
+    is_logfile_disabled_value,
     load_settings,
     logging_from_settings,
     runtime_from_settings,
@@ -172,6 +173,30 @@ LogFormatOption = Annotated[
         rich_help_panel="Logging",
     ),
 ]
+LogFileOption = Annotated[
+    Optional[str],
+    typer.Option(
+        None,
+        "--log-file",
+        help=(
+            "Path to a log file. Use an empty value or --no-log-file to disable "
+            "file logging"
+        ),
+        envvar="BIRRE_LOG_FILE",
+        show_envvar=True,
+        rich_help_panel="Logging",
+    ),
+]
+NoLogFileOption = Annotated[
+    bool,
+    typer.Option(
+        False,
+        "--no-log-file",
+        help="Disable file logging (log to stderr only)",
+        is_flag=True,
+        rich_help_panel="Logging",
+    ),
+]
 DebugOption = Annotated[
     Optional[bool],
     typer.Option(
@@ -193,6 +218,8 @@ class _AuthCliOverrides:
 class _LoggingCliOverrides:
     level: Optional[str] = None
     format: Optional[str] = None
+    file_path: Optional[str] = None
+    disable_file: bool = False
 
 
 @dataclass(frozen=True)
@@ -218,13 +245,20 @@ def _build_invocation(
     debug: Optional[bool],
     log_level: Optional[str],
     log_format: Optional[str],
+    log_file: Optional[str],
+    no_log_file: bool,
     context_alias: Optional[str],
 ) -> _CliInvocation:
     return _CliInvocation(
         config_path=config_path,
         auth=_AuthCliOverrides(api_key=api_key),
         runtime=_RuntimeCliOverrides(context=runtime_context, debug=debug),
-        logging=_LoggingCliOverrides(level=log_level, format=log_format),
+        logging=_LoggingCliOverrides(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            disable_file=no_log_file,
+        ),
         context_alias=context_alias,
     )
 
@@ -246,10 +280,27 @@ def _invoke_server(invocation: _CliInvocation) -> None:
     normalized_log_format = _normalize_log_format(invocation.logging.format)
     normalized_log_level = _normalize_log_level(invocation.logging.level)
 
+    if invocation.logging.disable_file and invocation.logging.file_path:
+        raise typer.BadParameter(
+            "Cannot specify --log-file when --no-log-file is used.",
+            param_hint="--log-file",
+        )
+
+    file_override: Optional[str] = None
+    if invocation.logging.disable_file:
+        file_override = ""
+    elif invocation.logging.file_path is not None:
+        raw_file_value = invocation.logging.file_path
+        if is_logfile_disabled_value(raw_file_value):
+            file_override = ""
+        else:
+            candidate = raw_file_value.strip()
+            file_override = candidate if candidate else ""
+
     logging_inputs = LoggingInputs(
         level=normalized_log_level,
         format=normalized_log_format,
-        file_path=None,
+        file_path=file_override,
         max_bytes=None,
         backup_count=None,
     )
@@ -333,6 +384,8 @@ def _execute_command(
     debug: Optional[bool],
     log_level: Optional[str],
     log_format: Optional[str],
+    log_file: Optional[str],
+    no_log_file: bool,
 ) -> None:
     invocation = _build_invocation(
         config_path=config_path,
@@ -341,6 +394,8 @@ def _execute_command(
         debug=debug,
         log_level=log_level,
         log_format=log_format,
+        log_file=log_file,
+        no_log_file=no_log_file,
         context_alias=context_alias,
     )
     _invoke_server(invocation)
@@ -353,6 +408,8 @@ def serve(
     api_key: ApiKeyOption = None,
     log_level: LogLevelOption = None,
     log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    no_log_file: NoLogFileOption = False,
     debug: DebugOption = None,
 ) -> None:
     """Run BiRRe with optional context overrides from the CLI."""
@@ -365,6 +422,8 @@ def serve(
         debug=debug,
         log_level=log_level,
         log_format=log_format,
+        log_file=log_file,
+        no_log_file=no_log_file,
     )
 
 
@@ -374,6 +433,8 @@ def standard(
     api_key: ApiKeyOption = None,
     log_level: LogLevelOption = None,
     log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    no_log_file: NoLogFileOption = False,
     debug: DebugOption = None,
 ) -> None:
     """Run BiRRe locked to the standard context."""
@@ -386,6 +447,8 @@ def standard(
         debug=debug,
         log_level=log_level,
         log_format=log_format,
+        log_file=log_file,
+        no_log_file=no_log_file,
     )
 
 
@@ -395,6 +458,8 @@ def risk_manager(
     api_key: ApiKeyOption = None,
     log_level: LogLevelOption = None,
     log_format: LogFormatOption = None,
+    log_file: LogFileOption = None,
+    no_log_file: NoLogFileOption = False,
     debug: DebugOption = None,
 ) -> None:
     """Run BiRRe locked to the risk manager context."""
@@ -407,6 +472,8 @@ def risk_manager(
         debug=debug,
         log_level=log_level,
         log_format=log_format,
+        log_file=log_file,
+        no_log_file=no_log_file,
     )
 
 
@@ -423,6 +490,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 debug=None,
                 log_level=None,
                 log_format=None,
+                log_file=None,
+                no_log_file=False,
                 context_alias=None,
             )
         )
