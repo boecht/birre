@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Annotated, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Final
 
 import typer
 from rich.console import Console
@@ -27,8 +27,23 @@ from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 from src.logging import configure_logging, get_logger
 from src.settings import (
+    BITSIGHT_API_KEY_KEY,
+    BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
+    BITSIGHT_SUBSCRIPTION_TYPE_KEY,
+    LOGGING_BACKUP_COUNT_KEY,
+    LOGGING_FILE_KEY,
+    LOGGING_FORMAT_KEY,
+    LOGGING_LEVEL_KEY,
+    LOGGING_MAX_BYTES_KEY,
     LoggingInputs,
+    ROLE_CONTEXT_KEY,
+    ROLE_MAX_FINDINGS_KEY,
+    ROLE_RISK_VECTOR_FILTER_KEY,
     RuntimeInputs,
+    RUNTIME_ALLOW_INSECURE_TLS_KEY,
+    RUNTIME_CA_BUNDLE_PATH_KEY,
+    RUNTIME_DEBUG_KEY,
+    RUNTIME_SKIP_STARTUP_CHECKS_KEY,
     SubscriptionInputs,
     TlsInputs,
     apply_cli_overrides,
@@ -60,6 +75,8 @@ _LOG_LEVEL_CHOICES = sorted(
 _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
 
 _SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
+
+SOURCE_USER_INPUT: Final = "User Input"
 
 
 # Reusable option annotations -------------------------------------------------
@@ -292,7 +309,7 @@ def _mask_sensitive_string(value: str) -> str:
 
 def _format_display_value(key: str, value: Any) -> str:
     lowered_key = key.lower()
-    if key == "logging.file":
+    if key == LOGGING_FILE_KEY:
         if value is None:
             return "<stderr>"
         if isinstance(value, str) and not value.strip():
@@ -344,35 +361,35 @@ def _collect_config_file_entries(files: Sequence[Path]) -> Dict[str, Tuple[Any, 
 def _build_cli_source_labels(invocation: "_CliInvocation") -> Dict[str, str]:
     labels: Dict[str, str] = {}
     if invocation.auth.api_key:
-        labels["bitsight.api_key"] = "CLI"
+        labels[BITSIGHT_API_KEY_KEY] = "CLI"
     if invocation.subscription.folder:
-        labels["bitsight.subscription_folder"] = "CLI"
+        labels[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = "CLI"
     if invocation.subscription.type:
-        labels["bitsight.subscription_type"] = "CLI"
+        labels[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = "CLI"
     if invocation.runtime.context:
-        labels["roles.context"] = "CLI"
+        labels[ROLE_CONTEXT_KEY] = "CLI"
     if invocation.runtime.risk_vector_filter:
-        labels["roles.risk_vector_filter"] = "CLI"
+        labels[ROLE_RISK_VECTOR_FILTER_KEY] = "CLI"
     if invocation.runtime.max_findings is not None:
-        labels["roles.max_findings"] = "CLI"
+        labels[ROLE_MAX_FINDINGS_KEY] = "CLI"
     if invocation.runtime.debug is not None:
-        labels["runtime.debug"] = "CLI"
+        labels[RUNTIME_DEBUG_KEY] = "CLI"
     if invocation.runtime.skip_startup_checks is not None:
-        labels["runtime.skip_startup_checks"] = "CLI"
+        labels[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = "CLI"
     if invocation.tls.allow_insecure is not None:
-        labels["runtime.allow_insecure_tls"] = "CLI"
+        labels[RUNTIME_ALLOW_INSECURE_TLS_KEY] = "CLI"
     if invocation.tls.ca_bundle_path:
-        labels["runtime.ca_bundle_path"] = "CLI"
+        labels[RUNTIME_CA_BUNDLE_PATH_KEY] = "CLI"
     if invocation.logging.level:
-        labels["logging.level"] = "CLI"
+        labels[LOGGING_LEVEL_KEY] = "CLI"
     if invocation.logging.format:
-        labels["logging.format"] = "CLI"
+        labels[LOGGING_FORMAT_KEY] = "CLI"
     if invocation.logging.file_path is not None:
-        labels["logging.file"] = "CLI"
+        labels[LOGGING_FILE_KEY] = "CLI"
     if invocation.logging.max_bytes is not None:
-        labels["logging.max_bytes"] = "CLI"
+        labels[LOGGING_MAX_BYTES_KEY] = "CLI"
     if invocation.logging.backup_count is not None:
-        labels["logging.backup_count"] = "CLI"
+        labels[LOGGING_BACKUP_COUNT_KEY] = "CLI"
     return labels
 
 
@@ -407,41 +424,41 @@ def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[Tuple
 
 
 _EFFECTIVE_CONFIG_KEY_ORDER: Tuple[str, ...] = (
-    "bitsight.api_key",
-    "bitsight.subscription_folder",
-    "bitsight.subscription_type",
-    "roles.context",
-    "roles.risk_vector_filter",
-    "roles.max_findings",
-    "runtime.debug",
-    "runtime.skip_startup_checks",
-    "runtime.allow_insecure_tls",
-    "runtime.ca_bundle_path",
-    "logging.level",
-    "logging.format",
-    "logging.file",
-    "logging.max_bytes",
-    "logging.backup_count",
+    BITSIGHT_API_KEY_KEY,
+    BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
+    BITSIGHT_SUBSCRIPTION_TYPE_KEY,
+    ROLE_CONTEXT_KEY,
+    ROLE_RISK_VECTOR_FILTER_KEY,
+    ROLE_MAX_FINDINGS_KEY,
+    RUNTIME_DEBUG_KEY,
+    RUNTIME_SKIP_STARTUP_CHECKS_KEY,
+    RUNTIME_ALLOW_INSECURE_TLS_KEY,
+    RUNTIME_CA_BUNDLE_PATH_KEY,
+    LOGGING_LEVEL_KEY,
+    LOGGING_FORMAT_KEY,
+    LOGGING_FILE_KEY,
+    LOGGING_MAX_BYTES_KEY,
+    LOGGING_BACKUP_COUNT_KEY,
 )
 
 
 def _effective_configuration_values(runtime_settings, logging_settings) -> Dict[str, Any]:
     values: Dict[str, Any] = {
-        "bitsight.api_key": getattr(runtime_settings, "api_key", None),
-        "bitsight.subscription_folder": getattr(runtime_settings, "subscription_folder", None),
-        "bitsight.subscription_type": getattr(runtime_settings, "subscription_type", None),
-        "roles.context": getattr(runtime_settings, "context", None),
-        "roles.risk_vector_filter": getattr(runtime_settings, "risk_vector_filter", None),
-        "roles.max_findings": getattr(runtime_settings, "max_findings", None),
-        "runtime.debug": getattr(runtime_settings, "debug", None),
-        "runtime.skip_startup_checks": getattr(runtime_settings, "skip_startup_checks", None),
-        "runtime.allow_insecure_tls": getattr(runtime_settings, "allow_insecure_tls", None),
-        "runtime.ca_bundle_path": getattr(runtime_settings, "ca_bundle_path", None),
-        "logging.level": logging.getLevelName(getattr(logging_settings, "level", logging.INFO)),
-        "logging.format": getattr(logging_settings, "format", None),
-        "logging.file": getattr(logging_settings, "file_path", None),
-        "logging.max_bytes": getattr(logging_settings, "max_bytes", None),
-        "logging.backup_count": getattr(logging_settings, "backup_count", None),
+        BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(runtime_settings, "subscription_folder", None),
+        BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(runtime_settings, "subscription_type", None),
+        ROLE_CONTEXT_KEY: getattr(runtime_settings, "context", None),
+        ROLE_RISK_VECTOR_FILTER_KEY: getattr(runtime_settings, "risk_vector_filter", None),
+        ROLE_MAX_FINDINGS_KEY: getattr(runtime_settings, "max_findings", None),
+        RUNTIME_DEBUG_KEY: getattr(runtime_settings, "debug", None),
+        RUNTIME_SKIP_STARTUP_CHECKS_KEY: getattr(runtime_settings, "skip_startup_checks", None),
+        RUNTIME_ALLOW_INSECURE_TLS_KEY: getattr(runtime_settings, "allow_insecure_tls", None),
+        RUNTIME_CA_BUNDLE_PATH_KEY: getattr(runtime_settings, "ca_bundle_path", None),
+        LOGGING_LEVEL_KEY: logging.getLevelName(getattr(logging_settings, "level", logging.INFO)),
+        LOGGING_FORMAT_KEY: getattr(logging_settings, "format", None),
+        LOGGING_FILE_KEY: getattr(logging_settings, "file_path", None),
+        LOGGING_MAX_BYTES_KEY: getattr(logging_settings, "max_bytes", None),
+        LOGGING_BACKUP_COUNT_KEY: getattr(logging_settings, "backup_count", None),
     }
     return values
 
@@ -628,52 +645,52 @@ class _CliInvocation:
     def describe_cli_overrides(self) -> Dict[str, str]:
         details: Dict[str, str] = {}
         if self.auth.api_key:
-            details["bitsight.api_key"] = _format_display_value("bitsight.api_key", self.auth.api_key)
+            details[BITSIGHT_API_KEY_KEY] = _format_display_value(BITSIGHT_API_KEY_KEY, self.auth.api_key)
         if self.subscription.folder:
-            details["bitsight.subscription_folder"] = _format_display_value(
-                "bitsight.subscription_folder", self.subscription.folder
+            details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = _format_display_value(
+                BITSIGHT_SUBSCRIPTION_FOLDER_KEY, self.subscription.folder
             )
         if self.subscription.type:
-            details["bitsight.subscription_type"] = _format_display_value(
-                "bitsight.subscription_type", self.subscription.type
+            details[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = _format_display_value(
+                BITSIGHT_SUBSCRIPTION_TYPE_KEY, self.subscription.type
             )
         if self.runtime.context:
-            details["roles.context"] = _format_display_value("roles.context", self.runtime.context)
+            details[ROLE_CONTEXT_KEY] = _format_display_value(ROLE_CONTEXT_KEY, self.runtime.context)
         if self.runtime.risk_vector_filter:
-            details["roles.risk_vector_filter"] = _format_display_value(
-                "roles.risk_vector_filter", self.runtime.risk_vector_filter
+            details[ROLE_RISK_VECTOR_FILTER_KEY] = _format_display_value(
+                ROLE_RISK_VECTOR_FILTER_KEY, self.runtime.risk_vector_filter
             )
         if self.runtime.max_findings is not None:
-            details["roles.max_findings"] = _format_display_value(
-                "roles.max_findings", self.runtime.max_findings
+            details[ROLE_MAX_FINDINGS_KEY] = _format_display_value(
+                ROLE_MAX_FINDINGS_KEY, self.runtime.max_findings
             )
         if self.runtime.debug is not None:
-            details["runtime.debug"] = _format_display_value("runtime.debug", self.runtime.debug)
+            details[RUNTIME_DEBUG_KEY] = _format_display_value(RUNTIME_DEBUG_KEY, self.runtime.debug)
         if self.runtime.skip_startup_checks is not None:
-            details["runtime.skip_startup_checks"] = _format_display_value(
-                "runtime.skip_startup_checks", self.runtime.skip_startup_checks
+            details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = _format_display_value(
+                RUNTIME_SKIP_STARTUP_CHECKS_KEY, self.runtime.skip_startup_checks
             )
         if self.tls.allow_insecure is not None:
-            details["runtime.allow_insecure_tls"] = _format_display_value(
-                "runtime.allow_insecure_tls", self.tls.allow_insecure
+            details[RUNTIME_ALLOW_INSECURE_TLS_KEY] = _format_display_value(
+                RUNTIME_ALLOW_INSECURE_TLS_KEY, self.tls.allow_insecure
             )
         if self.tls.ca_bundle_path:
-            details["runtime.ca_bundle_path"] = _format_display_value(
-                "runtime.ca_bundle_path", self.tls.ca_bundle_path
+            details[RUNTIME_CA_BUNDLE_PATH_KEY] = _format_display_value(
+                RUNTIME_CA_BUNDLE_PATH_KEY, self.tls.ca_bundle_path
             )
         if self.logging.level:
-            details["logging.level"] = _format_display_value("logging.level", self.logging.level)
+            details[LOGGING_LEVEL_KEY] = _format_display_value(LOGGING_LEVEL_KEY, self.logging.level)
         if self.logging.format:
-            details["logging.format"] = _format_display_value("logging.format", self.logging.format)
+            details[LOGGING_FORMAT_KEY] = _format_display_value(LOGGING_FORMAT_KEY, self.logging.format)
         if self.logging.file_path is not None:
-            details["logging.file"] = _format_display_value("logging.file", self.logging.file_path)
+            details[LOGGING_FILE_KEY] = _format_display_value(LOGGING_FILE_KEY, self.logging.file_path)
         if self.logging.max_bytes is not None:
-            details["logging.max_bytes"] = _format_display_value(
-                "logging.max_bytes", self.logging.max_bytes
+            details[LOGGING_MAX_BYTES_KEY] = _format_display_value(
+                LOGGING_MAX_BYTES_KEY, self.logging.max_bytes
             )
         if self.logging.backup_count is not None:
-            details["logging.backup_count"] = _format_display_value(
-                "logging.backup_count", self.logging.backup_count
+            details[LOGGING_BACKUP_COUNT_KEY] = _format_display_value(
+                LOGGING_BACKUP_COUNT_KEY, self.logging.backup_count
             )
         return details
 
@@ -705,9 +722,7 @@ def _build_invocation(
     normalized_log_max_bytes = _validate_positive("log_max_bytes", log_max_bytes)
     normalized_log_backup_count = _validate_positive("log_backup_count", log_backup_count)
 
-    clean_log_file = log_file.strip() if isinstance(log_file, str) else None
-    if clean_log_file:
-        clean_log_file = clean_log_file
+    clean_log_file = _clean_string(log_file)
 
     return _CliInvocation(
         config_path=str(config_path) if config_path is not None else None,
@@ -1108,17 +1123,16 @@ def local_conf_create(
                 raise typer.Exit(code=1)
 
     defaults_settings = load_settings(DEFAULT_CONFIG_FILENAME)
-    default_subscription_folder = defaults_settings.get("bitsight.subscription_folder")
-    default_subscription_type = defaults_settings.get("bitsight.subscription_type")
-    default_context = defaults_settings.get("roles.context", "standard")
-    default_debug = bool(defaults_settings.get("runtime.debug", False))
+    default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+    default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
+    default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
+    default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
 
     summary_rows: list[tuple[str, str, str]] = []
 
-    def add_summary(section: str, key: str, value: Any, source: str) -> None:
+    def add_summary(dotted_key: str, value: Any, source: str) -> None:
         if value in (None, ""):
             return
-        dotted_key = f"{section}.{key}" if section else key
         display_value = _format_display_value(dotted_key, value)
         summary_rows.append((dotted_key, display_value, source))
 
@@ -1131,7 +1145,7 @@ def local_conf_create(
         secret=True,
         required=True,
     )
-    add_summary("bitsight", "api_key", api_key, "User Input")
+    add_summary(BITSIGHT_API_KEY_KEY, api_key, SOURCE_USER_INPUT)
 
     default_subscription_folder_str = (
         str(default_subscription_folder)
@@ -1148,9 +1162,9 @@ def local_conf_create(
             "Default"
             if default_subscription_folder_str
             and subscription_folder == default_subscription_folder_str
-            else "User Input"
+            else SOURCE_USER_INPUT
         )
-        add_summary("bitsight", "subscription_folder", subscription_folder, folder_source)
+        add_summary(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, subscription_folder, folder_source)
 
     default_subscription_type_str = (
         str(default_subscription_type)
@@ -1170,9 +1184,9 @@ def local_conf_create(
                 "Default"
                 if default_subscription_type_str
                 and subscription_type_value == default_subscription_type_str
-                else "User Input"
+                else SOURCE_USER_INPUT
             )
-        add_summary("bitsight", "subscription_type", subscription_type_value, type_source)
+        add_summary(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_type_value, type_source)
 
     default_context_str = str(default_context or "standard")
     default_context_normalized = (
@@ -1189,17 +1203,17 @@ def local_conf_create(
             "Default"
             if default_context_normalized is not None
             and context_value == default_context_normalized
-            else "User Input"
+            else SOURCE_USER_INPUT
         )
-        add_summary("roles", "context", context_value, context_source)
+        add_summary(ROLE_CONTEXT_KEY, context_value, context_source)
 
     if debug is not None:
         debug_value = debug
-        add_summary("runtime", "debug", debug_value, "CLI Option")
+        add_summary(RUNTIME_DEBUG_KEY, debug_value, "CLI Option")
     else:
         debug_value = _prompt_bool("Enable debug mode?", default=default_debug)
-        debug_source = "Default" if debug_value == default_debug else "User Input"
-        add_summary("runtime", "debug", debug_value, debug_source)
+        debug_source = "Default" if debug_value == default_debug else SOURCE_USER_INPUT
+        add_summary(RUNTIME_DEBUG_KEY, debug_value, debug_source)
 
     generated = {
         "bitsight": {
@@ -1551,10 +1565,9 @@ def test(
     if isinstance(tools_attr, dict):
         logger.info("Business tools available", tools=list(tools_attr.keys()))
 
-    if online:
-        if not _run_online_checks(runtime_settings, logger, server):
-            logger.critical("Online diagnostics failed")
-            raise typer.Exit(code=1)
+    if online and not _run_online_checks(runtime_settings, logger, server):
+        logger.critical("Online diagnostics failed")
+        raise typer.Exit(code=1)
     logger.info("Diagnostics completed successfully")
 
 
