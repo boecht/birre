@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import typer
 from typer.testing import CliRunner
 
 import server
@@ -37,6 +36,30 @@ def _logging_settings() -> LoggingSettings:
         max_bytes=1024,
         backup_count=1,
     )
+
+
+def _build_invocation(**overrides):
+    defaults = dict(
+        config_path="config.toml",
+        api_key=None,
+        subscription_folder=None,
+        subscription_type=None,
+        context=None,
+        debug=None,
+        risk_vector_filter=None,
+        max_findings=None,
+        skip_startup_checks=None,
+        allow_insecure_tls=None,
+        ca_bundle=None,
+        log_level=None,
+        log_format=None,
+        log_file=None,
+        log_max_bytes=None,
+        log_backup_count=None,
+        profile_path=None,
+    )
+    defaults.update(overrides)
+    return server._build_invocation(**defaults)
 
 
 def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -96,7 +119,10 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
         patch("server.create_birre_server", return_value=fake_server) as create_server,
         patch("server.asyncio.run", wraps=asyncio.run) as asyncio_run,
     ):
-        server.main()
+        with pytest.raises(SystemExit) as excinfo:
+            server.main()
+
+    assert excinfo.value.code == 0
 
     load_mock.assert_called_once()
     apply_mock.assert_called_once()
@@ -119,97 +145,24 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     fake_server.run.assert_called_once()
 
 
-def test_invoke_server_conflicting_log_file_options() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file="custom.log",
-        no_log_file=True,
-        context_alias=None,
-    )
+def test_build_invocation_strips_log_file() -> None:
+    invocation = _build_invocation(log_file="  custom.log  ")
 
-    with pytest.raises(typer.BadParameter):
-        server._invoke_server(invocation)
+    assert invocation.logging.file_path == "custom.log"
 
 
-def test_invoke_server_disables_file_logging() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file=None,
-        no_log_file=True,
-        context_alias=None,
-    )
+def test_logging_inputs_returns_none_when_no_overrides() -> None:
+    invocation = _build_invocation()
 
-    runtime_settings = _runtime_settings()
-    logging_settings = _logging_settings()
-
-    fake_logger = MagicMock(name="logger")
-
-    with (
-        patch("server.LoggingInputs") as logging_inputs,
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=fake_logger),
-        patch("server.run_offline_startup_checks", return_value=False),
-    ):
-        with pytest.raises(SystemExit):
-            server._invoke_server(invocation)
-
-    logging_inputs.assert_called_once()
-    kwargs = logging_inputs.call_args.kwargs
-    assert kwargs["file_path"] == ""
-    load_mock.assert_called_once()
-    apply_mock.assert_called_once()
+    assert server._logging_inputs(invocation.logging) is None
 
 
-def test_invoke_server_disables_file_logging_via_sentinel() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file=" none ",
-        no_log_file=False,
-        context_alias=None,
-    )
+def test_logging_inputs_disables_file_logging_via_sentinel() -> None:
+    invocation = _build_invocation(log_file=" none ")
 
-    runtime_settings = _runtime_settings()
-    logging_settings = _logging_settings()
-
-    fake_logger = MagicMock(name="logger")
-
-    with (
-        patch("server.LoggingInputs") as logging_inputs,
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=fake_logger),
-        patch("server.run_offline_startup_checks", return_value=False),
-    ):
-        with pytest.raises(SystemExit):
-            server._invoke_server(invocation)
-
-    logging_inputs.assert_called_once()
-    kwargs = logging_inputs.call_args.kwargs
-    assert kwargs["file_path"] == ""
-    load_mock.assert_called_once()
-    apply_mock.assert_called_once()
+    logging_inputs = server._logging_inputs(invocation.logging)
+    assert logging_inputs is not None
+    assert logging_inputs.file_path == ""
 
 
 def test_check_conf_masks_api_key_and_labels_env() -> None:
