@@ -1,11 +1,13 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from types import SimpleNamespace
+from typing import List, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import typer
+from typer.testing import CliRunner
 
 import server
 from src.settings import LoggingSettings, RuntimeSettings
@@ -35,6 +37,30 @@ def _logging_settings() -> LoggingSettings:
         max_bytes=1024,
         backup_count=1,
     )
+
+
+def _build_invocation(**overrides):
+    defaults = {
+        "config_path": "config.toml",
+        "api_key": None,
+        "subscription_folder": None,
+        "subscription_type": None,
+        "context": None,
+        "debug": None,
+        "risk_vector_filter": None,
+        "max_findings": None,
+        "skip_startup_checks": None,
+        "allow_insecure_tls": None,
+        "ca_bundle": None,
+        "log_level": None,
+        "log_format": None,
+        "log_file": None,
+        "log_max_bytes": None,
+        "log_backup_count": None,
+        "profile_path": None,
+    }
+    defaults.update(overrides)
+    return server._build_invocation(**defaults)
 
 
 def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -94,7 +120,10 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
         patch("server.create_birre_server", return_value=fake_server) as create_server,
         patch("server.asyncio.run", wraps=asyncio.run) as asyncio_run,
     ):
-        server.main()
+        with pytest.raises(SystemExit) as excinfo:
+            server.main()
+
+    assert excinfo.value.code == 0
 
     load_mock.assert_called_once()
     apply_mock.assert_called_once()
@@ -117,94 +146,264 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     fake_server.run.assert_called_once()
 
 
-def test_invoke_server_conflicting_log_file_options() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file="custom.log",
-        no_log_file=True,
-        context_alias=None,
+def test_build_invocation_strips_log_file() -> None:
+    invocation = _build_invocation(log_file="  custom.log  ")
+
+    assert invocation.logging.file_path == "custom.log"
+
+
+def test_logging_inputs_returns_none_when_no_overrides() -> None:
+    invocation = _build_invocation()
+
+    assert server._logging_inputs(invocation.logging) is None
+
+
+def test_logging_inputs_disables_file_logging_via_sentinel() -> None:
+    invocation = _build_invocation(log_file=" none ")
+
+    logging_inputs = server._logging_inputs(invocation.logging)
+    assert logging_inputs is not None
+    assert logging_inputs.file_path == ""
+
+
+def test_check_conf_masks_api_key_and_labels_env() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        server.app,
+        ["check-conf"],
+        env={"BITSIGHT_API_KEY": "supersecretvalue"},
+        color=False,
     )
 
-    with pytest.raises(typer.BadParameter):
-        server._invoke_server(invocation)
+    assert result.exit_code == 0
+    rows = [line for line in result.stdout.splitlines() if "bitsight.api_key" in line]
+    assert rows, result.stdout
+    row = rows[0]
+    assert "supersecretvalue" not in row
+    assert row.count("*") >= 4
+    assert "ENV" in row
 
 
-def test_invoke_server_disables_file_logging() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file=None,
-        no_log_file=True,
-        context_alias=None,
+def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        server.app,
+        ["check-conf", "--log-level", "DEBUG"],
+        env={"BITSIGHT_API_KEY": "maskedkey"},
+        color=False,
     )
 
-    runtime_settings = _runtime_settings()
-    logging_settings = _logging_settings()
+    assert result.exit_code == 0, result.stdout
+    lines = result.stdout.splitlines()
 
-    fake_logger = MagicMock(name="logger")
+    level_rows = [line for line in lines if "logging.level" in line]
+    assert level_rows, result.stdout
+    level_row = level_rows[0]
+    assert "CLI" in level_row
+    assert "DEBUG" in level_row
+
+    tls_rows = [line for line in lines if "runtime.allow_insecure_tls" in line]
+    assert tls_rows, result.stdout
+    tls_row = tls_rows[0]
+    assert "Default" in tls_row
+    assert "false" in tls_row.lower()
+
+    context_rows = [line for line in lines if "roles.context" in line]
+    assert context_rows, result.stdout
+    assert "Config File" in context_rows[0]
+
+
+def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join(
+        [
+            "supersecretvalue",
+            "subscriptions",
+            "continuous_monitoring",
+            "standard",
+            "n",
+        ]
+    ) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    stdout = result.stdout
+    assert "Local configuration preview" in stdout
+    assert "bitsight.api_key" in stdout
+    assert "supersecretvalue" not in stdout
+    assert output_path.exists()
+    file_content = output_path.read_text(encoding="utf-8")
+    assert "bitsight" in file_content
+    assert "api_key" in file_content
+
+
+def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join([
+        "",
+        "final-secret",
+        "",
+        "",
+        "",
+        "n",
+    ]) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "A value is required" in result.stdout
+    assert output_path.exists()
+    file_content = output_path.read_text(encoding="utf-8")
+    assert "final-secret" in file_content
+
+
+def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    input_data = "\n".join(
+        [
+            "anothersecret",
+            "client-subscriptions",
+            "risk_manager",
+        ]
+    ) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        [
+            "local-conf-create",
+            "--output",
+            str(output_path),
+            "--subscription-type",
+            "vendor_monitoring",
+            "--debug",
+        ],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    stdout = result.stdout
+    assert "Default subscription type" not in stdout
+    assert "vendor_monitoring" in stdout
+    assert "CLI Option" in stdout
+
+
+def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "config.local.toml"
+    output_path.write_text("existing", encoding="utf-8")
+
+    result = runner.invoke(
+        server.app,
+        ["local-conf-create", "--output", str(output_path)],
+        input="n\n",
+        color=False,
+    )
+
+    assert result.exit_code == 1
+    assert "Aborted" in result.stdout
+    assert output_path.read_text(encoding="utf-8") == "existing"
+
+
+def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    observed: List[Tuple[str, bool]] = []
+
+    def _record_phase(phase: str, runtime_settings) -> None:
+        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+
+    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
+        _record_phase("initialize", runtime_settings)
+        return MagicMock(name="logger")
+
+    def fake_offline(runtime_settings, logger):
+        _record_phase("offline", runtime_settings)
+        return True
+
+    def fake_prepare(runtime_settings, logger):
+        _record_phase("prepare", runtime_settings)
+        return SimpleNamespace()
+
+    def fake_online(runtime_settings, logger, server):
+        _record_phase("online", runtime_settings)
+        return True
 
     with (
-        patch("server.LoggingInputs") as logging_inputs,
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=fake_logger),
-        patch("server.run_offline_startup_checks", return_value=False),
+        patch("server._initialize_logging", side_effect=fake_initialize),
+        patch("server._run_offline_checks", side_effect=fake_offline),
+        patch("server._prepare_server", side_effect=fake_prepare),
+        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
     ):
-        with pytest.raises(SystemExit):
-            server._invoke_server(invocation)
+        result = runner.invoke(
+            server.app,
+            ["checks-only", "--online"],
+            env={
+                "BIRRE_SKIP_STARTUP_CHECKS": "true",
+                "BITSIGHT_API_KEY": "dummy",
+            },
+            color=False,
+        )
 
-    logging_inputs.assert_called_once()
-    kwargs = logging_inputs.call_args.kwargs
-    assert kwargs["file_path"] == ""
-    load_mock.assert_called_once()
-    apply_mock.assert_called_once()
+    assert result.exit_code == 0, result.stdout
+    assert online_mock.call_count == 1
+    online_skip = [skip for phase, skip in observed if phase == "online"]
+    assert online_skip == [False], observed
 
 
-def test_invoke_server_disables_file_logging_via_sentinel() -> None:
-    invocation = server._build_invocation(
-        config_path="config.toml",
-        api_key=None,
-        runtime_context=None,
-        debug=None,
-        log_level=None,
-        log_format=None,
-        log_file=" none ",
-        no_log_file=False,
-        context_alias=None,
-    )
+def test_test_command_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    observed: List[Tuple[str, bool]] = []
 
-    runtime_settings = _runtime_settings()
-    logging_settings = _logging_settings()
+    def _record_phase(phase: str, runtime_settings) -> None:
+        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
 
-    fake_logger = MagicMock(name="logger")
+    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
+        _record_phase("initialize", runtime_settings)
+        return MagicMock(name="logger")
+
+    def fake_offline(runtime_settings, logger):
+        _record_phase("offline", runtime_settings)
+        return True
+
+    def fake_prepare(runtime_settings, logger):
+        _record_phase("prepare", runtime_settings)
+        return SimpleNamespace()
+
+    def fake_online(runtime_settings, logger, server):
+        _record_phase("online", runtime_settings)
+        return True
 
     with (
-        patch("server.LoggingInputs") as logging_inputs,
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=fake_logger),
-        patch("server.run_offline_startup_checks", return_value=False),
+        patch("server._initialize_logging", side_effect=fake_initialize),
+        patch("server._run_offline_checks", side_effect=fake_offline),
+        patch("server._prepare_server", side_effect=fake_prepare),
+        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
     ):
-        with pytest.raises(SystemExit):
-            server._invoke_server(invocation)
+        result = runner.invoke(
+            server.app,
+            ["test", "--online"],
+            env={
+                "BIRRE_SKIP_STARTUP_CHECKS": "true",
+                "BITSIGHT_API_KEY": "dummy",
+            },
+            color=False,
+        )
 
-    logging_inputs.assert_called_once()
-    kwargs = logging_inputs.call_args.kwargs
-    assert kwargs["file_path"] == ""
-    load_mock.assert_called_once()
-    apply_mock.assert_called_once()
+    assert result.exit_code == 0, result.stdout
+    assert online_mock.call_count == 1
+    online_skip = [skip for phase, skip in observed if phase == "online"]
+    assert online_skip == [False], observed

@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
+from types import MappingProxyType
 
 from dynaconf import Dynaconf
 
@@ -97,6 +98,8 @@ _ENVIRONMENT_MAP = {
     "BIRRE_LOG_MAX_BYTES": LOGGING_MAX_BYTES_KEY,
     "BIRRE_LOG_BACKUP_COUNT": LOGGING_BACKUP_COUNT_KEY,
 }
+
+ENVVAR_TO_SETTINGS_KEY: Mapping[str, str] = MappingProxyType(_ENVIRONMENT_MAP)
 
 
 @dataclass(frozen=True)
