@@ -319,7 +319,9 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
     assert output_path.read_text(encoding="utf-8") == "existing"
 
 
-def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_healthcheck_online_forces_network_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = CliRunner()
     observed: List[Tuple[str, bool]] = []
 
@@ -350,7 +352,7 @@ def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatc
     ):
         result = runner.invoke(
             server.app,
-            ["checks-only", "--online"],
+            ["healthcheck", "--online"],
             env={
                 "BIRRE_SKIP_STARTUP_CHECKS": "true",
                 "BITSIGHT_API_KEY": "dummy",
@@ -364,46 +366,95 @@ def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatc
     assert online_skip == [False], observed
 
 
-def test_test_command_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_healthcheck_passes_shared_options_to_build_invocation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = CliRunner()
-    observed: List[Tuple[str, bool]] = []
+    captured = {}
 
-    def _record_phase(phase: str, runtime_settings) -> None:
-        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+    original_build = server._build_invocation
 
-    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
-        _record_phase("initialize", runtime_settings)
-        return MagicMock(name="logger")
+    def record_build_invocation(**kwargs):
+        captured.update(kwargs)
+        return original_build(**kwargs)
 
-    def fake_offline(runtime_settings, logger):
-        _record_phase("offline", runtime_settings)
-        return True
+    monkeypatch.setattr(server, "_build_invocation", record_build_invocation)
 
-    def fake_prepare(runtime_settings, logger):
-        _record_phase("prepare", runtime_settings)
-        return SimpleNamespace()
-
-    def fake_online(runtime_settings, logger, server):
-        _record_phase("online", runtime_settings)
-        return True
-
-    with (
-        patch("server._initialize_logging", side_effect=fake_initialize),
-        patch("server._run_offline_checks", side_effect=fake_offline),
-        patch("server._prepare_server", side_effect=fake_prepare),
-        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
-    ):
-        result = runner.invoke(
-            server.app,
-            ["test", "--online"],
-            env={
-                "BIRRE_SKIP_STARTUP_CHECKS": "true",
-                "BITSIGHT_API_KEY": "dummy",
-            },
-            color=False,
+    def fake_resolve(invocation):
+        return (
+            SimpleNamespace(
+                api_key="dummy",  # satisfies _run_offline_checks
+                subscription_folder="folder",
+                subscription_type="type",
+                skip_startup_checks=getattr(invocation.runtime, "skip_startup_checks", None),
+            ),
+            SimpleNamespace(level=logging.INFO, file_path="log", backup_count=3),
+            {},
         )
 
+    monkeypatch.setattr(server, "_resolve_runtime_and_logging", fake_resolve)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(
+        server,
+        "_prepare_server",
+        lambda runtime, log: SimpleNamespace(tools={}),
+    )
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    result = runner.invoke(
+        server.app,
+        [
+            "healthcheck",
+            "--config",
+            "custom.toml",
+            "--bitsight-api-key",
+            "abc",
+            "--subscription-folder",
+            "folder",
+            "--subscription-type",
+            "continuous_monitoring",
+            "--debug",
+            "--allow-insecure-tls",
+            "--ca-bundle",
+            "bundle.pem",
+            "--risk-vector-filter",
+            "botnet",
+            "--max-findings",
+            "5",
+            "--log-level",
+            "DEBUG",
+            "--log-format",
+            "json",
+            "--log-file",
+            "logs/app.log",
+            "--log-max-bytes",
+            "1024",
+            "--log-backup-count",
+            "3",
+            "--online",
+        ],
+        color=False,
+    )
+
     assert result.exit_code == 0, result.stdout
-    assert online_mock.call_count == 1
-    online_skip = [skip for phase, skip in observed if phase == "online"]
-    assert online_skip == [False], observed
+    assert captured["config_path"] == Path("custom.toml")
+    assert captured["api_key"] == "abc"
+    assert captured["subscription_folder"] == "folder"
+    assert captured["subscription_type"] == "continuous_monitoring"
+    assert captured["debug"] is True
+    assert captured["allow_insecure_tls"] is True
+    assert captured["ca_bundle"] == "bundle.pem"
+    assert captured["risk_vector_filter"] == "botnet"
+    assert captured["max_findings"] == 5
+    assert captured["log_level"] == "DEBUG"
+    assert captured["log_format"] == "json"
+    assert captured["log_file"] == "logs/app.log"
+    assert captured["log_max_bytes"] == 1024
+    assert captured["log_backup_count"] == 3
+    assert captured["skip_startup_checks"] is False
