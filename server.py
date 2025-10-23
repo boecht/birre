@@ -268,12 +268,13 @@ ProfilePathOption = Annotated[
     ),
 ]
 
-OnlineFlagOption = Annotated[
+OfflineFlagOption = Annotated[
     bool,
     typer.Option(
-        "--online/--offline",
-        help="Run BitSight network checks in addition to offline validation",
+        "--offline",
+        help="Skip BitSight network checks and run offline validation only",
         rich_help_panel="Diagnostics",
+        is_flag=True,
     ),
 ]
 
@@ -974,7 +975,7 @@ def healthcheck(
     log_file: LogFileOption = None,
     log_max_bytes: LogMaxBytesOption = None,
     log_backup_count: LogBackupCountOption = None,
-    online: OnlineFlagOption = False,
+    offline: OfflineFlagOption = False,
 ) -> None:
     """Execute BiRRe diagnostics and optional online checks."""
     invocation = _build_invocation(
@@ -986,7 +987,7 @@ def healthcheck(
         debug=debug,
         risk_vector_filter=risk_vector_filter,
         max_findings=max_findings,
-        skip_startup_checks=False if online else None,
+        skip_startup_checks=True if offline else False,
         allow_insecure_tls=allow_insecure_tls,
         ca_bundle=ca_bundle,
         log_level=log_level,
@@ -1007,7 +1008,7 @@ def healthcheck(
     if isinstance(tools_attr, dict):
         logger.info("Business tools available", tools=list(tools_attr.keys()))
 
-    if online and not _run_online_checks(runtime_settings, logger, server):
+    if not offline and not _run_online_checks(runtime_settings, logger, server):
         logger.critical("Online health checks failed")
         raise typer.Exit(code=1)
     logger.info("Health checks completed successfully")

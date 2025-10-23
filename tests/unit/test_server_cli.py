@@ -319,7 +319,7 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
     assert output_path.read_text(encoding="utf-8") == "existing"
 
 
-def test_healthcheck_online_forces_network_checks(
+def test_healthcheck_defaults_to_online_checks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -352,7 +352,7 @@ def test_healthcheck_online_forces_network_checks(
     ):
         result = runner.invoke(
             server.app,
-            ["healthcheck", "--online"],
+            ["healthcheck"],
             env={
                 "BIRRE_SKIP_STARTUP_CHECKS": "true",
                 "BITSIGHT_API_KEY": "dummy",
@@ -364,6 +364,48 @@ def test_healthcheck_online_forces_network_checks(
     assert online_mock.call_count == 1
     online_skip = [skip for phase, skip in observed if phase == "online"]
     assert online_skip == [False], observed
+
+
+def test_healthcheck_offline_flag_skips_network_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    observed: List[Tuple[str, bool]] = []
+
+    def _record_phase(phase: str, runtime_settings) -> None:
+        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+
+    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
+        _record_phase("initialize", runtime_settings)
+        return MagicMock(name="logger")
+
+    def fake_offline(runtime_settings, logger):
+        _record_phase("offline", runtime_settings)
+        return True
+
+    def fake_prepare(runtime_settings, logger):
+        _record_phase("prepare", runtime_settings)
+        return SimpleNamespace()
+
+    with (
+        patch("server._initialize_logging", side_effect=fake_initialize),
+        patch("server._run_offline_checks", side_effect=fake_offline),
+        patch("server._prepare_server", side_effect=fake_prepare),
+        patch("server._run_online_checks") as online_mock,
+    ):
+        result = runner.invoke(
+            server.app,
+            ["healthcheck", "--offline"],
+            env={
+                "BITSIGHT_API_KEY": "dummy",
+            },
+            color=False,
+        )
+
+    assert result.exit_code == 0, result.stdout
+    online_mock.assert_not_called()
+    offline_skip = [skip for phase, skip in observed if phase == "offline"]
+    assert offline_skip == [True], observed
 
 
 def test_healthcheck_passes_shared_options_to_build_invocation(
@@ -437,7 +479,6 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
             "1024",
             "--log-backup-count",
             "3",
-            "--online",
         ],
         color=False,
     )
