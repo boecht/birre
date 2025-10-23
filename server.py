@@ -17,6 +17,7 @@ import typer
 from rich.console import Console
 from rich import box
 from rich.table import Table
+from rich.text import Text
 from typer.main import get_command
 
 # FastMCP checks this flag during import time, so ensure it is enabled before
@@ -509,34 +510,34 @@ LogResetModeOption = Annotated[
 ]
 
 
-def _banner() -> str:
-    return (
+def _banner() -> Text:
+    return Text.from_markup(
         "\n"
         "╭────────────────────────────────────────────────────────────────╮\n"
-        "│\033[0;33m                                                                \033[0m│\n"
-        "│\033[0;33m     ███████████   ███  ███████████   ███████████               \033[0m│\n"
-        "│\033[0;33m    ░░███░░░░░███ ░░░  ░░███░░░░░███ ░░███░░░░░███              \033[0m│\n"
-        "│\033[0;33m     ░███    ░███ ████  ░███    ░███  ░███    ░███   ██████     \033[0m│\n"
-        "│\033[0;33m     ░██████████ ░░███  ░██████████   ░██████████   ███░░███    \033[0m│\n"
-        "│\033[0;33m     ░███░░░░░███ ░███  ░███░░░░░███  ░███░░░░░███ ░███████     \033[0m│\n"
-        "│\033[0;33m     ░███    ░███ ░███  ░███    ░███  ░███    ░███ ░███░░░      \033[0m│\n"
-        "│\033[0;33m     ███████████  █████ █████   █████ █████   █████░░██████     \033[0m│\n"
-        "│\033[0;33m    ░░░░░░░░░░░  ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░  ░░░░░░      \033[0m│\n"
-        "│\033[0;33m                                                                \033[0m│\n"
-        "│\033[2m                   Bitsight Rating Retriever                    \033[0m│\n"
-        "│\033[0;33m                 Model Context Protocol Server                  \033[0m│\n"
-        "│\033[0;33m                https://github.com/boecht/birre                 \033[0m│\n"
-        "╰────────────────────────────────────────────────────────────────╯\n\033[0m"
+        "│[yellow]                                                                [/yellow]│\n"
+        "│[yellow]     ███████████   ███  ███████████   ███████████               [/yellow]│\n"
+        "│[yellow]    ░░███░░░░░███ ░░░  ░░███░░░░░███ ░░███░░░░░███              [/yellow]│\n"
+        "│[yellow]     ░███    ░███ ████  ░███    ░███  ░███    ░███   ██████     [/yellow]│\n"
+        "│[yellow]     ░██████████ ░░███  ░██████████   ░██████████   ███░░███    [/yellow]│\n"
+        "│[yellow]     ░███░░░░░███ ░███  ░███░░░░░███  ░███░░░░░███ ░███████     [/yellow]│\n"
+        "│[yellow]     ░███    ░███ ░███  ░███    ░███  ░███    ░███ ░███░░░      [/yellow]│\n"
+        "│[yellow]     ███████████  █████ █████   █████ █████   █████░░██████     [/yellow]│\n"
+        "│[yellow]    ░░░░░░░░░░░  ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░  ░░░░░░      [/yellow]│\n"
+        "│[yellow]                                                                [/yellow]│\n"
+        "│[dim]                   Bitsight Rating Retriever                    [/dim]│\n"
+        "│[yellow]                 Model Context Protocol Server                  [/yellow]│\n"
+        "│[yellow]                https://github.com/boecht/birre                 [/yellow]│\n"
+        "╰────────────────────────────────────────────────────────────────╯\n"
     )
 
 
-def _keyboard_interrupt_banner() -> str:
-    return (
+def _keyboard_interrupt_banner() -> Text:
+    return Text.from_markup(
         "\n"
         "╭───────────────────────────────────────╮\n"
-        "│\033[0;31m  Keyboard interrupt received — stopping  \033[0m│\n"
-        "│\033[0;31m          BiRRe FastMCP server            \033[0m│\n"
-        "╰────────────────────────────────────────╯\n\033[0m"
+        "│[red]  Keyboard interrupt received — stopping  [/red]│\n"
+        "│[red]          BiRRe FastMCP server            [/red]│\n"
+        "╰────────────────────────────────────────╯\n"
     )
 
 
@@ -871,7 +872,7 @@ def _run_online_checks(runtime_settings, logger, server) -> bool:
 
 def _initialize_logging(runtime_settings, logging_settings, *, show_banner: bool = True):
     if show_banner:
-        stderr_console.print(_banner(), markup=False)
+        stderr_console.print(_banner())
     configure_logging(logging_settings)
     logger = get_logger("birre")
     _emit_runtime_messages(runtime_settings, logger)
@@ -953,7 +954,7 @@ def run(
         else:
             server.run()
     except KeyboardInterrupt:
-        stderr_console.print(_keyboard_interrupt_banner(), markup=False)
+        stderr_console.print(_keyboard_interrupt_banner())
         logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
 
 
