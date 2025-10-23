@@ -1326,7 +1326,7 @@ def check_conf(
         log_backup_count=log_backup_count,
     )
 
-    runtime_settings, logging_settings, settings = _resolve_runtime_and_logging(invocation)
+    runtime_settings, logging_settings, _ = _resolve_runtime_and_logging(invocation)
     files = _resolve_settings_files(invocation.config_path)
 
     config_entries = _collect_config_file_entries(files)

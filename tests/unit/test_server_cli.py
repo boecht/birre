@@ -39,25 +39,25 @@ def _logging_settings() -> LoggingSettings:
 
 
 def _build_invocation(**overrides):
-    defaults = dict(
-        config_path="config.toml",
-        api_key=None,
-        subscription_folder=None,
-        subscription_type=None,
-        context=None,
-        debug=None,
-        risk_vector_filter=None,
-        max_findings=None,
-        skip_startup_checks=None,
-        allow_insecure_tls=None,
-        ca_bundle=None,
-        log_level=None,
-        log_format=None,
-        log_file=None,
-        log_max_bytes=None,
-        log_backup_count=None,
-        profile_path=None,
-    )
+    defaults = {
+        "config_path": "config.toml",
+        "api_key": None,
+        "subscription_folder": None,
+        "subscription_type": None,
+        "context": None,
+        "debug": None,
+        "risk_vector_filter": None,
+        "max_findings": None,
+        "skip_startup_checks": None,
+        "allow_insecure_tls": None,
+        "ca_bundle": None,
+        "log_level": None,
+        "log_format": None,
+        "log_file": None,
+        "log_max_bytes": None,
+        "log_backup_count": None,
+        "profile_path": None,
+    }
     defaults.update(overrides)
     return server._build_invocation(**defaults)
 
