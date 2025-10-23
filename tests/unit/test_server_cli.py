@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import List, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -316,3 +317,93 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
     assert result.exit_code == 1
     assert "Aborted" in result.stdout
     assert output_path.read_text(encoding="utf-8") == "existing"
+
+
+def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    observed: List[Tuple[str, bool]] = []
+
+    def _record_phase(phase: str, runtime_settings) -> None:
+        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+
+    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
+        _record_phase("initialize", runtime_settings)
+        return MagicMock(name="logger")
+
+    def fake_offline(runtime_settings, logger):
+        _record_phase("offline", runtime_settings)
+        return True
+
+    def fake_prepare(runtime_settings, logger):
+        _record_phase("prepare", runtime_settings)
+        return SimpleNamespace()
+
+    def fake_online(runtime_settings, logger, server):
+        _record_phase("online", runtime_settings)
+        return True
+
+    with (
+        patch("server._initialize_logging", side_effect=fake_initialize),
+        patch("server._run_offline_checks", side_effect=fake_offline),
+        patch("server._prepare_server", side_effect=fake_prepare),
+        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
+    ):
+        result = runner.invoke(
+            server.app,
+            ["checks-only", "--online"],
+            env={
+                "BIRRE_SKIP_STARTUP_CHECKS": "true",
+                "BITSIGHT_API_KEY": "dummy",
+            },
+            color=False,
+        )
+
+    assert result.exit_code == 0, result.stdout
+    assert online_mock.call_count == 1
+    online_skip = [skip for phase, skip in observed if phase == "online"]
+    assert online_skip == [False], observed
+
+
+def test_test_command_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    observed: List[Tuple[str, bool]] = []
+
+    def _record_phase(phase: str, runtime_settings) -> None:
+        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+
+    def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
+        _record_phase("initialize", runtime_settings)
+        return MagicMock(name="logger")
+
+    def fake_offline(runtime_settings, logger):
+        _record_phase("offline", runtime_settings)
+        return True
+
+    def fake_prepare(runtime_settings, logger):
+        _record_phase("prepare", runtime_settings)
+        return SimpleNamespace()
+
+    def fake_online(runtime_settings, logger, server):
+        _record_phase("online", runtime_settings)
+        return True
+
+    with (
+        patch("server._initialize_logging", side_effect=fake_initialize),
+        patch("server._run_offline_checks", side_effect=fake_offline),
+        patch("server._prepare_server", side_effect=fake_prepare),
+        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
+    ):
+        result = runner.invoke(
+            server.app,
+            ["test", "--online"],
+            env={
+                "BIRRE_SKIP_STARTUP_CHECKS": "true",
+                "BITSIGHT_API_KEY": "dummy",
+            },
+            color=False,
+        )
+
+    assert result.exit_code == 0, result.stdout
+    assert online_mock.call_count == 1
+    online_skip = [skip for phase, skip in observed if phase == "online"]
+    assert online_skip == [False], observed
