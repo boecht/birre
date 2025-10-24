@@ -518,7 +518,7 @@ def test_healthcheck_offline_flag_skips_network_checks(
             color=False,
         )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 2, result.stdout
     online_mock.assert_not_called()
     diagnostics_mock.assert_not_called()
     assert prepared_contexts
@@ -581,11 +581,21 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
 
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
-    monkeypatch.setattr(
-        server,
-        "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
-    )
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
@@ -670,11 +680,21 @@ def test_healthcheck_fails_when_context_tools_missing(
 
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
-    monkeypatch.setattr(
-        server,
-        "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
-    )
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
@@ -772,11 +792,22 @@ def test_healthcheck_production_flag_uses_production_base(
 
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
-    monkeypatch.setattr(
-        server,
-        "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
-    )
+
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
@@ -861,7 +892,7 @@ def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) 
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 2, result.stdout
     assert standard_attempts["count"] == 2
     standard_flags = [flag for context, flag in prepare_calls if context == "standard"]
     assert standard_flags.count(False) == 1
@@ -913,11 +944,22 @@ def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
 
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
-    monkeypatch.setattr(
-        server,
-        "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
-    )
+
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
@@ -926,7 +968,7 @@ def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 2, result.stdout
     assert prepare_invocations
     for _, ca_bundle_path, allow_insecure in prepare_invocations:
         assert ca_bundle_path is None
