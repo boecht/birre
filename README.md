@@ -3,7 +3,7 @@
 </div>
 
 **BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server that provides access to BitSight security rating data through an existing subscription.
-It utilizes [FastMCP](https://gofastmcp.com/) for API integration with BitSight and can be run easily without installation in a temporary, isolated Python environment with uv.
+It utilizes [FastMCP](https://gofastmcp.com/) for API integration and can be run easily without installation in a temporary, isolated Python environment with uv.
 
 ## Installation
 
@@ -13,11 +13,11 @@ It utilizes [FastMCP](https://gofastmcp.com/) for API integration with BitSight 
 
 ```bash
 export BITSIGHT_API_KEY="your-bitsight-api-key"
-uvx --from git+https://github.com/boecht/birre server.py
+uvx --from git+https://github.com/boecht/birre server.py run
 ```
 
 - Point your LLM of choice to the MCP server and ask it for the BitSight rating of any company.
-- Need to adjust logging, contexts, or diagnostics? Run `uv run server.py --help` (or see [docs/CLI.md](docs/CLI.md)) for the full command reference.
+- Explore the CLI with the added `--help` flag or consult [docs/CLI.md](docs/CLI.md). Individual subcommands such as `run` and `healthcheck` also provide dedicated `--help` output.
 
 ### Configuration
 
@@ -27,19 +27,17 @@ See the descriptions in `config.toml` for available fields and details. For CLI 
 ### Run directly from GitHub with uvx
 
 ```bash
-uvx --from git+https://github.com/boecht/birre server.py
+uvx --from git+https://github.com/boecht/birre server.py run
 ```
 
 ### Or run locally
 
 ```bash
 git clone https://github.com/boecht/birre
-uv run server.py
+uv run server.py run
 ```
 
 That's it! The script will automatically install all dependencies using uv.
-
-Alternatively run with `fastmcp` for more options, like **HTTP transport**.
 
 ## Disclaimer
 
@@ -125,6 +123,8 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ## Testing
 
+### Pytest
+
 BiRRe ships with both offline unit tests and opt-in live integration checks. The
 offline suite exercises configuration layering, logging formatters, startup
 checks, subscription helpers, and both standard and risk-manager tools without
@@ -142,3 +142,22 @@ uv run pytest -m live -rs
 Live tests require a valid `BITSIGHT_API_KEY` in the environment (or
 `config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
 install on demand inside an isolated virtual environment.
+
+### Healthcheck
+
+Use the built-in health check to validate your environment before connecting a
+client. The command mirrors the `run` startup sequence, reporting resolved
+configuration and exercising BitSight connectivity, subscription, and tooling
+checks in standard online mode. When invoked with `--offline`, the network calls
+are skipped while configuration and logging validation continue.
+
+```bash
+# Run the full diagnostics against the default BitSight test endpoint.
+uv run server.py healthcheck
+
+# Skip remote calls while validating local configuration.
+uv run server.py healthcheck --offline
+```
+
+Successful runs exit with code `0`. Failures return `1`, and partial results
+with warnings (for example, optional tooling gaps in offline mode) return `2`.

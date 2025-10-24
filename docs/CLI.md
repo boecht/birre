@@ -1,9 +1,9 @@
 # Command Line Reference
 
-BiRRe's Typer CLI is exposed through `server.py`. The default command is `run`, so invoking the script without arguments starts the FastMCP server after performing startup checks:
+BiRRe's Typer CLI is exposed through `server.py`. Use the explicit `run` subcommand to start the FastMCP server after performing startup checks:
 
 ```bash
-uv run server.py
+uv run server.py run
 ```
 
 Use `uv run server.py --help` to see a generated summary of the command tree at any time.
@@ -51,7 +51,7 @@ Starts the MCP server with the provided configuration. The command performs offl
 Example:
 
 ```bash
-uv run server.py --context risk_manager --log-format json
+uv run server.py run --context risk_manager --log-format json
 ```
 
 ### `healthcheck`
