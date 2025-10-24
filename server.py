@@ -11,7 +11,20 @@ import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Final
+from typing import (
+    Annotated,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    FrozenSet,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Final,
+)
 
 import typer
 from rich.console import Console
@@ -24,6 +37,7 @@ from typer.main import get_command
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
+from src.apis.clients import DEFAULT_V1_API_BASE_URL
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 from src.logging import configure_logging, get_logger
@@ -78,6 +92,22 @@ _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
 _SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
 
 SOURCE_USER_INPUT: Final = "User Input"
+
+HEALTHCHECK_TESTING_V1_BASE_URL = "https://service.bitsighttech.com/customer-api/v1/"
+HEALTHCHECK_PRODUCTION_V1_BASE_URL = DEFAULT_V1_API_BASE_URL
+
+_EXPECTED_TOOLS_BY_CONTEXT: Dict[str, FrozenSet[str]] = {
+    "standard": frozenset({"company_search", "get_company_rating"}),
+    "risk_manager": frozenset(
+        {
+            "company_search",
+            "company_search_interactive",
+            "get_company_rating",
+            "manage_subscriptions",
+            "request_company",
+        }
+    ),
+}
 
 
 # Reusable option annotations -------------------------------------------------
@@ -273,6 +303,16 @@ OfflineFlagOption = Annotated[
     typer.Option(
         "--offline",
         help="Skip BitSight network checks and run offline validation only",
+        rich_help_panel="Diagnostics",
+        is_flag=True,
+    ),
+]
+
+ProductionFlagOption = Annotated[
+    bool,
+    typer.Option(
+        "--production",
+        help="Use the BitSight production API for online validation",
         rich_help_panel="Diagnostics",
         is_flag=True,
     ),
@@ -880,9 +920,48 @@ def _initialize_logging(runtime_settings, logging_settings, *, show_banner: bool
     return logger
 
 
-def _prepare_server(runtime_settings, logger):
+def _await_sync(coro: Awaitable[Any]) -> Any:
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(coro)
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
+
+def _discover_context_tools(server) -> Set[str]:
+    names: Set[str] = set()
+    tools_attr = getattr(server, "tools", None)
+    if isinstance(tools_attr, dict):
+        names.update(str(name) for name in tools_attr.keys() if isinstance(name, str))
+
+    get_tools = getattr(server, "get_tools", None)
+    if callable(get_tools):
+        try:
+            result = get_tools()
+        except TypeError:  # pragma: no cover - defensive
+            result = None
+        if asyncio.iscoroutine(result):
+            resolved = _await_sync(result)
+        else:
+            resolved = result
+        if isinstance(resolved, dict):
+            names.update(str(name) for name in resolved.keys() if isinstance(name, str))
+
+    return names
+
+
+def _prepare_server(runtime_settings, logger, **create_kwargs):
     logger.info("Preparing BiRRe FastMCP server")
-    return create_birre_server(settings=runtime_settings, logger=logger)
+    return create_birre_server(
+        settings=runtime_settings,
+        logger=logger,
+        **create_kwargs,
+    )
 
 
 @app.command(
@@ -976,6 +1055,7 @@ def healthcheck(
     log_max_bytes: LogMaxBytesOption = None,
     log_backup_count: LogBackupCountOption = None,
     offline: OfflineFlagOption = False,
+    production: ProductionFlagOption = False,
 ) -> None:
     """Execute BiRRe diagnostics and optional online checks."""
     invocation = _build_invocation(
@@ -1000,18 +1080,72 @@ def healthcheck(
     runtime_settings, logging_settings, _ = _resolve_runtime_and_logging(invocation)
     logger = _initialize_logging(runtime_settings, logging_settings, show_banner=False)
 
+    target_base_url = (
+        HEALTHCHECK_PRODUCTION_V1_BASE_URL
+        if production
+        else HEALTHCHECK_TESTING_V1_BASE_URL
+    )
+    environment_label = "production" if production else "testing"
+    logger.info(
+        "Configured BitSight API environment",
+        environment=environment_label,
+        base_url=target_base_url,
+    )
+    if offline:
+        logger.info("Offline mode enabled; skipping online diagnostics")
+
     if not _run_offline_checks(runtime_settings, logger):
         raise typer.Exit(code=1)
 
-    server = _prepare_server(runtime_settings, logger)
-    tools_attr = getattr(server, "tools", None)
-    if isinstance(tools_attr, dict):
-        logger.info("Business tools available", tools=list(tools_attr.keys()))
+    contexts = sorted(_CONTEXT_CHOICES)
+    overall_success = True
 
-    if not offline and not _run_online_checks(runtime_settings, logger, server):
-        logger.critical("Online health checks failed")
+    for context_name in contexts:
+        context_logger = logger.bind(context=context_name)
+        context_settings = replace(runtime_settings, context=context_name)
+
+        context_logger.info("Preparing context diagnostics")
+        server_instance = _prepare_server(
+            context_settings,
+            context_logger,
+            v1_base_url=target_base_url,
+        )
+
+        expected_tools = _EXPECTED_TOOLS_BY_CONTEXT.get(context_name)
+        if expected_tools is None:
+            context_logger.critical("No expected tool inventory defined for context")
+            overall_success = False
+        else:
+            discovered_tools = _discover_context_tools(server_instance)
+            missing_tools = sorted(expected_tools - discovered_tools)
+            if missing_tools:
+                context_logger.critical(
+                    "Tool discovery failed",
+                    missing_tools=missing_tools,
+                    discovered=sorted(discovered_tools),
+                )
+                overall_success = False
+            else:
+                context_logger.info(
+                    "Tool discovery succeeded",
+                    tools=sorted(discovered_tools),
+                )
+
+        if not offline:
+            if not _run_online_checks(context_settings, context_logger, server_instance):
+                overall_success = False
+        else:
+            context_logger.info("Online checks skipped", reason="offline flag")
+
+    if not overall_success:
+        logger.critical("Health checks failed")
         raise typer.Exit(code=1)
-    logger.info("Health checks completed successfully")
+
+    logger.info(
+        "Health checks completed successfully",
+        contexts=contexts,
+        environment=environment_label,
+    )
 
 
 def _prompt_bool(prompt: str, default: bool) -> bool:

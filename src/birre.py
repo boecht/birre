@@ -83,9 +83,14 @@ def _maybe_create_v2_api_server(
     active_context: str,
     api_key: str,
     verify_option: bool | str,
+    *,
+    base_url: Optional[str] = None,
 ) -> Optional[FastMCP]:
     if active_context == "risk_manager":
-        return create_v2_api_server(api_key, verify=verify_option)
+        kwargs: dict[str, Any] = {"verify": verify_option}
+        if base_url is not None:
+            kwargs["base_url"] = base_url
+        return create_v2_api_server(api_key, **kwargs)
     return None
 
 
@@ -218,7 +223,11 @@ def _coerce_runtime_settings(
 
 
 def create_birre_server(
-    settings: RuntimeSettings | Mapping[str, Any], logger: BoundLogger
+    settings: RuntimeSettings | Mapping[str, Any],
+    logger: BoundLogger,
+    *,
+    v1_base_url: Optional[str] = None,
+    v2_base_url: Optional[str] = None,
 ) -> FastMCP:
     """Create and configure the BiRRe FastMCP business server using resolved settings."""
 
@@ -229,12 +238,16 @@ def create_birre_server(
     risk_vector_filter = _resolve_risk_vector_filter(resolved_settings)
     max_findings = _resolve_max_findings(resolved_settings)
     verify_option = _resolve_tls_verification(resolved_settings, logger)
-    v1_api_server = create_v1_api_server(resolved_api_key, verify=verify_option)
+    v1_kwargs: dict[str, Any] = {"verify": verify_option}
+    if v1_base_url is not None:
+        v1_kwargs["base_url"] = v1_base_url
+    v1_api_server = create_v1_api_server(resolved_api_key, **v1_kwargs)
     v2_api_server = _maybe_create_v2_api_server(
         active_context,
-            resolved_api_key,
-            verify_option,
-        )
+        resolved_api_key,
+        verify_option,
+        base_url=v2_base_url,
+    )
 
     business_server = FastMCP(
         name="io.github.boecht.birre",
