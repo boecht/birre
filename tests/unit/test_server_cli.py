@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import List, Tuple
@@ -319,38 +320,52 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
     assert output_path.read_text(encoding="utf-8") == "existing"
 
 
-def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_healthcheck_defaults_to_online_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = CliRunner()
-    observed: List[Tuple[str, bool]] = []
-
-    def _record_phase(phase: str, runtime_settings) -> None:
-        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+    observed_offline: List[bool] = []
+    prepared_contexts: List[Tuple[str, str]] = []
+    online_calls: List[Tuple[str, bool]] = []
 
     def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
-        _record_phase("initialize", runtime_settings)
         return MagicMock(name="logger")
 
     def fake_offline(runtime_settings, logger):
-        _record_phase("offline", runtime_settings)
+        observed_offline.append(runtime_settings.skip_startup_checks)
         return True
 
-    def fake_prepare(runtime_settings, logger):
-        _record_phase("prepare", runtime_settings)
-        return SimpleNamespace()
+    expected_tools_by_context = {
+        context: server._EXPECTED_TOOLS_BY_CONTEXT[context]
+        for context in server._CONTEXT_CHOICES
+    }
 
-    def fake_online(runtime_settings, logger, server):
-        _record_phase("online", runtime_settings)
+    def fake_prepare(runtime_settings, logger, **kwargs):
+        prepared_contexts.append((runtime_settings.context, kwargs.get("v1_base_url")))
+        names = list(expected_tools_by_context[runtime_settings.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    def fake_online(runtime_settings, logger, server_instance):
+        online_calls.append((runtime_settings.context, runtime_settings.skip_startup_checks))
         return True
 
     with (
         patch("server._initialize_logging", side_effect=fake_initialize),
         patch("server._run_offline_checks", side_effect=fake_offline),
         patch("server._prepare_server", side_effect=fake_prepare),
-        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
+        patch("server._run_online_checks", side_effect=fake_online),
     ):
         result = runner.invoke(
             server.app,
-            ["checks-only", "--online"],
+            ["healthcheck"],
             env={
                 "BIRRE_SKIP_STARTUP_CHECKS": "true",
                 "BITSIGHT_API_KEY": "dummy",
@@ -359,51 +374,258 @@ def test_checks_only_online_forces_network_checks(monkeypatch: pytest.MonkeyPatc
         )
 
     assert result.exit_code == 0, result.stdout
-    assert online_mock.call_count == 1
-    online_skip = [skip for phase, skip in observed if phase == "online"]
-    assert online_skip == [False], observed
+
+    assert observed_offline == [False]
+    assert prepared_contexts
+    contexts_seen = [context for context, _ in prepared_contexts]
+    assert contexts_seen.count("standard") == 1
+    assert contexts_seen.count("risk_manager") == 1
+    assert all(base_url == server.HEALTHCHECK_TESTING_V1_BASE_URL for _, base_url in prepared_contexts)
+
+    assert online_calls
+    assert sorted(context for context, _ in online_calls) == sorted(server._CONTEXT_CHOICES)
+    for _, skip_flag in online_calls:
+        assert skip_flag is False
 
 
-def test_test_command_online_forces_network_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_healthcheck_offline_flag_skips_network_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = CliRunner()
-    observed: List[Tuple[str, bool]] = []
-
-    def _record_phase(phase: str, runtime_settings) -> None:
-        observed.append((phase, getattr(runtime_settings, "skip_startup_checks", None)))
+    prepared_contexts: List[Tuple[str, bool, str]] = []
 
     def fake_initialize(runtime_settings, logging_settings, *, show_banner: bool = False):
-        _record_phase("initialize", runtime_settings)
         return MagicMock(name="logger")
 
     def fake_offline(runtime_settings, logger):
-        _record_phase("offline", runtime_settings)
         return True
 
-    def fake_prepare(runtime_settings, logger):
-        _record_phase("prepare", runtime_settings)
-        return SimpleNamespace()
+    def fake_prepare(runtime_settings, logger, **kwargs):
+        prepared_contexts.append(
+            (runtime_settings.context, runtime_settings.skip_startup_checks, kwargs.get("v1_base_url"))
+        )
+        names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime_settings.context])
 
-    def fake_online(runtime_settings, logger, server):
-        _record_phase("online", runtime_settings)
-        return True
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
 
     with (
         patch("server._initialize_logging", side_effect=fake_initialize),
         patch("server._run_offline_checks", side_effect=fake_offline),
         patch("server._prepare_server", side_effect=fake_prepare),
-        patch("server._run_online_checks", side_effect=fake_online) as online_mock,
+        patch("server._run_online_checks") as online_mock,
     ):
         result = runner.invoke(
             server.app,
-            ["test", "--online"],
+            ["healthcheck", "--offline"],
             env={
-                "BIRRE_SKIP_STARTUP_CHECKS": "true",
                 "BITSIGHT_API_KEY": "dummy",
             },
             color=False,
         )
 
     assert result.exit_code == 0, result.stdout
-    assert online_mock.call_count == 1
-    online_skip = [skip for phase, skip in observed if phase == "online"]
-    assert online_skip == [False], observed
+    online_mock.assert_not_called()
+    assert prepared_contexts
+    for context_name, skip_flag, base_url in prepared_contexts:
+        assert context_name in server._CONTEXT_CHOICES
+        assert skip_flag is True
+        assert base_url == server.HEALTHCHECK_TESTING_V1_BASE_URL
+
+
+def test_healthcheck_passes_shared_options_to_build_invocation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    captured = {}
+
+    original_build = server._build_invocation
+
+    def record_build_invocation(**kwargs):
+        captured.update(kwargs)
+        return original_build(**kwargs)
+
+    monkeypatch.setattr(server, "_build_invocation", record_build_invocation)
+
+    def fake_resolve(invocation):
+        runtime = replace(
+            _runtime_settings(),
+            context=None,
+            skip_startup_checks=bool(
+                getattr(invocation.runtime, "skip_startup_checks", False)
+            ),
+        )
+        logging_settings = replace(
+            _logging_settings(),
+            level=logging.INFO,
+            file_path="log",
+            backup_count=3,
+        )
+        return (runtime, logging_settings, {})
+
+    monkeypatch.setattr(server, "_resolve_runtime_and_logging", fake_resolve)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+
+    def fake_prepare(runtime, log, **kwargs):
+        names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    result = runner.invoke(
+        server.app,
+        [
+            "healthcheck",
+            "--config",
+            "custom.toml",
+            "--bitsight-api-key",
+            "abc",
+            "--subscription-folder",
+            "folder",
+            "--subscription-type",
+            "continuous_monitoring",
+            "--debug",
+            "--allow-insecure-tls",
+            "--ca-bundle",
+            "bundle.pem",
+            "--risk-vector-filter",
+            "botnet",
+            "--max-findings",
+            "5",
+            "--log-level",
+            "DEBUG",
+            "--log-format",
+            "json",
+            "--log-file",
+            "logs/app.log",
+            "--log-max-bytes",
+            "1024",
+            "--log-backup-count",
+            "3",
+        ],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert captured["config_path"] == Path("custom.toml")
+    assert captured["api_key"] == "abc"
+    assert captured["subscription_folder"] == "folder"
+    assert captured["subscription_type"] == "continuous_monitoring"
+    assert captured["debug"] is True
+    assert captured["allow_insecure_tls"] is True
+    assert captured["ca_bundle"] == "bundle.pem"
+    assert captured["risk_vector_filter"] == "botnet"
+    assert captured["max_findings"] == 5
+    assert captured["log_level"] == "DEBUG"
+    assert captured["log_format"] == "json"
+    assert captured["log_file"] == "logs/app.log"
+    assert captured["log_max_bytes"] == 1024
+    assert captured["log_backup_count"] == 3
+    assert captured["skip_startup_checks"] is False
+
+
+def test_healthcheck_fails_when_context_tools_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+
+    expected = {context: set(server._EXPECTED_TOOLS_BY_CONTEXT[context]) for context in server._CONTEXT_CHOICES}
+
+    def fake_prepare(runtime, log, **kwargs):
+        names = list(expected[runtime.context])
+        if runtime.context == "risk_manager":
+            names = [name for name in names if name != "request_company"]
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck"],
+        env={"BITSIGHT_API_KEY": "dummy"},
+        color=False,
+    )
+
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)
+    assert result.exception.code == 1
+
+
+def test_healthcheck_production_flag_uses_production_base(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    base_urls: List[str] = []
+
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+
+    def fake_prepare(runtime, log, **kwargs):
+        base_urls.append(kwargs.get("v1_base_url"))
+        names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck", "--production"],
+        env={"BITSIGHT_API_KEY": "dummy"},
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert base_urls
+    assert all(base_url == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL for base_url in base_urls)

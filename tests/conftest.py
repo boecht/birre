@@ -47,8 +47,7 @@ if STUB_FASTMCP:
             self.name = kwargs.get("name")
             self.instructions = kwargs.get("instructions")
 
-        async def get_tools(self):
-            await asyncio.sleep(0)
+        def get_tools(self):
             return {}
 
         def tool(self, *args, **kwargs):

@@ -11,6 +11,8 @@ from prance.util import resolver as prance_resolver
 
 
 SCHEMA_REF_PREFIX = "#/components/schemas/"
+DEFAULT_V1_API_BASE_URL = "https://api.bitsighttech.com/v1"
+DEFAULT_V2_API_BASE_URL = "https://api.bitsighttech.com/v2"
 
 
 def _get_schema_definitions(spec: Any) -> Mapping[str, Any]:
@@ -108,12 +110,15 @@ def _create_client(
 
 
 def create_v1_api_server(
-    api_key: str, *, verify: bool | str = True
+    api_key: str,
+    *,
+    verify: bool | str = True,
+    base_url: str = DEFAULT_V1_API_BASE_URL,
 ) -> FastMCP:
     """Build the BitSight v1 FastMCP server."""
 
     spec = _load_api_spec("apis/bitsight.v1.schema.json")
-    client = _create_client("https://api.bitsighttech.com/v1", api_key, verify=verify)
+    client = _create_client(base_url, api_key, verify=verify)
 
     return FastMCP.from_openapi(
         openapi_spec=spec,
@@ -123,12 +128,15 @@ def create_v1_api_server(
 
 
 def create_v2_api_server(
-    api_key: str, *, verify: bool | str = True
+    api_key: str,
+    *,
+    verify: bool | str = True,
+    base_url: str = DEFAULT_V2_API_BASE_URL,
 ) -> FastMCP:
     """Build the BitSight v2 FastMCP server."""
 
     spec = _load_api_spec("apis/bitsight.v2.schema.json")
-    client = _create_client("https://api.bitsighttech.com/v2", api_key, verify=verify)
+    client = _create_client(base_url, api_key, verify=verify)
 
     return FastMCP.from_openapi(
         openapi_spec=spec,

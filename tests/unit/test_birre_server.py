@@ -77,7 +77,7 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     monkeypatch.setattr(
         birre,
         "create_v1_api_server",
-        lambda api_key, verify: (api_key, verify, v1_server),
+        lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
 
     def fail_create_v2(*_args, **_kwargs):
@@ -189,12 +189,12 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     monkeypatch.setattr(
         birre,
         "create_v1_api_server",
-        lambda api_key, verify: (api_key, verify, v1_server),
+        lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
     monkeypatch.setattr(
         birre,
         "create_v2_api_server",
-        lambda api_key, verify: (api_key, verify, v2_server),
+        lambda api_key, *, verify, base_url=None: (api_key, verify, v2_server),
     )
 
     def capture_schedule(server, keep):
@@ -325,10 +325,10 @@ async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     monkeypatch.setattr(
         birre,
         "create_v1_api_server",
-        lambda api_key, verify: (api_key, verify, v1_server),
+        lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
 
-    def fake_create_v2(api_key, verify):
+    def fake_create_v2(api_key, *, verify, base_url=None):
         return api_key, verify, v2_server
 
     monkeypatch.setattr(birre, "create_v2_api_server", fake_create_v2)
