@@ -1033,6 +1033,592 @@ class AttemptReport:
     tools: Dict[str, Dict[str, Any]]
 
 
+@dataclass
+class ContextDiagnosticsResult:
+    """Captured diagnostics outcome for a single FastMCP context."""
+
+    name: str
+    success: bool
+    degraded: bool
+    report: Dict[str, Any]
+
+
+@dataclass
+class HealthcheckResult:
+    """Aggregate result returned by :class:`HealthcheckRunner`."""
+
+    success: bool
+    degraded: bool
+    summary: Dict[str, Any]
+    contexts: Tuple[str, ...]
+
+    def exit_code(self) -> int:
+        """Return the CLI exit code representing this result."""
+
+        if not self.success:
+            return 1
+        if self.degraded:
+            return 2
+        return 0
+
+
+class HealthcheckRunner:
+    """Execute BiRRe health checks in a structured, testable manner."""
+
+    def __init__(
+        self,
+        *,
+        runtime_settings,
+        logger: BoundLogger,
+        offline: bool,
+        target_base_url: str,
+        environment_label: str,
+    ) -> None:
+        self._base_runtime_settings = runtime_settings
+        self._logger = logger
+        self._offline = offline
+        self._target_base_url = target_base_url
+        self._environment_label = environment_label
+        self._contexts: Tuple[str, ...] = tuple(sorted(_CONTEXT_CHOICES))
+
+    def run(self) -> HealthcheckResult:
+        """Run offline and per-context diagnostics and collect a summary."""
+
+        offline_ok = _run_offline_checks(self._base_runtime_settings, self._logger)
+        summary: Dict[str, Any] = {
+            "environment": self._environment_label,
+            "offline_check": {"status": "pass" if offline_ok else "fail"},
+            "contexts": {},
+            "overall_success": None,
+        }
+
+        if not offline_ok:
+            summary["overall_success"] = False
+            return HealthcheckResult(
+                success=False,
+                degraded=False,
+                summary=summary,
+                contexts=self._contexts,
+            )
+
+        overall_success = True
+        degraded = self._offline
+        context_reports: Dict[str, Dict[str, Any]] = summary["contexts"]
+
+        for context_name in self._contexts:
+            result = self._evaluate_context(context_name)
+            context_reports[context_name] = result.report
+            if not result.success:
+                overall_success = False
+            if result.degraded:
+                degraded = True
+
+        summary["overall_success"] = overall_success
+        return HealthcheckResult(
+            success=overall_success,
+            degraded=degraded,
+            summary=summary,
+            contexts=self._contexts,
+        )
+
+    # ------------------------------------------------------------------
+    # Context evaluation helpers
+    # ------------------------------------------------------------------
+
+    def _evaluate_context(self, context_name: str) -> ContextDiagnosticsResult:
+        logger = self._logger.bind(context=context_name)
+        logger.info("Preparing context diagnostics")
+
+        expected_tools = _EXPECTED_TOOLS_BY_CONTEXT.get(context_name)
+        report: Dict[str, Any] = {
+            "offline_mode": bool(self._offline),
+            "attempts": [],
+            "encountered_categories": [],
+            "fallback_attempted": False,
+            "fallback_success": None,
+            "failure_categories": [],
+            "recoverable_categories": [],
+            "unrecoverable_categories": [],
+            "notes": [],
+        }
+
+        if expected_tools is None:
+            logger.critical("No expected tool inventory defined for context")
+            report["success"] = False
+            report["online"] = {
+                "status": "fail",
+                "details": {"reason": "missing expected tool inventory"},
+            }
+            report["tools"] = {}
+            return ContextDiagnosticsResult(
+                name=context_name,
+                success=False,
+                degraded=False,
+                report=report,
+            )
+
+        context_settings = replace(self._base_runtime_settings, context=context_name)
+        effective_settings, notes, degraded = self._resolve_ca_bundle(logger, context_settings)
+        report["notes"] = list(notes)
+
+        if self._offline:
+            return self._evaluate_offline_context(
+                context_name,
+                logger,
+                expected_tools,
+                report,
+                effective_settings,
+                degraded,
+            )
+
+        return self._evaluate_online_context(
+            context_name,
+            logger,
+            expected_tools,
+            report,
+            effective_settings,
+            degraded,
+        )
+
+    def _resolve_ca_bundle(
+        self,
+        logger: BoundLogger,
+        context_settings,
+    ) -> tuple[Any, list[str], bool]:
+        notes: list[str] = []
+        degraded = False
+        effective_settings = context_settings
+
+        ca_bundle_path = getattr(context_settings, "ca_bundle_path", None)
+        if ca_bundle_path:
+            resolved_ca_path = Path(str(ca_bundle_path)).expanduser()
+            if not resolved_ca_path.exists():
+                logger.warning(
+                    "Configured CA bundle missing; falling back to system defaults",
+                    ca_bundle=str(resolved_ca_path),
+                )
+                effective_settings = replace(effective_settings, ca_bundle_path=None)
+                notes.append("ca-bundle-defaulted")
+                degraded = True
+
+        return effective_settings, notes, degraded
+
+    def _evaluate_offline_context(
+        self,
+        context_name: str,
+        logger: BoundLogger,
+        expected_tools: FrozenSet[str],
+        report: Dict[str, Any],
+        effective_settings,
+        degraded: bool,
+    ) -> ContextDiagnosticsResult:
+        server_instance = _prepare_server(
+            effective_settings,
+            logger,
+            v1_base_url=self._target_base_url,
+        )
+        discovered_tools = _discover_context_tools(server_instance)
+        missing_tools = sorted(expected_tools - discovered_tools)
+        report["discovery"] = {
+            "discovered": sorted(discovered_tools),
+            "missing": missing_tools,
+        }
+        report["tools"] = _aggregate_tool_outcomes(
+            expected_tools,
+            [],
+            offline_mode=True,
+            offline_missing=missing_tools,
+        )
+        report["online"] = {
+            "status": "warning",
+            "details": {"reason": "offline mode"},
+        }
+        report["encountered_categories"] = []
+        report["failure_categories"] = []
+        report["recoverable_categories"] = []
+        report["unrecoverable_categories"] = []
+
+        if missing_tools:
+            logger.critical(
+                "Tool discovery failed",
+                missing_tools=missing_tools,
+                discovered=sorted(discovered_tools),
+                attempt="offline",
+            )
+            report["success"] = False
+            return ContextDiagnosticsResult(
+                name=context_name,
+                success=False,
+                degraded=degraded,
+                report=report,
+            )
+
+        logger.info(
+            "Tool discovery succeeded",
+            tools=sorted(discovered_tools),
+            attempt="offline",
+        )
+        report["success"] = True
+        # Skipping online diagnostics inherently limits coverage.
+        degraded = True
+        return ContextDiagnosticsResult(
+            name=context_name,
+            success=True,
+            degraded=degraded,
+            report=report,
+        )
+
+    def _evaluate_online_context(
+        self,
+        context_name: str,
+        logger: BoundLogger,
+        expected_tools: FrozenSet[str],
+        report: Dict[str, Any],
+        effective_settings,
+        degraded: bool,
+    ) -> ContextDiagnosticsResult:
+        attempt_reports: list[AttemptReport] = []
+        encountered_categories: set[str] = set()
+        failure_categories: set[str] = set()
+        fallback_attempted = False
+        fallback_success_value: Optional[bool] = None
+
+        primary_report = self._run_diagnostic_attempt(
+            context_name=context_name,
+            settings=effective_settings,
+            context_logger=logger,
+            expected_tools=expected_tools,
+            label="primary",
+            notes=report.get("notes", ()),
+        )
+        attempt_reports.append(primary_report)
+        self._update_failure_categories(
+            primary_report, encountered_categories, failure_categories
+        )
+        context_success = primary_report.success
+
+        if not context_success:
+            tls_failures = [
+                failure
+                for failure in primary_report.failures
+                if failure.category == "tls"
+            ]
+            if tls_failures and not effective_settings.allow_insecure_tls:
+                logger.warning(
+                    "TLS errors detected; retrying diagnostics with allow_insecure_tls enabled",
+                    attempt="tls-fallback",
+                    original_errors=[
+                        _summarize_failure(failure) for failure in tls_failures
+                    ],
+                )
+                fallback_settings = replace(
+                    effective_settings,
+                    allow_insecure_tls=True,
+                    ca_bundle_path=None,
+                )
+                fallback_report = self._run_diagnostic_attempt(
+                    context_name=context_name,
+                    settings=fallback_settings,
+                    context_logger=logger,
+                    expected_tools=expected_tools,
+                    label="tls-fallback",
+                    notes=None,
+                )
+                attempt_reports.append(fallback_report)
+                fallback_attempted = True
+                fallback_success_value = fallback_report.success
+                self._update_failure_categories(
+                    fallback_report, encountered_categories, failure_categories
+                )
+                context_success = fallback_report.success
+                if fallback_report.success:
+                    logger.warning(
+                        "TLS fallback resolved diagnostics failure",
+                        attempt="tls-fallback",
+                        original_errors=[
+                            _summarize_failure(failure) for failure in tls_failures
+                        ],
+                    )
+                else:
+                    logger.error(
+                        "TLS fallback failed to resolve diagnostics",
+                        attempt="tls-fallback",
+                        original_errors=[
+                            _summarize_failure(failure) for failure in tls_failures
+                        ],
+                    )
+            else:
+                context_success = False
+
+        if not context_success:
+            recoverable = sorted(
+                (failure_categories | encountered_categories)
+                & {"tls", "config.ca_bundle"}
+            )
+            unrecoverable = sorted(
+                (failure_categories | encountered_categories)
+                - {"tls", "config.ca_bundle"}
+            )
+            logger.error(
+                "Context diagnostics failed",
+                attempts=[
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
+                ],
+                recoverable_categories=recoverable or None,
+                unrecoverable_categories=unrecoverable or None,
+            )
+        else:
+            recoverable = []
+            unrecoverable = []
+            if any(not report.success for report in attempt_reports):
+                logger.info(
+                    "Context diagnostics completed with recoveries",
+                    attempts=[
+                        {"label": report.label, "success": report.success}
+                        for report in attempt_reports
+                    ],
+                )
+            else:
+                logger.info(
+                    "Context diagnostics completed successfully",
+                    attempt="primary",
+                )
+
+        report["success"] = context_success
+        report["fallback_attempted"] = fallback_attempted
+        report["fallback_success"] = fallback_success_value
+        report["encountered_categories"] = sorted(encountered_categories)
+        report["failure_categories"] = sorted(
+            category for category in failure_categories if category
+        )
+        report["recoverable_categories"] = recoverable
+        report["unrecoverable_categories"] = unrecoverable
+
+        attempt_summaries = [
+            {
+                "label": attempt.label,
+                "success": attempt.success,
+                "notes": attempt.notes,
+                "allow_insecure_tls": attempt.allow_insecure_tls,
+                "ca_bundle": attempt.ca_bundle,
+                "online_success": attempt.online_success,
+                "discovered_tools": attempt.discovered_tools,
+                "missing_tools": attempt.missing_tools,
+                "tools": attempt.tools,
+                "failures": [
+                    _summarize_failure(failure) for failure in attempt.failures
+                ],
+            }
+            for attempt in attempt_reports
+        ]
+        report["attempts"] = attempt_summaries
+
+        online_attempts: Dict[str, str] = {}
+        for attempt in attempt_summaries:
+            result = attempt.get("online_success")
+            if result is None:
+                continue
+            online_attempts[attempt["label"]] = "pass" if result else "fail"
+        if any(status == "pass" for status in online_attempts.values()):
+            online_status = "pass"
+        elif any(status == "fail" for status in online_attempts.values()):
+            online_status = "fail"
+        else:
+            online_status = "warning"
+        online_summary: Dict[str, Any] = {"status": online_status}
+        if online_attempts:
+            online_summary["attempts"] = online_attempts
+        report["online"] = online_summary
+
+        report["tools"] = _aggregate_tool_outcomes(
+            expected_tools,
+            attempt_summaries,
+            offline_mode=False,
+        )
+
+        context_degraded = degraded
+        if context_success:
+            context_degraded = context_degraded or self._has_degraded_outcomes(
+                report, attempt_reports
+            )
+
+        return ContextDiagnosticsResult(
+            name=context_name,
+            success=context_success,
+            degraded=context_degraded,
+            report=report,
+        )
+
+    def _run_diagnostic_attempt(
+        self,
+        *,
+        context_name: str,
+        settings,
+        context_logger: BoundLogger,
+        expected_tools: FrozenSet[str],
+        label: str,
+        notes: Optional[Sequence[str]],
+    ) -> AttemptReport:
+        context_logger.info(
+            "Starting diagnostics attempt",
+            attempt=label,
+            allow_insecure_tls=settings.allow_insecure_tls,
+            ca_bundle=settings.ca_bundle_path,
+            notes=list(notes or ()),
+        )
+
+        server_instance = _prepare_server(
+            settings,
+            context_logger,
+            v1_base_url=self._target_base_url,
+        )
+
+        discovered_tools = _discover_context_tools(server_instance)
+        missing_tools = sorted(expected_tools - discovered_tools)
+        failure_records: list[DiagnosticFailure] = []
+        attempt_success = True
+        tool_report: Dict[str, Dict[str, Any]] = {}
+        online_success: Optional[bool] = None
+
+        if missing_tools:
+            context_logger.critical(
+                "Tool discovery failed",
+                missing_tools=missing_tools,
+                discovered=sorted(discovered_tools),
+                attempt=label,
+            )
+            for tool_name in missing_tools:
+                _record_failure(
+                    failure_records,
+                    tool=tool_name,
+                    stage="discovery",
+                    message="expected tool not registered",
+                )
+                attempt_success = False
+            for tool_name in sorted(expected_tools):
+                if tool_name in missing_tools:
+                    tool_report[tool_name] = {
+                        "status": "fail",
+                        "details": {"reason": "tool not registered"},
+                    }
+                else:
+                    tool_report[tool_name] = {
+                        "status": "warning",
+                        "details": {"reason": "not evaluated"},
+                    }
+        else:
+            context_logger.info(
+                "Tool discovery succeeded",
+                tools=sorted(discovered_tools),
+                attempt=label,
+            )
+
+            online_ok = _run_online_checks(settings, context_logger, server_instance)
+            online_success = online_ok
+            if not online_ok:
+                _record_failure(
+                    failure_records,
+                    tool="startup_checks",
+                    stage="online",
+                    message="online startup checks failed",
+                )
+                attempt_success = False
+
+            if not _run_context_tool_diagnostics(
+                context=context_name,
+                logger=context_logger,
+                server_instance=server_instance,
+                expected_tools=expected_tools,
+                summary=tool_report,
+                failures=failure_records,
+            ):
+                attempt_success = False
+
+        attempt_report = AttemptReport(
+            label=label,
+            success=attempt_success,
+            failures=failure_records,
+            notes=list(notes or ()),
+            allow_insecure_tls=bool(settings.allow_insecure_tls),
+            ca_bundle=str(settings.ca_bundle_path) if settings.ca_bundle_path else None,
+            online_success=online_success,
+            discovered_tools=sorted(discovered_tools),
+            missing_tools=missing_tools,
+            tools=tool_report,
+        )
+
+        log_method = context_logger.info if attempt_success else context_logger.warning
+        log_method(
+            "Diagnostics attempt completed",
+            attempt=label,
+            success=attempt_success,
+            allow_insecure_tls=settings.allow_insecure_tls,
+            ca_bundle=settings.ca_bundle_path,
+            failure_count=len(failure_records),
+            notes=list(notes or ()),
+            failures=[_summarize_failure(failure) for failure in failure_records],
+        )
+
+        return attempt_report
+
+    def _update_failure_categories(
+        self,
+        attempt_report: AttemptReport,
+        encountered_categories: set[str],
+        failure_categories: set[str],
+    ) -> None:
+        for failure in attempt_report.failures:
+            category = _classify_failure(failure)
+            if category:
+                encountered_categories.add(category)
+        failure_categories.update(
+            failure.category
+            for failure in attempt_report.failures
+            if failure.category
+        )
+
+    def _has_degraded_outcomes(
+        self,
+        report: Mapping[str, Any],
+        attempts: Sequence[AttemptReport],
+    ) -> bool:
+        if report.get("offline_mode"):
+            return True
+        if report.get("notes"):
+            return True
+        if report.get("encountered_categories"):
+            return True
+        if report.get("recoverable_categories"):
+            return True
+        if report.get("fallback_attempted"):
+            return True
+        if any(not attempt.success for attempt in attempts):
+            return True
+
+        online_status = None
+        online_section = report.get("online")
+        if isinstance(online_section, Mapping):
+            online_status = online_section.get("status")
+        if online_status == "warning":
+            return True
+
+        tools_section = report.get("tools")
+        if isinstance(tools_section, Mapping):
+            for entry in tools_section.values():
+                if not isinstance(entry, Mapping):
+                    continue
+                status = entry.get("status")
+                if status == "warning":
+                    return True
+                attempts_map = entry.get("attempts")
+                if isinstance(attempts_map, Mapping) and any(
+                    value == "warning" for value in attempts_map.values()
+                ):
+                    return True
+
+        return False
+
 def _record_failure(
     failures: Optional[list[DiagnosticFailure]],
     *,
@@ -2170,6 +2756,7 @@ def healthcheck(
     production: ProductionFlagOption = False,
 ) -> None:
     """Execute BiRRe diagnostics and optional online checks."""
+
     invocation = _build_invocation(
         config_path=config,
         api_key=bitsight_api_key,
@@ -2206,396 +2793,32 @@ def healthcheck(
     if offline:
         logger.info("Offline mode enabled; skipping online diagnostics")
 
-    offline_ok = _run_offline_checks(runtime_settings, logger)
+    runner = HealthcheckRunner(
+        runtime_settings=runtime_settings,
+        logger=logger,
+        offline=bool(offline),
+        target_base_url=target_base_url,
+        environment_label=environment_label,
+    )
+    result = runner.run()
 
-    summary_report: Dict[str, Any] = {
-        "environment": environment_label,
-        "offline_check": {"status": "pass" if offline_ok else "fail"},
-        "contexts": {},
-        "overall_success": None,
-    }
+    _render_healthcheck_summary(result.summary)
 
-    if not offline_ok:
-        summary_report["overall_success"] = False
-        _render_healthcheck_summary(summary_report)
-        raise typer.Exit(code=1)
-
-    contexts = sorted(_CONTEXT_CHOICES)
-    overall_success = True
-    context_reports: Dict[str, Dict[str, Any]] = summary_report["contexts"]
-
-    for context_name in contexts:
-        context_logger = logger.bind(context=context_name)
-        context_logger.info("Preparing context diagnostics")
-
-        expected_tools = _EXPECTED_TOOLS_BY_CONTEXT.get(context_name)
-        context_report: Dict[str, Any] = {
-            "offline_mode": bool(offline),
-            "attempts": [],
-            "encountered_categories": [],
-            "fallback_attempted": False,
-            "fallback_success": None,
-            "failure_categories": [],
-            "recoverable_categories": [],
-            "unrecoverable_categories": [],
-            "notes": [],
-        }
-        context_reports[context_name] = context_report
-
-        if expected_tools is None:
-            context_logger.critical("No expected tool inventory defined for context")
-            context_report["success"] = False
-            context_report["online"] = {
-                "status": "fail",
-                "details": {"reason": "missing expected tool inventory"},
-            }
-            context_report["tools"] = {}
-            overall_success = False
-            continue
-
-        context_settings = replace(runtime_settings, context=context_name)
-        effective_settings = context_settings
-        attempt_notes: list[str] = []
-
-        ca_bundle_path = effective_settings.ca_bundle_path
-        if ca_bundle_path:
-            resolved_ca_path = Path(str(ca_bundle_path)).expanduser()
-            if not resolved_ca_path.exists():
-                context_logger.warning(
-                    "Configured CA bundle missing; falling back to system defaults",
-                    ca_bundle=str(resolved_ca_path),
-                )
-                effective_settings = replace(effective_settings, ca_bundle_path=None)
-                attempt_notes.append("ca-bundle-defaulted")
-
-        context_report["notes"] = list(attempt_notes)
-
-        if offline:
-            server_instance = _prepare_server(
-                effective_settings,
-                context_logger,
-                v1_base_url=target_base_url,
-            )
-            discovered_tools = _discover_context_tools(server_instance)
-            missing_tools = sorted(expected_tools - discovered_tools)
-            context_report["discovery"] = {
-                "discovered": sorted(discovered_tools),
-                "missing": missing_tools,
-            }
-            context_report["tools"] = _aggregate_tool_outcomes(
-                expected_tools,
-                [],
-                offline_mode=True,
-                offline_missing=missing_tools,
-            )
-            if missing_tools:
-                context_logger.critical(
-                    "Tool discovery failed",
-                    missing_tools=missing_tools,
-                    discovered=sorted(discovered_tools),
-                    attempt="offline",
-                )
-                overall_success = False
-                context_report["success"] = False
-            else:
-                context_logger.info(
-                    "Tool discovery succeeded",
-                    tools=sorted(discovered_tools),
-                    attempt="offline",
-                )
-                context_report["success"] = True
-            context_logger.info("Online checks skipped", reason="offline flag")
-            context_report["online"] = {
-                "status": "warning",
-                "details": {"reason": "offline mode"},
-            }
-            context_report["encountered_categories"] = []
-            context_report["failure_categories"] = []
-            context_report["recoverable_categories"] = []
-            context_report["unrecoverable_categories"] = []
-            continue
-
-        attempt_reports: list[AttemptReport] = []
-        encountered_categories: set[str] = set()
-        fallback_attempted = False
-        fallback_success_value: Optional[bool] = None
-
-        def run_attempt(
-            settings,
-            *,
-            label: str,
-            notes: Optional[Sequence[str]] = None,
-        ) -> AttemptReport:
-            context_logger.info(
-                "Starting diagnostics attempt",
-                attempt=label,
-                allow_insecure_tls=settings.allow_insecure_tls,
-                ca_bundle=settings.ca_bundle_path,
-                notes=list(notes or ()),
-            )
-
-            server_instance = _prepare_server(
-                settings,
-                context_logger,
-                v1_base_url=target_base_url,
-            )
-
-            discovered_tools = _discover_context_tools(server_instance)
-            missing_tools = sorted(expected_tools - discovered_tools)
-            failure_records: list[DiagnosticFailure] = []
-            attempt_success = True
-            tool_report: Dict[str, Dict[str, Any]] = {}
-            online_success: Optional[bool] = None
-
-            if missing_tools:
-                context_logger.critical(
-                    "Tool discovery failed",
-                    missing_tools=missing_tools,
-                    discovered=sorted(discovered_tools),
-                    attempt=label,
-                )
-                for tool_name in missing_tools:
-                    _record_failure(
-                        failure_records,
-                        tool=tool_name,
-                        stage="discovery",
-                        message="expected tool not registered",
-                    )
-                    attempt_success = False
-                for tool_name in sorted(expected_tools):
-                    if tool_name in missing_tools:
-                        tool_report[tool_name] = {
-                            "status": "fail",
-                            "details": {"reason": "tool not registered"},
-                        }
-                    else:
-                        tool_report[tool_name] = {
-                            "status": "warning",
-                            "details": {"reason": "not evaluated"},
-                        }
-            else:
-                context_logger.info(
-                    "Tool discovery succeeded",
-                    tools=sorted(discovered_tools),
-                    attempt=label,
-                )
-
-                online_ok = _run_online_checks(settings, context_logger, server_instance)
-                online_success = online_ok
-                if not online_ok:
-                    _record_failure(
-                        failure_records,
-                        tool="startup_checks",
-                        stage="online",
-                        message="online startup checks failed",
-                    )
-                    attempt_success = False
-
-                if not _run_context_tool_diagnostics(
-                    context=context_name,
-                    logger=context_logger,
-                    server_instance=server_instance,
-                    expected_tools=expected_tools,
-                    summary=tool_report,
-                    failures=failure_records,
-                ):
-                    attempt_success = False
-
-            attempt_report = AttemptReport(
-                label=label,
-                success=attempt_success,
-                failures=failure_records,
-                notes=list(notes or ()),
-                allow_insecure_tls=bool(settings.allow_insecure_tls),
-                ca_bundle=str(settings.ca_bundle_path)
-                if settings.ca_bundle_path
-                else None,
-                online_success=online_success,
-                discovered_tools=sorted(discovered_tools),
-                missing_tools=missing_tools,
-                tools=tool_report,
-            )
-
-            log_method = context_logger.info if attempt_success else context_logger.warning
-            log_method(
-                "Diagnostics attempt completed",
-                attempt=label,
-                success=attempt_success,
-                allow_insecure_tls=settings.allow_insecure_tls,
-                ca_bundle=settings.ca_bundle_path,
-                failure_count=len(failure_records),
-                notes=list(notes or ()),
-                failures=[_summarize_failure(failure) for failure in failure_records],
-            )
-
-            return attempt_report
-
-        primary_report = run_attempt(
-            effective_settings,
-            label="primary",
-            notes=attempt_notes,
-        )
-        attempt_reports.append(primary_report)
-        for failure in primary_report.failures:
-            category = _classify_failure(failure)
-            if category:
-                encountered_categories.add(category)
-        failure_categories = {
-            failure.category
-            for failure in primary_report.failures
-            if failure.category
-        }
-        context_success = primary_report.success
-
-        if not context_success:
-            tls_failures = [
-                failure for failure in primary_report.failures if failure.category == "tls"
-            ]
-            if tls_failures and not effective_settings.allow_insecure_tls:
-                context_logger.warning(
-                    "TLS errors detected; retrying diagnostics with allow_insecure_tls enabled",
-                    attempt="tls-fallback",
-                    original_errors=[_summarize_failure(failure) for failure in tls_failures],
-                )
-                fallback_settings = replace(
-                    effective_settings,
-                    allow_insecure_tls=True,
-                    ca_bundle_path=None,
-                )
-                fallback_report = run_attempt(
-                    fallback_settings,
-                    label="tls-fallback",
-                )
-                attempt_reports.append(fallback_report)
-                fallback_attempted = True
-                fallback_success_value = fallback_report.success
-                for failure in fallback_report.failures:
-                    category = _classify_failure(failure)
-                    if category:
-                        encountered_categories.add(category)
-                failure_categories.update(
-                    failure.category
-                    for failure in fallback_report.failures
-                    if failure.category
-                )
-                context_success = fallback_report.success
-                if fallback_report.success:
-                    context_logger.warning(
-                        "TLS fallback resolved diagnostics failure",
-                        attempt="tls-fallback",
-                        original_errors=[
-                            _summarize_failure(failure) for failure in tls_failures
-                        ],
-                    )
-                else:
-                    context_logger.error(
-                        "TLS fallback failed to resolve diagnostics",
-                        attempt="tls-fallback",
-                        original_errors=[
-                            _summarize_failure(failure) for failure in tls_failures
-                        ],
-                    )
-            else:
-                context_success = False
-
-        if not context_success:
-            overall_success = False
-            recoverable = sorted(
-                (failure_categories | encountered_categories) & {"tls", "config.ca_bundle"}
-            )
-            unrecoverable = sorted(
-                (failure_categories | encountered_categories)
-                - {"tls", "config.ca_bundle"}
-            )
-            context_logger.error(
-                "Context diagnostics failed",
-                attempts=[
-                    {"label": report.label, "success": report.success}
-                    for report in attempt_reports
-                ],
-                recoverable_categories=recoverable or None,
-                unrecoverable_categories=unrecoverable or None,
-            )
-        else:
-            recoverable = []
-            unrecoverable = []
-            if any(not report.success for report in attempt_reports):
-                context_logger.info(
-                    "Context diagnostics completed with recoveries",
-                    attempts=[
-                        {"label": report.label, "success": report.success}
-                        for report in attempt_reports
-                    ],
-                )
-            else:
-                context_logger.info(
-                    "Context diagnostics completed successfully",
-                    attempt="primary",
-                )
-
-        context_report["notes"] = list(attempt_notes)
-        context_report["success"] = context_success
-        context_report["fallback_attempted"] = fallback_attempted
-        context_report["fallback_success"] = fallback_success_value
-        context_report["encountered_categories"] = sorted(encountered_categories)
-        context_report["failure_categories"] = sorted(
-            category for category in failure_categories if category
-        )
-        context_report["recoverable_categories"] = recoverable
-        context_report["unrecoverable_categories"] = unrecoverable
-
-        attempt_summaries = [
-            {
-                "label": report.label,
-                "success": report.success,
-                "notes": report.notes,
-                "allow_insecure_tls": report.allow_insecure_tls,
-                "ca_bundle": report.ca_bundle,
-                "online_success": report.online_success,
-                "discovered_tools": report.discovered_tools,
-                "missing_tools": report.missing_tools,
-                "tools": report.tools,
-                "failures": [
-                    _summarize_failure(failure) for failure in report.failures
-                ],
-            }
-            for report in attempt_reports
-        ]
-        context_report["attempts"] = attempt_summaries
-
-        online_attempts: Dict[str, str] = {}
-        for attempt in attempt_summaries:
-            result = attempt.get("online_success")
-            if result is None:
-                continue
-            online_attempts[attempt["label"]] = "pass" if result else "fail"
-        if any(status == "pass" for status in online_attempts.values()):
-            online_status = "pass"
-        elif any(status == "fail" for status in online_attempts.values()):
-            online_status = "fail"
-        else:
-            online_status = "warning"
-        online_summary: Dict[str, Any] = {"status": online_status}
-        if online_attempts:
-            online_summary["attempts"] = online_attempts
-        context_report["online"] = online_summary
-
-        context_report["tools"] = _aggregate_tool_outcomes(
-            expected_tools,
-            attempt_summaries,
-            offline_mode=False,
-        )
-
-    summary_report["overall_success"] = overall_success
-    _render_healthcheck_summary(summary_report)
-
-    if not overall_success:
+    exit_code = result.exit_code()
+    if exit_code == 1:
         logger.critical("Health checks failed")
         raise typer.Exit(code=1)
+    if exit_code == 2:
+        logger.warning(
+            "Health checks completed with warnings",
+            contexts=list(result.contexts),
+            environment=environment_label,
+        )
+        raise typer.Exit(code=2)
 
     logger.info(
         "Health checks completed successfully",
-        contexts=contexts,
+        contexts=list(result.contexts),
         environment=environment_label,
     )
 
