@@ -4,9 +4,10 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import ssl
 import pytest
 from typer.testing import CliRunner
 
@@ -358,7 +359,7 @@ def test_healthcheck_defaults_to_online_checks(
         online_calls.append((runtime_settings.context, runtime_settings.skip_startup_checks))
         return True
 
-    def fake_diagnostics(*, context, logger, server_instance):
+    def fake_diagnostics(*, context, logger, server_instance, failures=None):
         diagnostic_calls.append(context)
         return True
 
@@ -505,7 +506,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance: True,
+        lambda *, context, logger, server_instance, failures=None: True,
     )
 
     result = runner.invoke(
@@ -594,7 +595,7 @@ def test_healthcheck_fails_when_context_tools_missing(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance: True,
+        lambda *, context, logger, server_instance, failures=None: True,
     )
 
     result = runner.invoke(
@@ -636,7 +637,7 @@ def test_healthcheck_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
 
-    def fake_diagnostics(*, context, logger, server_instance):
+    def fake_diagnostics(*, context, logger, server_instance, failures=None):
         return context != "risk_manager"
 
     monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
@@ -685,7 +686,7 @@ def test_healthcheck_production_flag_uses_production_base(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance: True,
+        lambda *, context, logger, server_instance, failures=None: True,
     )
 
     result = runner.invoke(
@@ -698,3 +699,135 @@ def test_healthcheck_production_flag_uses_production_base(
     assert result.exit_code == 0, result.stdout
     assert base_urls
     assert all(base_url == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL for base_url in base_urls)
+
+
+def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+
+    expected = {
+        context: set(server._EXPECTED_TOOLS_BY_CONTEXT[context])
+        for context in server._CONTEXT_CHOICES
+    }
+
+    prepare_calls: List[Tuple[str, bool]] = []
+
+    def fake_prepare(runtime, log, **kwargs):
+        prepare_calls.append((runtime.context, runtime.allow_insecure_tls))
+        names = list(expected[runtime.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    standard_attempts = {"count": 0}
+
+    def fake_diagnostics(*, context, logger, server_instance, failures=None):
+        if context == "standard":
+            standard_attempts["count"] += 1
+            if standard_attempts["count"] == 1:
+                if failures is not None:
+                    failures.append(
+                        server.DiagnosticFailure(
+                            tool="company_search",
+                            stage="call",
+                            message="ssl failure",
+                            exception=ssl.SSLError("self signed certificate"),
+                        )
+                    )
+                return False
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck"],
+        env={"BITSIGHT_API_KEY": "dummy"},
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert standard_attempts["count"] == 2
+    standard_flags = [flag for context, flag in prepare_calls if context == "standard"]
+    assert standard_flags.count(False) == 1
+    assert standard_flags.count(True) == 1
+
+
+def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+
+    runtime = replace(_runtime_settings(), ca_bundle_path="/nonexistent/ca.pem")
+    logging_settings = _logging_settings()
+
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(
+        server,
+        "_resolve_runtime_and_logging",
+        lambda invocation: (runtime, logging_settings, {}),
+    )
+
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime_settings, logging_settings, *, show_banner=False: logger,
+    )
+
+    prepare_invocations: List[Tuple[str, Optional[str], bool]] = []
+
+    def fake_prepare(runtime_settings, log, **kwargs):
+        prepare_invocations.append(
+            (
+                runtime_settings.context,
+                runtime_settings.ca_bundle_path,
+                runtime_settings.allow_insecure_tls,
+            )
+        )
+        names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime_settings.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+    monkeypatch.setattr(
+        server,
+        "_run_context_tool_diagnostics",
+        lambda *, context, logger, server_instance, failures=None: True,
+    )
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck"],
+        env={"BITSIGHT_API_KEY": "dummy"},
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert prepare_invocations
+    for _, ca_bundle_path, allow_insecure in prepare_invocations:
+        assert ca_bundle_path is None
+        assert allow_insecure is False
