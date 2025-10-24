@@ -344,7 +344,7 @@ def test_healthcheck_defaults_to_online_checks(
         prepared_contexts.append((runtime_settings.context, kwargs.get("v1_base_url")))
         names = list(expected_tools_by_context[runtime_settings.context])
 
-        async def get_tools():
+        def get_tools():
             return {name: object() for name in names}
 
         return SimpleNamespace(
@@ -406,7 +406,7 @@ def test_healthcheck_offline_flag_skips_network_checks(
         )
         names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime_settings.context])
 
-        async def get_tools():
+        def get_tools():
             return {name: object() for name in names}
 
         return SimpleNamespace(
@@ -481,7 +481,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     def fake_prepare(runtime, log, **kwargs):
         names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime.context])
 
-        async def get_tools():
+        def get_tools():
             return {name: object() for name in names}
 
         return SimpleNamespace(
@@ -565,7 +565,7 @@ def test_healthcheck_fails_when_context_tools_missing(
         if runtime.context == "risk_manager":
             names = [name for name in names if name != "request_company"]
 
-        async def get_tools():
+        def get_tools():
             return {name: object() for name in names}
 
         return SimpleNamespace(
@@ -607,7 +607,7 @@ def test_healthcheck_production_flag_uses_production_base(
         base_urls.append(kwargs.get("v1_base_url"))
         names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime.context])
 
-        async def get_tools():
+        def get_tools():
             return {name: object() for name in names}
 
         return SimpleNamespace(
