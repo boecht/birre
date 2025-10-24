@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import json
 import ssl
 import pytest
 from typer.testing import CliRunner
@@ -359,8 +360,19 @@ def test_healthcheck_defaults_to_online_checks(
         online_calls.append((runtime_settings.context, runtime_settings.skip_startup_checks))
         return True
 
-    def fake_diagnostics(*, context, logger, server_instance, failures=None):
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
         diagnostic_calls.append(context)
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
         return True
 
     with (
@@ -395,6 +407,72 @@ def test_healthcheck_defaults_to_online_checks(
         assert skip_flag is False
 
     assert sorted(diagnostic_calls) == sorted(server._CONTEXT_CHOICES)
+
+
+def test_healthcheck_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    logger = MagicMock(name="logger")
+    monkeypatch.setattr(
+        server,
+        "_initialize_logging",
+        lambda runtime, logging_settings, *, show_banner=False: logger,
+    )
+
+    def fake_prepare(runtime_settings, log, **kwargs):
+        names = list(server._EXPECTED_TOOLS_BY_CONTEXT[runtime_settings.context])
+
+        def get_tools():
+            return {name: object() for name in names}
+
+        return SimpleNamespace(
+            tools={name: object() for name in names},
+            get_tools=get_tools,
+            call_v1_tool=object(),
+        )
+
+    monkeypatch.setattr(server, "_prepare_server", fake_prepare)
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck"],
+        env={"BITSIGHT_API_KEY": "dummy"},
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "Healthcheck Summary" in result.stdout
+
+    lines = result.stdout.splitlines()
+    assert "Machine-readable summary:" in lines
+    index = lines.index("Machine-readable summary:")
+    json_payload = "\n".join(lines[index + 1 :]).strip()
+    summary = json.loads(json_payload)
+
+    assert summary["offline_check"]["status"] == "pass"
+    for context in server._CONTEXT_CHOICES:
+        context_entry = summary["contexts"].get(context)
+        assert context_entry is not None
+        assert context_entry["online"]["status"] == "pass"
+        assert context_entry["tools"], context_entry
 
 
 def test_healthcheck_offline_flag_skips_network_checks(
@@ -506,7 +584,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, failures=None: True,
+        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
     )
 
     result = runner.invoke(
@@ -595,7 +673,7 @@ def test_healthcheck_fails_when_context_tools_missing(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, failures=None: True,
+        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
     )
 
     result = runner.invoke(
@@ -637,7 +715,18 @@ def test_healthcheck_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(server, "_prepare_server", fake_prepare)
     monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
 
-    def fake_diagnostics(*, context, logger, server_instance, failures=None):
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
         return context != "risk_manager"
 
     monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
@@ -686,7 +775,7 @@ def test_healthcheck_production_flag_uses_production_base(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, failures=None: True,
+        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
     )
 
     result = runner.invoke(
@@ -736,7 +825,18 @@ def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) 
 
     standard_attempts = {"count": 0}
 
-    def fake_diagnostics(*, context, logger, server_instance, failures=None):
+    def fake_diagnostics(
+        *,
+        context,
+        logger,
+        server_instance,
+        expected_tools,
+        summary,
+        failures=None,
+    ):
+        if summary is not None:
+            for tool_name in expected_tools:
+                summary[tool_name] = {"status": "pass"}
         if context == "standard":
             standard_attempts["count"] += 1
             if standard_attempts["count"] == 1:
@@ -816,7 +916,7 @@ def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
     monkeypatch.setattr(
         server,
         "_run_context_tool_diagnostics",
-        lambda *, context, logger, server_instance, failures=None: True,
+        lambda *, context, logger, server_instance, expected_tools, summary, failures=None: True,
     )
 
     result = runner.invoke(
