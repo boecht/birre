@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import cProfile
+import errno
+import inspect
+import json
 import logging
 import os
 import shutil
+import ssl
 import sys
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -17,14 +21,17 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
+    Final,
     FrozenSet,
     Mapping,
     Optional,
     Sequence,
     Set,
     Tuple,
-    Final,
 )
+
+import httpx
+from uuid import uuid4
 
 import typer
 from rich.console import Console
@@ -40,7 +47,7 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 from src.apis.clients import DEFAULT_V1_API_BASE_URL
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
-from src.logging import configure_logging, get_logger
+from src.logging import BoundLogger, configure_logging, get_logger
 from src.settings import (
     BITSIGHT_API_KEY_KEY,
     BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
@@ -95,6 +102,11 @@ SOURCE_USER_INPUT: Final = "User Input"
 
 HEALTHCHECK_TESTING_V1_BASE_URL = "https://service.bitsighttech.com/customer-api/v1/"
 HEALTHCHECK_PRODUCTION_V1_BASE_URL = DEFAULT_V1_API_BASE_URL
+
+_HEALTHCHECK_COMPANY_NAME: Final = "GitHub"
+_HEALTHCHECK_COMPANY_DOMAIN: Final = "github.com"
+_HEALTHCHECK_COMPANY_GUID: Final = "6ca077e2-b5a7-42c2-ae1e-a974c3a91dc1"
+_HEALTHCHECK_REQUEST_DOMAIN: Final = "healthcheck-birre-example.com"
 
 _EXPECTED_TOOLS_BY_CONTEXT: Dict[str, FrozenSet[str]] = {
     "standard": frozenset({"company_search", "get_company_rating"}),
@@ -955,6 +967,1106 @@ def _discover_context_tools(server) -> Set[str]:
     return names
 
 
+class _HealthcheckContext:
+    def __init__(self, *, context: str, tool_name: str, logger: BoundLogger):
+        self._context = context
+        self._tool_name = tool_name
+        self._logger = logger
+        self._request_id = f"healthcheck-{context}-{tool_name}-{uuid4().hex}"
+        self.metadata: Dict[str, Any] = {"healthcheck": True, "context": context, "tool": tool_name}
+        self.tool = tool_name
+
+    async def info(self, message: str) -> None:
+        self._logger.info(
+            "healthcheck.ctx.info",
+            message=message,
+            request_id=self._request_id,
+            tool=self._tool_name,
+        )
+
+    async def warning(self, message: str) -> None:
+        self._logger.warning(
+            "healthcheck.ctx.warning",
+            message=message,
+            request_id=self._request_id,
+            tool=self._tool_name,
+        )
+
+    async def error(self, message: str) -> None:
+        self._logger.error(
+            "healthcheck.ctx.error",
+            message=message,
+            request_id=self._request_id,
+            tool=self._tool_name,
+        )
+
+    @property
+    def request_id(self) -> str:
+        return self._request_id
+
+    @property
+    def call_id(self) -> str:
+        return self._request_id
+
+
+@dataclass
+class DiagnosticFailure:
+    tool: str
+    stage: str
+    message: str
+    mode: Optional[str] = None
+    exception: Optional[BaseException] = None
+    category: Optional[str] = None
+
+
+@dataclass
+class AttemptReport:
+    label: str
+    success: bool
+    failures: list[DiagnosticFailure]
+    notes: list[str]
+    allow_insecure_tls: bool
+    ca_bundle: Optional[str]
+    online_success: Optional[bool]
+    discovered_tools: list[str]
+    missing_tools: list[str]
+    tools: Dict[str, Dict[str, Any]]
+
+
+def _record_failure(
+    failures: Optional[list[DiagnosticFailure]],
+    *,
+    tool: str,
+    stage: str,
+    message: str,
+    mode: Optional[str] = None,
+    exception: Optional[BaseException] = None,
+) -> None:
+    if failures is None:
+        return
+    failures.append(
+        DiagnosticFailure(
+            tool=tool,
+            stage=stage,
+            message=message,
+            mode=mode,
+            exception=exception,
+        )
+    )
+
+
+def _is_tls_exception(exc: BaseException) -> bool:
+    if isinstance(exc, ssl.SSLError):
+        return True
+    if isinstance(exc, httpx.HTTPError):
+        cause = exc.__cause__
+        if isinstance(cause, ssl.SSLError):
+            return True
+        message = str(exc).lower()
+        if any(token in message for token in ("ssl", "tls", "certificate")):
+            return True
+    message = str(exc).lower()
+    if any(token in message for token in ("ssl", "tls", "certificate verify failed")):
+        return True
+    return False
+
+
+def _is_missing_ca_bundle_exception(exc: BaseException) -> bool:
+    if isinstance(exc, FileNotFoundError):
+        return True
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) == errno.ENOENT:
+        return True
+    message = str(exc).lower()
+    if "could not find a suitable tls ca certificate bundle" in message:
+        return True
+    if "no such file or directory" in message and "ca" in message:
+        return True
+    return False
+
+
+def _classify_failure(failure: DiagnosticFailure) -> Optional[str]:
+    if failure.exception is None:
+        message = failure.message.lower()
+        if any(token in message for token in ("ssl", "tls", "certificate")):
+            failure.category = "tls"
+        return failure.category
+    if _is_tls_exception(failure.exception):
+        failure.category = "tls"
+    elif _is_missing_ca_bundle_exception(failure.exception):
+        failure.category = "config.ca_bundle"
+    return failure.category
+
+
+def _summarize_failure(failure: DiagnosticFailure) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {
+        "tool": failure.tool,
+        "stage": failure.stage,
+    }
+    if failure.mode:
+        summary["mode"] = failure.mode
+    if failure.category:
+        summary["category"] = failure.category
+    if failure.exception is not None:
+        summary["error"] = str(failure.exception)
+    else:
+        summary["message"] = failure.message
+    return summary
+
+
+def _aggregate_tool_outcomes(
+    expected_tools: FrozenSet[str],
+    attempts: Sequence[Dict[str, Any]],
+    *,
+    offline_mode: bool = False,
+    offline_missing: Optional[Sequence[str]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    aggregated: Dict[str, Dict[str, Any]] = {}
+    if offline_mode:
+        missing_set = set(offline_missing or ())
+        for tool_name in sorted(expected_tools):
+            if tool_name in missing_set:
+                aggregated[tool_name] = {
+                    "status": "fail",
+                    "details": {"reason": "tool not registered"},
+                }
+            else:
+                aggregated[tool_name] = {
+                    "status": "warning",
+                    "details": {"reason": "offline mode"},
+                }
+        return aggregated
+
+    for tool_name in sorted(expected_tools):
+        attempt_details: Dict[str, Dict[str, Any]] = {}
+        statuses: list[str] = []
+        for attempt in attempts:
+            tool_entry = attempt.get("tools", {}).get(tool_name)
+            if tool_entry is None:
+                continue
+            attempt_details[attempt["label"]] = tool_entry
+            status = tool_entry.get("status")
+            if isinstance(status, str):
+                statuses.append(status)
+        if not statuses:
+            aggregated[tool_name] = {
+                "status": "warning",
+                "attempts": attempt_details or None,
+            }
+            continue
+        if any(status == "pass" for status in statuses):
+            final_status = "pass"
+        elif any(status == "fail" for status in statuses):
+            final_status = "fail"
+        else:
+            final_status = statuses[0]
+        entry: Dict[str, Any] = {"status": final_status}
+        if attempt_details:
+            entry["attempts"] = attempt_details
+        aggregated[tool_name] = entry
+    return aggregated
+
+
+def _render_healthcheck_summary(report: Dict[str, Any]) -> None:
+    def status_label(value: Optional[str]) -> str:
+        mapping = {"pass": "PASS", "fail": "FAIL", "warning": "WARNING"}
+        if not value:
+            return "WARNING"
+        return mapping.get(value.lower(), value.upper())
+
+    def stringify_detail(value: Any) -> str:
+        if value is None:
+            return "-"
+        if isinstance(value, str):
+            return value
+        if isinstance(value, Mapping):
+            items = [f"{key}={value[key]}" for key in sorted(value)]
+            return ", ".join(items) if items else "-"
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            items = [stringify_detail(item) for item in value]
+            return ", ".join(item for item in items if item and item != "-") or "-"
+        return str(value)
+
+    def format_context_detail(context_data: Mapping[str, Any]) -> str:
+        parts: list[str] = []
+        if context_data.get("fallback_attempted"):
+            resolved = context_data.get("fallback_success")
+            parts.append(
+                "fallback=" + ("resolved" if resolved else "failed")
+            )
+        recoverable = context_data.get("recoverable_categories") or []
+        if recoverable:
+            parts.append("recoverable=" + ",".join(sorted(recoverable)))
+        unrecoverable = context_data.get("unrecoverable_categories") or []
+        if unrecoverable:
+            parts.append("unrecoverable=" + ",".join(sorted(unrecoverable)))
+        notes = context_data.get("notes") or []
+        if notes:
+            parts.append("notes=" + ",".join(notes))
+        return "; ".join(parts) if parts else "-"
+
+    def format_online_detail(online_data: Mapping[str, Any]) -> str:
+        attempts = online_data.get("attempts") if isinstance(online_data, Mapping) else None
+        if isinstance(attempts, Mapping) and attempts:
+            attempt_parts = [
+                f"{label}:{status_label(status)}"
+                for label, status in sorted(attempts.items())
+            ]
+            return ", ".join(attempt_parts)
+        details = online_data.get("details") if isinstance(online_data, Mapping) else None
+        return stringify_detail(details)
+
+    def format_tool_detail(tool_summary: Mapping[str, Any]) -> str:
+        parts: list[str] = []
+        attempts = tool_summary.get("attempts")
+        if isinstance(attempts, Mapping) and attempts:
+            attempt_parts = []
+            for label, entry in sorted(attempts.items()):
+                attempt_status = status_label(entry.get("status"))
+                attempt_parts.append(f"{label}:{attempt_status}")
+                modes = entry.get("modes")
+                if isinstance(modes, Mapping) and modes:
+                    mode_parts = [
+                        f"{mode}:{status_label(mode_entry.get('status'))}"
+                        for mode, mode_entry in sorted(modes.items())
+                    ]
+                    if mode_parts:
+                        parts.append(f"{label} modes=" + ", ".join(mode_parts))
+                detail = entry.get("details")
+                if detail:
+                    parts.append(f"{label} detail=" + stringify_detail(detail))
+            if attempt_parts:
+                parts.insert(0, "attempts=" + ", ".join(attempt_parts))
+        details = tool_summary.get("details")
+        if details:
+            parts.append(stringify_detail(details))
+        return "; ".join(parts) if parts else "-"
+
+    table = Table(title="Healthcheck Summary", box=box.SIMPLE_HEAVY)
+    table.add_column("Check", style="bold cyan")
+    table.add_column("Context", style="magenta")
+    table.add_column("Tool", style="green")
+    table.add_column("Status", style="bold")
+    table.add_column("Details", style="white")
+
+    offline_entry = report.get("offline_check", {})
+    offline_status = status_label(offline_entry.get("status"))
+    offline_detail = stringify_detail(offline_entry.get("details"))
+    table.add_row("Offline checks", "-", "-", offline_status, offline_detail)
+
+    critical_failures: list[str] = []
+    for context_name, context_data in sorted(report.get("contexts", {}).items()):
+        context_success = context_data.get("success")
+        offline_mode = context_data.get("offline_mode")
+        if offline_mode and context_success:
+            context_status = "warning"
+        elif context_success:
+            context_status = "pass"
+        else:
+            context_status = "fail"
+        context_detail = format_context_detail(context_data)
+        context_status_label = status_label(context_status)
+        table.add_row("Context", context_name, "-", context_status_label, context_detail)
+
+        online_summary = context_data.get("online", {})
+        online_status_label = status_label(online_summary.get("status"))
+        online_detail = format_online_detail(online_summary)
+        table.add_row("Online", context_name, "-", online_status_label, online_detail or "-")
+
+        tools = context_data.get("tools", {})
+        for tool_name, tool_summary in sorted(tools.items()):
+            tool_status_label = status_label(tool_summary.get("status"))
+            detail_text = format_tool_detail(tool_summary)
+            table.add_row("Tool", context_name, tool_name, tool_status_label, detail_text)
+
+        if context_status_label == "FAIL":
+            critical_failures.append(f"{context_name}: context failure")
+        unrecoverable = context_data.get("unrecoverable_categories") or []
+        if unrecoverable:
+            critical_failures.append(
+                f"{context_name}: unrecoverable={','.join(sorted(unrecoverable))}"
+            )
+
+    if critical_failures:
+        table.add_row(
+            "Critical failures",
+            "-",
+            "-",
+            "FAIL",
+            "; ".join(critical_failures),
+        )
+
+    stdout_console.print()
+    stdout_console.print(table)
+    stdout_console.print()
+    stdout_console.print("Machine-readable summary:")
+    stdout_console.print(json.dumps(report, indent=2, sort_keys=True))
+def _format_exception_message(exc: BaseException) -> str:
+    return str(exc)
+
+
+def _collect_tool_map(server_instance: Any) -> Dict[str, Any]:
+    tools: Dict[str, Any] = {}
+
+    tools_attr = getattr(server_instance, "tools", None)
+    if isinstance(tools_attr, dict):
+        tools.update({str(name): tool for name, tool in tools_attr.items() if isinstance(name, str)})
+
+    get_tools = getattr(server_instance, "get_tools", None)
+    if callable(get_tools):
+        try:
+            result = get_tools()
+        except TypeError:  # pragma: no cover - defensive
+            result = None
+        if asyncio.iscoroutine(result):
+            resolved = _await_sync(result)
+        else:
+            resolved = result
+        if isinstance(resolved, dict):
+            tools.update({str(name): tool for name, tool in resolved.items() if isinstance(name, str)})
+
+    return tools
+
+
+def _resolve_tool_callable(tool: Any) -> Optional[Callable[..., Any]]:
+    if tool is None:
+        return None
+    if hasattr(tool, "fn") and callable(getattr(tool, "fn")):
+        return getattr(tool, "fn")
+    if callable(tool):
+        return tool
+    return None
+
+
+def _invoke_tool(tool: Any, ctx: _HealthcheckContext, **params: Any) -> Any:
+    callable_fn = _resolve_tool_callable(tool)
+    if callable_fn is None:
+        raise TypeError(f"Tool object {tool!r} is not callable")
+
+    result = callable_fn(ctx, **params)
+    if inspect.isawaitable(result):
+        return _await_sync(result)
+    return result
+
+
+def _validate_company_search_payload(
+    payload: Any,
+    *,
+    logger: BoundLogger,
+    expected_domain: Optional[str] = None,
+) -> bool:
+    if not isinstance(payload, dict):
+        logger.critical("healthcheck.company_search.invalid_response", reason="not a dict")
+        return False
+
+    if payload.get("error"):
+        logger.critical("healthcheck.company_search.api_error", error=str(payload["error"]))
+        return False
+
+    companies = payload.get("companies")
+    if not isinstance(companies, list) or not companies:
+        logger.critical("healthcheck.company_search.empty", reason="no companies returned")
+        return False
+
+    matched_domain = False
+    for entry in companies:
+        if not isinstance(entry, dict):
+            logger.critical("healthcheck.company_search.invalid_company", reason="entry not dict")
+            return False
+        if not entry.get("guid") or not entry.get("name"):
+            logger.critical("healthcheck.company_search.invalid_company", reason="missing guid/name", company=entry)
+            return False
+        domain_value = str(entry.get("domain") or "")
+        if expected_domain and domain_value.lower() == expected_domain.lower():
+            matched_domain = True
+
+    count_value = payload.get("count")
+    if not isinstance(count_value, int) or count_value <= 0:
+        logger.critical("healthcheck.company_search.invalid_count", count=count_value)
+        return False
+
+    if expected_domain and not matched_domain:
+        logger.critical(
+            "healthcheck.company_search.domain_missing",
+            expected=expected_domain,
+        )
+        return False
+
+    return True
+
+
+def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
+    if not isinstance(payload, dict):
+        logger.critical("healthcheck.rating.invalid_response", reason="not a dict")
+        return False
+
+    if payload.get("error"):
+        logger.critical("healthcheck.rating.api_error", error=str(payload["error"]))
+        return False
+
+    required_fields = ("name", "domain", "current_rating", "top_findings", "legend")
+    for field in required_fields:
+        if payload.get(field) in (None, {}):
+            logger.critical("healthcheck.rating.missing_field", field=field)
+            return False
+
+    current_rating = payload.get("current_rating")
+    if not isinstance(current_rating, dict) or current_rating.get("value") is None:
+        logger.critical("healthcheck.rating.invalid_current_rating", payload=current_rating)
+        return False
+
+    findings = payload.get("top_findings")
+    if not isinstance(findings, dict):
+        logger.critical("healthcheck.rating.invalid_findings", payload=findings)
+        return False
+
+    finding_count = findings.get("count")
+    finding_entries = findings.get("findings")
+    if not isinstance(finding_count, int) or finding_count <= 0:
+        logger.critical("healthcheck.rating.no_findings", count=finding_count)
+        return False
+    if not isinstance(finding_entries, list) or not finding_entries:
+        logger.critical("healthcheck.rating.empty_findings", payload=findings)
+        return False
+
+    legend = payload.get("legend")
+    if not isinstance(legend, dict) or not legend.get("rating"):
+        logger.critical("healthcheck.rating.missing_legend", payload=legend)
+        return False
+
+    return True
+
+
+def _validate_company_search_interactive_payload(payload: Any, *, logger: BoundLogger) -> bool:
+    if not isinstance(payload, dict):
+        logger.critical("healthcheck.company_search_interactive.invalid_response", reason="not a dict")
+        return False
+
+    if payload.get("error"):
+        logger.critical(
+            "healthcheck.company_search_interactive.api_error",
+            error=str(payload["error"]),
+        )
+        return False
+
+    results = payload.get("results")
+    if not isinstance(results, list) or not results:
+        logger.critical(
+            "healthcheck.company_search_interactive.empty_results",
+            reason="no interactive results",
+        )
+        return False
+
+    for entry in results:
+        if not isinstance(entry, dict):
+            logger.critical(
+                "healthcheck.company_search_interactive.invalid_entry",
+                reason="entry not dict",
+            )
+            return False
+        required_keys = ("guid", "name", "primary_domain", "subscription")
+        if any(not entry.get(key) for key in required_keys):
+            logger.critical(
+                "healthcheck.company_search_interactive.missing_fields",
+                entry=entry,
+            )
+            return False
+        subscription = entry.get("subscription")
+        if not isinstance(subscription, dict) or "active" not in subscription:
+            logger.critical(
+                "healthcheck.company_search_interactive.invalid_subscription",
+                subscription=subscription,
+            )
+            return False
+
+    count_value = payload.get("count")
+    if not isinstance(count_value, int) or count_value <= 0:
+        logger.critical(
+            "healthcheck.company_search_interactive.invalid_count",
+            count=count_value,
+        )
+        return False
+
+    guidance = payload.get("guidance")
+    if not isinstance(guidance, dict):
+        logger.critical("healthcheck.company_search_interactive.missing_guidance")
+        return False
+
+    return True
+
+
+def _validate_manage_subscriptions_payload(payload: Any, *, logger: BoundLogger, expected_guid: str) -> bool:
+    if not isinstance(payload, dict):
+        logger.critical("healthcheck.manage_subscriptions.invalid_response", reason="not a dict")
+        return False
+
+    if payload.get("error"):
+        logger.critical("healthcheck.manage_subscriptions.api_error", error=str(payload["error"]))
+        return False
+
+    status = payload.get("status")
+    if status not in {"dry_run", "applied"}:
+        logger.critical("healthcheck.manage_subscriptions.unexpected_status", status=status)
+        return False
+
+    guids = payload.get("guids")
+    if not isinstance(guids, list) or expected_guid not in guids:
+        logger.critical(
+            "healthcheck.manage_subscriptions.guid_missing",
+            guids=guids,
+            expected=expected_guid,
+        )
+        return False
+
+    if status == "dry_run":
+        dry_payload = payload.get("payload")
+        if not isinstance(dry_payload, dict) or "add" not in dry_payload:
+            logger.critical(
+                "healthcheck.manage_subscriptions.invalid_payload",
+                payload=dry_payload,
+            )
+            return False
+
+    return True
+
+
+def _validate_request_company_payload(payload: Any, *, logger: BoundLogger, expected_domain: str) -> bool:
+    if not isinstance(payload, dict):
+        logger.critical("healthcheck.request_company.invalid_response", reason="not a dict")
+        return False
+
+    if payload.get("error"):
+        logger.critical("healthcheck.request_company.api_error", error=str(payload["error"]))
+        return False
+
+    status = payload.get("status")
+    if status not in {"dry_run", "already_requested"}:
+        logger.critical("healthcheck.request_company.unexpected_status", status=status)
+        return False
+
+    domain_value = payload.get("domain")
+    if not isinstance(domain_value, str) or domain_value.lower() != expected_domain.lower():
+        logger.critical(
+            "healthcheck.request_company.domain_mismatch",
+            domain=domain_value,
+            expected=expected_domain,
+        )
+        return False
+
+    if status == "dry_run":
+        dry_payload = payload.get("payload")
+        if not isinstance(dry_payload, dict) or "file" not in dry_payload:
+            logger.critical("healthcheck.request_company.invalid_payload", payload=dry_payload)
+            return False
+    else:
+        requests = payload.get("requests")
+        if not isinstance(requests, list):
+            logger.critical(
+                "healthcheck.request_company.invalid_requests",
+                requests=requests,
+            )
+            return False
+
+    return True
+
+
+def _run_company_search_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    tool: Any,
+    failures: Optional[list[DiagnosticFailure]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    tool_logger = logger.bind(tool="company_search")
+    ctx = _HealthcheckContext(context=context, tool_name="company_search", logger=tool_logger)
+    if summary is not None:
+        summary.clear()
+        summary["status"] = "pass"
+        summary["modes"] = {}
+    try:
+        by_name = _invoke_tool(tool, ctx, name=_HEALTHCHECK_COMPANY_NAME)
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.company_search.call_failed", error=str(exc))
+        _record_failure(
+            failures,
+            tool="company_search",
+            stage="call",
+            mode="name",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "mode": "name",
+                "error": str(exc),
+            }
+            summary.setdefault("modes", {})["name"] = {
+                "status": "fail",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_company_search_payload(by_name, logger=tool_logger):
+        _record_failure(
+            failures,
+            tool="company_search",
+            stage="validation",
+            mode="name",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "unexpected payload structure",
+                "mode": "name",
+            }
+            summary.setdefault("modes", {})["name"] = {
+                "status": "fail",
+                "detail": "unexpected payload structure",
+            }
+        return False
+
+    if summary is not None:
+        summary.setdefault("modes", {})["name"] = {"status": "pass"}
+
+    try:
+        by_domain = _invoke_tool(tool, ctx, domain=_HEALTHCHECK_COMPANY_DOMAIN)
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.company_search.call_failed", mode="domain", error=str(exc))
+        _record_failure(
+            failures,
+            tool="company_search",
+            stage="call",
+            mode="domain",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "mode": "domain",
+                "error": str(exc),
+            }
+            summary.setdefault("modes", {})["domain"] = {
+                "status": "fail",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_company_search_payload(
+        by_domain,
+        logger=tool_logger,
+        expected_domain=_HEALTHCHECK_COMPANY_DOMAIN,
+    ):
+        _record_failure(
+            failures,
+            tool="company_search",
+            stage="validation",
+            mode="domain",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "unexpected payload structure",
+                "mode": "domain",
+            }
+            summary.setdefault("modes", {})["domain"] = {
+                "status": "fail",
+                "detail": "unexpected payload structure",
+            }
+        return False
+
+    if summary is not None:
+        summary.setdefault("modes", {})["domain"] = {"status": "pass"}
+
+    tool_logger.info("healthcheck.company_search.success")
+    return True
+
+
+def _run_rating_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    tool: Any,
+    failures: Optional[list[DiagnosticFailure]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    tool_logger = logger.bind(tool="get_company_rating")
+    ctx = _HealthcheckContext(context=context, tool_name="get_company_rating", logger=tool_logger)
+    if summary is not None:
+        summary.clear()
+        summary["status"] = "pass"
+    try:
+        payload = _invoke_tool(tool, ctx, guid=_HEALTHCHECK_COMPANY_GUID)
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.rating.call_failed", error=str(exc))
+        _record_failure(
+            failures,
+            tool="get_company_rating",
+            stage="call",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_rating_payload(payload, logger=tool_logger):
+        _record_failure(
+            failures,
+            tool="get_company_rating",
+            stage="validation",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {"reason": "unexpected payload structure"}
+        return False
+
+    domain_value = payload.get("domain")
+    if isinstance(domain_value, str) and domain_value.lower() != _HEALTHCHECK_COMPANY_DOMAIN:
+        tool_logger.critical(
+            "healthcheck.rating.domain_mismatch",
+            domain=domain_value,
+            expected=_HEALTHCHECK_COMPANY_DOMAIN,
+        )
+        _record_failure(
+            failures,
+            tool="get_company_rating",
+            stage="validation",
+            message="domain mismatch",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "domain mismatch",
+                "domain": domain_value,
+            }
+        return False
+
+    tool_logger.info("healthcheck.rating.success")
+    return True
+
+
+def _run_company_search_interactive_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    tool: Any,
+    failures: Optional[list[DiagnosticFailure]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    tool_logger = logger.bind(tool="company_search_interactive")
+    ctx = _HealthcheckContext(
+        context=context,
+        tool_name="company_search_interactive",
+        logger=tool_logger,
+    )
+    if summary is not None:
+        summary.clear()
+        summary["status"] = "pass"
+    try:
+        payload = _invoke_tool(tool, ctx, name=_HEALTHCHECK_COMPANY_NAME)
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.company_search_interactive.call_failed", error=str(exc))
+        _record_failure(
+            failures,
+            tool="company_search_interactive",
+            stage="call",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_company_search_interactive_payload(payload, logger=tool_logger):
+        _record_failure(
+            failures,
+            tool="company_search_interactive",
+            stage="validation",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {"reason": "unexpected payload structure"}
+        return False
+
+    tool_logger.info("healthcheck.company_search_interactive.success")
+    return True
+
+
+def _run_manage_subscriptions_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    tool: Any,
+    failures: Optional[list[DiagnosticFailure]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    tool_logger = logger.bind(tool="manage_subscriptions")
+    ctx = _HealthcheckContext(context=context, tool_name="manage_subscriptions", logger=tool_logger)
+    if summary is not None:
+        summary.clear()
+        summary["status"] = "pass"
+    try:
+        payload = _invoke_tool(
+            tool,
+            ctx,
+            action="add",
+            guids=[_HEALTHCHECK_COMPANY_GUID],
+            dry_run=True,
+        )
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.manage_subscriptions.call_failed", error=str(exc))
+        _record_failure(
+            failures,
+            tool="manage_subscriptions",
+            stage="call",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_manage_subscriptions_payload(
+        payload,
+        logger=tool_logger,
+        expected_guid=_HEALTHCHECK_COMPANY_GUID,
+    ):
+        _record_failure(
+            failures,
+            tool="manage_subscriptions",
+            stage="validation",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {"reason": "unexpected payload structure"}
+        return False
+
+    tool_logger.info("healthcheck.manage_subscriptions.success")
+    return True
+
+
+def _run_request_company_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    tool: Any,
+    failures: Optional[list[DiagnosticFailure]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    tool_logger = logger.bind(tool="request_company")
+    ctx = _HealthcheckContext(context=context, tool_name="request_company", logger=tool_logger)
+    if summary is not None:
+        summary.clear()
+        summary["status"] = "pass"
+    try:
+        payload = _invoke_tool(
+            tool,
+            ctx,
+            domain=_HEALTHCHECK_REQUEST_DOMAIN,
+            dry_run=True,
+        )
+    except Exception as exc:  # pragma: no cover - network failures
+        tool_logger.critical("healthcheck.request_company.call_failed", error=str(exc))
+        _record_failure(
+            failures,
+            tool="request_company",
+            stage="call",
+            message="tool invocation failed",
+            exception=exc,
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {
+                "reason": "tool invocation failed",
+                "error": str(exc),
+            }
+        return False
+
+    if not _validate_request_company_payload(
+        payload,
+        logger=tool_logger,
+        expected_domain=_HEALTHCHECK_REQUEST_DOMAIN,
+    ):
+        _record_failure(
+            failures,
+            tool="request_company",
+            stage="validation",
+            message="unexpected payload structure",
+        )
+        if summary is not None:
+            summary["status"] = "fail"
+            summary["details"] = {"reason": "unexpected payload structure"}
+        return False
+
+    tool_logger.info("healthcheck.request_company.success")
+    return True
+
+
+def _run_context_tool_diagnostics(
+    *,
+    context: str,
+    logger: BoundLogger,
+    server_instance: Any,
+    expected_tools: FrozenSet[str],
+    summary: Optional[Dict[str, Dict[str, Any]]] = None,
+    failures: Optional[list[DiagnosticFailure]] = None,
+) -> bool:
+    tools = _collect_tool_map(server_instance)
+    success = True
+
+    if summary is not None:
+        for tool_name in expected_tools:
+            summary.setdefault(
+                tool_name,
+                {
+                    "status": "warning",
+                    "details": {"reason": "not evaluated"},
+                },
+            )
+
+    def _summary_entry(name: str) -> Optional[Dict[str, Any]]:
+        if summary is None:
+            return None
+        return summary.setdefault(name, {})
+
+    company_search_tool = tools.get("company_search")
+    company_summary = _summary_entry("company_search")
+    if company_search_tool is None:
+        logger.critical("healthcheck.tool_missing", tool="company_search")
+        _record_failure(
+            failures,
+            tool="company_search",
+            stage="discovery",
+            message="expected tool not registered",
+        )
+        if company_summary is not None:
+            company_summary.clear()
+            company_summary["status"] = "fail"
+            company_summary["details"] = {"reason": "tool not registered"}
+        success = False
+    else:
+        if company_summary is not None:
+            company_summary.clear()
+        if not _run_company_search_diagnostics(
+            context=context,
+            logger=logger,
+            tool=company_search_tool,
+            failures=failures,
+            summary=company_summary,
+        ):
+            success = False
+
+    rating_tool = tools.get("get_company_rating")
+    rating_summary = _summary_entry("get_company_rating")
+    if rating_tool is None:
+        logger.critical("healthcheck.tool_missing", tool="get_company_rating")
+        _record_failure(
+            failures,
+            tool="get_company_rating",
+            stage="discovery",
+            message="expected tool not registered",
+        )
+        if rating_summary is not None:
+            rating_summary.clear()
+            rating_summary["status"] = "fail"
+            rating_summary["details"] = {"reason": "tool not registered"}
+        success = False
+    else:
+        if rating_summary is not None:
+            rating_summary.clear()
+        if not _run_rating_diagnostics(
+            context=context,
+            logger=logger,
+            tool=rating_tool,
+            failures=failures,
+            summary=rating_summary,
+        ):
+            success = False
+
+    interactive_tool = tools.get("company_search_interactive")
+    if interactive_tool is not None:
+        interactive_summary = _summary_entry("company_search_interactive")
+        if interactive_summary is not None:
+            interactive_summary.clear()
+        if not _run_company_search_interactive_diagnostics(
+            context=context,
+            logger=logger,
+            tool=interactive_tool,
+            failures=failures,
+            summary=interactive_summary,
+        ):
+            success = False
+    else:
+        interactive_summary = _summary_entry("company_search_interactive")
+        if interactive_summary is not None:
+            interactive_summary.clear()
+            interactive_summary["status"] = "warning"
+            interactive_summary["details"] = {"reason": "tool not registered"}
+
+    manage_tool = tools.get("manage_subscriptions")
+    if manage_tool is not None:
+        manage_summary = _summary_entry("manage_subscriptions")
+        if manage_summary is not None:
+            manage_summary.clear()
+        if not _run_manage_subscriptions_diagnostics(
+            context=context,
+            logger=logger,
+            tool=manage_tool,
+            failures=failures,
+            summary=manage_summary,
+        ):
+            success = False
+    else:
+        manage_summary = _summary_entry("manage_subscriptions")
+        if manage_summary is not None:
+            manage_summary.clear()
+            manage_summary["status"] = "warning"
+            manage_summary["details"] = {"reason": "tool not registered"}
+
+    request_tool = tools.get("request_company")
+    if request_tool is not None:
+        request_summary = _summary_entry("request_company")
+        if request_summary is not None:
+            request_summary.clear()
+        if not _run_request_company_diagnostics(
+            context=context,
+            logger=logger,
+            tool=request_tool,
+            failures=failures,
+            summary=request_summary,
+        ):
+            success = False
+    else:
+        request_summary = _summary_entry("request_company")
+        if request_summary is not None:
+            request_summary.clear()
+            request_summary["status"] = "warning"
+            request_summary["details"] = {"reason": "tool not registered"}
+
+    return success
+
+
 def _prepare_server(runtime_settings, logger, **create_kwargs):
     logger.info("Preparing BiRRe FastMCP server")
     return create_birre_server(
@@ -1094,48 +2206,388 @@ def healthcheck(
     if offline:
         logger.info("Offline mode enabled; skipping online diagnostics")
 
-    if not _run_offline_checks(runtime_settings, logger):
+    offline_ok = _run_offline_checks(runtime_settings, logger)
+
+    summary_report: Dict[str, Any] = {
+        "environment": environment_label,
+        "offline_check": {"status": "pass" if offline_ok else "fail"},
+        "contexts": {},
+        "overall_success": None,
+    }
+
+    if not offline_ok:
+        summary_report["overall_success"] = False
+        _render_healthcheck_summary(summary_report)
         raise typer.Exit(code=1)
 
     contexts = sorted(_CONTEXT_CHOICES)
     overall_success = True
+    context_reports: Dict[str, Dict[str, Any]] = summary_report["contexts"]
 
     for context_name in contexts:
         context_logger = logger.bind(context=context_name)
-        context_settings = replace(runtime_settings, context=context_name)
-
         context_logger.info("Preparing context diagnostics")
-        server_instance = _prepare_server(
-            context_settings,
-            context_logger,
-            v1_base_url=target_base_url,
-        )
 
         expected_tools = _EXPECTED_TOOLS_BY_CONTEXT.get(context_name)
+        context_report: Dict[str, Any] = {
+            "offline_mode": bool(offline),
+            "attempts": [],
+            "encountered_categories": [],
+            "fallback_attempted": False,
+            "fallback_success": None,
+            "failure_categories": [],
+            "recoverable_categories": [],
+            "unrecoverable_categories": [],
+            "notes": [],
+        }
+        context_reports[context_name] = context_report
+
         if expected_tools is None:
             context_logger.critical("No expected tool inventory defined for context")
+            context_report["success"] = False
+            context_report["online"] = {
+                "status": "fail",
+                "details": {"reason": "missing expected tool inventory"},
+            }
+            context_report["tools"] = {}
             overall_success = False
-        else:
+            continue
+
+        context_settings = replace(runtime_settings, context=context_name)
+        effective_settings = context_settings
+        attempt_notes: list[str] = []
+
+        ca_bundle_path = effective_settings.ca_bundle_path
+        if ca_bundle_path:
+            resolved_ca_path = Path(str(ca_bundle_path)).expanduser()
+            if not resolved_ca_path.exists():
+                context_logger.warning(
+                    "Configured CA bundle missing; falling back to system defaults",
+                    ca_bundle=str(resolved_ca_path),
+                )
+                effective_settings = replace(effective_settings, ca_bundle_path=None)
+                attempt_notes.append("ca-bundle-defaulted")
+
+        context_report["notes"] = list(attempt_notes)
+
+        if offline:
+            server_instance = _prepare_server(
+                effective_settings,
+                context_logger,
+                v1_base_url=target_base_url,
+            )
             discovered_tools = _discover_context_tools(server_instance)
             missing_tools = sorted(expected_tools - discovered_tools)
+            context_report["discovery"] = {
+                "discovered": sorted(discovered_tools),
+                "missing": missing_tools,
+            }
+            context_report["tools"] = _aggregate_tool_outcomes(
+                expected_tools,
+                [],
+                offline_mode=True,
+                offline_missing=missing_tools,
+            )
             if missing_tools:
                 context_logger.critical(
                     "Tool discovery failed",
                     missing_tools=missing_tools,
                     discovered=sorted(discovered_tools),
+                    attempt="offline",
                 )
                 overall_success = False
+                context_report["success"] = False
             else:
                 context_logger.info(
                     "Tool discovery succeeded",
                     tools=sorted(discovered_tools),
+                    attempt="offline",
+                )
+                context_report["success"] = True
+            context_logger.info("Online checks skipped", reason="offline flag")
+            context_report["online"] = {
+                "status": "warning",
+                "details": {"reason": "offline mode"},
+            }
+            context_report["encountered_categories"] = []
+            context_report["failure_categories"] = []
+            context_report["recoverable_categories"] = []
+            context_report["unrecoverable_categories"] = []
+            continue
+
+        attempt_reports: list[AttemptReport] = []
+        encountered_categories: set[str] = set()
+        fallback_attempted = False
+        fallback_success_value: Optional[bool] = None
+
+        def run_attempt(
+            settings,
+            *,
+            label: str,
+            notes: Optional[Sequence[str]] = None,
+        ) -> AttemptReport:
+            context_logger.info(
+                "Starting diagnostics attempt",
+                attempt=label,
+                allow_insecure_tls=settings.allow_insecure_tls,
+                ca_bundle=settings.ca_bundle_path,
+                notes=list(notes or ()),
+            )
+
+            server_instance = _prepare_server(
+                settings,
+                context_logger,
+                v1_base_url=target_base_url,
+            )
+
+            discovered_tools = _discover_context_tools(server_instance)
+            missing_tools = sorted(expected_tools - discovered_tools)
+            failure_records: list[DiagnosticFailure] = []
+            attempt_success = True
+            tool_report: Dict[str, Dict[str, Any]] = {}
+            online_success: Optional[bool] = None
+
+            if missing_tools:
+                context_logger.critical(
+                    "Tool discovery failed",
+                    missing_tools=missing_tools,
+                    discovered=sorted(discovered_tools),
+                    attempt=label,
+                )
+                for tool_name in missing_tools:
+                    _record_failure(
+                        failure_records,
+                        tool=tool_name,
+                        stage="discovery",
+                        message="expected tool not registered",
+                    )
+                    attempt_success = False
+                for tool_name in sorted(expected_tools):
+                    if tool_name in missing_tools:
+                        tool_report[tool_name] = {
+                            "status": "fail",
+                            "details": {"reason": "tool not registered"},
+                        }
+                    else:
+                        tool_report[tool_name] = {
+                            "status": "warning",
+                            "details": {"reason": "not evaluated"},
+                        }
+            else:
+                context_logger.info(
+                    "Tool discovery succeeded",
+                    tools=sorted(discovered_tools),
+                    attempt=label,
                 )
 
-        if not offline:
-            if not _run_online_checks(context_settings, context_logger, server_instance):
-                overall_success = False
+                online_ok = _run_online_checks(settings, context_logger, server_instance)
+                online_success = online_ok
+                if not online_ok:
+                    _record_failure(
+                        failure_records,
+                        tool="startup_checks",
+                        stage="online",
+                        message="online startup checks failed",
+                    )
+                    attempt_success = False
+
+                if not _run_context_tool_diagnostics(
+                    context=context_name,
+                    logger=context_logger,
+                    server_instance=server_instance,
+                    expected_tools=expected_tools,
+                    summary=tool_report,
+                    failures=failure_records,
+                ):
+                    attempt_success = False
+
+            attempt_report = AttemptReport(
+                label=label,
+                success=attempt_success,
+                failures=failure_records,
+                notes=list(notes or ()),
+                allow_insecure_tls=bool(settings.allow_insecure_tls),
+                ca_bundle=str(settings.ca_bundle_path)
+                if settings.ca_bundle_path
+                else None,
+                online_success=online_success,
+                discovered_tools=sorted(discovered_tools),
+                missing_tools=missing_tools,
+                tools=tool_report,
+            )
+
+            log_method = context_logger.info if attempt_success else context_logger.warning
+            log_method(
+                "Diagnostics attempt completed",
+                attempt=label,
+                success=attempt_success,
+                allow_insecure_tls=settings.allow_insecure_tls,
+                ca_bundle=settings.ca_bundle_path,
+                failure_count=len(failure_records),
+                notes=list(notes or ()),
+                failures=[_summarize_failure(failure) for failure in failure_records],
+            )
+
+            return attempt_report
+
+        primary_report = run_attempt(
+            effective_settings,
+            label="primary",
+            notes=attempt_notes,
+        )
+        attempt_reports.append(primary_report)
+        for failure in primary_report.failures:
+            category = _classify_failure(failure)
+            if category:
+                encountered_categories.add(category)
+        failure_categories = {
+            failure.category
+            for failure in primary_report.failures
+            if failure.category
+        }
+        context_success = primary_report.success
+
+        if not context_success:
+            tls_failures = [
+                failure for failure in primary_report.failures if failure.category == "tls"
+            ]
+            if tls_failures and not effective_settings.allow_insecure_tls:
+                context_logger.warning(
+                    "TLS errors detected; retrying diagnostics with allow_insecure_tls enabled",
+                    attempt="tls-fallback",
+                    original_errors=[_summarize_failure(failure) for failure in tls_failures],
+                )
+                fallback_settings = replace(
+                    effective_settings,
+                    allow_insecure_tls=True,
+                    ca_bundle_path=None,
+                )
+                fallback_report = run_attempt(
+                    fallback_settings,
+                    label="tls-fallback",
+                )
+                attempt_reports.append(fallback_report)
+                fallback_attempted = True
+                fallback_success_value = fallback_report.success
+                for failure in fallback_report.failures:
+                    category = _classify_failure(failure)
+                    if category:
+                        encountered_categories.add(category)
+                failure_categories.update(
+                    failure.category
+                    for failure in fallback_report.failures
+                    if failure.category
+                )
+                context_success = fallback_report.success
+                if fallback_report.success:
+                    context_logger.warning(
+                        "TLS fallback resolved diagnostics failure",
+                        attempt="tls-fallback",
+                        original_errors=[
+                            _summarize_failure(failure) for failure in tls_failures
+                        ],
+                    )
+                else:
+                    context_logger.error(
+                        "TLS fallback failed to resolve diagnostics",
+                        attempt="tls-fallback",
+                        original_errors=[
+                            _summarize_failure(failure) for failure in tls_failures
+                        ],
+                    )
+            else:
+                context_success = False
+
+        if not context_success:
+            overall_success = False
+            recoverable = sorted(
+                (failure_categories | encountered_categories) & {"tls", "config.ca_bundle"}
+            )
+            unrecoverable = sorted(
+                (failure_categories | encountered_categories)
+                - {"tls", "config.ca_bundle"}
+            )
+            context_logger.error(
+                "Context diagnostics failed",
+                attempts=[
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
+                ],
+                recoverable_categories=recoverable or None,
+                unrecoverable_categories=unrecoverable or None,
+            )
         else:
-            context_logger.info("Online checks skipped", reason="offline flag")
+            recoverable = []
+            unrecoverable = []
+            if any(not report.success for report in attempt_reports):
+                context_logger.info(
+                    "Context diagnostics completed with recoveries",
+                    attempts=[
+                        {"label": report.label, "success": report.success}
+                        for report in attempt_reports
+                    ],
+                )
+            else:
+                context_logger.info(
+                    "Context diagnostics completed successfully",
+                    attempt="primary",
+                )
+
+        context_report["notes"] = list(attempt_notes)
+        context_report["success"] = context_success
+        context_report["fallback_attempted"] = fallback_attempted
+        context_report["fallback_success"] = fallback_success_value
+        context_report["encountered_categories"] = sorted(encountered_categories)
+        context_report["failure_categories"] = sorted(
+            category for category in failure_categories if category
+        )
+        context_report["recoverable_categories"] = recoverable
+        context_report["unrecoverable_categories"] = unrecoverable
+
+        attempt_summaries = [
+            {
+                "label": report.label,
+                "success": report.success,
+                "notes": report.notes,
+                "allow_insecure_tls": report.allow_insecure_tls,
+                "ca_bundle": report.ca_bundle,
+                "online_success": report.online_success,
+                "discovered_tools": report.discovered_tools,
+                "missing_tools": report.missing_tools,
+                "tools": report.tools,
+                "failures": [
+                    _summarize_failure(failure) for failure in report.failures
+                ],
+            }
+            for report in attempt_reports
+        ]
+        context_report["attempts"] = attempt_summaries
+
+        online_attempts: Dict[str, str] = {}
+        for attempt in attempt_summaries:
+            result = attempt.get("online_success")
+            if result is None:
+                continue
+            online_attempts[attempt["label"]] = "pass" if result else "fail"
+        if any(status == "pass" for status in online_attempts.values()):
+            online_status = "pass"
+        elif any(status == "fail" for status in online_attempts.values()):
+            online_status = "fail"
+        else:
+            online_status = "warning"
+        online_summary: Dict[str, Any] = {"status": online_status}
+        if online_attempts:
+            online_summary["attempts"] = online_attempts
+        context_report["online"] = online_summary
+
+        context_report["tools"] = _aggregate_tool_outcomes(
+            expected_tools,
+            attempt_summaries,
+            offline_mode=False,
+        )
+
+    summary_report["overall_success"] = overall_success
+    _render_healthcheck_summary(summary_report)
 
     if not overall_success:
         logger.critical("Health checks failed")
