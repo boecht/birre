@@ -17,11 +17,12 @@ uvx --from git+https://github.com/boecht/birre server.py
 ```
 
 - Point your LLM of choice to the MCP server and ask it for the BitSight rating of any company.
+- Need to adjust logging, contexts, or diagnostics? Run `uv run server.py --help` (or see [docs/CLI.md](docs/CLI.md)) for the full command reference.
 
 ### Configuration
 
 Configuration sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
-See the descriptions in `config.toml` for available fields and details. For CLI options, run with `--help`.
+See the descriptions in `config.toml` for available fields and details. For CLI options, run with `--help` or consult [docs/CLI.md](docs/CLI.md).
 
 ### Run directly from GitHub with uvx
 
