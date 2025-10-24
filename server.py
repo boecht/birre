@@ -316,7 +316,6 @@ OfflineFlagOption = Annotated[
         "--offline",
         help="Skip BitSight network checks and run offline validation only",
         rich_help_panel="Diagnostics",
-        is_flag=True,
     ),
 ]
 
@@ -326,7 +325,6 @@ ProductionFlagOption = Annotated[
         "--production",
         help="Use the BitSight production API for online validation",
         rich_help_panel="Diagnostics",
-        is_flag=True,
     ),
 ]
 
