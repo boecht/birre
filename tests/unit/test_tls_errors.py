@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -15,12 +16,13 @@ class _StubContext:
         self.errors: list[str] = []
 
     async def info(self, message: str) -> None:  # pragma: no cover - logging helper
-        return None
+        await asyncio.sleep(0)
 
     async def warning(self, message: str) -> None:  # pragma: no cover - logging helper
-        return None
+        await asyncio.sleep(0)
 
     async def error(self, message: str) -> None:
+        await asyncio.sleep(0)
         self.errors.append(message)
 
 

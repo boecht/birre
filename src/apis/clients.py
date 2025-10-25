@@ -102,7 +102,14 @@ def _create_client(
 ) -> httpx.AsyncClient:
     verify_option: bool | ssl.SSLContext
     if isinstance(verify, str):
-        verify_option = ssl.create_default_context(cafile=verify)
+        context = ssl.create_default_context(cafile=verify)
+        tls_version = getattr(ssl, "TLSVersion", None)
+        if tls_version is not None:
+            context.minimum_version = tls_version.TLSv1_2
+        else:  # pragma: no cover - fallback for older Python versions
+            context.options |= getattr(ssl, "OP_NO_TLSv1", 0)
+            context.options |= getattr(ssl, "OP_NO_TLSv1_1", 0)
+        verify_option = context
     else:
         verify_option = verify
 

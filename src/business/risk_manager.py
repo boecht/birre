@@ -978,6 +978,69 @@ def _summarize_bulk_result(result: Any) -> Dict[str, Any]:
     }
 
 
+def _manage_subscriptions_error(message: str) -> Dict[str, Any]:
+    return ManageSubscriptionsResponse(error=message).to_payload()
+
+
+def _validate_manage_subscriptions_inputs(
+    action: str,
+    guids: Sequence[str],
+    *,
+    default_type: Optional[str],
+) -> tuple[Optional[str], List[str], Optional[Dict[str, Any]]]:
+    normalized_action = _normalize_action(action)
+    if normalized_action is None:
+        return (
+            None,
+            [],
+            _manage_subscriptions_error(
+                "Unsupported action. Use one of: add, subscribe, remove, delete, unsubscribe"
+            ),
+        )
+
+    guid_list = _coerce_guid_list(guids)
+    if not guid_list:
+        return (
+            None,
+            [],
+            _manage_subscriptions_error(
+                "At least one company GUID must be supplied"
+            ),
+        )
+
+    if normalized_action == "add" and not default_type:
+        return (
+            None,
+            [],
+            _manage_subscriptions_error(
+                "Subscription type is not configured. Provide a subscription_type via CLI "
+                "arguments, set BIRRE_SUBSCRIPTION_TYPE in the environment, or update "
+                f"{DEFAULT_CONFIG_FILENAME}."
+            ),
+        )
+
+    return normalized_action, guid_list, None
+
+
+def _manage_subscriptions_dry_run_response(
+    *,
+    action: str,
+    guids: Sequence[str],
+    folder: Optional[str],
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    return ManageSubscriptionsResponse(
+        status="dry_run",
+        action=action,
+        guids=list(guids),
+        folder=folder,
+        payload=payload,
+        guidance=ManageSubscriptionsGuidance(
+            confirmation="Review the payload with the human operator. Re-run with dry_run=false to apply changes."
+        ),
+    ).to_payload()
+
+
 def register_manage_subscriptions_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
@@ -996,28 +1059,17 @@ def register_manage_subscriptions_tool(
     ) -> Dict[str, Any]:
         """Bulk subscribe or unsubscribe companies using BitSight's v1 API."""
 
-        normalized_action = _normalize_action(action)
-        if normalized_action is None:
-            return ManageSubscriptionsResponse(
-                error="Unsupported action. Use one of: add, subscribe, remove, delete, unsubscribe"
-            ).to_payload()
-
-        guid_list = _coerce_guid_list(guids)
-        if not guid_list:
-            return ManageSubscriptionsResponse(
-                error="At least one company GUID must be supplied"
-            ).to_payload()
+        normalized_action, guid_list, error_payload = _validate_manage_subscriptions_inputs(
+            action,
+            guids,
+            default_type=default_type,
+        )
+        if error_payload is not None or normalized_action is None:
+            return error_payload if error_payload is not None else _manage_subscriptions_error(
+                "Unknown subscription error"
+            )
 
         target_folder = folder or default_folder
-        if normalized_action == "add" and not default_type:
-            return ManageSubscriptionsResponse(
-                error=(
-                    "Subscription type is not configured. Provide a subscription_type via CLI "
-                    "arguments, set BIRRE_SUBSCRIPTION_TYPE in the environment, or update "
-                    f"{DEFAULT_CONFIG_FILENAME}."
-                )
-            ).to_payload()
-
         payload = _build_subscription_payload(
             normalized_action,
             guid_list,
@@ -1026,16 +1078,12 @@ def register_manage_subscriptions_tool(
         )
 
         if dry_run:
-            return ManageSubscriptionsResponse(
-                status="dry_run",
+            return _manage_subscriptions_dry_run_response(
                 action=normalized_action,
                 guids=guid_list,
                 folder=target_folder,
                 payload=payload,
-                guidance=ManageSubscriptionsGuidance(
-                    confirmation="Review the payload with the human operator. Re-run with dry_run=false to apply changes."
-                ),
-            ).to_payload()
+            )
 
         await ctx.info(
             f"Executing manageSubscriptionsBulk action={normalized_action} for {len(guid_list)} companies"
