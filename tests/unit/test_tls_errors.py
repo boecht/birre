@@ -28,6 +28,7 @@ class _StubContext:
 
 class _FailingServer:
     async def _call_tool(self, tool_name: str, params: Dict[str, Any]):
+        await asyncio.sleep(0)
         request = httpx.Request(
             "GET",
             "https://api.bitsighttech.com/v1/companySearch",

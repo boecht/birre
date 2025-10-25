@@ -130,11 +130,11 @@ Always think step-by-step through the development process, considering the proje
 Assume `BITSIGHT_API_KEY` environment variable is set, even if invisible, so online tests are possible.
 
 ```bash
-# Run offline unit tests only
-uv run pytest -m "not live" -v
+# Run offline unit tests only (default selection)
+uv run pytest -v
 
-# Run live MCP smoke tests (requires BITSIGHT_API_KEY)
-uv run pytest -m live -rs
+# Run online MCP smoke tests (requires BITSIGHT_API_KEY)
+uv run pytest -m online -rs
 
 # Fetch rating summary for the default sample query
 uv run python scripts/min_mcp_client.py

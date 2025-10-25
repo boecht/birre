@@ -125,21 +125,21 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ### Pytest
 
-BiRRe ships with both offline unit tests and opt-in live integration checks. The
+BiRRe ships with both offline unit tests and opt-in online integration checks. The
 offline suite exercises configuration layering, logging formatters, startup
 checks, subscription helpers, and both standard and risk-manager tools without
-touching the BitSight API. The live tests drive the FastMCP client end-to-end
+touching the BitSight API. The online tests drive the FastMCP client end-to-end
 against BitSight and require real credentials.
 
 ```bash
-# Run the offline suite (no network calls).
-uv run pytest -m "not live"
+# Run the offline suite (default; no network calls).
+uv run pytest
 
-# Run the live smoke tests against BitSight.
-uv run pytest -m live -rs
+# Run the online smoke tests against BitSight.
+uv run pytest -m online -rs
 ```
 
-Live tests require a valid `BITSIGHT_API_KEY` in the environment (or
+Online tests require a valid `BITSIGHT_API_KEY` in the environment (or
 `config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
 install on demand inside an isolated virtual environment.
 

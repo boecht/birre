@@ -151,8 +151,8 @@
 - **Extensibility:** Requirements ensure future expansion to new endpoints, data formats, authentication strategies, and deployment models without major redesign.
 - **Maintainability:** Codebase modularity and clarity are a must; all endpoints and logic should be independently updatable and testable.
 - **Compatibility:** The MCP server must work with any LLM/AI agent that supports the MCP protocol and should be designed for maximum protocol compliance.
-- **Testing:** Provide an opt-in live integration suite (`pytest -m live`) that uses the in-process FastMCP client to hit BitSight endpoints when `BITSIGHT_API_KEY` is configured, while keeping offline tests fixture-driven.
-- **Offline coverage:** Maintain a fast `uv run pytest -m "not live"` suite that exercises configuration layering, logging, startup checks, and risk-manager tooling without requiring network access.
+- **Testing:** Provide an opt-in online integration suite (`pytest -m online`) that uses the in-process FastMCP client to hit BitSight endpoints when `BITSIGHT_API_KEY` is configured, while keeping offline tests fixture-driven.
+- **Offline coverage:** Maintain a fast `uv run pytest` suite that exercises configuration layering, logging, startup checks, and risk-manager tooling without requiring network access.
 - **Startup Checks:** On every launch the server validates BitSight connectivity (API key, subscriptions, quota). Allow operators to skip these checks via `--skip-startup-checks`, `BIRRE_SKIP_STARTUP_CHECKS`, or `[runtime].skip_startup_checks` when running in controlled environments.
 
 ## 4. Technical Architecture

@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Sequence
 
 import pytest
 import pytest_asyncio
@@ -22,7 +22,7 @@ try:
     from fastmcp.client.client import CallToolResult
 except ImportError:
     pytest.skip(
-        "fastmcp client not installed; skipping live tests", allow_module_level=True
+        "fastmcp client not installed; skipping online tests", allow_module_level=True
     )
 
 from src.birre import create_birre_server  # ruff: noqa: E402
@@ -30,56 +30,79 @@ from src.settings import resolve_birre_settings  # ruff: noqa: E402
 from src.logging import get_logger  # ruff: noqa: E402
 
 
-pytestmark = pytest.mark.live
+pytestmark = [pytest.mark.integration, pytest.mark.online]
 
 
 def _unwrap(result: CallToolResult) -> Dict[str, Any]:
     """Normalize a CallToolResult into a plain dictionary."""
 
-    if result.data is not None:
-        data = result.data
-        if is_dataclass(data):
-            return asdict(data)  # type: ignore[return-value]
-        if isinstance(data, BaseModel):
-            return data.model_dump(mode="json")  # type: ignore[return-value]
-        if hasattr(data, "model_dump"):
-            dumped = data.model_dump(mode="json")  # type: ignore[call-arg]
-            if isinstance(dumped, dict):
-                return dumped  # type: ignore[return-value]
-        return data  # type: ignore[return-value]
+    normalized = _normalize_data(result.data)
+    if normalized is not None:
+        return normalized
 
-    structured = result.structured_content
-    if structured:
-        if isinstance(structured, dict) and "result" in structured:
-            inner = structured["result"]
-            if isinstance(inner, dict):
-                return inner
-        if isinstance(structured, dict):
-            return structured  # type: ignore[return-value]
+    normalized = _normalize_structured(result.structured_content)
+    if normalized is not None:
+        return normalized
 
-    blocks = result.content or []
-    if blocks:
-        text = getattr(blocks[0], "text", None)
-        if text:
-            return json.loads(text)
+    normalized = _normalize_blocks(result.content)
+    if normalized is not None:
+        return normalized
 
     raise AssertionError("Unable to unwrap CallToolResult into structured data")
 
 
+def _normalize_data(data: Any) -> Optional[Dict[str, Any]]:
+    if data is None:
+        return None
+    if is_dataclass(data):
+        return asdict(data)
+    if isinstance(data, BaseModel):
+        return data.model_dump(mode="json")  # type: ignore[return-value]
+    model_dump = getattr(data, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump(mode="json")  # type: ignore[call-arg]
+        if isinstance(dumped, dict):
+            return dumped
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+def _normalize_structured(structured: Any) -> Optional[Dict[str, Any]]:
+    if not structured or not isinstance(structured, dict):
+        return None
+    inner = structured.get("result")
+    if isinstance(inner, dict):
+        return inner
+    return structured
+
+
+def _normalize_blocks(
+    blocks: Optional[Sequence[Any]],
+) -> Optional[Dict[str, Any]]:
+    if not blocks:
+        return None
+    text = getattr(blocks[0], "text", None)
+    if not text:
+        return None
+    parsed = json.loads(text)
+    return parsed if isinstance(parsed, dict) else None
+
+
 @pytest.fixture(scope="session")
-def require_live_api_key() -> str:
+def require_online_api_key() -> str:
     api_key = os.getenv("BITSIGHT_API_KEY")
     if not api_key:
-        pytest.skip("BITSIGHT_API_KEY not configured; skipping live tests")
+        pytest.skip("BITSIGHT_API_KEY not configured; skipping online tests")
     return api_key
 
 
 @pytest_asyncio.fixture
-async def birre_client(require_live_api_key: str):
+async def birre_client(require_online_api_key: str):
     """Provide an in-process FastMCP client for BiRRe."""
 
     settings = resolve_birre_settings()
-    logger = get_logger("birre.live.test")
+    logger = get_logger("birre.online.test")
     server = create_birre_server(settings, logger=logger)
     async with Client(server) as client:
         yield client
