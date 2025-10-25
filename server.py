@@ -536,7 +536,7 @@ def _determine_source_label(
 
 def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> None:
     table = Table(title=title, box=box.SIMPLE_HEAVY)
-    table.add_column("Config Key", style="bold cyan")
+    table.add_column("Config Key", style="bold cyan", no_wrap=True)
     table.add_column("Resolved Value", overflow="fold")
     table.add_column("Source", style="magenta")
     for key, value, source in rows:
@@ -2733,7 +2733,7 @@ def run(
 ) -> None:
     """Start the BiRRe FastMCP server with the configured runtime options."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -2812,7 +2812,7 @@ def healthcheck(
     """Execute BiRRe diagnostics and optional online checks."""
 
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -3168,7 +3168,7 @@ def check_conf(
 ) -> None:
     """Display configuration files, overrides, and effective values as Rich tables."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -3324,7 +3324,7 @@ def reset_logs(
 ) -> None:
     """Reset BiRRe log files by rotating archives or clearing the active file."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=None,
         subscription_folder=None,
         subscription_type=None,

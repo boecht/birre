@@ -10,6 +10,8 @@ from typing import Any, Dict
 
 import pytest
 import pytest_asyncio
+from dataclasses import asdict, is_dataclass
+from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -35,7 +37,16 @@ def _unwrap(result: CallToolResult) -> Dict[str, Any]:
     """Normalize a CallToolResult into a plain dictionary."""
 
     if result.data is not None:
-        return result.data  # type: ignore[return-value]
+        data = result.data
+        if is_dataclass(data):
+            return asdict(data)  # type: ignore[return-value]
+        if isinstance(data, BaseModel):
+            return data.model_dump(mode="json")  # type: ignore[return-value]
+        if hasattr(data, "model_dump"):
+            dumped = data.model_dump(mode="json")  # type: ignore[call-arg]
+            if isinstance(dumped, dict):
+                return dumped  # type: ignore[return-value]
+        return data  # type: ignore[return-value]
 
     structured = result.structured_content
     if structured:
