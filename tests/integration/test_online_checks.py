@@ -20,6 +20,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.online]
 
 @pytest.fixture(scope="module")
 def online_runtime_settings() -> RuntimeSettings:
+    """Load runtime settings using the configured BitSight API key."""
+
     api_key = os.getenv("BITSIGHT_API_KEY")
     if not api_key:
         pytest.skip("BITSIGHT_API_KEY not configured; skipping online tests")
@@ -28,6 +30,8 @@ def online_runtime_settings() -> RuntimeSettings:
 
 @pytest.fixture(scope="module")
 def online_server(online_runtime_settings: RuntimeSettings):
+    """Instantiate a BiRRe FastMCP server backed by live credentials."""
+
     logger = get_logger("birre.online.test")
     return create_birre_server(online_runtime_settings, logger=logger)
 

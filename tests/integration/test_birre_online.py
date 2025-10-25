@@ -91,6 +91,8 @@ def _normalize_blocks(
 
 @pytest.fixture(scope="session")
 def require_online_api_key() -> str:
+    """Ensure a BitSight API key is available for online integration runs."""
+
     api_key = os.getenv("BITSIGHT_API_KEY")
     if not api_key:
         pytest.skip("BITSIGHT_API_KEY not configured; skipping online tests")
