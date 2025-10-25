@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from src.apis.v1_bridge import call_openapi_tool
-from src.errors import TlsCertificateChainInterceptedError
+from src.errors import ErrorCode, TlsCertificateChainInterceptedError
 from src.logging import configure_logging, get_logger
 from src.settings import LOG_FORMAT_TEXT, LoggingSettings
 
@@ -61,7 +61,7 @@ async def test_tls_error_maps_to_domain_error(capfd: "pytest.CaptureFixture[str]
         )
 
     error = exc_info.value
-    assert error.context.code == "TLS_CERT_CHAIN_INTERCEPTED"
+    assert error.context.code == ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value
     assert "Configure corporate CA bundle" in error.user_message
     assert ctx.errors
     assert "--allow-insecure-tls" in ctx.errors[-1]
@@ -72,7 +72,9 @@ async def test_tls_error_maps_to_domain_error(capfd: "pytest.CaptureFixture[str]
     assert "TLS verification failed for api.bitsighttech.com" in summary_line
     assert "tool=companySearch" in summary_line
     assert "op=GET /v1/companySearch" in summary_line
-    assert "code=TLS_CERT_CHAIN_INTERCEPTED" in summary_line
+    assert (
+        f"code={ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value}" in summary_line
+    )
     assert "Hint: set BIRRE_CA_BUNDLE=/path/to/corp-root.pem" in log_output[1]
     assert "Traceback" not in "\n".join(log_output)
 

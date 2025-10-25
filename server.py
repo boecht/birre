@@ -47,7 +47,7 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 from src.apis.clients import DEFAULT_V1_API_BASE_URL
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
-from src.errors import BirreError, TlsCertificateChainInterceptedError
+from src.errors import BirreError, ErrorCode, TlsCertificateChainInterceptedError
 from src.logging import BoundLogger, configure_logging, get_logger
 from src.settings import (
     BITSIGHT_API_KEY_KEY,
@@ -1050,10 +1050,13 @@ class HealthcheckResult:
     degraded: bool
     summary: Dict[str, Any]
     contexts: Tuple[str, ...]
+    alerts: Tuple[str, ...] = ()
 
     def exit_code(self) -> int:
         """Return the CLI exit code representing this result."""
 
+        if ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value in self.alerts:
+            return 2
         if self.degraded:
             return 2
         if not self.success:
@@ -1079,10 +1082,12 @@ class HealthcheckRunner:
         self._target_base_url = target_base_url
         self._environment_label = environment_label
         self._contexts: Tuple[str, ...] = tuple(sorted(_CONTEXT_CHOICES))
+        self._alerts: set[str] = set()
 
     def run(self) -> HealthcheckResult:
         """Run offline and per-context diagnostics and collect a summary."""
 
+        self._alerts.clear()
         offline_ok = _run_offline_checks(self._base_runtime_settings, self._logger)
         summary: Dict[str, Any] = {
             "environment": self._environment_label,
@@ -1098,6 +1103,7 @@ class HealthcheckRunner:
                 degraded=False,
                 summary=summary,
                 contexts=self._contexts,
+                alerts=tuple(sorted(self._alerts)),
             )
 
         overall_success = True
@@ -1118,6 +1124,7 @@ class HealthcheckRunner:
             degraded=degraded,
             summary=summary,
             contexts=self._contexts,
+            alerts=tuple(sorted(self._alerts)),
         )
 
     # ------------------------------------------------------------------
@@ -1535,6 +1542,7 @@ class HealthcheckRunner:
                 online_success = False
                 attempt_success = False
                 skip_tool_checks = True
+                self._alerts.add(exc.code)
                 _record_failure(
                     failure_records,
                     tool="startup_checks",
@@ -2844,6 +2852,12 @@ def healthcheck(
         environment_label=environment_label,
     )
     result = runner.run()
+
+    if ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value in result.alerts:
+        stderr_console.print("[red]TLS interception detected.[/red]")
+        stderr_console.print(
+            "Set BIRRE_CA_BUNDLE or use --allow-insecure-tls"
+        )
 
     _render_healthcheck_summary(result.summary)
 

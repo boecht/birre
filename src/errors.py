@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Iterable, Optional, Sequence
 
 import httpx
@@ -11,6 +12,13 @@ _TLS_INTERCEPT_MARKERS: tuple[str, ...] = (
     "self-signed certificate in certificate chain",
     "certificate verify failed: self signed certificate in certificate chain",
 )
+
+
+class ErrorCode(str, Enum):
+    """Domain error codes."""
+
+    TLS_CERT_CHAIN_INTERCEPTED = "TLS_CERT_CHAIN_INTERCEPTED"
+    TLS_HANDSHAKE_ERROR = "TLS_HANDSHAKE_ERROR"
 
 
 @dataclass(frozen=True)
@@ -63,7 +71,7 @@ class BirreError(Exception):
 class TlsCertificateChainInterceptedError(BirreError):
     """TLS handshake failure caused by an interception proxy."""
 
-    code = "TLS_CERT_CHAIN_INTERCEPTED"
+    code = ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value
 
     def __init__(self, *, context: ErrorContext) -> None:
         summary = (
@@ -143,6 +151,7 @@ def classify_request_error(
 
 
 __all__ = [
+    "ErrorCode",
     "BirreError",
     "ErrorContext",
     "TlsCertificateChainInterceptedError",
