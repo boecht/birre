@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+import ssl
 
 import httpx
 from fastmcp import FastMCP
@@ -99,12 +100,25 @@ def _load_api_spec(path: str) -> Any:
 def _create_client(
     base_url: str, api_key: str, *, verify: bool | str = True
 ) -> httpx.AsyncClient:
+    verify_option: bool | ssl.SSLContext
+    if isinstance(verify, str):
+        context = ssl.create_default_context(cafile=verify)
+        tls_version = getattr(ssl, "TLSVersion", None)
+        if tls_version is not None:
+            context.minimum_version = tls_version.TLSv1_2
+        else:  # pragma: no cover - fallback for older Python versions
+            context.options |= getattr(ssl, "OP_NO_TLSv1", 0)
+            context.options |= getattr(ssl, "OP_NO_TLSv1_1", 0)
+        verify_option = context
+    else:
+        verify_option = verify
+
     client_kwargs: dict[str, Any] = {
         "base_url": base_url,
         "auth": (api_key, ""),
         "headers": {"Accept": "application/json"},
         "timeout": 30.0,
-        "verify": verify,
+        "verify": verify_option,
     }
     return httpx.AsyncClient(**client_kwargs)
 

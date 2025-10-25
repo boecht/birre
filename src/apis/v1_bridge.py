@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import json
+import logging
+import ssl
+import traceback
 from collections.abc import Mapping
 from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
 
+from src.errors import (
+    TlsCertificateChainInterceptedError,
+    classify_request_error,
+)
 from src.logging import BoundLogger
 
 
@@ -21,6 +28,71 @@ def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         filtered[str(key)] = value
     return filtered
+
+
+async def _parse_text_content(
+    text: str, tool_name: str, ctx: Context, logger: BoundLogger
+) -> Any:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        await ctx.warning(
+            f"Failed to parse text content for '{tool_name}' as JSON"
+        )
+        logger.debug(
+            "Unable to deserialize JSON payload from FastMCP tool response",
+            tool=tool_name,
+            exc_info=True,
+        )
+        return text
+
+
+async def _normalize_tool_result(
+    tool_result: Any, tool_name: str, ctx: Context, logger: BoundLogger
+) -> Any:
+    structured = getattr(tool_result, "structured_content", None)
+    if structured is not None:
+        if isinstance(structured, dict) and "result" in structured:
+            return structured["result"]
+        return structured
+
+    content_blocks: Iterable[Any] | None = getattr(tool_result, "content", None)
+    if content_blocks:
+        first_block = next(iter(content_blocks), None)
+        text = getattr(first_block, "text", None)
+        if text is not None:
+            return await _parse_text_content(text, tool_name, ctx, logger)
+
+    await ctx.warning(
+        f"FastMCP tool '{tool_name}' returned no structured data; passing raw result"
+    )
+    logger.warning(
+        "FastMCP tool returned unstructured payload; returning raw result",
+        tool=tool_name,
+    )
+    return tool_result
+
+
+def _log_tls_error(
+    mapped_error: TlsCertificateChainInterceptedError,
+    *,
+    logger: BoundLogger,
+    debug_enabled: bool,
+    exc: Exception,
+) -> None:
+    log_fields = mapped_error.log_fields()
+    logger.error(mapped_error.summary, **log_fields)
+    if debug_enabled:
+        trace_text = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+        logger.debug(
+            "TLS handshake traceback",
+            trace=trace_text,
+            **log_fields,
+        )
+    for hint in mapped_error.hints:
+        logger.error(f"Hint: {hint}", **log_fields)
 
 
 async def call_openapi_tool(
@@ -42,6 +114,8 @@ async def call_openapi_tool(
     resolved_tool_name = tool_name.strip()
     filtered_params = filter_none(params)
 
+    debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
+
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
         async with Context(api_server):
@@ -49,38 +123,9 @@ async def call_openapi_tool(
                 resolved_tool_name, filtered_params
             )
 
-        structured = getattr(tool_result, "structured_content", None)
-        if structured is not None:
-            if isinstance(structured, dict) and "result" in structured:
-                return structured["result"]
-            return structured
-
-        content_blocks: Iterable[Any] | None = getattr(tool_result, "content", None)
-        if content_blocks:
-            first_block = next(iter(content_blocks), None)
-            text = getattr(first_block, "text", None)
-            if text is not None:
-                try:
-                    return json.loads(text)
-                except json.JSONDecodeError:
-                    await ctx.warning(
-                        f"Failed to parse text content for '{resolved_tool_name}' as JSON"
-                    )
-                    logger.debug(
-                        "Unable to deserialize JSON payload from FastMCP tool response",
-                        tool=resolved_tool_name,
-                        exc_info=True,
-                    )
-                    return text
-
-        await ctx.warning(
-            f"FastMCP tool '{resolved_tool_name}' returned no structured data; passing raw result"
+        return await _normalize_tool_result(
+            tool_result, resolved_tool_name, ctx, logger
         )
-        logger.warning(
-            "FastMCP tool returned unstructured payload; returning raw result",
-            tool=resolved_tool_name,
-        )
-        return tool_result
     except httpx.HTTPStatusError as exc:
         await ctx.error(
             f"FastMCP tool '{resolved_tool_name}' returned HTTP {exc.response.status_code}: {exc}"
@@ -89,9 +134,22 @@ async def call_openapi_tool(
             "FastMCP tool returned HTTP error",
             tool=resolved_tool_name,
             status_code=exc.response.status_code,
-            exc_info=True,
+            exc_info=debug_enabled,
         )
         raise
+    except (httpx.RequestError, ssl.SSLError) as exc:
+        mapped = classify_request_error(exc, tool_name=resolved_tool_name)
+        if mapped is None:
+            raise
+
+        _log_tls_error(
+            mapped,
+            logger=logger,
+            debug_enabled=debug_enabled,
+            exc=exc,
+        )
+        await ctx.error(mapped.user_message)
+        raise mapped from exc
     except Exception as exc:  # pragma: no cover - diagnostic fallback
         await ctx.error(
             f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}"
@@ -99,7 +157,7 @@ async def call_openapi_tool(
         logger.error(
             "FastMCP tool execution failed",
             tool=resolved_tool_name,
-            exc_info=True,
+            exc_info=True if debug_enabled else False,
         )
         raise
 

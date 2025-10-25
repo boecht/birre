@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
@@ -174,10 +175,13 @@ async def create_ephemeral_subscription(
     except Exception as exc:  # pragma: no cover - defensive logging
         message = f"Failed to ensure subscription for {guid}: {exc}"
         await ctx.error(message)
+        exc_info = (
+            exc if logging.getLogger().isEnabledFor(logging.DEBUG) else False
+        )
         logger.error(
             "subscription.ensure_failed",
             guid=guid,
-            exc_info=True,
+            exc_info=exc_info,
         )
         return SubscriptionAttempt(False, False, False, message)
 

@@ -47,6 +47,7 @@ os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 from src.apis.clients import DEFAULT_V1_API_BASE_URL
 from src.birre import create_birre_server
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
+from src.errors import BirreError, ErrorCode, TlsCertificateChainInterceptedError
 from src.logging import BoundLogger, configure_logging, get_logger
 from src.settings import (
     BITSIGHT_API_KEY_KEY,
@@ -313,7 +314,7 @@ ProfilePathOption = Annotated[
 OfflineFlagOption = Annotated[
     bool,
     typer.Option(
-        "--offline",
+        "--offline/--online",
         help="Skip BitSight network checks and run offline validation only",
         rich_help_panel="Diagnostics",
     ),
@@ -322,7 +323,7 @@ OfflineFlagOption = Annotated[
 ProductionFlagOption = Annotated[
     bool,
     typer.Option(
-        "--production",
+        "--production/--testing",
         help="Use the BitSight production API for online validation",
         rich_help_panel="Diagnostics",
     ),
@@ -1049,10 +1050,13 @@ class HealthcheckResult:
     degraded: bool
     summary: Dict[str, Any]
     contexts: Tuple[str, ...]
+    alerts: Tuple[str, ...] = ()
 
     def exit_code(self) -> int:
         """Return the CLI exit code representing this result."""
 
+        if ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value in self.alerts:
+            return 2
         if not self.success:
             return 1
         if self.degraded:
@@ -1078,10 +1082,12 @@ class HealthcheckRunner:
         self._target_base_url = target_base_url
         self._environment_label = environment_label
         self._contexts: Tuple[str, ...] = tuple(sorted(_CONTEXT_CHOICES))
+        self._alerts: set[str] = set()
 
     def run(self) -> HealthcheckResult:
         """Run offline and per-context diagnostics and collect a summary."""
 
+        self._alerts.clear()
         offline_ok = _run_offline_checks(self._base_runtime_settings, self._logger)
         summary: Dict[str, Any] = {
             "environment": self._environment_label,
@@ -1097,6 +1103,7 @@ class HealthcheckRunner:
                 degraded=False,
                 summary=summary,
                 contexts=self._contexts,
+                alerts=tuple(sorted(self._alerts)),
             )
 
         overall_success = True
@@ -1117,6 +1124,7 @@ class HealthcheckRunner:
             degraded=degraded,
             summary=summary,
             contexts=self._contexts,
+            alerts=tuple(sorted(self._alerts)),
         )
 
     # ------------------------------------------------------------------
@@ -1435,7 +1443,19 @@ class HealthcheckRunner:
             offline_mode=False,
         )
 
+        tls_failure_present = any(
+            failure.category == "tls"
+            for attempt in attempt_reports
+            for failure in attempt.failures
+        )
+        if tls_failure_present:
+            report.setdefault("notes", []).append("tls-cert-chain-intercepted")
+            report["tls_cert_chain_intercepted"] = True
+
         context_degraded = degraded
+        if tls_failure_present and not context_success:
+            context_degraded = True
+
         if context_success:
             context_degraded = context_degraded or self._has_degraded_outcomes(
                 report, attempt_reports
@@ -1458,12 +1478,13 @@ class HealthcheckRunner:
         label: str,
         notes: Optional[Sequence[str]],
     ) -> AttemptReport:
+        attempt_notes = list(notes or ())
         context_logger.info(
             "Starting diagnostics attempt",
             attempt=label,
             allow_insecure_tls=settings.allow_insecure_tls,
             ca_bundle=settings.ca_bundle_path,
-            notes=list(notes or ()),
+            notes=attempt_notes,
         )
 
         server_instance = _prepare_server(
@@ -1478,6 +1499,7 @@ class HealthcheckRunner:
         attempt_success = True
         tool_report: Dict[str, Dict[str, Any]] = {}
         online_success: Optional[bool] = None
+        skip_tool_checks = False
 
         if missing_tools:
             context_logger.critical(
@@ -1512,18 +1534,40 @@ class HealthcheckRunner:
                 attempt=label,
             )
 
-            online_ok = _run_online_checks(settings, context_logger, server_instance)
-            online_success = online_ok
-            if not online_ok:
+            try:
+                online_ok = _run_online_checks(
+                    settings, context_logger, server_instance
+                )
+            except BirreError as exc:
+                online_success = False
+                attempt_success = False
+                skip_tool_checks = True
+                self._alerts.add(exc.code)
                 _record_failure(
                     failure_records,
                     tool="startup_checks",
                     stage="online",
                     message="online startup checks failed",
+                    exception=exc,
                 )
-                attempt_success = False
+                context_logger.error(
+                    "Online startup checks failed",
+                    reason=exc.user_message,
+                    **exc.log_fields(),
+                )
+                attempt_notes.append(exc.context.code)
+            else:
+                online_success = online_ok
+                if not online_ok:
+                    _record_failure(
+                        failure_records,
+                        tool="startup_checks",
+                        stage="online",
+                        message="online startup checks failed",
+                    )
+                    attempt_success = False
 
-            if not _run_context_tool_diagnostics(
+            if not skip_tool_checks and not _run_context_tool_diagnostics(
                 context=context_name,
                 logger=context_logger,
                 server_instance=server_instance,
@@ -1537,7 +1581,7 @@ class HealthcheckRunner:
             label=label,
             success=attempt_success,
             failures=failure_records,
-            notes=list(notes or ()),
+            notes=attempt_notes,
             allow_insecure_tls=bool(settings.allow_insecure_tls),
             ca_bundle=str(settings.ca_bundle_path) if settings.ca_bundle_path else None,
             online_success=online_success,
@@ -1554,7 +1598,7 @@ class HealthcheckRunner:
             allow_insecure_tls=settings.allow_insecure_tls,
             ca_bundle=settings.ca_bundle_path,
             failure_count=len(failure_records),
-            notes=list(notes or ()),
+            notes=attempt_notes,
             failures=[_summarize_failure(failure) for failure in failure_records],
         )
 
@@ -1640,6 +1684,8 @@ def _record_failure(
 
 
 def _is_tls_exception(exc: BaseException) -> bool:
+    if isinstance(exc, TlsCertificateChainInterceptedError):
+        return True
     if isinstance(exc, ssl.SSLError):
         return True
     if isinstance(exc, httpx.HTTPError):
@@ -2710,7 +2756,14 @@ def run(
         raise typer.Exit(code=1)
 
     server = _prepare_server(runtime_settings, logger)
-    online_ok = _run_online_checks(runtime_settings, logger, server)
+    try:
+        online_ok = _run_online_checks(runtime_settings, logger, server)
+    except BirreError as exc:
+        logger.critical(
+            "Online startup checks failed; aborting startup",
+            **exc.log_fields(),
+        )
+        raise typer.Exit(code=1) from exc
     if not online_ok:
         logger.critical("Online startup checks failed; aborting startup")
         raise typer.Exit(code=1)
@@ -2799,6 +2852,12 @@ def healthcheck(
         environment_label=environment_label,
     )
     result = runner.run()
+
+    if ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value in result.alerts:
+        stderr_console.print("[red]TLS interception detected.[/red]")
+        stderr_console.print(
+            "Set BIRRE_CA_BUNDLE or use --allow-insecure-tls"
+        )
 
     _render_healthcheck_summary(result.summary)
 

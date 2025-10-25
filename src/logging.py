@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import logging
 import sys
 import uuid
@@ -17,24 +18,127 @@ BoundLogger = structlog.stdlib.BoundLogger
 _configured_settings: Optional[LoggingSettings] = None
 
 
-def _build_processors(json_logs: bool) -> list[Processor]:
+def _prepare_utf8_stream(stream: Optional[Any]) -> Any:
+    if stream is None:
+        stream = sys.stderr
+
+    text_stream = stream
+    reconfigure = getattr(text_stream, "reconfigure", None)
+    if callable(reconfigure):
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+            return text_stream
+        except Exception:  # pragma: no cover - fallback wrapper
+            pass
+
+    encoding = getattr(text_stream, "encoding", "") or ""
+    errors = getattr(text_stream, "errors", "") or ""
+    if encoding.lower() == "utf-8" and errors == "replace":
+        return text_stream
+
+    buffer = getattr(text_stream, "buffer", None)
+    if buffer is not None:
+        try:
+            return io.TextIOWrapper(
+                buffer,
+                encoding="utf-8",
+                errors="replace",
+                write_through=True,
+            )
+        except Exception:  # pragma: no cover - fallback to original stream
+            return text_stream
+
+    return text_stream
+
+
+class Utf8StreamHandler(logging.StreamHandler):
+    """Stream handler that never raises on Unicode encoding errors."""
+
+    def __init__(self, stream: Optional[Any] = None) -> None:
+        prepared_stream = _prepare_utf8_stream(stream)
+        super().__init__(prepared_stream)
+        self.encoding = "utf-8"
+        self.errors = "replace"
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            try:
+                stream.write(msg + self.terminator)
+            except UnicodeEncodeError:
+                data = (msg + self.terminator).encode("utf-8", "replace")
+                buffer = getattr(stream, "buffer", None)
+                if buffer is not None:
+                    buffer.write(data)
+                else:
+                    stream.write(data.decode("utf-8", "replace"))
+            self.flush()
+        except Exception:  # pragma: no cover - defensive
+            self.handleError(record)
+
+
+def _strip_exc_info(logger: logging.Logger, name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+    exc_info = event_dict.pop("exc_info", None)
+    if not exc_info:
+        return event_dict
+    if isinstance(exc_info, BaseException):
+        event_dict["error"] = str(exc_info)
+    elif isinstance(exc_info, tuple) and len(exc_info) >= 2:
+        event_dict["error"] = str(exc_info[1])
+    return event_dict
+
+
+def _single_line_renderer(logger: logging.Logger, name: str, event_dict: Dict[str, Any]) -> str:
+    timestamp = event_dict.pop("timestamp", None)
+    level = event_dict.pop("level", None)
+    logger_name = event_dict.pop("logger", None)
+    event = str(event_dict.pop("event", ""))
+    exception_text = event_dict.pop("exception", None)
+    exc_info_value = event_dict.pop("exc_info", None)
+
+    prefix = event
+    if level:
+        prefix = f"{level}: {event}".strip()
+
+    extras = " ".join(f"{key}={event_dict[key]}" for key in sorted(event_dict))
+    parts = [part for part in (prefix, extras) if part]
+    if timestamp:
+        parts.append(f"ts={timestamp}")
+    if logger_name:
+        parts.append(f"logger={logger_name}")
+    if exception_text:
+        parts.append(exception_text)
+    elif exc_info_value:
+        parts.append(str(exc_info_value))
+    return " ".join(parts)
+
+
+def _build_processors(json_logs: bool, debug_enabled: bool) -> list[Processor]:
     processors: list[Processor] = [
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.TimeStamper(fmt="iso"),
     ]
+    if debug_enabled:
+        processors.append(structlog.processors.StackInfoRenderer())
+        processors.append(structlog.processors.format_exc_info)
+    else:
+        processors.append(_strip_exc_info)
     if json_logs:
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(structlog.dev.ConsoleRenderer(colors=False))
+        processors.append(_single_line_renderer)
     return processors
 
 
 def _configure_structlog(settings: LoggingSettings) -> None:
     json_logs = settings.format == LOG_FORMAT_JSON
+    debug_enabled = settings.level <= logging.DEBUG
     structlog.configure(
-        processors=_build_processors(json_logs),
+        processors=_build_processors(json_logs, debug_enabled),
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -55,7 +159,7 @@ def configure_logging(settings: LoggingSettings) -> None:
     root_logger.handlers.clear()
     root_logger.setLevel(settings.level)
 
-    console_handler = _build_handler(settings.level, logging.StreamHandler(sys.stderr))
+    console_handler = _build_handler(settings.level, Utf8StreamHandler(sys.stderr))
     root_logger.addHandler(console_handler)
 
     if settings.file_path:
@@ -65,6 +169,7 @@ def configure_logging(settings: LoggingSettings) -> None:
                 settings.file_path,
                 maxBytes=settings.max_bytes,
                 backupCount=settings.backup_count,
+                encoding="utf-8",
             ),
         )
         root_logger.addHandler(file_handler)
