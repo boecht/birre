@@ -2,13 +2,6 @@ import os
 
 import pytest
 
-import fastmcp
-
-if getattr(fastmcp, "__FASTMCP_STUB__", False):
-    pytest.skip(
-        "fastmcp dependency not installed; skipping online tests", allow_module_level=True
-    )
-
 from src.birre import create_birre_server
 from src.settings import RuntimeSettings, resolve_birre_settings
 from src.logging import get_logger
