@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
+from src.errors import BirreError
 from src.logging import BoundLogger
 
 
@@ -105,6 +106,8 @@ async def _check_api_connectivity(
     try:
         await call_v1_tool("companySearch", ctx, {"name": "bitsight", "limit": 1})
         return None
+    except BirreError:
+        raise
     except Exception as exc:  # pragma: no cover - network failure
         return f"{exc.__class__.__name__}: {exc}"
 
@@ -114,6 +117,8 @@ async def _check_subscription_folder(
 ) -> Optional[str]:
     try:
         raw = await call_v1_tool("getFolders", ctx, {})
+    except BirreError:
+        raise
     except Exception as exc:
         return f"Failed to query folders: {exc.__class__.__name__}: {exc}"
 
@@ -145,6 +150,8 @@ async def _check_subscription_quota(
 ) -> Optional[str]:
     try:
         raw = await call_v1_tool("getCompanySubscriptions", ctx, {})
+    except BirreError:
+        raise
     except Exception as exc:
         return f"Failed to query subscriptions: {exc.__class__.__name__}: {exc}"
 

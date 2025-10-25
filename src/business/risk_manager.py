@@ -282,10 +282,14 @@ async def _fetch_folder_memberships(
         folders = await call_v1_tool("getFolders", ctx, {})
     except Exception as exc:  # pragma: no cover - defensive
         await ctx.warning(f"Unable to fetch folder list: {exc}")
+        logger_obj = getattr(logger, "_logger", None)
+        exc_info = (
+            exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
+        )
         logger.warning(
             "folders.fetch_failed",
             error=str(exc),
-            exc_info=True,
+            exc_info=exc_info,
         )
         return {}
 
@@ -1041,11 +1045,15 @@ def register_manage_subscriptions_tool(
             result = await call_v1_tool("manageSubscriptionsBulk", ctx, payload)
         except Exception as exc:
             await ctx.error(f"Subscription management failed: {exc}")
+            logger_obj = getattr(logger, "_logger", None)
+            exc_info = (
+                exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
+            )
             logger.error(
                 "manage_subscriptions.failed",
                 action=normalized_action,
                 count=len(guid_list),
-                exc_info=True,
+                exc_info=exc_info,
             )
             return ManageSubscriptionsResponse(
                 error=f"manageSubscriptionsBulk failed: {exc}"

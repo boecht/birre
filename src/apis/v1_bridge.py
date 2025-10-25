@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
+import ssl
+import traceback
 from collections.abc import Mapping
 from typing import Any, Dict, Iterable
 
 import httpx
 from fastmcp import Context, FastMCP
 
+from src.errors import classify_request_error
 from src.logging import BoundLogger
 
 
@@ -41,6 +45,8 @@ async def call_openapi_tool(
 
     resolved_tool_name = tool_name.strip()
     filtered_params = filter_none(params)
+
+    debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
 
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
@@ -89,9 +95,32 @@ async def call_openapi_tool(
             "FastMCP tool returned HTTP error",
             tool=resolved_tool_name,
             status_code=exc.response.status_code,
-            exc_info=True,
+            exc_info=True if debug_enabled else False,
         )
         raise
+    except (httpx.RequestError, ssl.SSLError) as exc:
+        mapped = classify_request_error(exc, tool_name=resolved_tool_name)
+        if mapped is None:
+            raise
+
+        log_fields = mapped.log_fields()
+        if debug_enabled:
+            trace_text = "".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)
+            )
+            logger.error(mapped.summary, **log_fields)
+            logger.debug(
+                "TLS handshake traceback",
+                trace=trace_text,
+                **log_fields,
+            )
+        else:
+            logger.error(mapped.summary, **log_fields)
+        for hint in mapped.hints:
+            logger.error(f"Hint: {hint}", **log_fields)
+
+        await ctx.error(mapped.user_message)
+        raise mapped from exc
     except Exception as exc:  # pragma: no cover - diagnostic fallback
         await ctx.error(
             f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}"
@@ -99,7 +128,7 @@ async def call_openapi_tool(
         logger.error(
             "FastMCP tool execution failed",
             tool=resolved_tool_name,
-            exc_info=True,
+            exc_info=True if debug_enabled else False,
         )
         raise
 

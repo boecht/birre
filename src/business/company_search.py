@@ -3,12 +3,15 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterable, List, Optional
 
+import logging
+
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, model_validator
 
 from .helpers import CallV1Tool
+from ..errors import BirreError
 from ..logging import BoundLogger, log_search_event
 
 
@@ -192,13 +195,29 @@ def register_company_search_tool(
             )
             return response_payload
 
+        except BirreError as exc:
+            error_msg = exc.user_message
+            await ctx.error(error_msg)
+            log_search_event(
+                logger,
+                "failure",
+                ctx=ctx,
+                company_name=name,
+                company_domain=domain,
+                error=error_msg,
+            )
+            return {"error": error_msg}
+
         except Exception as exc:
             error_msg = f"FastMCP company search failed: {exc}"
             await ctx.error(error_msg)
+            exc_info = (
+                exc if logging.getLogger().isEnabledFor(logging.DEBUG) else False
+            )
             logger.error(
                 "company_search.error",
                 error=str(exc),
-                exc_info=True,
+                exc_info=exc_info,
             )
             log_search_event(
                 logger,
