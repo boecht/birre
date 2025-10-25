@@ -132,11 +132,11 @@ touching the BitSight API. The online tests drive the FastMCP client end-to-end
 against BitSight and require real credentials.
 
 ```bash
-# Run the offline suite (default; no network calls).
-uv run pytest
+# Run the offline suite
+uv run pytest -m offline
 
 # Run the online smoke tests against BitSight.
-uv run pytest -m online -rs
+uv run pytest -m online
 ```
 
 Online tests require a valid `BITSIGHT_API_KEY` in the environment (or

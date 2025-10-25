@@ -30,8 +30,8 @@
 
 ### ⚠️ Testing infrastructure — Improved, needs expansion
 
-- `uv run pytest` exercises configuration layering, logging formatters, startup checks, subscription helpers, and both standard and risk-manager tools without network access.
-- `uv run pytest -m online -rs` drives the FastMCP client against BitSight; both online suites pass with a configured `BITSIGHT_API_KEY`.
+- `uv run pytest -m offline` exercises configuration layering, logging formatters, startup checks, subscription helpers, and both standard and risk-manager tools without network access.
+- `uv run pytest -m online` drives the FastMCP client against BitSight; both online suites pass with a configured `BITSIGHT_API_KEY`.
 - Remaining gap: automate execution (CI) and determine how to provision BitSight credentials securely for optional online runs.
 
 ---
