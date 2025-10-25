@@ -1057,10 +1057,10 @@ class HealthcheckResult:
 
         if ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value in self.alerts:
             return 2
-        if self.degraded:
-            return 2
         if not self.success:
             return 1
+        if self.degraded:
+            return 2
         return 0
 
 
