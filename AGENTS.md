@@ -127,6 +127,8 @@ Always think step-by-step through the development process, considering the proje
 
 ### Running Tests (Essential)
 
+Assume `BITSIGHT_API_KEY` environment variable is set, even if invisible, so online tests are possible.
+
 ```bash
 # Run offline unit tests only
 uv run pytest -m "not live" -v
@@ -142,17 +144,17 @@ uv run python scripts/min_mcp_client.py
 
 ```bash
 # Run BiRRe with uv (easiest way - automatically installs dependencies)
-uv run server.py
+uv run server.py run
 
 # Or run from GitHub
-uvx --from git+https://github.com/boecht/birre server.py
+uvx --from git+https://github.com/boecht/birre server.py run
 ```
 
 ### FastMCP Implementation Testing (Essential)
 
 ```bash
 # Test server startup (with timeout to avoid hanging)
-timeout 10s uv run server.py || echo "✅ Server test completed"
+timeout 10s uv run server.py run || echo "✅ Server test completed"
 ```
 
 ### Key Environment Variables

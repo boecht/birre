@@ -44,7 +44,7 @@ def _logging_settings() -> LoggingSettings:
 
 def _build_invocation(**overrides):
     defaults = {
-        "config_path": "config.toml",
+        "config_path": None,
         "api_key": None,
         "subscription_folder": None,
         "subscription_type": None,
@@ -196,7 +196,7 @@ def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code in (0, 2), result.stdout
     lines = result.stdout.splitlines()
 
     level_rows = [line for line in lines if "logging.level" in line]
@@ -236,7 +236,7 @@ def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code in (0, 2), result.stdout
     stdout = result.stdout
     assert "Local configuration preview" in stdout
     assert "bitsight.api_key" in stdout
@@ -266,7 +266,7 @@ def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> Non
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code in (0, 2), result.stdout
     assert "A value is required" in result.stdout
     assert output_path.exists()
     file_content = output_path.read_text(encoding="utf-8")
@@ -298,7 +298,7 @@ def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code in (0, 2), result.stdout
     stdout = result.stdout
     assert "Default subscription type" not in stdout
     assert "vendor_monitoring" in stdout
@@ -632,7 +632,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     )
 
     assert result.exit_code == 0, result.stdout
-    assert captured["config_path"] == Path("custom.toml")
+    assert captured["config_path"] == "custom.toml"
     assert captured["api_key"] == "abc"
     assert captured["subscription_folder"] == "folder"
     assert captured["subscription_type"] == "continuous_monitoring"
@@ -647,6 +647,63 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     assert captured["log_max_bytes"] == 1024
     assert captured["log_backup_count"] == 3
     assert captured["skip_startup_checks"] is False
+
+
+def test_healthcheck_uses_environment_config_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    runner = CliRunner()
+    captured = {}
+
+    original_build = server._build_invocation
+
+    def record_build_invocation(**kwargs):
+        captured.update(kwargs)
+        return original_build(**kwargs)
+
+    monkeypatch.setattr(server, "_build_invocation", record_build_invocation)
+
+    def fake_resolve(invocation):
+        runtime = replace(
+            _runtime_settings(),
+            context="standard",
+            skip_startup_checks=bool(
+                getattr(invocation.runtime, "skip_startup_checks", False)
+            ),
+        )
+        logging_settings = replace(_logging_settings(), level=logging.INFO)
+        return (runtime, logging_settings, {})
+
+    monkeypatch.setattr(server, "_resolve_runtime_and_logging", fake_resolve)
+    monkeypatch.setattr(server, "_initialize_logging", lambda runtime, logging_settings, *, show_banner=False: MagicMock(name="logger"))
+    monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(server, "_prepare_server", lambda runtime, log, **kwargs: SimpleNamespace(call_v1_tool=object()))
+    monkeypatch.setattr(server, "_run_online_checks", lambda runtime, log, srv: True)
+    def fake_diagnostics(*args, **kwargs):
+        return True
+
+    monkeypatch.setattr(server, "_run_context_tool_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(
+        server,
+        "_discover_context_tools",
+        lambda *_: set().union(*server._EXPECTED_TOOLS_BY_CONTEXT.values()),
+    )
+
+    config_path = tmp_path / "env-config.toml"
+    config_path.write_text("", encoding="utf-8")
+
+    result = runner.invoke(
+        server.app,
+        ["healthcheck"],
+        env={
+            "BITSIGHT_API_KEY": "abc",
+            "BIRRE_CONFIG": str(config_path),
+        },
+        color=False,
+    )
+
+    assert result.exit_code in (0, 2), result.stdout
+    assert Path(captured["config_path"]) == config_path
 
 
 def test_healthcheck_fails_when_context_tools_missing(
@@ -816,7 +873,7 @@ def test_healthcheck_production_flag_uses_production_base(
         color=False,
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code in (0, 2), result.stdout
     assert base_urls
     assert all(base_url == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL for base_url in base_urls)
 

@@ -56,9 +56,12 @@ def _write_base_config(path: Path) -> None:
     )
 
 
-def test_runtime_defaults_from_config(tmp_path: Path) -> None:
+def test_runtime_defaults_from_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
+
+    monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
+    monkeypatch.delenv("BIRRE_CONFIG", raising=False)
 
     settings_obj = load_settings(str(config_path))
     runtime = runtime_from_settings(settings_obj)
@@ -198,6 +201,55 @@ def test_logging_overrides_follow_cli(tmp_path: Path) -> None:
     assert logging_settings.file_path and logging_settings.file_path.endswith("birre.log")
     assert logging_settings.max_bytes == 2048
     assert logging_settings.backup_count == 2
+
+
+def test_birre_config_env_overrides_default_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "custom.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'api_key = "custom-key"',
+                'subscription_folder = "BaseFolder"',
+                'subscription_type = "continuous_monitoring"',
+                "",
+                "[roles]",
+                'context = "risk_manager"',
+                'risk_vector_filter = "custom_filter"',
+                "max_findings = 42",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    local_path = config_path.with_name("custom.local.toml")
+    local_path.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'subscription_folder = "LocalFolder"',
+                "",
+                "[runtime]",
+                "debug = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("BIRRE_CONFIG", str(config_path))
+    monkeypatch.delenv("BITSIGHT_API_KEY", raising=False)
+
+    settings_obj = load_settings(None)
+    runtime = runtime_from_settings(settings_obj)
+
+    assert runtime.api_key == "custom-key"
+    assert runtime.subscription_folder == "LocalFolder"
+    assert runtime.context == "risk_manager"
+    assert runtime.risk_vector_filter == "custom_filter"
+    assert runtime.max_findings == 42
+    assert runtime.debug is True
 
 
 def test_logging_env_disable_sentinel(

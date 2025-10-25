@@ -73,6 +73,7 @@ from src.settings import (
     is_logfile_disabled_value,
     load_settings,
     logging_from_settings,
+    resolve_config_file_candidates,
     runtime_from_settings,
 )
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
@@ -86,6 +87,14 @@ app = typer.Typer(
     help="Model Context Protocol server for BitSight rating retrieval",
     rich_markup_mode="rich",
 )
+
+class _RichStyles:
+    ACCENT = "bold cyan"
+    SECONDARY = "magenta"
+    SUCCESS = "green"
+    EMPHASIS = "bold"
+    DETAIL = "white"
+
 
 _CLI_PROG_NAME = Path(__file__).name
 _CONTEXT_CHOICES = {"standard", "risk_manager"}
@@ -130,6 +139,8 @@ ConfigPathOption = Annotated[
     typer.Option(
         "--config",
         help="Path to a configuration TOML file to load",
+        envvar="BIRRE_CONFIG",
+        show_envvar=True,
         rich_help_panel="Configuration",
     ),
 ]
@@ -533,9 +544,9 @@ def _determine_source_label(
 
 def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> None:
     table = Table(title=title, box=box.SIMPLE_HEAVY)
-    table.add_column("Config Key", style="bold cyan")
+    table.add_column("Config Key", style=_RichStyles.ACCENT, no_wrap=True)
     table.add_column("Resolved Value", overflow="fold")
-    table.add_column("Source", style="magenta")
+    table.add_column("Source", style=_RichStyles.SECONDARY)
     for key, value, source in rows:
         table.add_row(key, value, source)
     stdout_console.print(table)
@@ -1872,11 +1883,11 @@ def _render_healthcheck_summary(report: Dict[str, Any]) -> None:
         return "; ".join(parts) if parts else "-"
 
     table = Table(title="Healthcheck Summary", box=box.SIMPLE_HEAVY)
-    table.add_column("Check", style="bold cyan")
-    table.add_column("Context", style="magenta")
-    table.add_column("Tool", style="green")
-    table.add_column("Status", style="bold")
-    table.add_column("Details", style="white")
+    table.add_column("Check", style=_RichStyles.ACCENT)
+    table.add_column("Context", style=_RichStyles.SECONDARY)
+    table.add_column("Tool", style=_RichStyles.SUCCESS)
+    table.add_column("Status", style=_RichStyles.EMPHASIS)
+    table.add_column("Details", style=_RichStyles.DETAIL)
 
     offline_entry = report.get("offline_check", {})
     offline_status = status_label(offline_entry.get("status"))
@@ -2730,7 +2741,7 @@ def run(
 ) -> None:
     """Start the BiRRe FastMCP server with the configured runtime options."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -2809,7 +2820,7 @@ def healthcheck(
     """Execute BiRRe diagnostics and optional online checks."""
 
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -2993,7 +3004,7 @@ def local_conf_create(
                 )
                 raise typer.Exit(code=1)
 
-    defaults_settings = load_settings(DEFAULT_CONFIG_FILENAME)
+    defaults_settings = load_settings(None)
     default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
     default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
     default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
@@ -3115,9 +3126,9 @@ def local_conf_create(
     if summary_rows:
         summary_rows.sort(key=lambda entry: entry[0])
         preview = Table(title="Local configuration preview")
-        preview.add_column("Config Key", style="cyan")
-        preview.add_column("Value", style="magenta")
-        preview.add_column("Source", style="green")
+        preview.add_column("Config Key", style=_RichStyles.ACCENT)
+        preview.add_column("Value", style=_RichStyles.SECONDARY)
+        preview.add_column("Source", style=_RichStyles.SUCCESS)
         for dotted_key, display_value, source in summary_rows:
             preview.add_row(dotted_key, display_value, source)
         stdout_console.print()
@@ -3137,21 +3148,7 @@ def local_conf_create(
 
 
 def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
-    if config_path:
-        config_file = Path(config_path)
-        local_file = config_file.with_name(f"{config_file.stem}.local{config_file.suffix}")
-        files: list[Path] = []
-        if config_file.exists():
-            files.append(config_file)
-        if local_file.exists():
-            files.append(local_file)
-        if not files:
-            files.append(config_file)
-        return tuple(files)
-    return (
-        Path(DEFAULT_CONFIG_FILENAME),
-        Path(LOCAL_CONFIG_FILENAME),
-    )
+    return resolve_config_file_candidates(config_path)
 
 
 @app.command(
@@ -3179,7 +3176,7 @@ def check_conf(
 ) -> None:
     """Display configuration files, overrides, and effective values as Rich tables."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=bitsight_api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
@@ -3203,8 +3200,8 @@ def check_conf(
     config_entries = _collect_config_file_entries(files)
 
     files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
-    files_table.add_column("File", style="bold cyan")
-    files_table.add_column("Status", style="magenta")
+    files_table.add_column("File", style=_RichStyles.ACCENT)
+    files_table.add_column("Status", style=_RichStyles.SECONDARY)
     for file in files:
         status = "exists" if file.exists() else "missing"
         files_table.add_row(str(file), status)
@@ -3213,6 +3210,7 @@ def check_conf(
     env_overrides = {
         name: os.getenv(name)
         for name in (
+            "BIRRE_CONFIG",
             "BITSIGHT_API_KEY",
             "BIRRE_SUBSCRIPTION_FOLDER",
             "BIRRE_SUBSCRIPTION_TYPE",
@@ -3334,7 +3332,7 @@ def reset_logs(
 ) -> None:
     """Reset BiRRe log files by rotating archives or clearing the active file."""
     invocation = _build_invocation(
-        config_path=config,
+        config_path=str(config) if config is not None else None,
         api_key=None,
         subscription_folder=None,
         subscription_type=None,
