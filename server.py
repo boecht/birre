@@ -88,6 +88,14 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+class _RichStyles:
+    ACCENT = "bold cyan"
+    SECONDARY = "magenta"
+    SUCCESS = "green"
+    EMPHASIS = "bold"
+    DETAIL = "white"
+
+
 _CLI_PROG_NAME = Path(__file__).name
 _CONTEXT_CHOICES = {"standard", "risk_manager"}
 _LOG_FORMAT_CHOICES = {"text", "json"}
@@ -536,9 +544,9 @@ def _determine_source_label(
 
 def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> None:
     table = Table(title=title, box=box.SIMPLE_HEAVY)
-    table.add_column("Config Key", style="bold cyan", no_wrap=True)
+    table.add_column("Config Key", style=_RichStyles.ACCENT, no_wrap=True)
     table.add_column("Resolved Value", overflow="fold")
-    table.add_column("Source", style="magenta")
+    table.add_column("Source", style=_RichStyles.SECONDARY)
     for key, value, source in rows:
         table.add_row(key, value, source)
     stdout_console.print(table)
@@ -1875,11 +1883,11 @@ def _render_healthcheck_summary(report: Dict[str, Any]) -> None:
         return "; ".join(parts) if parts else "-"
 
     table = Table(title="Healthcheck Summary", box=box.SIMPLE_HEAVY)
-    table.add_column("Check", style="bold cyan")
-    table.add_column("Context", style="magenta")
-    table.add_column("Tool", style="green")
-    table.add_column("Status", style="bold")
-    table.add_column("Details", style="white")
+    table.add_column("Check", style=_RichStyles.ACCENT)
+    table.add_column("Context", style=_RichStyles.SECONDARY)
+    table.add_column("Tool", style=_RichStyles.SUCCESS)
+    table.add_column("Status", style=_RichStyles.EMPHASIS)
+    table.add_column("Details", style=_RichStyles.DETAIL)
 
     offline_entry = report.get("offline_check", {})
     offline_status = status_label(offline_entry.get("status"))
@@ -3118,9 +3126,9 @@ def local_conf_create(
     if summary_rows:
         summary_rows.sort(key=lambda entry: entry[0])
         preview = Table(title="Local configuration preview")
-        preview.add_column("Config Key", style="cyan")
-        preview.add_column("Value", style="magenta")
-        preview.add_column("Source", style="green")
+        preview.add_column("Config Key", style=_RichStyles.ACCENT)
+        preview.add_column("Value", style=_RichStyles.SECONDARY)
+        preview.add_column("Source", style=_RichStyles.SUCCESS)
         for dotted_key, display_value, source in summary_rows:
             preview.add_row(dotted_key, display_value, source)
         stdout_console.print()
@@ -3192,8 +3200,8 @@ def check_conf(
     config_entries = _collect_config_file_entries(files)
 
     files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
-    files_table.add_column("File", style="bold cyan")
-    files_table.add_column("Status", style="magenta")
+    files_table.add_column("File", style=_RichStyles.ACCENT)
+    files_table.add_column("Status", style=_RichStyles.SECONDARY)
     for file in files:
         status = "exists" if file.exists() else "missing"
         files_table.add_row(str(file), status)
