@@ -25,11 +25,11 @@ Most commands accept the same core options for authentication, runtime behaviour
 
 | Option | Environment | Description |
 | --- | --- | --- |
-| `--config PATH` | – | Load settings from an alternative TOML file (defaults to `config.toml`). |
+| `--config PATH` | `BIRRE_CONFIG` | Load settings from an alternative TOML file (defaults to `config.toml`). |
 | `--bitsight-api-key TEXT` | `BITSIGHT_API_KEY` | API key used to authenticate against BitSight. |
 | `--subscription-folder TEXT` | `BIRRE_SUBSCRIPTION_FOLDER` | Override the folder used for ephemeral subscriptions. |
 | `--subscription-type TEXT` | `BIRRE_SUBSCRIPTION_TYPE` | Override the BitSight subscription type used for temporary access. |
-| `--context [standard|risk_manager]` | `BIRRE_CONTEXT` | Select the MCP persona exposed to clients. |
+| `--context [standard\|risk_manager]` | `BIRRE_CONTEXT` | Select the MCP persona exposed to clients. |
 | `--risk-vector-filter TEXT` | `BIRRE_RISK_VECTOR_FILTER` | Comma-separated BitSight risk vectors used when selecting findings. |
 | `--max-findings INTEGER` | `BIRRE_MAX_FINDINGS` | Limit the number of findings returned with each rating payload. |
 | `--skip-startup-checks / --no-skip-startup-checks` | `BIRRE_SKIP_STARTUP_CHECKS` | Disable BitSight connectivity checks (not recommended outside controlled environments). |
@@ -37,7 +37,7 @@ Most commands accept the same core options for authentication, runtime behaviour
 | `--allow-insecure-tls / --enforce-tls` | `BIRRE_ALLOW_INSECURE_TLS` | Skip TLS verification when connecting to BitSight. |
 | `--ca-bundle PATH` | `BIRRE_CA_BUNDLE` | Provide a custom certificate authority bundle for TLS verification. |
 | `--log-level TEXT` | `BIRRE_LOG_LEVEL` | Set the logging level (e.g. `INFO`, `DEBUG`). |
-| `--log-format [text|json]` | `BIRRE_LOG_FORMAT` | Choose between human-readable and JSON log formatting. |
+| `--log-format [text\|json]` | `BIRRE_LOG_FORMAT` | Choose between human-readable and JSON log formatting. |
 | `--log-file PATH` | `BIRRE_LOG_FILE` | Write logs to a file (set to `-`, `stderr`, or `none` to disable file logging). |
 | `--log-max-bytes INTEGER` | `BIRRE_LOG_MAX_BYTES` | Maximum size for log rotation when file logging is enabled. |
 | `--log-backup-count INTEGER` | `BIRRE_LOG_BACKUP_COUNT` | Number of rotated log archives to keep. |

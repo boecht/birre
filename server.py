@@ -73,6 +73,7 @@ from src.settings import (
     is_logfile_disabled_value,
     load_settings,
     logging_from_settings,
+    resolve_config_file_candidates,
     runtime_from_settings,
 )
 from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
@@ -130,6 +131,8 @@ ConfigPathOption = Annotated[
     typer.Option(
         "--config",
         help="Path to a configuration TOML file to load",
+        envvar="BIRRE_CONFIG",
+        show_envvar=True,
         rich_help_panel="Configuration",
     ),
 ]
@@ -2993,7 +2996,7 @@ def local_conf_create(
                 )
                 raise typer.Exit(code=1)
 
-    defaults_settings = load_settings(DEFAULT_CONFIG_FILENAME)
+    defaults_settings = load_settings(None)
     default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
     default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
     default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
@@ -3137,21 +3140,7 @@ def local_conf_create(
 
 
 def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
-    if config_path:
-        config_file = Path(config_path)
-        local_file = config_file.with_name(f"{config_file.stem}.local{config_file.suffix}")
-        files: list[Path] = []
-        if config_file.exists():
-            files.append(config_file)
-        if local_file.exists():
-            files.append(local_file)
-        if not files:
-            files.append(config_file)
-        return tuple(files)
-    return (
-        Path(DEFAULT_CONFIG_FILENAME),
-        Path(LOCAL_CONFIG_FILENAME),
-    )
+    return resolve_config_file_candidates(config_path)
 
 
 @app.command(
@@ -3213,6 +3202,7 @@ def check_conf(
     env_overrides = {
         name: os.getenv(name)
         for name in (
+            "BIRRE_CONFIG",
             "BITSIGHT_API_KEY",
             "BIRRE_SUBSCRIPTION_FOLDER",
             "BIRRE_SUBSCRIPTION_TYPE",
