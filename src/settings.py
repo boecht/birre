@@ -11,7 +11,7 @@ from types import MappingProxyType
 
 from dynaconf import Dynaconf
 
-from .constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
+from .constants import CONFIG_ENVVAR, DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -102,6 +102,19 @@ _ENVIRONMENT_MAP = {
 ENVVAR_TO_SETTINGS_KEY: Mapping[str, str] = MappingProxyType(_ENVIRONMENT_MAP)
 
 
+def _normalize_config_path(value: Optional[Any]) -> Optional[Path]:
+    if value is None:
+        return None
+    if isinstance(value, Path):
+        candidate = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        candidate = Path(text)
+    return candidate
+
+
 @dataclass(frozen=True)
 class SubscriptionInputs:
     folder: Optional[str] = None
@@ -186,8 +199,14 @@ class LoggingSettings:
 
 
 def _default_settings_files(config_path: Optional[str]) -> Tuple[Sequence[str], Optional[str]]:
-    if config_path:
-        config_file = Path(config_path)
+    selected_path = _normalize_config_path(config_path)
+    if selected_path is None:
+        env_override = _normalize_config_path(os.getenv(CONFIG_ENVVAR))
+        if env_override is not None:
+            selected_path = env_override
+
+    if selected_path is not None:
+        config_file = selected_path
         local_file = config_file.with_name(f"{config_file.stem}.local{config_file.suffix}")
         files: list[str] = []
         if config_file.exists():
@@ -196,6 +215,18 @@ def _default_settings_files(config_path: Optional[str]) -> Tuple[Sequence[str], 
             files.append(str(local_file))
         return files or [str(config_file)], None
     return [DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME], str(_REPO_ROOT)
+
+
+def resolve_config_file_candidates(config_path: Optional[str]) -> Tuple[Path, ...]:
+    files, root_path = _default_settings_files(config_path)
+    resolved: list[Path] = []
+    base_path = Path(root_path) if root_path else None
+    for entry in files:
+        file_path = Path(entry)
+        if not file_path.is_absolute() and base_path is not None:
+            file_path = base_path / file_path
+        resolved.append(file_path)
+    return tuple(resolved)
 
 
 def _coerce_str(value: Optional[Any]) -> Optional[str]:
@@ -526,7 +557,7 @@ def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
 def resolve_birre_settings(
     *,
     api_key_input: Optional[str] = None,
-    config_path: str = DEFAULT_CONFIG_FILENAME,
+    config_path: Optional[str] = None,
     subscription_inputs: Optional[SubscriptionInputs] = None,
     runtime_inputs: Optional[RuntimeInputs] = None,
     tls_inputs: Optional[TlsInputs] = None,
@@ -568,7 +599,7 @@ def resolve_logging_settings(
 def resolve_application_settings(
     *,
     api_key_input: Optional[str] = None,
-    config_path: str = DEFAULT_CONFIG_FILENAME,
+    config_path: Optional[str] = None,
     subscription_inputs: Optional[SubscriptionInputs] = None,
     runtime_inputs: Optional[RuntimeInputs] = None,
     logging_inputs: Optional[LoggingInputs] = None,
@@ -628,4 +659,5 @@ __all__ = [
     "resolve_logging_settings",
     "resolve_application_settings",
     "settings",
+    "resolve_config_file_candidates",
 ]
