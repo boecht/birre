@@ -49,6 +49,7 @@ LOGFILE_DISABLE_SENTINELS = {
     "null",
     "off",
     "stderr",
+    "stdout",
 }
 
 

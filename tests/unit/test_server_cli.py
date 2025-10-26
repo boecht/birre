@@ -173,7 +173,7 @@ def test_check_conf_masks_api_key_and_labels_env() -> None:
     runner = CliRunner()
     result = runner.invoke(
         server.app,
-        ["check-conf"],
+        ["config", "show"],
         env={"BITSIGHT_API_KEY": "supersecretvalue"},
         color=False,
     )
@@ -191,7 +191,7 @@ def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
     runner = CliRunner()
     result = runner.invoke(
         server.app,
-        ["check-conf", "--log-level", "DEBUG"],
+        ["config", "show", "--log-level", "DEBUG"],
         env={"BITSIGHT_API_KEY": "maskedkey"},
         color=False,
     )
@@ -216,6 +216,45 @@ def test_check_conf_reports_sources_for_cli_and_defaults() -> None:
     assert "Config File" in context_rows[0]
 
 
+def test_config_validate_uses_provided_config(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "config.local.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[bitsight]",
+                'api_key = "demo"',
+                "",
+                "[runtime]",
+                "debug = false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        server.app,
+        ["config", "validate", "--config", str(config_path)],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "TOML parsing succeeded" in result.stdout
+
+
+def test_config_validate_without_config_flag_shows_help() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        server.app,
+        ["config", "validate"],
+        color=False,
+    )
+
+    assert result.exit_code == 0
+    assert "Usage: root config validate" in result.stdout
+    assert "--config" in result.stdout
+
+
 def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "config.local.toml"
@@ -231,7 +270,7 @@ def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
 
     result = runner.invoke(
         server.app,
-        ["local-conf-create", "--output", str(output_path)],
+        ["config", "init", "--output", str(output_path)],
         input=input_data,
         color=False,
     )
@@ -261,7 +300,7 @@ def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> Non
 
     result = runner.invoke(
         server.app,
-        ["local-conf-create", "--output", str(output_path)],
+        ["config", "init", "--output", str(output_path)],
         input=input_data,
         color=False,
     )
@@ -287,7 +326,8 @@ def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
     result = runner.invoke(
         server.app,
         [
-            "local-conf-create",
+            "config",
+            "init",
             "--output",
             str(output_path),
             "--subscription-type",
@@ -312,7 +352,7 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
 
     result = runner.invoke(
         server.app,
-        ["local-conf-create", "--output", str(output_path)],
+        ["config", "init", "--output", str(output_path)],
         input="n\n",
         color=False,
     )
@@ -322,7 +362,39 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
     assert output_path.read_text(encoding="utf-8") == "existing"
 
 
-def test_healthcheck_defaults_to_online_checks(
+def test_config_init_respects_config_flag(tmp_path: Path) -> None:
+    runner = CliRunner()
+    destination = tmp_path / "custom.local.toml"
+    input_data = "\n".join(
+        [
+            "secretkey",
+            "subscriptions",
+            "continuous",
+            "standard",
+            "n",
+        ]
+    ) + "\n"
+
+    result = runner.invoke(
+        server.app,
+        [
+            "config",
+            "init",
+            "--config",
+            str(destination),
+        ],
+        input=input_data,
+        color=False,
+    )
+
+    assert result.exit_code in (0, 2), result.stdout
+    assert destination.exists()
+    content = destination.read_text(encoding="utf-8")
+    assert "secretkey" in content
+    assert "subscriptions" in content
+
+
+def test_selftest_defaults_to_online_checks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -384,7 +456,7 @@ def test_healthcheck_defaults_to_online_checks(
     ):
         result = runner.invoke(
             server.app,
-            ["healthcheck"],
+            ["selftest"],
             env={
                 "BIRRE_SKIP_STARTUP_CHECKS": "true",
                 "BITSIGHT_API_KEY": "dummy",
@@ -409,7 +481,7 @@ def test_healthcheck_defaults_to_online_checks(
     assert sorted(diagnostic_calls) == sorted(server._CONTEXT_CHOICES)
 
 
-def test_healthcheck_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
 
     monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
@@ -453,7 +525,7 @@ def test_healthcheck_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> 
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -475,7 +547,7 @@ def test_healthcheck_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> 
         assert context_entry["tools"], context_entry
 
 
-def test_healthcheck_offline_flag_skips_network_checks(
+def test_selftest_offline_flag_skips_network_checks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -511,7 +583,7 @@ def test_healthcheck_offline_flag_skips_network_checks(
     ):
         result = runner.invoke(
             server.app,
-            ["healthcheck", "--offline"],
+            ["selftest", "--offline"],
             env={
                 "BITSIGHT_API_KEY": "dummy",
             },
@@ -528,7 +600,7 @@ def test_healthcheck_offline_flag_skips_network_checks(
         assert base_url == server.HEALTHCHECK_TESTING_V1_BASE_URL
 
 
-def test_healthcheck_passes_shared_options_to_build_invocation(
+def test_selftest_passes_shared_options_to_build_invocation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -600,7 +672,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     result = runner.invoke(
         server.app,
         [
-            "healthcheck",
+            "selftest",
             "--config",
             "custom.toml",
             "--bitsight-api-key",
@@ -649,7 +721,7 @@ def test_healthcheck_passes_shared_options_to_build_invocation(
     assert captured["skip_startup_checks"] is False
 
 
-def test_healthcheck_uses_environment_config_path(
+def test_selftest_uses_environment_config_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     runner = CliRunner()
@@ -694,7 +766,7 @@ def test_healthcheck_uses_environment_config_path(
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={
             "BITSIGHT_API_KEY": "abc",
             "BIRRE_CONFIG": str(config_path),
@@ -706,7 +778,7 @@ def test_healthcheck_uses_environment_config_path(
     assert Path(captured["config_path"]) == config_path
 
 
-def test_healthcheck_fails_when_context_tools_missing(
+def test_selftest_fails_when_context_tools_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -755,7 +827,7 @@ def test_healthcheck_fails_when_context_tools_missing(
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -765,7 +837,7 @@ def test_healthcheck_fails_when_context_tools_missing(
     assert result.exception.code == 1
 
 
-def test_healthcheck_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
@@ -810,7 +882,7 @@ def test_healthcheck_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -820,7 +892,7 @@ def test_healthcheck_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch
     assert result.exception.code == 1
 
 
-def test_healthcheck_production_flag_uses_production_base(
+def test_selftest_production_flag_uses_production_base(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -868,7 +940,7 @@ def test_healthcheck_production_flag_uses_production_base(
 
     result = runner.invoke(
         server.app,
-        ["healthcheck", "--production"],
+        ["selftest", "--production"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -878,7 +950,7 @@ def test_healthcheck_production_flag_uses_production_base(
     assert all(base_url == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL for base_url in base_urls)
 
 
-def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     monkeypatch.setattr(server, "_run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
@@ -944,7 +1016,7 @@ def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) 
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -956,7 +1028,7 @@ def test_healthcheck_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) 
     assert standard_flags.count(True) == 1
 
 
-def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
+def test_selftest_missing_ca_bundle_falls_back_to_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
@@ -1020,7 +1092,7 @@ def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
 
     result = runner.invoke(
         server.app,
-        ["healthcheck"],
+        ["selftest"],
         env={"BITSIGHT_API_KEY": "dummy"},
         color=False,
     )
@@ -1030,3 +1102,153 @@ def test_healthcheck_missing_ca_bundle_falls_back_to_defaults(
     for _, ca_bundle_path, allow_insecure in prepare_invocations:
         assert ca_bundle_path is None
         assert allow_insecure is False
+
+
+def test_logs_clear_truncates_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner = CliRunner()
+    log_path = tmp_path / "birre.log"
+    log_path.write_text("existing\n", encoding="utf-8")
+
+    def fake_resolver(
+        *,
+        config_path,
+        log_level,
+        log_format,
+        log_file,
+        log_max_bytes,
+        log_backup_count,
+    ):
+        assert log_file == str(log_path)
+        return (
+            None,
+            SimpleNamespace(file_path=str(log_path), backup_count=2, format="text"),
+        )
+
+    monkeypatch.setattr(server, "_resolve_logging_settings_from_cli", fake_resolver)
+
+    result = runner.invoke(
+        server.app,
+        ["logs", "clear", "--log-file", str(log_path)],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert log_path.read_text(encoding="utf-8") == ""
+
+
+def test_logs_rotate_uses_override_backup_count(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner = CliRunner()
+    log_path = tmp_path / "birre.log"
+    log_path.write_text("content\n", encoding="utf-8")
+
+    captured_backup_count: list[int] = []
+
+    def fake_resolver(
+        *,
+        config_path,
+        log_level,
+        log_format,
+        log_file,
+        log_max_bytes,
+        log_backup_count,
+    ):
+        assert log_backup_count == 3
+        return (
+            None,
+            SimpleNamespace(file_path=str(log_path), backup_count=1, format="text"),
+        )
+
+    def fake_rotate(path: Path, backup_count: int) -> None:
+        captured_backup_count.append(backup_count)
+
+    monkeypatch.setattr(server, "_resolve_logging_settings_from_cli", fake_resolver)
+    monkeypatch.setattr(server, "_rotate_logs", fake_rotate)
+
+    result = runner.invoke(
+        server.app,
+        ["logs", "rotate", "--log-file", str(log_path), "--log-backup-count", "3"],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert captured_backup_count == [3]
+
+
+def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner = CliRunner()
+    log_path = tmp_path / "birre.log"
+
+    def fake_resolver(
+        *,
+        config_path,
+        log_level,
+        log_format,
+        log_file,
+        log_max_bytes,
+        log_backup_count,
+    ):
+        return (None, SimpleNamespace(file_path=str(log_path), format="json", backup_count=2))
+
+    monkeypatch.setattr(server, "_resolve_logging_settings_from_cli", fake_resolver)
+
+    result = runner.invoke(
+        server.app,
+        ["logs", "path"],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert str(log_path) in result.stdout
+
+
+def test_logs_show_filters_by_level_and_since(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner = CliRunner()
+    log_path = tmp_path / "birre.log"
+    log_path.write_text(
+        "\n".join(
+            [
+                "2025-10-26T06:00:00Z INFO system boot",
+                "2025-10-26T07:00:00Z WARNING disk usage high",
+                "2025-10-26T07:30:00Z ERROR outage detected",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_resolver(
+        *,
+        config_path,
+        log_level,
+        log_format,
+        log_file,
+        log_max_bytes,
+        log_backup_count,
+    ):
+        assert log_file == str(log_path)
+        return (None, SimpleNamespace(file_path=str(log_path), format="text", backup_count=2))
+
+    monkeypatch.setattr(server, "_resolve_logging_settings_from_cli", fake_resolver)
+
+    result = runner.invoke(
+        server.app,
+        [
+            "logs",
+            "show",
+            "--log-file",
+            str(log_path),
+            "--level",
+            "WARNING",
+            "--since",
+            "2025-10-26T06:30:00Z",
+            "--tail",
+            "5",
+        ],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    output = result.stdout.strip().splitlines()
+    assert len(output) == 2
+    assert "WARNING" in output[0]
+    assert "ERROR" in output[1]
