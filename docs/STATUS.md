@@ -1,10 +1,10 @@
 # BiRRe Implementation Status
 
-## ⚠️ Latest Update: 2025-10-06 — Version 3.0.0 validated (offline + live suites passing)
+## ⚠️ Latest Update: 2025-10-06 — Version 3.0.0 validated (offline + online suites passing)
 
 ### Major outstanding issues
 
-- ⚠️ **CI automation pending**: Offline regression suite exists, but automated CI integration (including optional live smoke tests) still needs to be set up.
+- ⚠️ **CI automation pending**: Offline regression suite exists, but automated CI integration (including optional online smoke tests) still needs to be set up.
 
 ---
 
@@ -30,9 +30,9 @@
 
 ### ⚠️ Testing infrastructure — Improved, needs expansion
 
-- `uv run pytest -m 'not live'` exercises configuration layering, logging formatters, startup checks, subscription helpers, and both standard and risk-manager tools without network access.
-- `uv run pytest -m live -rs` drives the FastMCP client against BitSight; both live suites pass with a configured `BITSIGHT_API_KEY`.
-- Remaining gap: automate execution (CI) and determine how to provision BitSight credentials securely for optional live runs.
+- `uv run pytest -m offline` exercises configuration layering, logging formatters, startup checks, subscription helpers, and both standard and risk-manager tools without network access.
+- `uv run pytest -m online` drives the FastMCP client against BitSight; both online suites pass with a configured `BITSIGHT_API_KEY`.
+- Remaining gap: automate execution (CI) and determine how to provision BitSight credentials securely for optional online runs.
 
 ---
 
@@ -56,7 +56,7 @@
 - Context selection now respected via CLI (`--context`), environment (`BIRRE_CONTEXT`), and config defaults
 - `risk_manager` persona ships with `company_search_interactive`, `manage_subscriptions`, and `request_company`; each tool returns enriched metadata and guidance for LLM-driven human confirmation (no direct `ctx.prompt` usage)
 - BitSight v2 bridge is auto-loaded for the request workflow (bulk path attempted, single-request fallback retained)
-- Offline unit tests exercise dry-run and fallback behaviour; live FastMCP smoke tests now cover the company search + rating workflows.
+- Offline unit tests exercise dry-run and fallback behaviour; online FastMCP smoke tests now cover the company search + rating workflows.
 
 ### Version 4.0 (Caching Layer) — Not implemented
 
@@ -72,7 +72,7 @@
 
 ## Next Development Priorities (agreed)
 
-1. Integrate the offline regression suite into CI and define a schedule for running live smoke tests.
+1. Integrate the offline regression suite into CI and define a schedule for running online smoke tests.
 2. Monitor BitSight v2 bulk usage and add complementary tooling where it provides net-new value.
 3. Continue improving subscription lifecycle observability (error reporting, logging) for production readiness.
 

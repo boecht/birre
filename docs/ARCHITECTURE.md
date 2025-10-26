@@ -166,9 +166,9 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 ## Testing Strategy
 
-The project maintains both offline and live suites:
+The project maintains both offline and online suites:
 
-- **Offline (`uv run pytest -m "not live"`)** – Runs quickly without network access. It covers configuration layering, logging formatters, startup checks, and the risk-manager tools (interactive search, subscription management, company requests) using lightweight stubs.
-- **Live (`uv run pytest -m live -rs`)** – Executes the FastMCP client end-to-end against BitSight, verifying the company search/rating workflow and the online startup checks. Requires a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
+- **Offline (`uv run pytest -m offline`)** – Runs quickly without network access. It covers configuration layering, logging formatters, startup checks, and the risk-manager tools (interactive search, subscription management, company requests) using lightweight stubs.
+- **Online (`uv run pytest -m online`)** – Executes the FastMCP client end-to-end against BitSight, verifying the company search/rating workflow and the online startup checks. Requires a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
 
 Future work should extend the offline suite to the standard company rating/search flows and ensure any new tooling lands with matching tests.

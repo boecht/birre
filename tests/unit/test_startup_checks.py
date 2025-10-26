@@ -12,6 +12,8 @@ from src.startup_checks import run_offline_startup_checks
 
 @pytest.fixture(autouse=True)
 def _configure_structured_logging() -> None:
+    """Install deterministic structured logging for startup-check tests."""
+
     configure_logging(
         LoggingSettings(
             level=logging.DEBUG,

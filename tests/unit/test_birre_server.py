@@ -64,6 +64,8 @@ EXPECTED_V2_KEEP = {
 
 @pytest.fixture
 def logger() -> BoundLogger:
+    """Return a namespaced test logger for BiRRe unit coverage."""
+
     return get_logger("birre-tests")
 
 

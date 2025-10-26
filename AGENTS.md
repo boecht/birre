@@ -131,10 +131,10 @@ Assume `BITSIGHT_API_KEY` environment variable is set, even if invisible, so onl
 
 ```bash
 # Run offline unit tests only
-uv run pytest -m "not live" -v
+uv run pytest -m offline
 
-# Run live MCP smoke tests (requires BITSIGHT_API_KEY)
-uv run pytest -m live -rs
+# Run online MCP smoke tests (requires BITSIGHT_API_KEY)
+uv run pytest -m online
 
 # Fetch rating summary for the default sample query
 uv run python scripts/min_mcp_client.py
