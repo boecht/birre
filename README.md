@@ -17,7 +17,7 @@ uvx --from git+https://github.com/boecht/birre server.py run
 ```
 
 - Point your LLM of choice to the MCP server and ask it for the BitSight rating of any company.
-- Explore the CLI with the added `--help` flag or consult [docs/CLI.md](docs/CLI.md). Individual subcommands such as `run` and `healthcheck` also provide dedicated `--help` output.
+- Explore the CLI with the added `--help` flag or consult [docs/CLI.md](docs/CLI.md). Individual subcommands such as `run` and `selftest` also provide dedicated `--help` output.
 
 ### Configuration
 
@@ -143,9 +143,9 @@ Online tests require a valid `BITSIGHT_API_KEY` in the environment (or
 `config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
 install on demand inside an isolated virtual environment.
 
-### Healthcheck
+### Selftest
 
-Use the built-in health check to validate your environment before connecting a
+Use the built-in self test to validate your environment before connecting a
 client. The command mirrors the `run` startup sequence, reporting resolved
 configuration and exercising BitSight connectivity, subscription, and tooling
 checks in standard online mode. When invoked with `--offline`, the network calls
@@ -153,10 +153,10 @@ are skipped while configuration and logging validation continue.
 
 ```bash
 # Run the full diagnostics against the default BitSight test endpoint.
-uv run server.py healthcheck
+uv run server.py selftest
 
 # Skip remote calls while validating local configuration.
-uv run server.py healthcheck --offline
+uv run server.py selftest --offline
 ```
 
 Successful runs exit with code `0`. Failures return `1`, and partial results

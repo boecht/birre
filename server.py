@@ -9,12 +9,14 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import ssl
 import sys
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from typing import (
     Annotated,
     Any,
@@ -23,6 +25,7 @@ from typing import (
     Dict,
     Final,
     FrozenSet,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -30,8 +33,10 @@ from typing import (
     Tuple,
 )
 
+import click
 import httpx
 from uuid import uuid4
+from click.core import ParameterSource
 
 import typer
 from rich.console import Console
@@ -87,6 +92,34 @@ app = typer.Typer(
     help="Model Context Protocol server for BitSight rating retrieval",
     rich_markup_mode="rich",
 )
+config_app = typer.Typer(
+    help="Manage BiRRe configuration files and settings.",
+    invoke_without_command=True,
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
+logs_app = typer.Typer(
+    help="Inspect and maintain BiRRe log files.",
+    invoke_without_command=True,
+    no_args_is_help=True,
+)
+app.add_typer(logs_app, name="logs")
+
+
+@config_app.callback(invoke_without_command=True)
+def config_group_callback(ctx: typer.Context) -> None:
+    """Display help when config group is invoked without a subcommand."""
+    if ctx.invoked_subcommand is None:
+        typer.echo(ctx.get_help())
+        raise typer.Exit()
+
+
+@logs_app.callback(invoke_without_command=True)
+def logs_group_callback(ctx: typer.Context) -> None:
+    """Display help when logs group is invoked without a subcommand."""
+    if ctx.invoked_subcommand is None:
+        typer.echo(ctx.get_help())
+        raise typer.Exit()
 
 class _RichStyles:
     ACCENT = "bold cyan"
@@ -105,6 +138,11 @@ _LOG_LEVEL_CHOICES = sorted(
     if isinstance(name, str) and not name.isdigit()
 )
 _LOG_LEVEL_SET = {choice.upper() for choice in _LOG_LEVEL_CHOICES}
+_LOG_LEVEL_MAP = {
+    name.upper(): value
+    for name, value in logging.getLevelNamesMapping().items()
+    if isinstance(name, str) and not name.isdigit()
+}
 
 _SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
 
@@ -181,8 +219,8 @@ SubscriptionTypeOption = Annotated[
 SkipStartupChecksOption = Annotated[
     Optional[bool],
     typer.Option(
-        "--skip-startup-checks/--no-skip-startup-checks",
-        help="Skip BitSight online startup checks",
+        "--skip-startup-checks/--require-startup-checks",
+        help="Skip BitSight online startup checks (use --require-startup-checks to override any configured skip)",
         envvar="BIRRE_SKIP_STARTUP_CHECKS",
         show_envvar=True,
         rich_help_panel="Runtime",
@@ -282,7 +320,7 @@ LogFileOption = Annotated[
     Optional[str],
     typer.Option(
         "--log-file",
-        help="Path to a log file (use '-', none, or stderr to disable)",
+        help="Path to a log file (use '-', none, stderr, or stdout to disable)",
         envvar="BIRRE_LOG_FILE",
         show_envvar=True,
         rich_help_panel="Logging",
@@ -552,27 +590,6 @@ def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> Non
     stdout_console.print(table)
 
 
-class LogResetMode(str, Enum):
-    """Supported log reset strategies."""
-
-    ROTATE = "rotate"
-    CLEAR = "clear"
-
-    def __str__(self) -> str:  # pragma: no cover - Typer uses __str__ for help text
-        return self.value
-
-
-LogResetModeOption = Annotated[
-    LogResetMode,
-    typer.Option(
-        "--mode",
-        case_sensitive=False,
-        help="Log reset strategy: 'rotate' to perform log rotation or 'clear' to truncate the active log file",
-        rich_help_panel="Logging",
-    ),
-]
-
-
 def _banner() -> Text:
     return Text.from_markup(
         "\n"
@@ -694,6 +711,14 @@ class _LoggingCliOverrides:
     file_path: Optional[str] = None
     max_bytes: Optional[int] = None
     backup_count: Optional[int] = None
+
+
+@dataclass
+class _LogViewLine:
+    raw: str
+    level: Optional[int]
+    timestamp: Optional[float]
+    json_data: Optional[Dict[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -2798,8 +2823,8 @@ def run(
         logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
 
 
-@app.command(help="Run BiRRe health checks without starting the FastMCP server.")
-def healthcheck(
+@app.command(help="Run BiRRe self tests without starting the FastMCP server.")
+def selftest(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
     subscription_folder: SubscriptionFolderOption = None,
@@ -2978,25 +3003,31 @@ def _generate_local_config_content(values: Dict[str, Any], *, include_header: bo
     return "\n".join(lines)
 
 
-@app.command(
-    help="Interactively create or update a local BiRRe configuration file."
+@config_app.command(
+    "init",
+    help="Interactively create or update a local BiRRe configuration file.",
 )
-def local_conf_create(
+def config_init(
     output: LocalConfOutputOption = Path(LOCAL_CONFIG_FILENAME),
+    config_path: ConfigPathOption = Path(LOCAL_CONFIG_FILENAME),
     subscription_type: SubscriptionTypeOption = None,
     debug: DebugOption = None,
     overwrite: OverwriteOption = False,
 ) -> None:
-    """Guide the user through generating a config.local.toml file."""
+    """Guide the user through generating a configuration file."""
 
-    if output.exists():
+    ctx = click.get_current_context()
+    config_source = ctx.get_parameter_source("config_path")
+    destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
+
+    if destination.exists():
         if overwrite:
             stdout_console.print(
-                f"[yellow]Overwriting existing configuration at[/yellow] {output}"
+                f"[yellow]Overwriting existing configuration at[/yellow] {destination}"
             )
         else:
             stdout_console.print(
-                f"[yellow]{output} already exists.[/yellow]"
+                f"[yellow]{destination} already exists.[/yellow]"
             )
             if not typer.confirm("Overwrite this file?", default=False):
                 stdout_console.print(
@@ -3004,7 +3035,7 @@ def local_conf_create(
                 )
                 raise typer.Exit(code=1)
 
-    defaults_settings = load_settings(None)
+    defaults_settings = load_settings(str(config_path) if config_source is ParameterSource.COMMANDLINE else None)
     default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
     default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
     default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
@@ -3135,29 +3166,138 @@ def local_conf_create(
         stdout_console.print(preview)
 
     content = _generate_local_config_content(serializable)
-    output.parent.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        output.write_text(content, encoding="utf-8")
+        destination.write_text(content, encoding="utf-8")
     except OSError as error:
         stdout_console.print(
             f"[red]Failed to write configuration:[/red] {error}"
         )
         raise typer.Exit(code=1) from error
 
-    stdout_console.print(f"[green]Local configuration saved to[/green] {output}")
+    stdout_console.print(f"[green]Local configuration saved to[/green] {destination}")
 
 
 def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
     return resolve_config_file_candidates(config_path)
 
 
-@app.command(
+def _resolve_logging_settings_from_cli(
+    *,
+    config_path: Optional[Path],
+    log_level: Optional[str],
+    log_format: Optional[str],
+    log_file: Optional[str],
+    log_max_bytes: Optional[int],
+    log_backup_count: Optional[int],
+) -> Tuple[_CliInvocation, Any]:
+    invocation = _build_invocation(
+        config_path=str(config_path) if config_path is not None else None,
+        api_key=None,
+        subscription_folder=None,
+        subscription_type=None,
+        context=None,
+        debug=None,
+        risk_vector_filter=None,
+        max_findings=None,
+        skip_startup_checks=None,
+        allow_insecure_tls=None,
+        ca_bundle=None,
+        log_level=log_level,
+        log_format=log_format,
+        log_file=log_file,
+        log_max_bytes=log_max_bytes,
+        log_backup_count=log_backup_count,
+    )
+    _, logging_settings, _ = _resolve_runtime_and_logging(invocation)
+    return invocation, logging_settings
+
+
+_RELATIVE_DURATION_PATTERN = re.compile(r"^\s*(\d+)([smhd])\s*$", re.IGNORECASE)
+
+
+def _parse_iso_timestamp_to_epoch(value: str) -> Optional[float]:
+    if value is None:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return parsed.timestamp()
+
+
+def _parse_relative_duration(value: str) -> Optional[timedelta]:
+    if value is None:
+        return None
+    match = _RELATIVE_DURATION_PATTERN.match(value)
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2).lower()
+    multiplier = {
+        "s": timedelta(seconds=1),
+        "m": timedelta(minutes=1),
+        "h": timedelta(hours=1),
+        "d": timedelta(days=1),
+    }.get(unit)
+    if multiplier is None:
+        return None
+    return multiplier * amount
+
+
+def _parse_log_line(line: str, format_hint: str) -> _LogViewLine:
+    stripped = line.rstrip("\n")
+    if format_hint == "json":
+        try:
+            data = json.loads(stripped)
+        except json.JSONDecodeError:
+            return _LogViewLine(raw=stripped, level=None, timestamp=None, json_data=None)
+        timestamp = None
+        for key in ("timestamp", "time", "@timestamp", "ts"):
+            value = data.get(key)
+            if isinstance(value, str):
+                timestamp = _parse_iso_timestamp_to_epoch(value)
+                if timestamp is not None:
+                    break
+        level_value = data.get("level") or data.get("levelname") or data.get("severity")
+        if isinstance(level_value, str):
+            level = _LOG_LEVEL_MAP.get(level_value.strip().upper())
+        elif isinstance(level_value, int):
+            level = level_value
+        else:
+            level = None
+        return _LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=data)
+
+    timestamp = None
+    level = None
+    tokens = stripped.split()
+    if tokens:
+        timestamp = _parse_iso_timestamp_to_epoch(tokens[0].strip("[]"))
+        for token in tokens[:3]:
+            candidate = _LOG_LEVEL_MAP.get(token.strip("[]:,").upper())
+            if candidate is not None:
+                level = candidate
+                break
+    return _LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=None)
+
+
+@config_app.command(
+    "show",
     help=(
         "Inspect configuration sources and resolved settings.\n\n"
-        "Example: python server.py check-conf --config custom.toml"
-    )
+        "Example: python server.py config show --config custom.toml"
+    ),
 )
-def check_conf(
+def config_show(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
     subscription_folder: SubscriptionFolderOption = None,
@@ -3254,20 +3394,43 @@ def check_conf(
     _print_config_table("Effective configuration", effective_rows)
 
 
-@app.command(help="Validate or minimize a BiRRe configuration file before use.")
-def lint_config(
-    config_file: Path = typer.Argument(..., help="Configuration TOML file to validate"),
+@config_app.command(
+    "validate",
+    help="Validate or minimize a BiRRe configuration file before use.",
+)
+def config_validate(
+    config: Optional[Path] = typer.Option(
+        None,
+        "--config",
+        help="Configuration TOML file to validate",
+        envvar="BIRRE_CONFIG",
+        show_envvar=True,
+        rich_help_panel="Configuration",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
     debug: DebugOption = None,
     minimize: MinimizeOption = False,
 ) -> None:
     """Validate configuration syntax and optionally rewrite it in minimal form."""
-    if not config_file.exists():
-        raise typer.BadParameter(f"{config_file} does not exist", param_hint="config-file")
+    ctx = click.get_current_context()
+    config_source = ctx.get_parameter_source("config")
+    if config is None and config_source is ParameterSource.DEFAULT:
+        typer.echo(ctx.get_help())
+        raise typer.Exit()
+    if config is None:
+        raise typer.BadParameter("Configuration path could not be determined.", param_hint="--config")
+
+    if not config.exists():
+        raise typer.BadParameter(f"{config} does not exist", param_hint="--config")
 
     import tomllib
 
     try:
-        with config_file.open("rb") as handle:
+        with config.open("rb") as handle:
             parsed = tomllib.load(handle)
     except tomllib.TOMLDecodeError as exc:
         raise typer.BadParameter(f"Invalid TOML: {exc}") from exc
@@ -3278,7 +3441,7 @@ def lint_config(
         if section not in allowed_sections:
             warnings.append(f"Unknown section '{section}' will be ignored by BiRRe")
 
-    stdout_console.print(f"[green]TOML parsing succeeded[/green] for {config_file}")
+    stdout_console.print(f"[green]TOML parsing succeeded[/green] for {config}")
     if warnings:
         stdout_console.print("[yellow]Warnings:[/yellow]")
         for warning in warnings:
@@ -3290,11 +3453,11 @@ def lint_config(
 
     if minimize:
         minimized = _generate_local_config_content(parsed, include_header=False)
-        backup_path = config_file.with_suffix(f"{config_file.suffix}.bak")
-        shutil.copy2(config_file, backup_path)
-        config_file.write_text(minimized, encoding="utf-8")
+        backup_path = config.with_suffix(f"{config.suffix}.bak")
+        shutil.copy2(config, backup_path)
+        config.write_text(minimized, encoding="utf-8")
         stdout_console.print(
-            f"[green]Minimized configuration written to[/green] {config_file} [dim](backup: {backup_path})[/dim]"
+            f"[green]Minimized configuration written to[/green] {config} [dim](backup: {backup_path})[/dim]"
         )
 
 
@@ -3314,61 +3477,217 @@ def _rotate_logs(base_path: Path, backup_count: int) -> None:
     base_path.touch()
 
 
-@app.command(
-    help=(
-        "Rotate or clear BiRRe log files based on the selected mode.\n\n"
-        "Example: python server.py reset-logs --log-file server.log --mode rotate"
-    )
+@logs_app.command(
+    "clear",
+    help="Truncate the active BiRRe log file while leaving rotated archives untouched.",
 )
-def reset_logs(
+def logs_clear(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
-    mode: LogResetModeOption = ...,
-    debug: DebugOption = None,
-    log_level: LogLevelOption = None,
-    log_format: LogFormatOption = None,
     log_file: LogFileOption = None,
-    log_max_bytes: LogMaxBytesOption = None,
-    log_backup_count: LogBackupCountOption = None,
 ) -> None:
-    """Reset BiRRe log files by rotating archives or clearing the active file."""
-    invocation = _build_invocation(
-        config_path=str(config) if config is not None else None,
-        api_key=None,
-        subscription_folder=None,
-        subscription_type=None,
-        context=None,
-        debug=debug,
-        risk_vector_filter=None,
-        max_findings=None,
-        skip_startup_checks=None,
-        allow_insecure_tls=None,
-        ca_bundle=None,
-        log_level=log_level,
-        log_format=log_format,
+    """Truncate the resolved log file."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
         log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
+        log_max_bytes=None,
+        log_backup_count=None,
     )
-
-    _, logging_settings, _ = _resolve_runtime_and_logging(invocation)
-    file_path = logging_settings.file_path
+    file_path = getattr(logging_settings, "file_path", None)
     if not file_path:
-        stdout_console.print("[yellow]File logging is disabled; nothing to reset[/yellow]")
+        stdout_console.print("[yellow]File logging is disabled; nothing to clear[/yellow]")
         return
 
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if mode is LogResetMode.ROTATE:
-        _rotate_logs(path, logging_settings.backup_count)
-        stdout_console.print(f"[green]Log files rotated at[/green] {path}")
-        return
-
     try:
         path.write_text("", encoding="utf-8")
     except OSError as exc:
         raise typer.BadParameter(f"Failed to clear log file: {exc}") from exc
     stdout_console.print(f"[green]Log file cleared at[/green] {path}")
+
+
+@logs_app.command(
+    "rotate",
+    help="Perform a manual log rotation using the configured backup count.",
+)
+def logs_rotate(
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    log_file: LogFileOption = None,
+    log_backup_count: LogBackupCountOption = None,
+) -> None:
+    """Rotate the active log file into numbered archives."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=log_backup_count,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled; nothing to rotate[/yellow]")
+        return
+
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup_count = (
+        log_backup_count
+        if log_backup_count is not None
+        else getattr(logging_settings, "backup_count", 0) or 0
+    )
+    _rotate_logs(path, backup_count)
+    stdout_console.print(f"[green]Log files rotated at[/green] {path}")
+
+
+@logs_app.command(
+    "path",
+    help="Show the resolved BiRRe log file path after applying configuration overrides.",
+)
+def logs_path(
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    log_file: LogFileOption = None,
+) -> None:
+    """Print the effective log file path."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=None,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled[/yellow]")
+        return
+    resolved = Path(file_path)
+    absolute = resolved.expanduser()
+    try:
+        absolute = absolute.resolve(strict=False)
+    except OSError:
+        absolute = absolute.absolute()
+
+    stdout_console.print(f"[green]Log file (relative)[/green]: {resolved}")
+    stdout_console.print(f"[green]Log file (absolute)[/green]: {absolute}")
+
+
+@logs_app.command(
+    "show",
+    help="Display recent log entries with optional level and time filtering.",
+)
+def logs_show(
+    config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    log_file: LogFileOption = None,
+    level: Optional[str] = typer.Option(
+        None,
+        "--level",
+        help="Minimum log level to include (e.g. INFO, WARNING).",
+        rich_help_panel="Filtering",
+    ),
+    tail: int = typer.Option(
+        100,
+        "--tail",
+        help="Number of lines from the end of the log to display (0 to show all).",
+        rich_help_panel="Filtering",
+    ),
+    since: Optional[str] = typer.Option(
+        None,
+        "--since",
+        help="Only include entries at or after the given ISO 8601 timestamp.",
+        rich_help_panel="Filtering",
+    ),
+    last: Optional[str] = typer.Option(
+        None,
+        "--last",
+        help="Only include entries from the relative window (e.g. 1h, 30m).",
+        rich_help_panel="Filtering",
+    ),
+    format_override: Optional[str] = typer.Option(
+        None,
+        "--format",
+        case_sensitive=False,
+        help="Treat log entries as 'json' or 'text'. Defaults to the configured format.",
+        rich_help_panel="Presentation",
+    ),
+) -> None:
+    """Render log entries to stdout."""
+    if tail < 0:
+        raise typer.BadParameter("Tail must be greater than or equal to zero.", param_hint="--tail")
+    if since and last:
+        raise typer.BadParameter("Only one of --since or --last can be provided.", param_hint="--since")
+
+    normalized_level = _normalize_log_level(level) if level is not None else None
+    level_threshold = _LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
+
+    if format_override is not None:
+        normalized_format = format_override.strip().lower()
+        if normalized_format not in _LOG_FORMAT_CHOICES:
+            raise typer.BadParameter("Format must be either 'text' or 'json'.", param_hint="--format")
+    else:
+        normalized_format = None
+
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=None,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    resolved_format = normalized_format or getattr(logging_settings, "format", None) or "text"
+
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled; nothing to show[/yellow]")
+        return
+
+    path = Path(file_path)
+    if not path.exists():
+        stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
+        return
+
+    start_timestamp: Optional[float] = None
+    if since:
+        start_timestamp = _parse_iso_timestamp_to_epoch(since)
+        if start_timestamp is None:
+            raise typer.BadParameter("Invalid ISO 8601 timestamp.", param_hint="--since")
+    elif last:
+        duration = _parse_relative_duration(last)
+        if duration is None:
+            raise typer.BadParameter("Invalid relative duration; use values like 30m, 1h, or 2d.", param_hint="--last")
+        start_timestamp = (datetime.now(timezone.utc) - duration).timestamp()
+
+    matched: List[_LogViewLine] = []
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            parsed = _parse_log_line(line, resolved_format)
+            if level_threshold is not None:
+                if parsed.level is not None:
+                    if parsed.level < level_threshold:
+                        continue
+                else:
+                    if normalized_level not in parsed.raw.upper():
+                        continue
+            if start_timestamp is not None:
+                if parsed.timestamp is None or parsed.timestamp < start_timestamp:
+                    continue
+            matched.append(parsed)
+
+    if tail and tail > 0:
+        matched = matched[-tail:]
+
+    if not matched:
+        stdout_console.print("[yellow]No log entries matched the supplied filters[/yellow]")
+        return
+
+    for entry in matched:
+        if resolved_format == "json" and entry.json_data is not None:
+            stdout_console.print_json(data=entry.json_data)
+        else:
+            stdout_console.print(entry.raw, markup=False, highlight=False)
 
 
 @app.command(help="Show the installed BiRRe package version.")

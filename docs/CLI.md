@@ -32,13 +32,13 @@ Most commands accept the same core options for authentication, runtime behaviour
 | `--context [standard\|risk_manager]` | `BIRRE_CONTEXT` | Select the MCP persona exposed to clients. |
 | `--risk-vector-filter TEXT` | `BIRRE_RISK_VECTOR_FILTER` | Comma-separated BitSight risk vectors used when selecting findings. |
 | `--max-findings INTEGER` | `BIRRE_MAX_FINDINGS` | Limit the number of findings returned with each rating payload. |
-| `--skip-startup-checks / --no-skip-startup-checks` | `BIRRE_SKIP_STARTUP_CHECKS` | Disable BitSight connectivity checks (not recommended outside controlled environments). |
+| `--skip-startup-checks / --require-startup-checks` | `BIRRE_SKIP_STARTUP_CHECKS` | Disable BitSight connectivity checks (use `--require-startup-checks` to override a configured skip). |
 | `--debug / --no-debug` | `BIRRE_DEBUG` | Emit verbose diagnostic logging and payload details. |
 | `--allow-insecure-tls / --enforce-tls` | `BIRRE_ALLOW_INSECURE_TLS` | Skip TLS verification when connecting to BitSight. |
 | `--ca-bundle PATH` | `BIRRE_CA_BUNDLE` | Provide a custom certificate authority bundle for TLS verification. |
 | `--log-level TEXT` | `BIRRE_LOG_LEVEL` | Set the logging level (e.g. `INFO`, `DEBUG`). |
 | `--log-format [text\|json]` | `BIRRE_LOG_FORMAT` | Choose between human-readable and JSON log formatting. |
-| `--log-file PATH` | `BIRRE_LOG_FILE` | Write logs to a file (set to `-`, `stderr`, or `none` to disable file logging). |
+| `--log-file PATH` | `BIRRE_LOG_FILE` | Write logs to a file (set to `-`, `stderr`, `stdout`, or `none` to disable file logging). |
 | `--log-max-bytes INTEGER` | `BIRRE_LOG_MAX_BYTES` | Maximum size for log rotation when file logging is enabled. |
 | `--log-backup-count INTEGER` | `BIRRE_LOG_BACKUP_COUNT` | Number of rotated log archives to keep. |
 
@@ -54,14 +54,14 @@ Example:
 uv run server.py run --context risk_manager --log-format json
 ```
 
-### `healthcheck`
+### `selftest`
 
 Executes BiRRe's diagnostics without starting the server. It loads configuration in the same way as `run`, reports effective values, and (unless `--offline` is supplied) performs live BitSight checks against the testing API base URL by default. Use `--production` to target the production API, or `--offline` to skip network requests entirely.
 
 Example:
 
 ```bash
-uv run server.py healthcheck --offline
+uv run server.py selftest --offline
 ```
 
 Exit codes:
@@ -70,34 +70,43 @@ Exit codes:
 - `1` – failures detected
 - `2` – completed with warnings (e.g. missing optional tools)
 
-### `check-conf`
+### `config`
 
-Displays configuration sources, environment overrides, CLI overrides, and the fully resolved configuration using Rich tables. Helpful when troubleshooting how values from different layers combine.
+Group of subcommands for inspecting and managing configuration files:
 
-Example:
+- `config show` – Displays configuration sources, environment overrides, CLI overrides, and the fully resolved configuration using Rich tables. Helpful when troubleshooting how values from different layers combine.
+- `config validate` – Validates a TOML configuration file before use. With `--minimize`, BiRRe rewrites the file using its canonical layout while keeping a `.bak` backup. Passing `--debug` prints the parsed data structure.
+- `config init` – Interactively generates or updates a configuration file (defaults to `config.local.toml`; override with `--config`), prompting for key values and summarizing the resulting file.
+
+Examples:
 
 ```bash
-uv run server.py check-conf --config myconfig.toml
+uv run server.py config show --config myconfig.toml
+uv run server.py config validate --config config.local.toml --minimize
+uv run server.py config init --config custom.local.toml
 ```
 
-### `lint-config`
+### `logs`
 
-Validates a TOML configuration file before use. With `--minimize`, BiRRe rewrites the file using its canonical layout while keeping a `.bak` backup. Passing `--debug` prints the parsed data structure.
+Grouped log management utilities:
 
-Example:
+- `logs path` – Print the resolved active log file path after applying config/env overrides.
+- `logs clear` – Truncate the active log file without touching archived rotations.
+- `logs rotate` – Force a rotation using the configured (or overridden) backup count.
+- `logs show` – Tail or filter the log stream. Supports:
+  - `--level LEVEL` – Minimum severity (e.g. `WARNING`).
+  - `--tail N` – Number of trailing entries (`0` shows the full file).
+  - `--since TIMESTAMP` – ISO 8601 timestamp anchor.
+  - `--last WINDOW` – Relative window such as `30m`, `2h`, `1d`.
+  - `--format json|text` – Interpret entries as JSON or plain text (auto-detected by default).
+
+Examples:
 
 ```bash
-uv run server.py lint-config config.local.toml --minimize
-```
-
-### `reset-logs`
-
-Resets or rotates the active log file using the resolved logging configuration. Supply `--mode rotate` to roll log archives forward or `--mode clear` to truncate the active file. Log path and rotation parameters respect the same environment/CLI overrides listed earlier.
-
-Example:
-
-```bash
-uv run server.py reset-logs --mode clear --log-file birre.log
+uv run server.py logs path
+uv run server.py logs rotate
+uv run server.py logs show --level WARNING --last 1h --format json
+uv run server.py logs clear
 ```
 
 ### `version`
