@@ -116,7 +116,7 @@ def _schedule_tool_disablement(api_server: FastMCP, keep: Iterable[str]) -> None
         return
 
     keep_set = set(keep)
-    for name, tool in list(tools.items()):
+    for name, tool in tools.items():
         if name in keep_set:
             continue
         try:

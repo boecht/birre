@@ -15,7 +15,7 @@ async def _spawn_background_task() -> None:
     async def _background() -> None:
         await asyncio.sleep(0)
 
-    asyncio.create_task(_background())
+    _ = asyncio.create_task(_background())
     await asyncio.sleep(0)
 
 

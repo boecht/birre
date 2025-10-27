@@ -508,7 +508,7 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
 
     def fake_diagnostics(
@@ -659,7 +659,7 @@ def test_selftest_passes_shared_options_to_build_invocation(
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
     def fake_diagnostics(
         *,
@@ -761,7 +761,7 @@ def test_selftest_uses_environment_config_path(
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
     def fake_diagnostics(*args, **kwargs):
         return True
@@ -823,7 +823,7 @@ def test_selftest_fails_when_context_tools_missing(
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
     def fake_diagnostics(
         *,
@@ -881,7 +881,7 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
 
     def fake_diagnostics(
@@ -943,7 +943,7 @@ def test_selftest_production_flag_uses_production_base(
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
 
     def fake_diagnostics(
@@ -1008,7 +1008,7 @@ def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
 
     standard_attempts = {"count": 0}
@@ -1103,7 +1103,7 @@ def test_selftest_missing_ca_bundle_falls_back_to_defaults(
     monkeypatch.setattr(
         server,
         "_run_online_checks",
-        lambda runtime, log, srv, *, v1_base_url=None: True,
+        lambda runtime, log, *, v1_base_url=None: True,
     )
 
     def fake_diagnostics(

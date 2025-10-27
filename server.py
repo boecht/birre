@@ -953,7 +953,6 @@ def _run_offline_checks(runtime_settings, logger) -> bool:
 def _run_online_checks(
     runtime_settings,
     logger,
-    server=None,
     *,
     v1_base_url: Optional[str] = None,
 ) -> bool:
@@ -1666,7 +1665,6 @@ class HealthcheckRunner:
                 online_ok = _run_online_checks(
                     settings,
                     context_logger,
-                    server_instance,
                     v1_base_url=self._target_base_url,
                 )
             except BirreError as exc:
@@ -2887,7 +2885,7 @@ def run(
         raise typer.Exit(code=1)
 
     try:
-        online_ok = _run_online_checks(runtime_settings, logger, None)
+        online_ok = _run_online_checks(runtime_settings, logger)
     except BirreError as exc:
         logger.critical(
             "Online startup checks failed; aborting startup",
@@ -3784,3 +3782,54 @@ def logs_show(
             stdout_console.print_json(data=entry.json_data)
         else:
             stdout_console.print(entry.raw, markup=False, highlight=False)
+
+
+@app.command(help="Show the installed BiRRe package version.")
+def version() -> None:
+    """Print the BiRRe version discovered from the package metadata."""
+    from importlib import metadata
+
+    try:
+        resolved_version = metadata.version("BiRRe")
+    except metadata.PackageNotFoundError:
+        pyproject = PROJECT_ROOT / "pyproject.toml"
+        if not pyproject.exists():
+            stdout_console.print("Version information unavailable")
+            return
+        import tomllib
+
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        resolved_version = data.get("project", {}).get("version", "unknown")
+    stdout_console.print(resolved_version)
+
+
+@app.command(help="Print the BiRRe README to standard output.")
+def readme() -> None:
+    """Display the project README for quick reference."""
+    readme_path = PROJECT_ROOT / "README.md"
+    if not readme_path.exists():
+        raise typer.BadParameter("README.md not found in project root")
+    stdout_console.print(readme_path.read_text(encoding="utf-8"))
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    """Main entry point for BiRRe MCP server."""
+
+    args = list(sys.argv[1:] if argv is None else argv)
+    command = get_command(app)
+    if not args:
+        command.main(args=["run"], prog_name=_CLI_PROG_NAME)
+        return
+
+    if args[0] in {"-h", "--help"}:
+        command.main(args=args, prog_name=_CLI_PROG_NAME)
+        return
+
+    if args[0].startswith("-"):
+        command.main(args=["run", *args], prog_name=_CLI_PROG_NAME)
+    else:
+        command.main(args=args, prog_name=_CLI_PROG_NAME)
+
+
+if __name__ == "__main__":
+    main()
