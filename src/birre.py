@@ -1,8 +1,7 @@
 from __future__ import annotations
-
-import asyncio
+import logging
 from functools import partial
-from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 from fastmcp import FastMCP
 
@@ -13,6 +12,7 @@ from src.settings import (
 )
 from src.logging import BoundLogger
 
+_tool_logger = logging.getLogger("birre.tools")
 from .apis import (
     call_v1_openapi_tool,
     call_v2_openapi_tool,
@@ -94,24 +94,40 @@ def _maybe_create_v2_api_server(
     return None
 
 
-def _run_async(coro: Awaitable[None]) -> None:
-    try:
-        asyncio.run(coro)
-    except RuntimeError:
-        loop = asyncio.get_running_loop()
-        loop.create_task(coro)
+def _schedule_tool_disablement(api_server: FastMCP, keep: Iterable[str]) -> None:
+    """Disable generated FastMCP tools not exposed by BiRRe.
 
+    FastMCP exposes no synchronous API for pruning tools, so we prefer the
+    manager's in-memory registry when available. If the internals are missing,
+    we fall back to a no-op and emit diagnostics instead of risking loop
+    teardown via ad-hoc asyncio usage.
+    """
+    tool_manager = getattr(api_server, "_tool_manager", None)
+    if tool_manager is None:
+        _tool_logger.debug("tool_manager.missing server=%r", api_server)
+        return
 
-async def _disable_tools(api_server: FastMCP, keep: Iterable[str]) -> None:
-    tools = await api_server.get_tools()  # type: ignore[attr-defined]
+    tools = getattr(tool_manager, "_tools", None)
+    if not isinstance(tools, dict):
+        _tool_logger.debug(
+            "tool_registry.unexpected_shape registry_type=%s",
+            type(tools).__name__,
+        )
+        return
+
     keep_set = set(keep)
     for name, tool in tools.items():
-        if name not in keep_set:
+        if name in keep_set:
+            continue
+        try:
             tool.disable()
-
-
-def _schedule_tool_disablement(api_server: FastMCP, keep: Iterable[str]) -> None:
-    _run_async(_disable_tools(api_server, keep))
+        except Exception as exc:  # pragma: no cover - defensive
+            _tool_logger.debug(
+                "tool.disable_failed tool=%s error=%s",
+                name,
+                exc,
+            )
+            continue
 
 
 def _configure_risk_manager_tools(

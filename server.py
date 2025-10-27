@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import cProfile
 import errno
 import inspect
@@ -13,10 +14,12 @@ import re
 import shutil
 import ssl
 import sys
+import threading
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from contextlib import suppress
 from typing import (
     Annotated,
     Any,
@@ -49,8 +52,9 @@ from typer.main import get_command
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
-from src.apis.clients import DEFAULT_V1_API_BASE_URL
-from src.birre import create_birre_server
+from src.apis.clients import DEFAULT_V1_API_BASE_URL, create_v1_api_server
+from src.apis.v1_bridge import call_v1_openapi_tool
+from src.birre import create_birre_server, _resolve_tls_verification
 from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
 from src.errors import BirreError, ErrorCode, TlsCertificateChainInterceptedError
 from src.logging import BoundLogger, configure_logging, get_logger
@@ -87,6 +91,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 
 stderr_console = Console(stderr=True)
 stdout_console = Console(stderr=False)
+
+_loop_logger = logging.getLogger("birre.loop")
 
 app = typer.Typer(
     help="Model Context Protocol server for BitSight rating retrieval",
@@ -944,18 +950,58 @@ def _run_offline_checks(runtime_settings, logger) -> bool:
     return offline_ok
 
 
-def _run_online_checks(runtime_settings, logger, server) -> bool:
+def _run_online_checks(
+    runtime_settings,
+    logger,
+    *,
+    v1_base_url: Optional[str] = None,
+) -> bool:
     logger.info("Running online startup checks")
-    call_v1_tool = getattr(server, "call_v1_tool", None)
-    return asyncio.run(
-        run_online_startup_checks(
-            call_v1_tool=call_v1_tool,
-            subscription_folder=runtime_settings.subscription_folder,
-            subscription_type=runtime_settings.subscription_type,
-            logger=logger,
-            skip_startup_checks=getattr(runtime_settings, "skip_startup_checks", False),
+
+    verify_option = _resolve_tls_verification(runtime_settings, logger)
+    base_url = v1_base_url or DEFAULT_V1_API_BASE_URL
+
+    async def _execute_checks() -> bool:
+        api_server = create_v1_api_server(
+            runtime_settings.api_key,
+            verify=verify_option,
+            base_url=base_url,
         )
-    )
+
+        async def call_v1_tool(tool_name: str, ctx, params: Dict[str, Any]) -> Any:
+            return await call_v1_openapi_tool(
+                api_server,
+                tool_name,
+                ctx,
+                params,
+                logger=logger,
+            )
+
+        try:
+            return await run_online_startup_checks(
+                call_v1_tool=call_v1_tool,
+                subscription_folder=runtime_settings.subscription_folder,
+                subscription_type=runtime_settings.subscription_type,
+                logger=logger,
+                skip_startup_checks=getattr(runtime_settings, "skip_startup_checks", False),
+            )
+        finally:
+            client = getattr(api_server, "_client", None)
+            close = getattr(client, "aclose", None)
+            if callable(close):
+                try:
+                    await close()
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    _loop_logger.warning(
+                        "online_checks.client_close_failed",
+                        error=str(exc),
+                    )
+            shutdown = getattr(api_server, "shutdown", None)
+            if callable(shutdown):
+                with suppress(Exception):
+                    await shutdown()  # type: ignore[func-returns-value]
+
+    return _await_sync(_execute_checks())
 
 
 def _initialize_logging(runtime_settings, logging_settings, *, show_banner: bool = True):
@@ -967,17 +1013,62 @@ def _initialize_logging(runtime_settings, logging_settings, *, show_banner: bool
     return logger
 
 
+_SYNC_BRIDGE_LOOP: asyncio.AbstractEventLoop | None = None
+_SYNC_BRIDGE_LOCK = threading.Lock()
+
+
+def _close_sync_bridge_loop() -> None:
+    """Best-effort shutdown for the shared synchronous event loop."""
+    global _SYNC_BRIDGE_LOOP
+    loop = _SYNC_BRIDGE_LOOP
+    if loop is None or loop.is_closed():
+        return
+    _loop_logger.debug("sync_bridge.loop_close")
+    pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
+    for task in pending:
+        task.cancel()
+    with suppress(Exception):
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    loop.close()
+    _SYNC_BRIDGE_LOOP = None
+
+
+atexit.register(_close_sync_bridge_loop)
+
+
 def _await_sync(coro: Awaitable[Any]) -> Any:
-    try:
-        return asyncio.run(coro)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
+    """Execute an awaitable from sync code using a reusable event loop.
+
+    The loop lives for the process lifetime, is guarded by a lock to prevent
+    concurrent access, and cleans up any pending tasks before returning.
+    """
+    global _SYNC_BRIDGE_LOOP
+    with _SYNC_BRIDGE_LOCK:
         try:
-            asyncio.set_event_loop(loop)
-            return loop.run_until_complete(coro)
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop is not None:
+            raise RuntimeError("_await_sync cannot be used inside a running event loop")
+
+        if _SYNC_BRIDGE_LOOP is None or _SYNC_BRIDGE_LOOP.is_closed():
+            _SYNC_BRIDGE_LOOP = asyncio.new_event_loop()
+            _loop_logger.debug("sync_bridge.loop_created")
+
+        loop = _SYNC_BRIDGE_LOOP
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(coro)
         finally:
+            pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
+            if pending:
+                for task in pending:
+                    task.cancel()
+                with suppress(Exception):
+                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             asyncio.set_event_loop(None)
-            loop.close()
+        return result
 
 
 def _discover_context_tools(server) -> Set[str]:
@@ -1572,7 +1663,9 @@ class HealthcheckRunner:
 
             try:
                 online_ok = _run_online_checks(
-                    settings, context_logger, server_instance
+                    settings,
+                    context_logger,
+                    v1_base_url=self._target_base_url,
                 )
             except BirreError as exc:
                 online_success = False
@@ -2791,9 +2884,8 @@ def run(
     if not _run_offline_checks(runtime_settings, logger):
         raise typer.Exit(code=1)
 
-    server = _prepare_server(runtime_settings, logger)
     try:
-        online_ok = _run_online_checks(runtime_settings, logger, server)
+        online_ok = _run_online_checks(runtime_settings, logger)
     except BirreError as exc:
         logger.critical(
             "Online startup checks failed; aborting startup",
@@ -2803,6 +2895,8 @@ def run(
     if not online_ok:
         logger.critical("Online startup checks failed; aborting startup")
         raise typer.Exit(code=1)
+
+    server = _prepare_server(runtime_settings, logger)
 
     logger.info("Starting BiRRe FastMCP server")
     try:
@@ -2877,6 +2971,13 @@ def selftest(
         environment=environment_label,
         base_url=target_base_url,
     )
+    if environment_label == "testing" and not offline:
+        stdout_console.print(
+            "[yellow]Note:[/yellow] BitSight's testing environment often returns [bold]HTTP 403[/bold] for "
+            "subscription management tools even with valid credentials. This is expected for accounts "
+            "without sandbox write access. Re-run with [green]--production[/green] to validate against the "
+            "live API."
+        )
     if offline:
         logger.info("Offline mode enabled; skipping online diagnostics")
 
