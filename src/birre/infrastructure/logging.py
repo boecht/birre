@@ -11,7 +11,7 @@ import structlog
 from structlog.typing import Processor
 from fastmcp import Context
 
-from src.settings import LOG_FORMAT_JSON, LoggingSettings
+from birre.config.settings import LOG_FORMAT_JSON, LoggingSettings
 
 BoundLogger = structlog.stdlib.BoundLogger
 

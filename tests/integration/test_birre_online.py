@@ -25,9 +25,9 @@ except ImportError:
         "fastmcp client not installed; skipping online tests", allow_module_level=True
     )
 
-from src.birre import create_birre_server  # ruff: noqa: E402
-from src.settings import resolve_birre_settings  # ruff: noqa: E402
-from src.logging import get_logger  # ruff: noqa: E402
+from birre import create_birre_server  # ruff: noqa: E402
+from birre.config.settings import resolve_birre_settings  # ruff: noqa: E402
+from birre.infrastructure.logging import get_logger  # ruff: noqa: E402
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.online]

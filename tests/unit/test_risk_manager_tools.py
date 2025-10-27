@@ -3,12 +3,12 @@ from typing import Any, Callable, Dict
 import pytest
 from fastmcp import Context, FastMCP
 
-from src.business.risk_manager import (
+from birre.domain.risk_manager import (
     register_company_search_interactive_tool,
     register_manage_subscriptions_tool,
     register_request_company_tool,
 )
-from src.logging import get_logger
+from birre.infrastructure.logging import get_logger
 
 
 class FakeContext(Context):

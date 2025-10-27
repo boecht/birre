@@ -6,8 +6,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Sequence
 
 from fastmcp import Context
 
-from . import CallV1Tool
-from ...logging import BoundLogger
+from birre.domain.common import CallV1Tool
+from birre.infrastructure.logging import BoundLogger
 
 
 class SubscriptionAttempt(NamedTuple):

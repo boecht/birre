@@ -144,17 +144,17 @@ uv run python scripts/min_mcp_client.py
 
 ```bash
 # Run BiRRe with uv (easiest way - automatically installs dependencies)
-uv run server.py run
+uv run birre run
 
 # Or run from GitHub
-uvx --from git+https://github.com/boecht/birre server.py run
+uvx --from git+https://github.com/boecht/birre birre run
 ```
 
 ### FastMCP Implementation Testing (Essential)
 
 ```bash
 # Test server startup (with timeout to avoid hanging)
-timeout 10s uv run server.py run || echo "✅ Server test completed"
+timeout 10s uv run birre run || echo "✅ Server test completed"
 ```
 
 ### Key Environment Variables

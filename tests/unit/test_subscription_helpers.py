@@ -5,7 +5,7 @@ from typing import Any, Dict
 import pytest
 from fastmcp import Context
 
-from src.business.helpers.subscription import (
+from birre.domain.subscription import (
     SubscriptionAttempt,
     cleanup_ephemeral_subscription,
     create_ephemeral_subscription,

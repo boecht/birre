@@ -5,13 +5,13 @@ import logging
 
 import pytest
 
-from src.logging import (
+from birre.infrastructure.logging import (
     attach_request_context,
     configure_logging,
     get_logger,
     log_event,
 )
-from src.settings import LOG_FORMAT_JSON, LOG_FORMAT_TEXT, LoggingSettings
+from birre.config.settings import LOG_FORMAT_JSON, LOG_FORMAT_TEXT, LoggingSettings
 
 
 def test_text_logging_renders_structured_fields(capfd: "pytest.CaptureFixture[str]") -> None:

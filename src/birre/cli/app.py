@@ -52,13 +52,13 @@ from typer.main import get_command
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
-from src.apis.clients import DEFAULT_V1_API_BASE_URL, create_v1_api_server
-from src.apis.v1_bridge import call_v1_openapi_tool
-from src.birre import create_birre_server, _resolve_tls_verification
-from src.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
-from src.errors import BirreError, ErrorCode, TlsCertificateChainInterceptedError
-from src.logging import BoundLogger, configure_logging, get_logger
-from src.settings import (
+from birre import create_birre_server, _resolve_tls_verification
+from birre.application.startup import (
+    run_offline_startup_checks,
+    run_online_startup_checks,
+)
+from birre.config.constants import DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME
+from birre.config.settings import (
     BITSIGHT_API_KEY_KEY,
     BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
     BITSIGHT_SUBSCRIPTION_TYPE_KEY,
@@ -85,9 +85,19 @@ from src.settings import (
     resolve_config_file_candidates,
     runtime_from_settings,
 )
-from src.startup_checks import run_offline_startup_checks, run_online_startup_checks
+from birre.infrastructure.errors import (
+    BirreError,
+    ErrorCode,
+    TlsCertificateChainInterceptedError,
+)
+from birre.infrastructure.logging import BoundLogger, configure_logging, get_logger
+from birre.integrations.bitsight import (
+    DEFAULT_V1_API_BASE_URL,
+    create_v1_api_server,
+)
+from birre.integrations.bitsight.v1_bridge import call_v1_openapi_tool
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 stderr_console = Console(stderr=True)
 stdout_console = Console(stderr=False)
@@ -182,7 +192,7 @@ ConfigPathOption = Annotated[
     Path,
     typer.Option(
         "--config",
-        help="Path to a configuration TOML file to load",
+        help="Path to a BiRRe configuration TOML file to load",
         envvar="BIRRE_CONFIG",
         show_envvar=True,
         rich_help_panel="Configuration",
@@ -226,7 +236,7 @@ SkipStartupChecksOption = Annotated[
     Optional[bool],
     typer.Option(
         "--skip-startup-checks/--require-startup-checks",
-        help="Skip BitSight online startup checks (use --require-startup-checks to override any configured skip)",
+        help="Skip online startup checks (use --require-startup-checks to override any configured skip)",
         envvar="BIRRE_SKIP_STARTUP_CHECKS",
         show_envvar=True,
         rich_help_panel="Runtime",
@@ -248,7 +258,7 @@ AllowInsecureTlsOption = Annotated[
     Optional[bool],
     typer.Option(
         "--allow-insecure-tls/--enforce-tls",
-        help="Disable TLS verification when contacting BitSight",
+        help="Disable TLS verification for API calls (not recommended)",
         envvar="BIRRE_ALLOW_INSECURE_TLS",
         show_envvar=True,
         rich_help_panel="TLS",
@@ -259,7 +269,7 @@ CaBundleOption = Annotated[
     Optional[str],
     typer.Option(
         "--ca-bundle",
-        help="Path to a custom certificate authority bundle",
+        help="Path to a custom certificate authority bundle, e.g. for TLS interception",
         envvar="BIRRE_CA_BUNDLE",
         show_envvar=True,
         rich_help_panel="TLS",
@@ -326,7 +336,7 @@ LogFileOption = Annotated[
     Optional[str],
     typer.Option(
         "--log-file",
-        help="Path to a log file (use '-', none, stderr, or stdout to disable)",
+        help="Path to a log file (use '-', none, stderr to disable)",
         envvar="BIRRE_LOG_FILE",
         show_envvar=True,
         rich_help_panel="Logging",
@@ -370,7 +380,7 @@ OfflineFlagOption = Annotated[
     bool,
     typer.Option(
         "--offline/--online",
-        help="Skip BitSight network checks and run offline validation only",
+        help="Skip network checks and run offline validation only",
         rich_help_panel="Diagnostics",
     ),
 ]
@@ -427,10 +437,6 @@ def _format_display_value(key: str, value: Any) -> str:
         text = "<unset>"
     elif isinstance(value, bool):
         text = "true" if value else "false"
-    elif isinstance(value, (int, float)):
-        text = str(value)
-    elif isinstance(value, Path):
-        text = str(value)
     else:
         text = str(value)
 
@@ -502,7 +508,7 @@ def _build_cli_source_labels(invocation: "_CliInvocation") -> Dict[str, str]:
 
 
 def _build_env_source_labels(env_overrides: Mapping[str, str]) -> Dict[str, str]:
-    from src.settings import ENVVAR_TO_SETTINGS_KEY
+    from birre.config.settings import ENVVAR_TO_SETTINGS_KEY
 
     labels: Dict[str, str] = {}
     for env_var in env_overrides:
@@ -520,7 +526,7 @@ def _build_cli_override_rows(invocation: "_CliInvocation") -> Sequence[Tuple[str
 
 
 def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[Tuple[str, str, str]]:
-    from src.settings import ENVVAR_TO_SETTINGS_KEY
+    from birre.config.settings import ENVVAR_TO_SETTINGS_KEY
 
     rows: list[Tuple[str, str, str]] = []
     for env_var, value in env_overrides.items():
@@ -610,7 +616,7 @@ def _banner() -> Text:
         "│[yellow]     ███████████  █████ █████   █████ █████   █████░░██████     [/yellow]│\n"
         "│[yellow]    ░░░░░░░░░░░  ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░  ░░░░░░      [/yellow]│\n"
         "│[yellow]                                                                [/yellow]│\n"
-        "│[dim]                   Bitsight Rating Retriever                    [/dim]│\n"
+        "│[dim]                   [bold]Bi[/bold]tsight [bold]R[/bold]ating [bold]Re[/bold]triever                    [/dim]│\n"
         "│[yellow]                 Model Context Protocol Server                  [/yellow]│\n"
         "│[yellow]                https://github.com/boecht/birre                 [/yellow]│\n"
         "╰────────────────────────────────────────────────────────────────╯\n"
@@ -620,10 +626,10 @@ def _banner() -> Text:
 def _keyboard_interrupt_banner() -> Text:
     return Text.from_markup(
         "\n"
-        "╭───────────────────────────────────────╮\n"
-        "│[red]  Keyboard interrupt received — stopping  [/red]│\n"
-        "│[red]          BiRRe FastMCP server            [/red]│\n"
-        "╰────────────────────────────────────────╯\n"
+        "╭───────────────────────────────╮\n"
+        "│[red]  Keyboard interrupt received  [/red]│\n"
+        "│[red]         BiRRe stopping        [/red]│\n"
+        "╰───────────────────────────────╯\n"
     )
 
 
@@ -1023,7 +1029,13 @@ def _close_sync_bridge_loop() -> None:
     loop = _SYNC_BRIDGE_LOOP
     if loop is None or loop.is_closed():
         return
-    _loop_logger.debug("sync_bridge.loop_close")
+    for handler in list(_loop_logger.handlers):
+        stream = getattr(handler, "stream", None)
+        if stream is not None and getattr(stream, "closed", False):
+            continue
+        # At least one live handler remains; emit the debug message.
+        _loop_logger.debug("sync_bridge.loop_close")
+        break
     pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
     for task in pending:
         task.cancel()
@@ -2914,7 +2926,7 @@ def run(
             server.run()
     except KeyboardInterrupt:
         stderr_console.print(_keyboard_interrupt_banner())
-        logger.info("BiRRe FastMCP server stopped via KeyboardInterrupt")
+        logger.info("BiRRe stopped via KeyboardInterrupt")
 
 
 @app.command(help="Run BiRRe self tests without starting the FastMCP server.")
@@ -3395,7 +3407,7 @@ def _parse_log_line(line: str, format_hint: str) -> _LogViewLine:
     "show",
     help=(
         "Inspect configuration sources and resolved settings.\n\n"
-        "Example: python server.py config show --config custom.toml"
+        "Example: uv run birre config show --config custom.toml"
     ),
 )
 def config_show(

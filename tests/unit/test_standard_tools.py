@@ -5,13 +5,13 @@ from typing import Any, Dict
 import pytest
 from fastmcp import Context, FastMCP
 
-from src.business.company_search import register_company_search_tool
-from src.business.company_rating import (
+from birre.domain.company_search import register_company_search_tool
+from birre.domain.company_rating.service import (
     register_company_rating_tool,
     _normalize_finding_entry,
 )
-from src.business.risk_manager import register_company_search_interactive_tool
-from src.logging import BoundLogger, get_logger
+from birre.domain.risk_manager import register_company_search_interactive_tool
+from birre.infrastructure.logging import BoundLogger, get_logger
 
 
 class StubContext(Context):
@@ -152,11 +152,11 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         return True
 
     monkeypatch.setattr(
-        "src.business.company_rating.create_ephemeral_subscription",
+        "birre.domain.company_rating.service.create_ephemeral_subscription",
         fake_create,
     )
     monkeypatch.setattr(
-        "src.business.company_rating.cleanup_ephemeral_subscription",
+        "birre.domain.company_rating.service.cleanup_ephemeral_subscription",
         fake_cleanup,
     )
     async def fake_fetch_company(*args, **kwargs):
@@ -194,11 +194,11 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         }
 
     monkeypatch.setattr(
-        "src.business.company_rating._fetch_company_profile_dict",
+        "birre.domain.company_rating.service._fetch_company_profile_dict",
         fake_fetch_company,
     )
     monkeypatch.setattr(
-        "src.business.company_rating._assemble_top_findings_section",
+        "birre.domain.company_rating.service._assemble_top_findings_section",
         fake_top_findings,
     )
 
@@ -230,7 +230,7 @@ async def test_get_company_rating_subscription_failure(monkeypatch: pytest.Monke
         )
 
     monkeypatch.setattr(
-        "src.business.company_rating.create_ephemeral_subscription",
+        "birre.domain.company_rating.service.create_ephemeral_subscription",
         fake_create_fail,
     )
 

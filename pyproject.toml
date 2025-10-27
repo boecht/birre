@@ -30,9 +30,13 @@ repository = "https://github.com/boecht/birre"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["birre*"]
 
 [tool.setuptools.package-dir]
 "" = "src"
 
 [project.scripts]
-birre = "server:main"
+birre = "birre.cli.app:main"
+
+[tool.setuptools.package-data]
+"birre.resources" = ["apis/**/*.json"]

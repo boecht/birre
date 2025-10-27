@@ -2,10 +2,10 @@ import os
 
 import pytest
 
-from src.birre import create_birre_server
-from src.settings import RuntimeSettings, resolve_birre_settings
-from src.logging import get_logger
-from src.startup_checks import run_online_startup_checks
+from birre import create_birre_server
+from birre.config.settings import RuntimeSettings, resolve_birre_settings
+from birre.infrastructure.logging import get_logger
+from birre.application.startup import run_online_startup_checks
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.online]

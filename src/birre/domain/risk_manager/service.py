@@ -12,11 +12,11 @@ from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.constants import DEFAULT_CONFIG_FILENAME
-from src.settings import DEFAULT_MAX_FINDINGS
+from birre.config.constants import DEFAULT_CONFIG_FILENAME
+from birre.config.settings import DEFAULT_MAX_FINDINGS
+from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
-from .helpers import CallV1Tool, CallV2Tool
-from ..logging import BoundLogger, log_event, log_search_event
+from birre.domain.common import CallV1Tool, CallV2Tool
 
 
 class SubscriptionSnapshot(BaseModel):

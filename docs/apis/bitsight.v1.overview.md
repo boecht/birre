@@ -10,7 +10,7 @@
 ## Other files
 
 - `bitsight.v1.endpoints.md` list of endpoints
-- `bitsight.v1.schema.json` full API definition. DO NOT READ! For details look up API excerpt files in sub folders (see next chapter)
+- `../../src/birre/resources/apis/bitsight.v1.schema.json` full API definition. DO NOT READ! For details look up API excerpt files in sub folders (see next chapter)
 
 ## Folder Structure for API excerpt files
 

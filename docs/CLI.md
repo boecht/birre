@@ -1,12 +1,12 @@
 # Command Line Reference
 
-BiRRe's Typer CLI is exposed through `server.py`. Use the explicit `run` subcommand to start the FastMCP server after performing startup checks:
+BiRRe's Typer CLI is exposed through the `birre` console script. Use the explicit `run` subcommand to start the FastMCP server after performing startup checks:
 
 ```bash
-uv run server.py run
+uv run birre run
 ```
 
-Use `uv run server.py --help` to see a generated summary of the command tree at any time.
+Use `uv run birre --help` to see a generated summary of the command tree at any time.
 
 ## Configuration precedence
 
@@ -51,7 +51,7 @@ Starts the MCP server with the provided configuration. The command performs offl
 Example:
 
 ```bash
-uv run server.py run --context risk_manager --log-format json
+uv run birre run --context risk_manager --log-format json
 ```
 
 ### `selftest`
@@ -61,7 +61,7 @@ Executes BiRRe's diagnostics without starting the server. It loads configuration
 Example:
 
 ```bash
-uv run server.py selftest --offline
+uv run birre selftest --offline
 ```
 
 Exit codes:
@@ -81,9 +81,9 @@ Group of subcommands for inspecting and managing configuration files:
 Examples:
 
 ```bash
-uv run server.py config show --config myconfig.toml
-uv run server.py config validate --config config.local.toml --minimize
-uv run server.py config init --config custom.local.toml
+uv run birre config show --config myconfig.toml
+uv run birre config validate --config config.local.toml --minimize
+uv run birre config init --config custom.local.toml
 ```
 
 ### `logs`
@@ -103,10 +103,10 @@ Grouped log management utilities:
 Examples:
 
 ```bash
-uv run server.py logs path
-uv run server.py logs rotate
-uv run server.py logs show --level WARNING --last 1h --format json
-uv run server.py logs clear
+uv run birre logs path
+uv run birre logs rotate
+uv run birre logs show --level WARNING --last 1h --format json
+uv run birre logs clear
 ```
 
 ### `version`

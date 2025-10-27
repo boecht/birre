@@ -3,7 +3,9 @@ import warnings
 
 import pytest
 
-import server
+import importlib
+
+server = importlib.import_module("birre.cli.app")
 
 
 async def _simple_coroutine(value: int) -> int:

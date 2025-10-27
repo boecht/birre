@@ -94,8 +94,10 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 **Local Schema Files**:
 
-- `apis/bitsight.v1.overview.md` - v1 API endpoint overview (human-readable)
-- `apis/bitsight.v2.overview.md` - v2 API endpoint overview (human-readable)
+- `src/birre/resources/apis/bitsight.v1.schema.json` (+ `src/birre/resources/apis/v1/`) – packaged OpenAPI v1 schema
+- `src/birre/resources/apis/bitsight.v2.schema.json` (+ `src/birre/resources/apis/v2/`) – packaged OpenAPI v2 schema
+- `docs/apis/bitsight.v1.overview.md` – v1 API endpoint overview (human-readable)
+- `docs/apis/bitsight.v2.overview.md` – v2 API endpoint overview (human-readable)
 
 ### Business Logic Layer
 
@@ -113,7 +115,7 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 ### API Version Strategy
 
-- **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search, ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are disabled at startup to minimise surface area.
+- **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search, ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are disabled at startup to minimize surface area.
 - **v2 API (Complementary)**: The v2 schema can be preloaded by setting `BIRRE_ENABLE_V2=true`. Business tooling invokes v2 only when it provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains v1-centric unless optional features require it.
 - **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will continue to be layered on per feature; v2 augments v1 and there is no plan for a wholesale replacement.
 

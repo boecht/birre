@@ -9,11 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import json
 import ssl
+import importlib
+
 import pytest
 from typer.testing import CliRunner
 
-import server
-from src.settings import LoggingSettings, RuntimeSettings
+server = importlib.import_module("birre.cli.app")
+from birre.config.settings import LoggingSettings, RuntimeSettings
 
 
 def _runtime_settings() -> RuntimeSettings:
@@ -72,19 +74,18 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
 
     root_logger = MagicMock(name="root_logger")
 
-    monkeypatch.setattr(sys, "argv", ["server.py"])
+    monkeypatch.setattr(sys, "argv", ["birre"])
 
     with (
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=root_logger),
-        patch("server.run_offline_startup_checks", return_value=False) as offline_mock,
-        patch("server.run_online_startup_checks") as online_mock,
-        patch("server.create_birre_server") as create_server,
-        patch("server.asyncio.run") as asyncio_run,
+        patch("birre.cli.app.load_settings", return_value=object()) as load_mock,
+        patch("birre.cli.app.apply_cli_overrides") as apply_mock,
+        patch("birre.cli.app.runtime_from_settings", return_value=runtime_settings),
+        patch("birre.cli.app.logging_from_settings", return_value=logging_settings),
+        patch("birre.cli.app.configure_logging"),
+        patch("birre.cli.app.get_logger", return_value=root_logger),
+        patch("birre.cli.app.run_offline_startup_checks", return_value=False) as offline_mock,
+        patch("birre.cli.app.run_online_startup_checks") as online_mock,
+        patch("birre.cli.app.create_birre_server") as create_server,
     ):
         with pytest.raises(SystemExit) as excinfo:
             server.main()
@@ -96,7 +97,6 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
     assert offline_mock.call_args.kwargs["logger"] is root_logger
     online_mock.assert_not_called()
     create_server.assert_not_called()
-    asyncio_run.assert_not_called()
 
 
 def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -107,21 +107,20 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
 
     fake_server = SimpleNamespace(run=MagicMock(name="run"))
 
-    monkeypatch.setattr(sys, "argv", ["server.py"])
+    monkeypatch.setattr(sys, "argv", ["birre"])
 
     async_online = AsyncMock(return_value=True)
 
     with (
-        patch("server.load_settings", return_value=object()) as load_mock,
-        patch("server.apply_cli_overrides") as apply_mock,
-        patch("server.runtime_from_settings", return_value=runtime_settings),
-        patch("server.logging_from_settings", return_value=logging_settings),
-        patch("server.configure_logging"),
-        patch("server.get_logger", return_value=root_logger),
-        patch("server.run_offline_startup_checks", return_value=True) as offline_mock,
-        patch("server.run_online_startup_checks", async_online) as online_mock,
-        patch("server.create_birre_server", return_value=fake_server) as create_server,
-        patch("server.asyncio.run", wraps=asyncio.run) as asyncio_run,
+        patch("birre.cli.app.load_settings", return_value=object()) as load_mock,
+        patch("birre.cli.app.apply_cli_overrides") as apply_mock,
+        patch("birre.cli.app.runtime_from_settings", return_value=runtime_settings),
+        patch("birre.cli.app.logging_from_settings", return_value=logging_settings),
+        patch("birre.cli.app.configure_logging"),
+        patch("birre.cli.app.get_logger", return_value=root_logger),
+        patch("birre.cli.app.run_offline_startup_checks", return_value=True) as offline_mock,
+        patch("birre.cli.app.run_online_startup_checks", async_online) as online_mock,
+        patch("birre.cli.app.create_birre_server", return_value=fake_server) as create_server,
     ):
         with pytest.raises(SystemExit) as excinfo:
             server.main()
@@ -143,8 +142,6 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     create_kwargs = create_server.call_args.kwargs
     assert create_kwargs["settings"] == runtime_settings
     assert create_kwargs["logger"] is root_logger
-
-    asyncio_run.assert_called_once()
 
     fake_server.run.assert_called_once()
 
@@ -448,11 +445,11 @@ def test_selftest_defaults_to_online_checks(
         return True
 
     with (
-        patch("server._initialize_logging", side_effect=fake_initialize),
-        patch("server._run_offline_checks", side_effect=fake_offline),
-        patch("server._prepare_server", side_effect=fake_prepare),
-        patch("server._run_online_checks", side_effect=fake_online),
-        patch("server._run_context_tool_diagnostics", side_effect=fake_diagnostics),
+        patch("birre.cli.app._initialize_logging", side_effect=fake_initialize),
+        patch("birre.cli.app._run_offline_checks", side_effect=fake_offline),
+        patch("birre.cli.app._prepare_server", side_effect=fake_prepare),
+        patch("birre.cli.app._run_online_checks", side_effect=fake_online),
+        patch("birre.cli.app._run_context_tool_diagnostics", side_effect=fake_diagnostics),
     ):
         result = runner.invoke(
             server.app,
@@ -579,11 +576,11 @@ def test_selftest_offline_flag_skips_network_checks(
         )
 
     with (
-        patch("server._initialize_logging", side_effect=fake_initialize),
-        patch("server._run_offline_checks", side_effect=fake_offline),
-        patch("server._prepare_server", side_effect=fake_prepare),
-        patch("server._run_online_checks") as online_mock,
-        patch("server._run_context_tool_diagnostics") as diagnostics_mock,
+        patch("birre.cli.app._initialize_logging", side_effect=fake_initialize),
+        patch("birre.cli.app._run_offline_checks", side_effect=fake_offline),
+        patch("birre.cli.app._prepare_server", side_effect=fake_prepare),
+        patch("birre.cli.app._run_online_checks") as online_mock,
+        patch("birre.cli.app._run_context_tool_diagnostics") as diagnostics_mock,
     ):
         result = runner.invoke(
             server.app,

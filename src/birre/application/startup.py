@@ -3,11 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
-from pathlib import Path
+from importlib import resources
 from typing import Any, Dict, List, Optional, Protocol
 
-from src.errors import BirreError
-from src.logging import BoundLogger
+from birre.infrastructure.errors import BirreError
+from birre.infrastructure.logging import BoundLogger
 
 
 class ToolLoggingContext(Protocol):
@@ -22,9 +22,9 @@ class ToolLoggingContext(Protocol):
 
 CallV1ToolFn = Callable[[str, ToolLoggingContext, Dict[str, Any]], Awaitable[Any]]
 
-SCHEMA_PATHS: tuple[Path, Path] = (
-    Path("apis/bitsight.v1.schema.json"),
-    Path("apis/bitsight.v2.schema.json"),
+SCHEMA_FILES: tuple[str, str] = (
+    "bitsight.v1.schema.json",
+    "bitsight.v2.schema.json",
 )
 
 
@@ -57,28 +57,30 @@ def run_offline_startup_checks(
 
     logger.debug("offline.config.api_key.provided")
 
-    for path in SCHEMA_PATHS:
-        if not path.exists():
+    for schema_name in SCHEMA_FILES:
+        resource = resources.files("birre.resources") / "apis" / schema_name
+        if not resource.exists():
             logger.critical(
                 "offline.config.schema.missing",
-                schema=path.name,
+                schema=schema_name,
             )
             return False
 
         try:
-            with path.open("r", encoding="utf-8") as handle:
-                json.load(handle)
+            with resources.as_file(resource) as path:
+                with path.open("r", encoding="utf-8") as handle:
+                    json.load(handle)
         except Exception as exc:  # pragma: no cover - defensive
             logger.critical(
                 "offline.config.schema.parse_error",
-                schema=path.name,
+                schema=schema_name,
                 error=str(exc),
             )
             return False
 
         logger.debug(
             "offline.config.schema.parsed",
-            schema=path.name,
+            schema=schema_name,
         )
 
     if subscription_folder:

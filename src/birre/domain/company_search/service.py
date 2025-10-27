@@ -10,9 +10,9 @@ from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, model_validator
 
-from .helpers import CallV1Tool
-from ..errors import BirreError
-from ..logging import BoundLogger, log_search_event
+from birre.domain.common import CallV1Tool
+from birre.infrastructure.errors import BirreError
+from birre.infrastructure.logging import BoundLogger, log_search_event
 
 
 class CompanySummary(BaseModel):

@@ -1,28 +1,46 @@
 from __future__ import annotations
+
 import logging
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 from fastmcp import FastMCP
 
-from src.settings import (
+from birre.config.settings import (
     DEFAULT_MAX_FINDINGS,
     DEFAULT_RISK_VECTOR_FILTER,
     RuntimeSettings,
 )
-from src.logging import BoundLogger
-
-_tool_logger = logging.getLogger("birre.tools")
-from .apis import (
+from birre.infrastructure.logging import BoundLogger
+from birre.integrations.bitsight import create_v1_api_server, create_v2_api_server
+from birre.integrations.bitsight.v1_bridge import (
     call_v1_openapi_tool,
     call_v2_openapi_tool,
-    create_v1_api_server,
-    create_v2_api_server,
 )
-from .business import (
-    register_company_rating_tool,
-    register_company_search_tool,
-)
+
+from birre.domain import company_rating, company_search, risk_manager
+
+
+def register_company_rating_tool(*args, **kwargs):
+    return company_rating.register_company_rating_tool(*args, **kwargs)
+
+
+def register_company_search_tool(*args, **kwargs):
+    return company_search.register_company_search_tool(*args, **kwargs)
+
+
+def register_company_search_interactive_tool(*args, **kwargs):
+    return risk_manager.register_company_search_interactive_tool(*args, **kwargs)
+
+
+def register_manage_subscriptions_tool(*args, **kwargs):
+    return risk_manager.register_manage_subscriptions_tool(*args, **kwargs)
+
+
+def register_request_company_tool(*args, **kwargs):
+    return risk_manager.register_request_company_tool(*args, **kwargs)
+
+_tool_logger = logging.getLogger("birre.tools")
 
 
 INSTRUCTIONS_MAP: Dict[str, str] = {
@@ -139,13 +157,11 @@ def _configure_risk_manager_tools(
     verify_option: bool | str,
     max_findings: int,
 ) -> None:
-    from src.business.risk_manager import (
-        register_company_search_interactive_tool,
-        register_manage_subscriptions_tool,
-        register_request_company_tool,
+    register_company_search_tool(
+        business_server,
+        call_v1_tool,
+        logger=logger,
     )
-
-    register_company_search_tool(business_server, call_v1_tool, logger=logger)
     call_v2_tool = getattr(business_server, "call_v2_tool", None)
     if call_v2_tool is None:
         call_v2_tool = partial(
@@ -188,7 +204,11 @@ def _configure_standard_tools(
     call_v1_tool: Callable[..., Any],
     logger: BoundLogger,
 ) -> None:
-    register_company_search_tool(business_server, call_v1_tool, logger=logger)
+    register_company_search_tool(
+        business_server,
+        call_v1_tool,
+        logger=logger,
+    )
 
 
 def _coerce_runtime_settings(

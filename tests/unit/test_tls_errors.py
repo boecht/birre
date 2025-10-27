@@ -5,10 +5,10 @@ from typing import Any, Dict
 import httpx
 import pytest
 
-from src.apis.v1_bridge import call_openapi_tool
-from src.errors import ErrorCode, TlsCertificateChainInterceptedError
-from src.logging import configure_logging, get_logger
-from src.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.integrations.bitsight.v1_bridge import call_openapi_tool
+from birre.infrastructure.errors import ErrorCode, TlsCertificateChainInterceptedError
+from birre.infrastructure.logging import configure_logging, get_logger
+from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
 
 
 class _StubContext:

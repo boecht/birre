@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from src import startup_checks
-from src.logging import configure_logging, get_logger
-from src.settings import LOG_FORMAT_TEXT, LoggingSettings
-from src.startup_checks import run_offline_startup_checks
+from birre.application import startup as startup_checks
+from birre.application.startup import run_offline_startup_checks
+from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.infrastructure.logging import configure_logging, get_logger
 
 
 @pytest.fixture(autouse=True)

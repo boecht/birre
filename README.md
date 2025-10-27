@@ -13,7 +13,7 @@ It utilizes [FastMCP](https://gofastmcp.com/) for API integration and can be run
 
 ```bash
 export BITSIGHT_API_KEY="your-bitsight-api-key"
-uvx --from git+https://github.com/boecht/birre server.py run
+uvx --from git+https://github.com/boecht/birre birre run
 ```
 
 - Point your LLM of choice to the MCP server and ask it for the BitSight rating of any company.
@@ -27,14 +27,14 @@ See the descriptions in `config.toml` for available fields and details. For CLI 
 ### Run directly from GitHub with uvx
 
 ```bash
-uvx --from git+https://github.com/boecht/birre server.py run
+uvx --from git+https://github.com/boecht/birre birre run
 ```
 
 ### Or run locally
 
 ```bash
 git clone https://github.com/boecht/birre
-uv run server.py run
+uv run birre run
 ```
 
 That's it! The script will automatically install all dependencies using uv.
@@ -81,7 +81,7 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 2. Download schemas from:
    - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
    - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>  
-3. Save as `apis/bitsight.v1.schema.json` and `apis/bitsight.v2.schema.json`
+3. Save as `src/birre/resources/apis/bitsight.v1.schema.json` and `src/birre/resources/apis/bitsight.v2.schema.json`
 
 ## Version History and Outlook
 
@@ -123,41 +123,55 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ## Testing
 
+### Review configuration state
+
+Use the `config` command group to review or validate the effective settings before you run diagnostics or bring up the server. It surfaces the values assembled from `config.toml`, `config.local.toml`, environment variables, and CLI overrides, and can also sanity-check standalone configuration files.
+
+```bash
+# Inspect configuration sources and resolved settings.
+uv run birre config show
+
+# Validate (and optionally minimize) a configuration file before use.
+uv run birre config validate --config my.config.toml --minimize
+```
+
+### Selftest
+
+Use the built-in self test to sanity-check your setup before connecting a
+client. The command mirrors the `run` startup sequence, reports the resolved
+configuration, and exercises BitSight connectivity, subscription, and tooling
+checks against BitSight’s testing environment (staging). When invoked with
+`--offline`, only the local configuration and logging checks run.
+
+```bash
+# Run the full diagnostics against the default BitSight testing endpoint.
+uv run birre selftest
+
+# Target the production API to exercise real subscription logic and permissions.
+uv run birre selftest --production
+```
+
+Successful runs exit with `0`. Failures return `1`, and partial results with
+warnings (for example, optional tooling gaps in offline mode) return `2`.
+Expect occasional `403 Access Denied` responses when using BitSight’s testing
+environment.
+
 ### Pytest
 
-BiRRe ships with both offline unit tests and opt-in online integration checks. The
-offline suite exercises configuration layering, logging formatters, startup
+BiRRe ships with both offline unit tests and opt-in online integration checks.
+The offline suite exercises configuration layering, logging formatters, startup
 checks, subscription helpers, and both standard and risk-manager tools without
 touching the BitSight API. The online tests drive the FastMCP client end-to-end
-against BitSight and require real credentials.
+against BitSight’s production environment and require valid credentials.
 
 ```bash
 # Run the offline suite
 uv run pytest -m offline
 
-# Run the online smoke tests against BitSight.
+# Run the online smoke tests against the BitSight production API.
 uv run pytest -m online
 ```
 
-Online tests require a valid `BITSIGHT_API_KEY` in the environment (or
+Online tests also require a valid `BITSIGHT_API_KEY` in the environment (or
 `config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
 install on demand inside an isolated virtual environment.
-
-### Selftest
-
-Use the built-in self test to validate your environment before connecting a
-client. The command mirrors the `run` startup sequence, reporting resolved
-configuration and exercising BitSight connectivity, subscription, and tooling
-checks in standard online mode. When invoked with `--offline`, the network calls
-are skipped while configuration and logging validation continue.
-
-```bash
-# Run the full diagnostics against the default BitSight test endpoint.
-uv run server.py selftest
-
-# Skip remote calls while validating local configuration.
-uv run server.py selftest --offline
-```
-
-Successful runs exit with code `0`. Failures return `1`, and partial results
-with warnings (for example, optional tooling gaps in offline mode) return `2`.

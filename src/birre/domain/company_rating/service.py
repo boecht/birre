@@ -13,15 +13,15 @@ from fastmcp.tools.tool import FunctionTool
 
 from pydantic import BaseModel, Field, model_validator
 
-from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 
-from .helpers import CallV1Tool
-from .helpers.subscription import (
+from birre.domain.common import CallV1Tool
+from birre.domain.subscription import (
     SubscriptionAttempt,
     cleanup_ephemeral_subscription,
     create_ephemeral_subscription,
 )
-from ..logging import BoundLogger, log_rating_event
+from birre.infrastructure.logging import BoundLogger, log_rating_event
 
 
 class TrendSummary(BaseModel):

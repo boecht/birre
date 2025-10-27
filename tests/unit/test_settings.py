@@ -4,8 +4,8 @@ from pathlib import Path
 import logging
 import pytest
 
-from src.constants import DEFAULT_CONFIG_FILENAME
-from src.settings import (
+from birre.config.constants import DEFAULT_CONFIG_FILENAME
+from birre.config.settings import (
     DEFAULT_LOG_FORMAT,
     DEFAULT_MAX_FINDINGS,
     DEFAULT_RISK_VECTOR_FILTER,

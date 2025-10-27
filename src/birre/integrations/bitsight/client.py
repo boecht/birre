@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from pathlib import Path
-from typing import Any
 import ssl
+from collections.abc import Mapping
+from importlib import resources
+from typing import Any
 
 import httpx
 from fastmcp import FastMCP
@@ -86,13 +86,17 @@ def _wrap_schema_responses(spec: Any) -> None:
                 responses[status] = replacement
 
 
-def _load_api_spec(path: str) -> Any:
-    parser = ResolvingParser(
-        str(Path(path).resolve()),
-        strict=True,
-        resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
-    )
-    specification = parser.specification
+def _load_api_spec(resource_name: str) -> Any:
+    """Load an OpenAPI specification bundled with the package."""
+
+    resource_path = resources.files("birre.resources") / "apis" / resource_name
+    with resources.as_file(resource_path) as spec_path:
+        parser = ResolvingParser(
+            str(spec_path),
+            strict=True,
+            resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
+        )
+        specification = parser.specification
     _wrap_schema_responses(specification)
     return specification
 
@@ -131,7 +135,7 @@ def create_v1_api_server(
 ) -> FastMCP:
     """Build the BitSight v1 FastMCP server."""
 
-    spec = _load_api_spec("apis/bitsight.v1.schema.json")
+    spec = _load_api_spec("bitsight.v1.schema.json")
     client = _create_client(base_url, api_key, verify=verify)
 
     return FastMCP.from_openapi(
@@ -149,7 +153,7 @@ def create_v2_api_server(
 ) -> FastMCP:
     """Build the BitSight v2 FastMCP server."""
 
-    spec = _load_api_spec("apis/bitsight.v2.schema.json")
+    spec = _load_api_spec("bitsight.v2.schema.json")
     client = _create_client(base_url, api_key, verify=verify)
 
     return FastMCP.from_openapi(

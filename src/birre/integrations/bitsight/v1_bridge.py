@@ -12,11 +12,11 @@ from typing import Any, Dict, Iterable
 import httpx
 from fastmcp import Context, FastMCP
 
-from src.errors import (
+from birre.infrastructure.errors import (
     TlsCertificateChainInterceptedError,
     classify_request_error,
 )
-from src.logging import BoundLogger
+from birre.infrastructure.logging import BoundLogger
 
 
 def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
