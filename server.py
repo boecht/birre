@@ -2971,6 +2971,13 @@ def selftest(
         environment=environment_label,
         base_url=target_base_url,
     )
+    if environment_label == "testing" and not offline:
+        stdout_console.print(
+            "[yellow]Note:[/yellow] BitSight's testing environment often returns [bold]HTTP 403[/bold] for "
+            "subscription management tools even with valid credentials. This is expected for accounts "
+            "without sandbox write access. Re-run with [green]--production[/green] to validate against the "
+            "live API."
+        )
     if offline:
         logger.info("Offline mode enabled; skipping online diagnostics")
 
