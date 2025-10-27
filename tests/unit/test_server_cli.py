@@ -428,7 +428,7 @@ def test_selftest_defaults_to_online_checks(
             call_v1_tool=object(),
         )
 
-    def fake_online(runtime_settings, logger, server_instance):
+    def fake_online(runtime_settings, logger, *, v1_base_url=None):
         online_calls.append((runtime_settings.context, runtime_settings.skip_startup_checks))
         return True
 
