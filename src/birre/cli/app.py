@@ -1508,7 +1508,7 @@ class HealthcheckRunner:
             context_logger=logger,
             expected_tools=expected_tools,
             label="tls-fallback",
-            notes=None,
+            notes=(),
         )
 
     def _log_fallback_result(
