@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-from collections import defaultdict
-from datetime import datetime, timedelta, timezone
-import heapq
 import asyncio
+import heapq
+import json
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
-
 from pydantic import BaseModel, Field, model_validator
 
 from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
-
 from birre.domain.common import CallV1Tool
 from birre.domain.subscription import (
     SubscriptionAttempt,
@@ -32,34 +30,34 @@ class TrendSummary(BaseModel):
 
 
 class CurrentRating(BaseModel):
-    value: Optional[float] = None
-    color: Optional[str] = None
+    value: float | None = None
+    color: str | None = None
 
 
 class FindingSummary(BaseModel):
     top: int
-    finding: Optional[str] = None
-    details: Optional[str] = None
-    asset: Optional[str] = None
-    first_seen: Optional[str] = None
-    last_seen: Optional[str] = None
+    finding: str | None = None
+    details: str | None = None
+    asset: str | None = None
+    first_seen: str | None = None
+    last_seen: str | None = None
 
 
 class TopFindingsPolicy(BaseModel):
     severity_floor: str
-    supplements: List[str]
+    supplements: list[str]
     max_items: int
     profile: str
 
 
 class TopFindings(BaseModel):
     policy: TopFindingsPolicy
-    findings: List[FindingSummary] = Field(default_factory=list)
+    findings: list[FindingSummary] = Field(default_factory=list)
     count: int = Field(default=0, ge=0)
 
     @model_validator(mode="before")
     @classmethod
-    def _default_count(cls, values: Any) -> Dict[str, Any]:
+    def _default_count(cls, values: Any) -> dict[str, Any]:
         if not isinstance(values, dict):
             return {"policy": values, "findings": [], "count": 0}
         findings = values.get("findings") or []
@@ -76,21 +74,21 @@ class RatingLegendEntry(BaseModel):
 
 
 class RatingLegend(BaseModel):
-    rating: List[RatingLegendEntry]
+    rating: list[RatingLegendEntry]
 
 
 class CompanyRatingResponse(BaseModel):
-    error: Optional[str] = None
-    warning: Optional[str] = None
-    name: Optional[str] = None
-    domain: Optional[str] = None
-    current_rating: Optional[CurrentRating] = None
-    trend_8_weeks: Optional[TrendSummary] = None
-    trend_1_year: Optional[TrendSummary] = None
-    top_findings: Optional[TopFindings] = None
-    legend: Optional[RatingLegend] = None
+    error: str | None = None
+    warning: str | None = None
+    name: str | None = None
+    domain: str | None = None
+    current_rating: CurrentRating | None = None
+    trend_8_weeks: TrendSummary | None = None
+    trend_1_year: TrendSummary | None = None
+    top_findings: TopFindings | None = None
+    legend: RatingLegend | None = None
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
         data = self.model_dump(exclude_unset=True)
@@ -98,10 +96,10 @@ class CompanyRatingResponse(BaseModel):
         return data
 
 
-COMPANY_RATING_OUTPUT_SCHEMA: Dict[str, Any] = CompanyRatingResponse.model_json_schema()
+COMPANY_RATING_OUTPUT_SCHEMA: dict[str, Any] = CompanyRatingResponse.model_json_schema()
 
 
-def _rating_color(value: Optional[float]) -> Optional[str]:
+def _rating_color(value: float | None) -> str | None:
     if value is None:
         return None
     if value >= 740:
@@ -112,14 +110,14 @@ def _rating_color(value: Optional[float]) -> Optional[str]:
 
 
 def _aggregate_ratings(
-    raw_ratings: List[Dict[str, Any]],
+    raw_ratings: list[dict[str, Any]],
     *,
     horizon_days: int,
     mode: str,
-) -> List[tuple[datetime, float]]:
+) -> list[tuple[datetime, float]]:
     cutoff = datetime.now(timezone.utc).date() - timedelta(days=horizon_days)
-    buckets: Dict[tuple[int, int], List[float]] = defaultdict(list)
-    anchors: Dict[tuple[int, int], datetime] = {}
+    buckets: dict[tuple[int, int], list[float]] = defaultdict(list)
+    anchors: dict[tuple[int, int], datetime] = {}
 
     for entry in raw_ratings:
         if not isinstance(entry, dict):
@@ -149,7 +147,7 @@ def _aggregate_ratings(
         buckets[key].append(float(rating_value))
         anchors[key] = anchor
 
-    series: List[tuple[datetime, float]] = []
+    series: list[tuple[datetime, float]] = []
     for key, values in buckets.items():
         anchor = anchors[key]
         avg_rating = sum(values) / len(values)
@@ -159,7 +157,7 @@ def _aggregate_ratings(
     return series
 
 
-def _compute_trend(series: List[tuple[datetime, float]]) -> Dict[str, object]:
+def _compute_trend(series: list[tuple[datetime, float]]) -> dict[str, object]:
     if len(series) < 2:
         return {
             "direction": "insufficient data",
@@ -212,7 +210,7 @@ def _rank_severity_category_value(val: Any) -> int:
 
 
 def _derive_numeric_severity_score(item: Any) -> float:
-    def _extract_numeric(value: Any) -> Optional[float]:
+    def _extract_numeric(value: Any) -> float | None:
         return float(value) if isinstance(value, (int, float)) else None
 
     if not isinstance(item, dict):
@@ -276,7 +274,8 @@ def _build_finding_sort_key(item: Any):
         item.get("last_seen") if isinstance(item, dict) else None
     )
     rv = (item.get("risk_vector") or "") if isinstance(item, dict) else ""
-    # Desc numeric severity, then desc categorical rank, desc importance, desc last_seen; asc risk_vector
+    # Desc numeric severity, then desc categorical rank, desc importance,
+    # desc last_seen; asc risk_vector
     return (-sev_num, -sev_cat, -imp, -last, rv)
 
 
@@ -294,8 +293,8 @@ def _build_finding_score_tuple(item: Any):
 
 
 def _select_top_finding_candidates(
-    results: List[Dict[str, Any]], k: int
-) -> List[Dict[str, Any]]:
+    results: list[dict[str, Any]], k: int
+) -> list[dict[str, Any]]:
     if not results:
         return []
     # Keep only the top-k by primary numeric keys; finalize ordering with full _sort_key
@@ -317,8 +316,8 @@ INFECTION_RISK_VECTORS = {
 
 
 def _determine_finding_label(
-    item: Dict[str, Any], details: Dict[str, Any]
-) -> Optional[str]:
+    item: dict[str, Any], details: dict[str, Any]
+) -> str | None:
     """Choose a finding label from details.name/display_name or risk_vector_label."""
     if isinstance(details.get("name"), str):
         return details.get("name")  # type: ignore[return-value]
@@ -328,8 +327,11 @@ def _determine_finding_label(
     return rv_label if isinstance(rv_label, str) else None
 
 
-def _compose_base_details_text(details: Dict[str, Any]) -> Optional[str]:
-    """Build the base details text from display_name/description/searchable_details/infection.family."""
+def _compose_base_details_text(details: dict[str, Any]) -> str | None:
+    """
+    Build the base details text from display_name/description/
+    searchable_details/infection.family.
+    """
     display_name = (
         details.get("display_name")
         if isinstance(details.get("display_name"), str)
@@ -354,7 +356,7 @@ def _compose_base_details_text(details: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _find_first_remediation_text(details: Dict[str, Any]) -> Optional[str]:
+def _find_first_remediation_text(details: dict[str, Any]) -> str | None:
     """Return the first available remediation hint text if present."""
     rem_list = (
         details.get("remediations")
@@ -372,7 +374,7 @@ def _find_first_remediation_text(details: Dict[str, Any]) -> Optional[str]:
 
 
 def _normalize_detected_service_summary(
-    text: str, remediation_hint: Optional[str]
+    text: str, remediation_hint: str | None
 ) -> str:
     """Rewrite 'Detected service: ...' text to include a concise remediation hint when available."""
     if not remediation_hint:
@@ -386,8 +388,8 @@ def _normalize_detected_service_summary(
 
 
 def _append_remediation_hint(
-    text: Optional[str], remediation_hint: Optional[str]
-) -> Optional[str]:
+    text: str | None, remediation_hint: str | None
+) -> str | None:
     """Append remediation hint to text, preserving punctuation and avoiding duplication."""
     if not remediation_hint:
         return text
@@ -401,8 +403,8 @@ def _append_remediation_hint(
 
 
 def _apply_infection_narrative_preference(
-    text: Optional[str], risk_vector: Any, details: Dict[str, Any]
-) -> Optional[str]:
+    text: str | None, risk_vector: Any, details: dict[str, Any]
+) -> str | None:
     """Prefer infection narrative for infection vectors when description/family are present."""
     if not isinstance(risk_vector, str) or risk_vector not in INFECTION_RISK_VECTORS:
         return text
@@ -421,7 +423,7 @@ def _apply_infection_narrative_preference(
     return text
 
 
-def _determine_primary_port(details: Dict[str, Any]) -> Optional[int]:
+def _determine_primary_port(details: dict[str, Any]) -> int | None:
     """Return a port from details.dest_port or the first of details.port_list."""
     dest_port = details.get("dest_port")
     if isinstance(dest_port, int):
@@ -435,10 +437,10 @@ def _determine_primary_port(details: Dict[str, Any]) -> Optional[int]:
 
 
 def _determine_primary_asset(
-    item: Dict[str, Any], details: Dict[str, Any]
-) -> Optional[str]:
+    item: dict[str, Any], details: dict[str, Any]
+) -> str | None:
     """Choose an asset from evidence_key, then details.assets[0] (+port), then observed_ips[0]."""
-    asset: Optional[str] = (
+    asset: str | None = (
         item.get("evidence_key") if isinstance(item.get("evidence_key"), str) else None
     )
     if asset:
@@ -457,10 +459,10 @@ def _determine_primary_asset(
     return None
 
 
-def _normalize_finding_entry(item: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_finding_entry(item: dict[str, Any]) -> dict[str, Any]:
     """Normalize one API finding item into the compact summary shape used in outputs."""
     raw_details = item.get("details")
-    details_obj: Dict[str, Any] = raw_details if isinstance(raw_details, dict) else {}
+    details_obj: dict[str, Any] = raw_details if isinstance(raw_details, dict) else {}
     finding_label = _determine_finding_label(item, details_obj)
     text = _compose_base_details_text(details_obj)
     remediation = _find_first_remediation_text(details_obj)
@@ -489,8 +491,8 @@ def _normalize_finding_entry(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    items: List[Dict[str, Any]] = []
+def _normalize_top_findings(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
     for item in results or []:
         if not isinstance(item, dict):
             continue
@@ -498,7 +500,7 @@ def _normalize_top_findings(results: List[Dict[str, Any]]) -> List[Dict[str, Any
     return items
 
 
-def _default_top_findings_payload(limit: int) -> Dict[str, Any]:
+def _default_top_findings_payload(limit: int) -> dict[str, Any]:
     return {
         "policy": {
             "severity_floor": "material",
@@ -512,7 +514,7 @@ def _default_top_findings_payload(limit: int) -> Dict[str, Any]:
 
 
 def _emit_sorted_preview(
-    ctx: Context, items: List[Any], label: str, *, debug_enabled: bool
+    ctx: Context, items: list[Any], label: str, *, debug_enabled: bool
 ) -> None:
     try:
         preview_items = heapq.nlargest(15, items, key=_build_finding_score_tuple)
@@ -540,12 +542,12 @@ def _emit_sorted_preview(
 
 
 def _extract_results_from_payload(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     ctx: Context,
     label: str,
     *,
     debug_enabled: bool,
-) -> List[Any]:
+) -> list[Any]:
     results = payload.get("results") or []
     if not isinstance(results, list):
         return []
@@ -556,12 +558,12 @@ def _extract_results_from_payload(
 async def _fetch_and_normalize_findings(
     call_v1_tool: CallV1Tool,
     ctx: Context,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     limit: int,
     label: str,
     *,
     debug_enabled: bool,
-) -> Tuple[List[Dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], bool]:
     raw = await call_v1_tool("getCompaniesFindings", ctx, params)
     if not isinstance(raw, dict):
         return [], False
@@ -581,13 +583,13 @@ async def _fetch_and_normalize_findings(
 
 @dataclass
 class _TopFindingsSelection:
-    findings: List[Dict[str, Any]]
+    findings: list[dict[str, Any]]
     severity_floor: str = "material"
     profile: str = "strict"
-    supplements: List[str] = field(default_factory=list)
+    supplements: list[str] = field(default_factory=list)
     max_items: int = 0
 
-    def policy(self) -> Dict[str, Any]:
+    def policy(self) -> dict[str, Any]:
         return {
             "severity_floor": self.severity_floor,
             "supplements": self.supplements,
@@ -605,12 +607,12 @@ def _normalize_top_finding_limit(max_findings: int) -> int:
 async def _request_top_findings(
     call_v1_tool: CallV1Tool,
     ctx: Context,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     limit: int,
     label: str,
     *,
     debug_enabled: bool,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     findings, ok = await _fetch_and_normalize_findings(
         call_v1_tool,
         ctx,
@@ -627,11 +629,11 @@ async def _request_top_findings(
 async def _build_top_findings_selection(
     call_v1_tool: CallV1Tool,
     ctx: Context,
-    base_params: Dict[str, Any],
+    base_params: dict[str, Any],
     limit: int,
     *,
     debug_enabled: bool,
-) -> Optional[_TopFindingsSelection]:
+) -> _TopFindingsSelection | None:
     strict_findings = await _request_top_findings(
         call_v1_tool,
         ctx,
@@ -696,7 +698,7 @@ async def _assemble_top_findings_section(
     max_findings: int,
     *,
     debug_enabled: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     limit = _normalize_top_finding_limit(max_findings)
     params = {
         "guid": guid,
@@ -705,7 +707,10 @@ async def _assemble_top_findings_section(
         "severity_category": "severe,material",
         # Intentionally omit server-side sort/limit; sort & cap locally
         # Request only used fields to reduce payload size while preserving help_text
-        "fields": "severity,details,evidence_key,assets,risk_vector,risk_vector_label,first_seen,last_seen",
+        "fields": (
+            "severity,details,evidence_key,assets,risk_vector,"
+            "risk_vector_label,first_seen,last_seen"
+        ),
     }
 
     selection = await _build_top_findings_selection(
@@ -802,7 +807,7 @@ async def _retrieve_top_findings_payload(
 
 async def _fetch_company_profile_dict(
     call_v1_tool: CallV1Tool, ctx: Context, guid: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Fetch and validate the company profile object from BitSight v1."""
     company = await call_v1_tool("getCompany", ctx, {"guid": guid})
     if not isinstance(company, dict):
@@ -810,14 +815,14 @@ async def _fetch_company_profile_dict(
     return company
 
 
-def _summarize_current_rating(company: Dict[str, Any]) -> tuple[Any, Any]:
+def _summarize_current_rating(company: dict[str, Any]) -> tuple[Any, Any]:
     """Return (value, color) tuple for the company's current rating."""
     value = company.get("current_rating")
     return value, _rating_color(value)
 
 
 def _calculate_rating_trend_summaries(
-    company: Dict[str, Any],
+    company: dict[str, Any],
 ) -> tuple[TrendSummary, TrendSummary]:
     """Calculate 8-week and 1-year rating trends from the ratings series."""
     raw_ratings = company.get("ratings", [])
@@ -828,7 +833,7 @@ def _calculate_rating_trend_summaries(
     return weekly, yearly
 
 
-def _build_rating_legend_entries() -> List[RatingLegendEntry]:
+def _build_rating_legend_entries() -> list[RatingLegendEntry]:
     return [
         RatingLegendEntry(color="red", min=250, max=629),
         RatingLegendEntry(color="yellow", min=630, max=739),
@@ -836,7 +841,7 @@ def _build_rating_legend_entries() -> List[RatingLegendEntry]:
     ]
 
 
-def _extract_policy_profile(top_findings_payload: Any) -> Optional[str]:
+def _extract_policy_profile(top_findings_payload: Any) -> str | None:
     if isinstance(top_findings_payload, TopFindings):
         return top_findings_payload.policy.profile
     if isinstance(top_findings_payload, dict):
@@ -903,10 +908,10 @@ def register_company_rating_tool(
     call_v1_tool: CallV1Tool,
     *,
     logger: BoundLogger,
-    risk_vector_filter: Optional[str] = None,
-    max_findings: Optional[int] = None,
-    default_folder: Optional[str] = None,
-    default_type: Optional[str] = None,
+    risk_vector_filter: str | None = None,
+    max_findings: int | None = None,
+    default_folder: str | None = None,
+    default_type: str | None = None,
     debug_enabled: bool = False,
 ) -> FunctionTool:
     effective_filter = (
@@ -921,7 +926,7 @@ def register_company_rating_tool(
     )
 
     @business_server.tool(output_schema=COMPANY_RATING_OUTPUT_SCHEMA)
-    async def get_company_rating(ctx: Context, guid: str) -> Dict[str, Any]:
+    async def get_company_rating(ctx: Context, guid: str) -> dict[str, Any]:
         """Fetch normalized BitSight rating analytics for a company.
 
         Parameters
@@ -940,21 +945,27 @@ def register_company_rating_tool(
             "trend_1_year": {"direction": str, "change": float},
             "top_findings": {
               "policy": {
-                "severity_floor": "material" | "moderate",  # minimum severity included (always includes 'severe')
-                "supplements": ["web_appsec"] | [],          # vectors appended after fallback (kept at the end)
+                "severity_floor": "material" | "moderate",
+                # minimum severity included (always includes 'severe')
+                "supplements": ["web_appsec"] | [],
+                # vectors appended after fallback (kept at the end)
                 "max_items": 5 | 10,                          # cap used for this response
                 "profile": "strict" | "relaxed" | "relaxed+web_appsec"  # human-readable summary
               },
               "count": int,
               "findings": [
-                {"top": int, "finding": str, "details": str, "asset": str, "first_seen": str, "last_seen": str}
+                {
+                    "top": int, "finding": str, "details": str,
+                    "asset": str, "first_seen": str, "last_seen": str
+                }
               ]
             },
             "legend": {"rating": [{"color": str, "min": int, "max": int}, ...]}
           }
 
         Output semantics
-        - current_rating.value: Numeric BitSight rating on a 250–900 scale (higher is better). May be null if unavailable.
+        - current_rating.value: Numeric BitSight rating on a 250–900 scale
+          (higher is better). May be null if unavailable.
         - current_rating.color: Traffic-light bucket derived from value:
           red (250–629), yellow (630–739), green (740–900).
         - trend_8_weeks / trend_1_year: {direction, change}
@@ -963,12 +974,18 @@ def register_company_rating_tool(
           - if insufficient data points (<2), direction is "insufficient data" and change is 0.0
         - top_findings: The top findings impacting the rating (compact summary per finding).
           - policy:
-            - severity_floor: "material" (includes severe+material) or "moderate" (includes severe+material+moderate).
-            - supplements: ["web_appsec"] when fallback was needed; otherwise []. Appended items come last.
-            - max_items: Configured `max_findings` (default 10). When web-appsec padding is applied, the list remains capped at this value.
+            - severity_floor: "material" (includes severe+material) or
+              "moderate" (includes severe+material+moderate).
+            - supplements: ["web_appsec"] when fallback was needed;
+              otherwise []. Appended items come last.
+            - max_items: Configured `max_findings` (default 10). When
+              web-appsec padding is applied, the list remains capped at
+              this value.
             - profile: quick summary: "strict" | "relaxed" | "relaxed+web_appsec".
-          - Behavior: Start strict (severe,material). If <3 items, relax to include 'moderate'. If still <3,
-            append from Web Application Security until the configured limit is reached (appended findings remain last).
+          - Behavior: Start strict (severe,material). If <3 items, relax to
+            include 'moderate'. If still <3,
+            append from Web Application Security until the configured limit
+            is reached (appended findings remain last).
         - legend.rating: Explicit color thresholds used to compute current_rating.color.
 
         Error contract
@@ -983,8 +1000,16 @@ def register_company_rating_tool(
           "trend_8_weeks": {"direction": "up", "change": 52.0},
           "trend_1_year": {"direction": "stable", "change": 14.3},
           "top_findings": {"count": 3, "findings": [
-             {"top": 1, "finding": "Open Ports", "details": "Detected service: …", "asset": "…", "first_seen": "…", "last_seen": "…"},
-             {"top": 2, "finding": "Patching Cadence", "details": "CVE-… — …", "asset": "…", "first_seen": "…", "last_seen": "…"}
+             {
+                 "top": 1, "finding": "Open Ports",
+                 "details": "Detected service: …", "asset": "…",
+                 "first_seen": "…", "last_seen": "…"
+             },
+             {
+                 "top": 2, "finding": "Patching Cadence",
+                 "details": "CVE-… — …", "asset": "…",
+                 "first_seen": "…", "last_seen": "…"
+             }
           ]},
           "legend": {"rating": [
             {"color": "red", "min": 250, "max": 629},

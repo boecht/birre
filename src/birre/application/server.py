@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -13,14 +14,13 @@ from birre.config.settings import (
     DEFAULT_RISK_VECTOR_FILTER,
     RuntimeSettings,
 )
+from birre.domain import company_rating, company_search, risk_manager
 from birre.infrastructure.logging import BoundLogger
 from birre.integrations.bitsight import create_v1_api_server, create_v2_api_server
 from birre.integrations.bitsight.v1_bridge import (
     call_v1_openapi_tool,
     call_v2_openapi_tool,
 )
-
-from birre.domain import company_rating, company_search, risk_manager
 
 
 def register_company_rating_tool(*args, **kwargs):
@@ -45,14 +45,15 @@ def register_request_company_tool(*args, **kwargs):
 _tool_logger = logging.getLogger("birre.tools")
 
 
-INSTRUCTIONS_MAP: Dict[str, str] = {
+INSTRUCTIONS_MAP: dict[str, str] = {
     "standard": (
         "BitSight rating retriever. Use `company_search` to locate a company, "
         "then call `get_company_rating` with the chosen GUID."
     ),
     "risk_manager": (
-        "Risk manager persona. Start with `company_search_interactive` to review matches, "
-        "call `manage_subscriptions` to adjust coverage, and use `request_company` when an entity is missing."
+        "Risk manager persona. Start with `company_search_interactive` to "
+        "review matches, call `manage_subscriptions` to adjust coverage, and "
+        "use `request_company` when an entity is missing."
     ),
 }
 
@@ -104,8 +105,8 @@ def _maybe_create_v2_api_server(
     api_key: str,
     verify_option: bool | str,
     *,
-    base_url: Optional[str] = None,
-) -> Optional[FastMCP]:
+    base_url: str | None = None,
+) -> FastMCP | None:
     if active_context == "risk_manager":
         kwargs: dict[str, Any] = {"verify": verify_option}
         if base_url is not None:
@@ -264,8 +265,8 @@ def create_birre_server(
     settings: RuntimeSettings | Mapping[str, Any],
     logger: BoundLogger,
     *,
-    v1_base_url: Optional[str] = None,
-    v2_base_url: Optional[str] = None,
+    v1_base_url: str | None = None,
+    v2_base_url: str | None = None,
 ) -> FastMCP:
     """Create and configure the BiRRe FastMCP business server using resolved settings."""
 

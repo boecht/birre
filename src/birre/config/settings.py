@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 from types import MappingProxyType
+from typing import Any
 
 from dynaconf import Dynaconf
 
@@ -53,7 +54,7 @@ LOGFILE_DISABLE_SENTINELS = {
 }
 
 
-def is_logfile_disabled_value(value: Optional[str]) -> bool:
+def is_logfile_disabled_value(value: str | None) -> bool:
     if value is None:
         return False
     normalized = value.strip().lower()
@@ -103,7 +104,7 @@ _ENVIRONMENT_MAP = {
 ENVVAR_TO_SETTINGS_KEY: Mapping[str, str] = MappingProxyType(_ENVIRONMENT_MAP)
 
 
-def _normalize_config_path(value: Optional[Any]) -> Optional[Path]:
+def _normalize_config_path(value: Any | None) -> Path | None:
     if value is None:
         return None
     if isinstance(value, Path):
@@ -118,34 +119,34 @@ def _normalize_config_path(value: Optional[Any]) -> Optional[Path]:
 
 @dataclass(frozen=True)
 class SubscriptionInputs:
-    folder: Optional[str] = None
-    type: Optional[str] = None
+    folder: str | None = None
+    type: str | None = None
 
 
 @dataclass(frozen=True)
 class RuntimeInputs:
-    context: Optional[str] = None
-    debug: Optional[bool] = None
-    risk_vector_filter: Optional[str] = None
-    max_findings: Optional[int] = None
-    skip_startup_checks: Optional[bool] = None
+    context: str | None = None
+    debug: bool | None = None
+    risk_vector_filter: str | None = None
+    max_findings: int | None = None
+    skip_startup_checks: bool | None = None
 
 
 @dataclass(frozen=True)
 class TlsInputs:
-    allow_insecure: Optional[bool] = None
-    ca_bundle_path: Optional[str] = None
+    allow_insecure: bool | None = None
+    ca_bundle_path: str | None = None
 
 
 @dataclass(frozen=True)
 class LoggingInputs:
-    level: Optional[str] = None
-    format: Optional[str] = None
-    file_path: Optional[str] = None
-    max_bytes: Optional[int] = None
-    backup_count: Optional[int] = None
+    level: str | None = None
+    format: str | None = None
+    file_path: str | None = None
+    max_bytes: int | None = None
+    backup_count: int | None = None
 
-    def as_kwargs(self) -> Dict[str, Optional[Any]]:
+    def as_kwargs(self) -> dict[str, Any | None]:
         return {
             "level_override": self.level,
             "format_override": self.format,
@@ -158,17 +159,17 @@ class LoggingInputs:
 @dataclass(frozen=True)
 class RuntimeSettings(Mapping[str, Any]):
     api_key: str
-    subscription_folder: Optional[str]
-    subscription_type: Optional[str]
-    context: Optional[str]
-    risk_vector_filter: Optional[str]
+    subscription_folder: str | None
+    subscription_type: str | None
+    context: str | None
+    risk_vector_filter: str | None
     max_findings: int
     skip_startup_checks: bool
     debug: bool
     allow_insecure_tls: bool
-    ca_bundle_path: Optional[str]
-    warnings: Tuple[str, ...] = field(default_factory=tuple)
-    overrides: Tuple[str, ...] = field(default_factory=tuple)
+    ca_bundle_path: str | None
+    warnings: tuple[str, ...] = field(default_factory=tuple)
+    overrides: tuple[str, ...] = field(default_factory=tuple)
 
     def __getitem__(self, key: str) -> Any:
         try:
@@ -182,7 +183,7 @@ class RuntimeSettings(Mapping[str, Any]):
     def __len__(self) -> int:
         return len(self.__dataclass_fields__)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {field: getattr(self, field) for field in self.__dataclass_fields__}
 
 
@@ -190,7 +191,7 @@ class RuntimeSettings(Mapping[str, Any]):
 class LoggingSettings:
     level: int
     format: str
-    file_path: Optional[str]
+    file_path: str | None
     max_bytes: int
     backup_count: int
 
@@ -199,7 +200,7 @@ class LoggingSettings:
         return logging.getLevelName(self.level)
 
 
-def _default_settings_files(config_path: Optional[str]) -> Tuple[Sequence[str], Optional[str]]:
+def _default_settings_files(config_path: str | None) -> tuple[Sequence[str], str | None]:
     selected_path = _normalize_config_path(config_path)
     if selected_path is None:
         env_override = _normalize_config_path(os.getenv(CONFIG_ENVVAR))
@@ -218,7 +219,7 @@ def _default_settings_files(config_path: Optional[str]) -> Tuple[Sequence[str], 
     return [DEFAULT_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME], str(_REPO_ROOT)
 
 
-def resolve_config_file_candidates(config_path: Optional[str]) -> Tuple[Path, ...]:
+def resolve_config_file_candidates(config_path: str | None) -> tuple[Path, ...]:
     files, root_path = _default_settings_files(config_path)
     resolved: list[Path] = []
     base_path = Path(root_path) if root_path else None
@@ -230,7 +231,7 @@ def resolve_config_file_candidates(config_path: Optional[str]) -> Tuple[Path, ..
     return tuple(resolved)
 
 
-def _coerce_str(value: Optional[Any]) -> Optional[str]:
+def _coerce_str(value: Any | None) -> str | None:
     if value is None:
         return None
     if isinstance(value, str):
@@ -239,7 +240,7 @@ def _coerce_str(value: Optional[Any]) -> Optional[str]:
     return str(value)
 
 
-def _coerce_bool(value: Optional[Any]) -> Optional[bool]:
+def _coerce_bool(value: Any | None) -> bool | None:
     if value is None:
         return None
     if isinstance(value, bool):
@@ -258,7 +259,7 @@ def _coerce_bool(value: Optional[Any]) -> Optional[bool]:
     return None
 
 
-def _coerce_int(value: Optional[Any]) -> Optional[int]:
+def _coerce_int(value: Any | None) -> int | None:
     if value is None:
         return None
     try:
@@ -281,13 +282,13 @@ def _apply_environment_overrides(settings: Dynaconf) -> None:
         settings.set(RUNTIME_DEBUG_KEY, debug_fallback)
 
 
-def _apply_api_key(settings: Dynaconf, api_key_input: Optional[str]) -> None:
+def _apply_api_key(settings: Dynaconf, api_key_input: str | None) -> None:
     if api_key_input:
         settings.set(BITSIGHT_API_KEY_KEY, api_key_input)
 
 
 def _apply_subscription_inputs(
-    settings: Dynaconf, subscription_inputs: Optional[SubscriptionInputs]
+    settings: Dynaconf, subscription_inputs: SubscriptionInputs | None
 ) -> None:
     if subscription_inputs is None:
         return
@@ -299,7 +300,7 @@ def _apply_subscription_inputs(
 
 
 def _apply_runtime_inputs(
-    settings: Dynaconf, runtime_inputs: Optional[RuntimeInputs]
+    settings: Dynaconf, runtime_inputs: RuntimeInputs | None
 ) -> None:
     if runtime_inputs is None:
         return
@@ -320,7 +321,7 @@ def _apply_runtime_inputs(
         )
 
 
-def _apply_tls_inputs(settings: Dynaconf, tls_inputs: Optional[TlsInputs]) -> None:
+def _apply_tls_inputs(settings: Dynaconf, tls_inputs: TlsInputs | None) -> None:
     if tls_inputs is None:
         return
 
@@ -333,7 +334,7 @@ def _apply_tls_inputs(settings: Dynaconf, tls_inputs: Optional[TlsInputs]) -> No
 
 
 def _apply_logging_inputs(
-    settings: Dynaconf, logging_inputs: Optional[LoggingInputs]
+    settings: Dynaconf, logging_inputs: LoggingInputs | None
 ) -> None:
     if logging_inputs is None:
         return
@@ -363,11 +364,11 @@ def _apply_logging_inputs(
 def _apply_cli_overrides(
     settings: Dynaconf,
     *,
-    api_key_input: Optional[str],
-    subscription_inputs: Optional[SubscriptionInputs],
-    runtime_inputs: Optional[RuntimeInputs],
-    tls_inputs: Optional[TlsInputs],
-    logging_inputs: Optional[LoggingInputs],
+    api_key_input: str | None,
+    subscription_inputs: SubscriptionInputs | None,
+    runtime_inputs: RuntimeInputs | None,
+    tls_inputs: TlsInputs | None,
+    logging_inputs: LoggingInputs | None,
 ) -> None:
     _apply_api_key(settings, api_key_input)
     _apply_subscription_inputs(settings, subscription_inputs)
@@ -376,7 +377,7 @@ def _apply_cli_overrides(
     _apply_logging_inputs(settings, logging_inputs)
 
 
-def _build_dynaconf(config_path: Optional[str]) -> Dynaconf:
+def _build_dynaconf(config_path: str | None) -> Dynaconf:
     files, root_path = _default_settings_files(config_path)
     settings = Dynaconf(
         settings_files=list(files),
@@ -390,7 +391,7 @@ def _build_dynaconf(config_path: Optional[str]) -> Dynaconf:
     return settings
 
 
-def load_settings(config_path: Optional[str] = None) -> Dynaconf:
+def load_settings(config_path: str | None = None) -> Dynaconf:
     """Create a Dynaconf instance configured for the supplied path."""
 
     return _build_dynaconf(config_path)
@@ -399,11 +400,11 @@ def load_settings(config_path: Optional[str] = None) -> Dynaconf:
 def apply_cli_overrides(
     settings: Dynaconf,
     *,
-    api_key_input: Optional[str] = None,
-    subscription_inputs: Optional[SubscriptionInputs] = None,
-    runtime_inputs: Optional[RuntimeInputs] = None,
-    tls_inputs: Optional[TlsInputs] = None,
-    logging_inputs: Optional[LoggingInputs] = None,
+    api_key_input: str | None = None,
+    subscription_inputs: SubscriptionInputs | None = None,
+    runtime_inputs: RuntimeInputs | None = None,
+    tls_inputs: TlsInputs | None = None,
+    logging_inputs: LoggingInputs | None = None,
 ) -> None:
     """Apply CLI overrides to the provided settings instance."""
 
@@ -462,7 +463,7 @@ def _resolve_bool(
     return coerced
 
 
-def _resolve_subscription_value(settings: Dynaconf, key: str) -> Optional[str]:
+def _resolve_subscription_value(settings: Dynaconf, key: str) -> str | None:
     return _coerce_str(settings.get(key))
 
 
@@ -497,7 +498,8 @@ def runtime_from_settings(settings: Dynaconf) -> RuntimeSettings:
 
     if allow_insecure_tls and ca_bundle_path:
         warnings.append(
-            "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled"
+            "allow_insecure_tls takes precedence over ca_bundle_path; "
+            "HTTPS verification will be disabled"
         )
         ca_bundle_path = None
 
@@ -557,11 +559,11 @@ def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
 
 def resolve_birre_settings(
     *,
-    api_key_input: Optional[str] = None,
-    config_path: Optional[str] = None,
-    subscription_inputs: Optional[SubscriptionInputs] = None,
-    runtime_inputs: Optional[RuntimeInputs] = None,
-    tls_inputs: Optional[TlsInputs] = None,
+    api_key_input: str | None = None,
+    config_path: str | None = None,
+    subscription_inputs: SubscriptionInputs | None = None,
+    runtime_inputs: RuntimeInputs | None = None,
+    tls_inputs: TlsInputs | None = None,
 ) -> RuntimeSettings:
     settings = load_settings(config_path)
     apply_cli_overrides(
@@ -576,12 +578,12 @@ def resolve_birre_settings(
 
 def resolve_logging_settings(
     *,
-    config_path: Optional[str] = None,
-    level_override: Optional[str] = None,
-    format_override: Optional[str] = None,
-    file_override: Optional[str] = None,
-    max_bytes_override: Optional[int] = None,
-    backup_count_override: Optional[int] = None,
+    config_path: str | None = None,
+    level_override: str | None = None,
+    format_override: str | None = None,
+    file_override: str | None = None,
+    max_bytes_override: int | None = None,
+    backup_count_override: int | None = None,
 ) -> LoggingSettings:
     settings = load_settings(config_path)
     apply_cli_overrides(
@@ -599,13 +601,13 @@ def resolve_logging_settings(
 
 def resolve_application_settings(
     *,
-    api_key_input: Optional[str] = None,
-    config_path: Optional[str] = None,
-    subscription_inputs: Optional[SubscriptionInputs] = None,
-    runtime_inputs: Optional[RuntimeInputs] = None,
-    logging_inputs: Optional[LoggingInputs] = None,
-    tls_inputs: Optional[TlsInputs] = None,
-) -> Tuple[RuntimeSettings, LoggingSettings]:
+    api_key_input: str | None = None,
+    config_path: str | None = None,
+    subscription_inputs: SubscriptionInputs | None = None,
+    runtime_inputs: RuntimeInputs | None = None,
+    logging_inputs: LoggingInputs | None = None,
+    tls_inputs: TlsInputs | None = None,
+) -> tuple[RuntimeSettings, LoggingSettings]:
     runtime_settings = resolve_birre_settings(
         api_key_input=api_key_input,
         config_path=config_path,

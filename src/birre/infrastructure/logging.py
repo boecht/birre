@@ -5,20 +5,20 @@ import logging
 import sys
 import uuid
 from logging.handlers import RotatingFileHandler
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
-from structlog.typing import Processor
 from fastmcp import Context
+from structlog.typing import Processor
 
 from birre.config.settings import LOG_FORMAT_JSON, LoggingSettings
 
 BoundLogger = structlog.stdlib.BoundLogger
 
-_configured_settings: Optional[LoggingSettings] = None
+_configured_settings: LoggingSettings | None = None
 
 
-def _prepare_utf8_stream(stream: Optional[Any]) -> Any:
+def _prepare_utf8_stream(stream: Any | None) -> Any:
     if stream is None:
         stream = sys.stderr
 
@@ -54,7 +54,7 @@ def _prepare_utf8_stream(stream: Optional[Any]) -> Any:
 class Utf8StreamHandler(logging.StreamHandler):
     """Stream handler that never raises on Unicode encoding errors."""
 
-    def __init__(self, stream: Optional[Any] = None) -> None:
+    def __init__(self, stream: Any | None = None) -> None:
         prepared_stream = _prepare_utf8_stream(stream)
         super().__init__(prepared_stream)
         self.encoding = "utf-8"
@@ -78,7 +78,9 @@ class Utf8StreamHandler(logging.StreamHandler):
             self.handleError(record)
 
 
-def _strip_exc_info(logger: logging.Logger, name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _strip_exc_info(
+    logger: logging.Logger, name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     exc_info = event_dict.pop("exc_info", None)
     if not exc_info:
         return event_dict
@@ -89,7 +91,7 @@ def _strip_exc_info(logger: logging.Logger, name: str, event_dict: Dict[str, Any
     return event_dict
 
 
-def _single_line_renderer(logger: logging.Logger, name: str, event_dict: Dict[str, Any]) -> str:
+def _single_line_renderer(logger: logging.Logger, name: str, event_dict: dict[str, Any]) -> str:
     timestamp = event_dict.pop("timestamp", None)
     level = event_dict.pop("level", None)
     logger_name = event_dict.pop("logger", None)
@@ -182,14 +184,14 @@ def get_logger(name: str) -> BoundLogger:
     return structlog.get_logger(name)
 
 
-def _first_non_empty_str(values: Any) -> Optional[str]:
+def _first_non_empty_str(values: Any) -> str | None:
     for value in values:
         if isinstance(value, str) and value:
             return value
     return None
 
 
-def _extract_request_id(ctx: Optional[Context]) -> Optional[str]:
+def _extract_request_id(ctx: Context | None) -> str | None:
     if ctx is None:
         return None
 
@@ -206,10 +208,10 @@ def _extract_request_id(ctx: Optional[Context]) -> Optional[str]:
 
 def attach_request_context(
     logger: BoundLogger,
-    ctx: Optional[Context] = None,
+    ctx: Context | None = None,
     *,
-    request_id: Optional[str] = None,
-    tool: Optional[str] = None,
+    request_id: str | None = None,
+    tool: str | None = None,
     **base_fields: Any,
 ) -> BoundLogger:
     resolved_request_id = request_id or _extract_request_id(ctx) or str(uuid.uuid4())
@@ -233,8 +235,8 @@ def log_event(
     event: str,
     *,
     level: int = logging.INFO,
-    ctx: Optional[Context] = None,
-    message: Optional[str] = None,
+    ctx: Context | None = None,
+    message: str | None = None,
     **fields: Any,
 ) -> None:
     bound = attach_request_context(logger, ctx)
@@ -249,9 +251,9 @@ def log_search_event(
     logger: BoundLogger,
     action: str,
     *,
-    ctx: Optional[Context] = None,
-    company_name: Optional[str] = None,
-    company_domain: Optional[str] = None,
+    ctx: Context | None = None,
+    company_name: str | None = None,
+    company_domain: str | None = None,
     **fields: Any,
 ) -> None:
     event_name = f"company_search.{action}"
@@ -269,8 +271,8 @@ def log_rating_event(
     logger: BoundLogger,
     action: str,
     *,
-    ctx: Optional[Context] = None,
-    company_guid: Optional[str] = None,
+    ctx: Context | None = None,
+    company_guid: str | None = None,
     **fields: Any,
 ) -> None:
     event_name = f"company_rating.{action}"

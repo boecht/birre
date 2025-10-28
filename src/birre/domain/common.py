@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Dict
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastmcp import Context
 
-CallV1Tool = Callable[[str, Context, Dict[str, Any]], Awaitable[Any]]
-CallV2Tool = Callable[[str, Context, Dict[str, Any]], Awaitable[Any]]
-CallOpenApiTool = Callable[[str, Context, Dict[str, Any]], Awaitable[Any]]
+CallV1Tool = Callable[[str, Context, dict[str, Any]], Awaitable[Any]]
+CallV2Tool = Callable[[str, Context, dict[str, Any]], Awaitable[Any]]
+CallOpenApiTool = Callable[[str, Context, dict[str, Any]], Awaitable[Any]]
 
 __all__ = [
     "CallOpenApiTool",

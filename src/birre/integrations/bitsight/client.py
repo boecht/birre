@@ -12,7 +12,6 @@ from fastmcp import FastMCP
 from prance import ResolvingParser
 from prance.util import resolver as prance_resolver
 
-
 SCHEMA_REF_PREFIX = "#/components/schemas/"
 DEFAULT_V1_API_BASE_URL = "https://api.bitsighttech.com/v1"
 DEFAULT_V2_API_BASE_URL = "https://api.bitsighttech.com/v2"
@@ -62,7 +61,9 @@ def _schema_description(schemas: Mapping[str, Any], ref: str) -> str:
     return ""
 
 
-def _convert_response(response: Mapping[str, Any], schemas: Mapping[str, Any]) -> Mapping[str, Any] | None:
+def _convert_response(
+    response: Mapping[str, Any], schemas: Mapping[str, Any]
+) -> Mapping[str, Any] | None:
     if "content" in response:
         return None
 

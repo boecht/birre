@@ -6,8 +6,8 @@ import json
 import logging
 import ssl
 import traceback
-from collections.abc import Mapping
-from typing import Any, Dict, Iterable
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 import httpx
 from fastmcp import Context, FastMCP
@@ -19,10 +19,10 @@ from birre.infrastructure.errors import (
 from birre.infrastructure.logging import BoundLogger
 
 
-def filter_none(params: Mapping[str, Any]) -> Dict[str, Any]:
+def filter_none(params: Mapping[str, Any]) -> dict[str, Any]:
     """Return a copy of ``params`` without keys set to ``None``."""
 
-    filtered: Dict[str, Any] = {}
+    filtered: dict[str, Any] = {}
     for key, value in params.items():
         if value is None:
             continue
@@ -99,7 +99,7 @@ async def call_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
     ctx: Context,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     *,
     logger: BoundLogger,
 ) -> Any:
@@ -166,7 +166,7 @@ async def call_v1_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
     ctx: Context,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     *,
     logger: BoundLogger,
 ) -> Any:
@@ -216,7 +216,7 @@ async def call_v2_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
     ctx: Context,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     *,
     logger: BoundLogger,
 ) -> Any:

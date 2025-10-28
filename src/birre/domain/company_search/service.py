@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional
-
-import logging
+from collections.abc import Iterable
+from typing import Any
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
-
 from pydantic import BaseModel, Field, model_validator
 
 from birre.domain.common import CallV1Tool
@@ -24,7 +22,7 @@ class CompanySummary(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalize_input(cls, value: Any) -> Dict[str, str]:
+    def _normalize_input(cls, value: Any) -> dict[str, str]:
         if not isinstance(value, dict):
             return {"guid": "", "name": "", "domain": ""}
 
@@ -51,18 +49,18 @@ class CompanySummary(BaseModel):
 
 
 class CompanySearchResponse(BaseModel):
-    error: Optional[str] = Field(default=None, description="Error message if the search failed")
-    companies: List[CompanySummary] = Field(default_factory=list)
+    error: str | None = Field(default=None, description="Error message if the search failed")
+    companies: list[CompanySummary] = Field(default_factory=list)
     count: int = Field(default=0, ge=0)
 
     @staticmethod
-    def _extract_error(raw_result: Any) -> Optional[str]:
+    def _extract_error(raw_result: Any) -> str | None:
         if isinstance(raw_result, dict) and raw_result.get("error"):
             return f"BitSight API error: {raw_result['error']}"
         return None
 
     @staticmethod
-    def _extract_companies(raw_result: Any) -> List[Any]:
+    def _extract_companies(raw_result: Any) -> list[Any]:
         if isinstance(raw_result, dict):
             for key in ("results", "companies"):
                 if key in raw_result:
@@ -75,7 +73,7 @@ class CompanySearchResponse(BaseModel):
         return []
 
     @classmethod
-    def from_raw(cls, raw_result: Any) -> "CompanySearchResponse":
+    def from_raw(cls, raw_result: Any) -> CompanySearchResponse:
         error_message = cls._extract_error(raw_result)
         if error_message:
             return cls(error=error_message, companies=[], count=0)
@@ -88,7 +86,7 @@ class CompanySearchResponse(BaseModel):
 
         return cls(companies=company_models, count=len(company_models))
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
         data = self.model_dump(exclude_unset=True)
@@ -96,10 +94,10 @@ class CompanySearchResponse(BaseModel):
         return data
 
 
-COMPANY_SEARCH_OUTPUT_SCHEMA: Dict[str, Any] = CompanySearchResponse.model_json_schema()
+COMPANY_SEARCH_OUTPUT_SCHEMA: dict[str, Any] = CompanySearchResponse.model_json_schema()
 
 
-def normalize_company_search_results(raw_result: Any) -> Dict[str, Any]:
+def normalize_company_search_results(raw_result: Any) -> dict[str, Any]:
     """Transform raw BitSight search results into the compact response shape."""
 
     return CompanySearchResponse.from_raw(raw_result).to_payload()
@@ -113,8 +111,8 @@ def register_company_search_tool(
 ) -> FunctionTool:
     @business_server.tool(output_schema=COMPANY_SEARCH_OUTPUT_SCHEMA)
     async def company_search(
-        ctx: Context, name: Optional[str] = None, domain: Optional[str] = None
-    ) -> Dict[str, Any]:
+        ctx: Context, name: str | None = None, domain: str | None = None
+    ) -> dict[str, Any]:
         """Search on BitSight for companies by name or domain.
 
         Parameters
@@ -128,11 +126,13 @@ def register_company_search_tool(
         - companies: List of company summaries. Each item contains:
           - guid: BitSight company GUID (string)
           - name: Display name (string)
-          - domain: Primary domain if available; otherwise a representative URL (string, may be empty)
+          - domain: Primary domain if available; otherwise a representative
+            URL (string, may be empty)
         - count: Number of companies returned (integer)
 
         Notes
-        - At least one of name or domain must be provided. If both are provided, domain takes precedence.
+        - At least one of name or domain must be provided. If both are
+          provided, domain takes precedence.
         - Results are limited to the BitSight API's default page size (pagination not implemented).
         - Error contract: on failure returns {"error": str}.
         - Output is normalized for downstream use by other tools.
@@ -141,8 +141,14 @@ def register_company_search_tool(
         >>> company_search(name="Github")
         {
           "companies": [
-            {"guid": "e90b389b-0b7e-4722-9411-97d81c8e2bc6", "name": "GitHub, Inc.", "domain": "github.com"},
-            {"guid": "a3b69f2e-ec1b-491e-adc9-e228cbd964a8", "name": "GitHub Blog", "domain": "github.blog"},
+            {
+                "guid": "e90b389b-0b7e-4722-9411-97d81c8e2bc6",
+                "name": "GitHub, Inc.", "domain": "github.com"
+            },
+            {
+                "guid": "a3b69f2e-ec1b-491e-adc9-e228cbd964a8",
+                "name": "GitHub Blog", "domain": "github.blog"
+            },
             ...
           ],
           "count": 5

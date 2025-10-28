@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Optional, Sequence
 
 import httpx
 
@@ -83,7 +83,8 @@ class TlsCertificateChainInterceptedError(BirreError):
             f"{summary} {next_step}",
             context=context,
             hints=(
-                "set BIRRE_CA_BUNDLE=/path/to/corp-root.pem or run with --allow-insecure-tls (testing only)",
+                "set BIRRE_CA_BUNDLE=/path/to/corp-root.pem or run with "
+                "--allow-insecure-tls (testing only)",
             ),
         )
         self.summary = summary
@@ -92,7 +93,7 @@ class TlsCertificateChainInterceptedError(BirreError):
 
 def _iter_exception_messages(exc: BaseException) -> Iterable[str]:
     seen: set[int] = set()
-    current: Optional[BaseException] = exc
+    current: BaseException | None = exc
     while current is not None and id(current) not in seen:
         seen.add(id(current))
         message = " ".join(str(arg) for arg in getattr(current, "args", ()) if arg)
@@ -108,11 +109,15 @@ def _matches_intercept_marker(exc: BaseException) -> bool:
     return False
 
 
-def _coerce_operation_from_request(request: Optional[httpx.Request]) -> tuple[str, str]:
+def _coerce_operation_from_request(request: httpx.Request | None) -> tuple[str, str]:
     if request is None:
         return "UNKNOWN", "unknown"
     method = request.method or "UNKNOWN"
-    path = request.url.raw_path.decode("utf-8", "ignore") if request.url.raw_path else request.url.path
+    path = (
+        request.url.raw_path.decode("utf-8", "ignore")
+        if request.url.raw_path
+        else request.url.path
+    )
     if not path:
         path = "/"
     return method.upper(), path
@@ -122,7 +127,7 @@ def classify_request_error(
     exc: BaseException,
     *,
     tool_name: str,
-) -> Optional[BirreError]:
+) -> BirreError | None:
     """Map HTTP client errors to BiRRe domain errors when possible."""
 
     if isinstance(exc, httpx.RequestError) and _matches_intercept_marker(exc):

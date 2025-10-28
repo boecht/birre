@@ -6,7 +6,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from importlib import resources
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from birre.infrastructure.errors import BirreError
 from birre.infrastructure.logging import BoundLogger
@@ -22,7 +22,7 @@ class ToolLoggingContext(Protocol):
     async def error(self, message: str) -> None: ...  # pragma: no cover - protocol
 
 
-CallV1ToolFn = Callable[[str, ToolLoggingContext, Dict[str, Any]], Awaitable[Any]]
+CallV1ToolFn = Callable[[str, ToolLoggingContext, dict[str, Any]], Awaitable[Any]]
 
 SCHEMA_FILES: tuple[str, str] = (
     "bitsight.v1.schema.json",
@@ -49,8 +49,8 @@ class _StartupCheckContext:
 def run_offline_startup_checks(
     *,
     has_api_key: bool,
-    subscription_folder: Optional[str],
-    subscription_type: Optional[str],
+    subscription_folder: str | None,
+    subscription_type: str | None,
     logger: BoundLogger,
 ) -> bool:
     if not has_api_key:
@@ -106,7 +106,7 @@ def run_offline_startup_checks(
 
 async def _check_api_connectivity(
     call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext
-) -> Optional[str]:
+) -> str | None:
     try:
         await call_v1_tool("companySearch", ctx, {"name": "bitsight", "limit": 1})
         return None
@@ -118,7 +118,7 @@ async def _check_api_connectivity(
 
 async def _check_subscription_folder(
     call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext, folder: str
-) -> Optional[str]:
+) -> str | None:
     try:
         raw = await call_v1_tool("getFolders", ctx, {})
     except BirreError:
@@ -126,7 +126,7 @@ async def _check_subscription_folder(
     except Exception as exc:
         return f"Failed to query folders: {exc.__class__.__name__}: {exc}"
 
-    folders: List[str] = []
+    folders: list[str] = []
     if isinstance(raw, list):
         iterable = raw
     elif isinstance(raw, dict):
@@ -151,7 +151,7 @@ async def _check_subscription_quota(
     call_v1_tool: CallV1ToolFn,
     ctx: ToolLoggingContext,
     subscription_type: str,
-) -> Optional[str]:
+) -> str | None:
     try:
         raw = await call_v1_tool("getCompanySubscriptions", ctx, {})
     except BirreError:
@@ -176,7 +176,10 @@ async def _check_subscription_quota(
 
     remaining = details.get("remaining")
     if not isinstance(remaining, int):
-        return f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
+        return (
+            f"Subscription '{subscription_type}' returned unexpected "
+            f"remaining value: {remaining!r}"
+        )
     if remaining <= 0:
         return f"Subscription '{subscription_type}' has no remaining licenses"
     return None
@@ -185,7 +188,7 @@ async def _check_subscription_quota(
 async def _validate_subscription_folder(
     call_v1_tool: CallV1ToolFn,
     ctx: ToolLoggingContext,
-    subscription_folder: Optional[str],
+    subscription_folder: str | None,
     logger: BoundLogger,
 ) -> bool:
     if not subscription_folder:
@@ -215,7 +218,7 @@ async def _validate_subscription_folder(
 async def _validate_subscription_quota(
     call_v1_tool: CallV1ToolFn,
     ctx: ToolLoggingContext,
-    subscription_type: Optional[str],
+    subscription_type: str | None,
     logger: BoundLogger,
 ) -> bool:
     if not subscription_type:
@@ -245,8 +248,8 @@ async def _validate_subscription_quota(
 async def run_online_startup_checks(
     *,
     call_v1_tool: CallV1ToolFn,
-    subscription_folder: Optional[str],
-    subscription_type: Optional[str],
+    subscription_folder: str | None,
+    subscription_type: str | None,
     logger: BoundLogger,
     skip_startup_checks: bool = False,
 ) -> bool:

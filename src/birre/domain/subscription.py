@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, NamedTuple
 
 from fastmcp import Context
 
@@ -16,13 +17,13 @@ class SubscriptionAttempt(NamedTuple):
     success: bool
     created: bool
     already_subscribed: bool
-    message: Optional[str] = None
+    message: str | None = None
 
 
-def _extract_guid_values(response: Dict[str, Any], keys: Sequence[str]) -> List[str]:
+def _extract_guid_values(response: dict[str, Any], keys: Sequence[str]) -> list[str]:
     """Collect GUID strings from lists contained in the response."""
 
-    guids: List[str] = []
+    guids: list[str] = []
     for key in keys:
         value = response.get(key)
         if not isinstance(value, list):
@@ -40,8 +41,8 @@ def _extract_guid_values(response: Dict[str, Any], keys: Sequence[str]) -> List[
 
 
 def _build_subscription_base(
-    folder_name: Optional[str], subscription_type: Optional[str]
-) -> Optional[Dict[str, str]]:
+    folder_name: str | None, subscription_type: str | None
+) -> dict[str, str] | None:
     """Create the base payload for subscription actions when configured."""
 
     if not folder_name or not subscription_type:
@@ -70,7 +71,7 @@ async def _log_bulk_response(
 
 async def _handle_bulk_errors(
     ctx: Context, errors: Any, guid: str
-) -> Optional[SubscriptionAttempt]:
+) -> SubscriptionAttempt | None:
     """Interpret the errors section from the bulk subscription response."""
 
     if not isinstance(errors, list):
@@ -143,8 +144,8 @@ async def create_ephemeral_subscription(
     guid: str,
     *,
     logger: BoundLogger,
-    default_folder: Optional[str],
-    subscription_type: Optional[str],
+    default_folder: str | None,
+    subscription_type: str | None,
     debug_enabled: bool,
 ) -> SubscriptionAttempt:
     """Guarantee that the target company is subscribed before fetching data."""

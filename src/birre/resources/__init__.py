@@ -1,7 +1,7 @@
 """Package data helpers for BiRRe."""
 
+from collections.abc import Iterator
 from importlib import resources as _resources
-from typing import Iterator
 
 __all__ = ["iter_data_files"]
 

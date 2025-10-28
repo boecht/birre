@@ -52,15 +52,15 @@ from birre.config.settings import (
     LOGGING_FORMAT_KEY,
     LOGGING_LEVEL_KEY,
     LOGGING_MAX_BYTES_KEY,
-    LoggingInputs,
     ROLE_CONTEXT_KEY,
     ROLE_MAX_FINDINGS_KEY,
     ROLE_RISK_VECTOR_FILTER_KEY,
-    RuntimeInputs,
     RUNTIME_ALLOW_INSECURE_TLS_KEY,
     RUNTIME_CA_BUNDLE_PATH_KEY,
     RUNTIME_DEBUG_KEY,
     RUNTIME_SKIP_STARTUP_CHECKS_KEY,
+    LoggingInputs,
+    RuntimeInputs,
     SubscriptionInputs,
     TlsInputs,
     apply_cli_overrides,
@@ -229,7 +229,10 @@ SkipStartupChecksOption = Annotated[
     bool | None,
     typer.Option(
         "--skip-startup-checks/--require-startup-checks",
-        help="Skip online startup checks (use --require-startup-checks to override any configured skip)",
+        help=(
+            "Skip online startup checks "
+            "(use --require-startup-checks to override any configured skip)"
+        ),
         envvar="BIRRE_SKIP_STARTUP_CHECKS",
         show_envvar=True,
         rich_help_panel="Runtime",
@@ -609,7 +612,9 @@ def _banner() -> Text:
         "│[yellow]     ███████████  █████ █████   █████ █████   █████░░██████     [/yellow]│\n"
         "│[yellow]    ░░░░░░░░░░░  ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░  ░░░░░░      [/yellow]│\n"
         "│[yellow]                                                                [/yellow]│\n"
-        "│[dim]                   [bold]Bi[/bold]tsight [bold]R[/bold]ating [bold]Re[/bold]triever                    [/dim]│\n"
+        "│[dim]                   "
+        "[bold]Bi[/bold]tsight [bold]R[/bold]ating [bold]Re[/bold]triever"
+        "                    [/dim]│\n"
         "│[yellow]                 Model Context Protocol Server                  [/yellow]│\n"
         "│[yellow]                https://github.com/boecht/birre                 [/yellow]│\n"
         "╰────────────────────────────────────────────────────────────────╯\n"
@@ -679,7 +684,10 @@ def _validate_positive(name: str, value: int | None) -> int | None:
     if value is None:
         return None
     if value <= 0:
-        raise typer.BadParameter(f"{name} must be a positive integer", param_hint=f"--{name.replace('_', '-')}")
+        raise typer.BadParameter(
+            f"{name} must be a positive integer",
+            param_hint=f"--{name.replace('_', '-')}",
+        )
     return value
 
 
@@ -739,7 +747,9 @@ class _CliInvocation:
     def describe_cli_overrides(self) -> dict[str, str]:
         details: dict[str, str] = {}
         if self.auth.api_key:
-            details[BITSIGHT_API_KEY_KEY] = _format_display_value(BITSIGHT_API_KEY_KEY, self.auth.api_key)
+            details[BITSIGHT_API_KEY_KEY] = _format_display_value(
+                BITSIGHT_API_KEY_KEY, self.auth.api_key
+            )
         if self.subscription.folder:
             details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = _format_display_value(
                 BITSIGHT_SUBSCRIPTION_FOLDER_KEY, self.subscription.folder
@@ -749,7 +759,9 @@ class _CliInvocation:
                 BITSIGHT_SUBSCRIPTION_TYPE_KEY, self.subscription.type
             )
         if self.runtime.context:
-            details[ROLE_CONTEXT_KEY] = _format_display_value(ROLE_CONTEXT_KEY, self.runtime.context)
+            details[ROLE_CONTEXT_KEY] = _format_display_value(
+                ROLE_CONTEXT_KEY, self.runtime.context
+            )
         if self.runtime.risk_vector_filter:
             details[ROLE_RISK_VECTOR_FILTER_KEY] = _format_display_value(
                 ROLE_RISK_VECTOR_FILTER_KEY, self.runtime.risk_vector_filter
@@ -759,7 +771,9 @@ class _CliInvocation:
                 ROLE_MAX_FINDINGS_KEY, self.runtime.max_findings
             )
         if self.runtime.debug is not None:
-            details[RUNTIME_DEBUG_KEY] = _format_display_value(RUNTIME_DEBUG_KEY, self.runtime.debug)
+            details[RUNTIME_DEBUG_KEY] = _format_display_value(
+                RUNTIME_DEBUG_KEY, self.runtime.debug
+            )
         if self.runtime.skip_startup_checks is not None:
             details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = _format_display_value(
                 RUNTIME_SKIP_STARTUP_CHECKS_KEY, self.runtime.skip_startup_checks
@@ -773,11 +787,17 @@ class _CliInvocation:
                 RUNTIME_CA_BUNDLE_PATH_KEY, self.tls.ca_bundle_path
             )
         if self.logging.level:
-            details[LOGGING_LEVEL_KEY] = _format_display_value(LOGGING_LEVEL_KEY, self.logging.level)
+            details[LOGGING_LEVEL_KEY] = _format_display_value(
+                LOGGING_LEVEL_KEY, self.logging.level
+            )
         if self.logging.format:
-            details[LOGGING_FORMAT_KEY] = _format_display_value(LOGGING_FORMAT_KEY, self.logging.format)
+            details[LOGGING_FORMAT_KEY] = _format_display_value(
+                LOGGING_FORMAT_KEY, self.logging.format
+            )
         if self.logging.file_path is not None:
-            details[LOGGING_FILE_KEY] = _format_display_value(LOGGING_FILE_KEY, self.logging.file_path)
+            details[LOGGING_FILE_KEY] = _format_display_value(
+                LOGGING_FILE_KEY, self.logging.file_path
+            )
         if self.logging.max_bytes is not None:
             details[LOGGING_MAX_BYTES_KEY] = _format_display_value(
                 LOGGING_MAX_BYTES_KEY, self.logging.max_bytes
@@ -789,8 +809,10 @@ class _CliInvocation:
         return details
 
 
+# Typer CLI pattern: Each parameter maps to a command-line option.
+# 17 parameters is acceptable for comprehensive CLI configuration.
+# S107: Suppressed - parameter count justified by CLI framework design.
 def _build_invocation(
-    # noqa: PLR0913 - Typer CLI pattern requires many parameters to capture all CLI options
     *,
     config_path: Path | str | None,
     api_key: str | None,
@@ -1407,6 +1429,153 @@ class HealthcheckRunner:
             report=report,
         )
 
+    def _build_attempt_summaries(
+        self, attempt_reports: list[AttemptReport]
+    ) -> list[dict[str, Any]]:
+        """Build summary dictionaries for all diagnostic attempts."""
+        return [
+            {
+                "label": attempt.label,
+                "success": attempt.success,
+                "notes": attempt.notes,
+                "allow_insecure_tls": attempt.allow_insecure_tls,
+                "ca_bundle": attempt.ca_bundle,
+                "online_success": attempt.online_success,
+                "discovered_tools": attempt.discovered_tools,
+                "missing_tools": attempt.missing_tools,
+                "tools": attempt.tools,
+                "failures": [
+                    _summarize_failure(failure) for failure in attempt.failures
+                ],
+            }
+            for attempt in attempt_reports
+        ]
+
+    def _calculate_online_status(
+        self, attempt_summaries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Calculate overall online status from attempt summaries."""
+        online_attempts: dict[str, str] = {}
+        for attempt in attempt_summaries:
+            result = attempt.get("online_success")
+            if result is None:
+                continue
+            online_attempts[attempt["label"]] = "pass" if result else "fail"
+        
+        if any(status == "pass" for status in online_attempts.values()):
+            online_status = "pass"
+        elif any(status == "fail" for status in online_attempts.values()):
+            online_status = "fail"
+        else:
+            online_status = "warning"
+        
+        online_summary: dict[str, Any] = {"status": online_status}
+        if online_attempts:
+            online_summary["attempts"] = online_attempts
+        return online_summary
+
+    def _check_tls_failures(
+        self, attempt_reports: list[AttemptReport]
+    ) -> bool:
+        """Check if any TLS failures occurred in attempts."""
+        return any(
+            failure.category == "tls"
+            for attempt in attempt_reports
+            for failure in attempt.failures
+        )
+
+    def _attempt_tls_fallback(
+        self,
+        context_name: str,
+        effective_settings,
+        logger: BoundLogger,
+        expected_tools: frozenset[str],
+        tls_failures: list[Any],
+    ) -> AttemptReport:
+        """Attempt diagnostics with TLS fallback settings."""
+        logger.warning(
+            "TLS errors detected; retrying diagnostics with allow_insecure_tls enabled",
+            attempt="tls-fallback",
+            original_errors=[_summarize_failure(failure) for failure in tls_failures],
+        )
+        fallback_settings = replace(
+            effective_settings,
+            allow_insecure_tls=True,
+            ca_bundle_path=None,
+        )
+        return self._run_diagnostic_attempt(
+            context_name=context_name,
+            settings=fallback_settings,
+            context_logger=logger,
+            expected_tools=expected_tools,
+            label="tls-fallback",
+            notes=None,
+        )
+
+    def _log_fallback_result(
+        self, logger: BoundLogger, success: bool, tls_failures: list[Any]
+    ) -> None:
+        """Log the result of TLS fallback attempt."""
+        if success:
+            logger.warning(
+                "TLS fallback resolved diagnostics failure",
+                attempt="tls-fallback",
+                original_errors=[_summarize_failure(failure) for failure in tls_failures],
+            )
+        else:
+            logger.error(
+                "TLS fallback failed to resolve diagnostics",
+                attempt="tls-fallback",
+                original_errors=[_summarize_failure(failure) for failure in tls_failures],
+            )
+
+    def _categorize_failures(
+        self,
+        encountered_categories: set[str],
+        failure_categories: set[str],
+    ) -> tuple[list[str], list[str]]:
+        """Categorize failures as recoverable or unrecoverable."""
+        recoverable = sorted(
+            (failure_categories | encountered_categories) & {"tls", MSG_CONFIG_CA_BUNDLE}
+        )
+        unrecoverable = sorted(
+            (failure_categories | encountered_categories) - {"tls", MSG_CONFIG_CA_BUNDLE}
+        )
+        return recoverable, unrecoverable
+
+    def _log_context_result(
+        self,
+        logger: BoundLogger,
+        context_success: bool,
+        attempt_reports: list[AttemptReport],
+        recoverable: list[str],
+        unrecoverable: list[str],
+    ) -> None:
+        """Log the final context diagnostics result."""
+        if not context_success:
+            logger.error(
+                "Context diagnostics failed",
+                attempts=[
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
+                ],
+                recoverable_categories=recoverable or None,
+                unrecoverable_categories=unrecoverable or None,
+            )
+        elif any(not report.success for report in attempt_reports):
+            logger.info(
+                "Context diagnostics completed with recoveries",
+                attempts=[
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
+                ],
+            )
+        else:
+            logger.info(
+                "Context diagnostics completed successfully",
+                attempt="primary",
+            )
+
     def _evaluate_online_context(
         self,
         context_name: str,
@@ -1443,25 +1612,8 @@ class HealthcheckRunner:
                 if failure.category == "tls"
             ]
             if tls_failures and not effective_settings.allow_insecure_tls:
-                logger.warning(
-                    "TLS errors detected; retrying diagnostics with allow_insecure_tls enabled",
-                    attempt="tls-fallback",
-                    original_errors=[
-                        _summarize_failure(failure) for failure in tls_failures
-                    ],
-                )
-                fallback_settings = replace(
-                    effective_settings,
-                    allow_insecure_tls=True,
-                    ca_bundle_path=None,
-                )
-                fallback_report = self._run_diagnostic_attempt(
-                    context_name=context_name,
-                    settings=fallback_settings,
-                    context_logger=logger,
-                    expected_tools=expected_tools,
-                    label="tls-fallback",
-                    notes=None,
+                fallback_report = self._attempt_tls_fallback(
+                    context_name, effective_settings, logger, expected_tools, tls_failures
                 )
                 attempt_reports.append(fallback_report)
                 fallback_attempted = True
@@ -1470,59 +1622,16 @@ class HealthcheckRunner:
                     fallback_report, encountered_categories, failure_categories
                 )
                 context_success = fallback_report.success
-                if fallback_report.success:
-                    logger.warning(
-                        "TLS fallback resolved diagnostics failure",
-                        attempt="tls-fallback",
-                        original_errors=[
-                            _summarize_failure(failure) for failure in tls_failures
-                        ],
-                    )
-                else:
-                    logger.error(
-                        "TLS fallback failed to resolve diagnostics",
-                        attempt="tls-fallback",
-                        original_errors=[
-                            _summarize_failure(failure) for failure in tls_failures
-                        ],
-                    )
+                self._log_fallback_result(logger, fallback_report.success, tls_failures)
             else:
                 context_success = False
 
-        if not context_success:
-            recoverable = sorted(
-                (failure_categories | encountered_categories)
-                & {"tls", MSG_CONFIG_CA_BUNDLE}
-            )
-            unrecoverable = sorted(
-                (failure_categories | encountered_categories)
-                - {"tls", MSG_CONFIG_CA_BUNDLE}
-            )
-            logger.error(
-                "Context diagnostics failed",
-                attempts=[
-                    {"label": report.label, "success": report.success}
-                    for report in attempt_reports
-                ],
-                recoverable_categories=recoverable or None,
-                unrecoverable_categories=unrecoverable or None,
-            )
-        else:
-            recoverable = []
-            unrecoverable = []
-            if any(not report.success for report in attempt_reports):
-                logger.info(
-                    "Context diagnostics completed with recoveries",
-                    attempts=[
-                        {"label": report.label, "success": report.success}
-                        for report in attempt_reports
-                    ],
-                )
-            else:
-                logger.info(
-                    "Context diagnostics completed successfully",
-                    attempt="primary",
-                )
+        recoverable, unrecoverable = self._categorize_failures(
+            encountered_categories, failure_categories
+        )
+        self._log_context_result(
+            logger, context_success, attempt_reports, recoverable, unrecoverable
+        )
 
         report["success"] = context_success
         report["fallback_attempted"] = fallback_attempted
@@ -1534,41 +1643,10 @@ class HealthcheckRunner:
         report["recoverable_categories"] = recoverable
         report["unrecoverable_categories"] = unrecoverable
 
-        attempt_summaries = [
-            {
-                "label": attempt.label,
-                "success": attempt.success,
-                "notes": attempt.notes,
-                "allow_insecure_tls": attempt.allow_insecure_tls,
-                "ca_bundle": attempt.ca_bundle,
-                "online_success": attempt.online_success,
-                "discovered_tools": attempt.discovered_tools,
-                "missing_tools": attempt.missing_tools,
-                "tools": attempt.tools,
-                "failures": [
-                    _summarize_failure(failure) for failure in attempt.failures
-                ],
-            }
-            for attempt in attempt_reports
-        ]
+        attempt_summaries = self._build_attempt_summaries(attempt_reports)
         report["attempts"] = attempt_summaries
 
-        online_attempts: dict[str, str] = {}
-        for attempt in attempt_summaries:
-            result = attempt.get("online_success")
-            if result is None:
-                continue
-            online_attempts[attempt["label"]] = "pass" if result else "fail"
-        if any(status == "pass" for status in online_attempts.values()):
-            online_status = "pass"
-        elif any(status == "fail" for status in online_attempts.values()):
-            online_status = "fail"
-        else:
-            online_status = "warning"
-        online_summary: dict[str, Any] = {"status": online_status}
-        if online_attempts:
-            online_summary["attempts"] = online_attempts
-        report["online"] = online_summary
+        report["online"] = self._calculate_online_status(attempt_summaries)
 
         report["tools"] = _aggregate_tool_outcomes(
             expected_tools,
@@ -1576,11 +1654,7 @@ class HealthcheckRunner:
             offline_mode=False,
         )
 
-        tls_failure_present = any(
-            failure.category == "tls"
-            for attempt in attempt_reports
-            for failure in attempt.failures
-        )
+        tls_failure_present = self._check_tls_failures(attempt_reports)
         if tls_failure_present:
             report.setdefault("notes", []).append("tls-cert-chain-intercepted")
             report["tls_cert_chain_intercepted"] = True
@@ -1925,6 +1999,45 @@ def _summarize_failure(failure: DiagnosticFailure) -> dict[str, Any]:
     return summary
 
 
+def _create_offline_tool_status(tool_name: str, missing_set: set[str | None]) -> dict[str, Any]:
+    """Create tool status entry for offline mode."""
+    if tool_name in missing_set:
+        return {
+            "status": "fail",
+            "details": {"reason": MSG_TOOL_NOT_REGISTERED},
+        }
+    return {
+        "status": "warning",
+        "details": {"reason": "offline mode"},
+    }
+
+
+def _collect_tool_attempts(
+    tool_name: str, attempts: Sequence[dict[str, Any]]
+) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Collect all attempt details and statuses for a specific tool."""
+    attempt_details: dict[str, dict[str, Any]] = {}
+    statuses: list[str] = []
+    for attempt in attempts:
+        tool_entry = attempt.get("tools", {}).get(tool_name)
+        if tool_entry is None:
+            continue
+        attempt_details[attempt["label"]] = tool_entry
+        status = tool_entry.get("status")
+        if isinstance(status, str):
+            statuses.append(status)
+    return attempt_details, statuses
+
+
+def _determine_final_status(statuses: list[str]) -> str:
+    """Determine final tool status from multiple attempt statuses."""
+    if any(status == "pass" for status in statuses):
+        return "pass"
+    if any(status == "fail" for status in statuses):
+        return "fail"
+    return statuses[0]
+
+
 def _aggregate_tool_outcomes(
     expected_tools: frozenset[str],
     attempts: Sequence[dict[str, Any]],
@@ -1936,41 +2049,20 @@ def _aggregate_tool_outcomes(
     if offline_mode:
         missing_set = set(offline_missing or ())
         for tool_name in sorted(expected_tools):
-            if tool_name in missing_set:
-                aggregated[tool_name] = {
-                    "status": "fail",
-                    "details": {"reason": MSG_TOOL_NOT_REGISTERED},
-                }
-            else:
-                aggregated[tool_name] = {
-                    "status": "warning",
-                    "details": {"reason": "offline mode"},
-                }
+            aggregated[tool_name] = _create_offline_tool_status(tool_name, missing_set)
         return aggregated
 
     for tool_name in sorted(expected_tools):
-        attempt_details: dict[str, dict[str, Any]] = {}
-        statuses: list[str] = []
-        for attempt in attempts:
-            tool_entry = attempt.get("tools", {}).get(tool_name)
-            if tool_entry is None:
-                continue
-            attempt_details[attempt["label"]] = tool_entry
-            status = tool_entry.get("status")
-            if isinstance(status, str):
-                statuses.append(status)
+        attempt_details, statuses = _collect_tool_attempts(tool_name, attempts)
+        
         if not statuses:
             aggregated[tool_name] = {
                 "status": "warning",
                 "attempts": attempt_details or None,
             }
             continue
-        if any(status == "pass" for status in statuses):
-            final_status = "pass"
-        elif any(status == "fail" for status in statuses):
-            final_status = "fail"
-        else:
-            final_status = statuses[0]
+        
+        final_status = _determine_final_status(statuses)
         entry: dict[str, Any] = {"status": final_status}
         if attempt_details:
             entry["attempts"] = attempt_details
@@ -2121,7 +2213,9 @@ def _collect_tool_map(server_instance: Any) -> dict[str, Any]:
 
     tools_attr = getattr(server_instance, "tools", None)
     if isinstance(tools_attr, dict):
-        tools.update({str(name): tool for name, tool in tools_attr.items() if isinstance(name, str)})
+        tools.update(
+            {str(name): tool for name, tool in tools_attr.items() if isinstance(name, str)}
+        )
 
     get_tools = getattr(server_instance, "get_tools", None)
     if callable(get_tools):
@@ -2134,7 +2228,9 @@ def _collect_tool_map(server_instance: Any) -> dict[str, Any]:
         else:
             resolved = result
         if isinstance(resolved, dict):
-            tools.update({str(name): tool for name, tool in resolved.items() if isinstance(name, str)})
+            tools.update(
+                {str(name): tool for name, tool in resolved.items() if isinstance(name, str)}
+            )
 
     return tools
 
@@ -2263,7 +2359,9 @@ def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
 
 def _validate_company_search_interactive_payload(payload: Any, *, logger: BoundLogger) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.company_search_interactive.invalid_response", reason=MSG_NOT_A_DICT)
+        logger.critical(
+            "healthcheck.company_search_interactive.invalid_response", reason=MSG_NOT_A_DICT
+        )
         return False
 
     if payload.get("error"):
@@ -2319,7 +2417,9 @@ def _validate_company_search_interactive_payload(payload: Any, *, logger: BoundL
     return True
 
 
-def _validate_manage_subscriptions_payload(payload: Any, *, logger: BoundLogger, expected_guid: str) -> bool:
+def _validate_manage_subscriptions_payload(
+    payload: Any, *, logger: BoundLogger, expected_guid: str
+) -> bool:
     if not isinstance(payload, dict):
         logger.critical("healthcheck.manage_subscriptions.invalid_response", reason=MSG_NOT_A_DICT)
         return False
@@ -2354,7 +2454,9 @@ def _validate_manage_subscriptions_payload(payload: Any, *, logger: BoundLogger,
     return True
 
 
-def _validate_request_company_payload(payload: Any, *, logger: BoundLogger, expected_domain: str) -> bool:
+def _validate_request_company_payload(
+    payload: Any, *, logger: BoundLogger, expected_domain: str
+) -> bool:
     if not isinstance(payload, dict):
         logger.critical("healthcheck.request_company.invalid_response", reason=MSG_NOT_A_DICT)
         return False
@@ -2459,7 +2561,9 @@ def _run_company_search_diagnostics(
     try:
         by_domain = _invoke_tool(tool, ctx, domain=_HEALTHCHECK_COMPANY_DOMAIN)
     except Exception as exc:  # pragma: no cover - network failures
-        tool_logger.critical("healthcheck.company_search.call_failed", mode="domain", error=str(exc))
+        tool_logger.critical(
+            "healthcheck.company_search.call_failed", mode="domain", error=str(exc)
+        )
         _record_failure(
             failures,
             tool="company_search",
@@ -2748,6 +2852,76 @@ def _run_request_company_diagnostics(
     return True
 
 
+def _check_required_tool(
+    *,
+    tool_name: str,
+    tool: Any,
+    context: str,
+    logger: BoundLogger,
+    diagnostic_fn: Callable[..., bool],
+    failures: list[DiagnosticFailure | None] | None,
+    summary: dict[str, Any | None] | None,
+) -> bool:
+    """
+    Check and run diagnostics for a required tool.
+    Returns False if tool missing or diagnostics fail.
+    """
+    if tool is None:
+        logger.critical("healthcheck.tool_missing", tool=tool_name)
+        _record_failure(
+            failures,
+            tool=tool_name,
+            stage="discovery",
+            message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
+        )
+        if summary is not None:
+            summary.clear()
+            summary["status"] = "fail"
+            summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+        return False
+    
+    if summary is not None:
+        summary.clear()
+    return diagnostic_fn(
+        context=context,
+        logger=logger,
+        tool=tool,
+        failures=failures,
+        summary=summary,
+    )
+
+
+def _check_optional_tool(
+    *,
+    tool: Any,
+    context: str,
+    logger: BoundLogger,
+    diagnostic_fn: Callable[..., bool],
+    failures: list[DiagnosticFailure | None] | None,
+    summary: dict[str, Any | None] | None,
+) -> bool:
+    """
+    Check and run diagnostics for an optional tool.
+    Returns True if tool missing (warning only).
+    """
+    if tool is None:
+        if summary is not None:
+            summary.clear()
+            summary["status"] = "warning"
+            summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+        return True
+    
+    if summary is not None:
+        summary.clear()
+    return diagnostic_fn(
+        context=context,
+        logger=logger,
+        tool=tool,
+        failures=failures,
+        summary=summary,
+    )
+
+
 def _run_context_tool_diagnostics(
     *,
     context: str,
@@ -2775,119 +2949,59 @@ def _run_context_tool_diagnostics(
             return None
         return summary.setdefault(name, {})
 
-    company_search_tool = tools.get("company_search")
-    company_summary = _summary_entry("company_search")
-    if company_search_tool is None:
-        logger.critical("healthcheck.tool_missing", tool="company_search")
-        _record_failure(
-            failures,
-            tool="company_search",
-            stage="discovery",
-            message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
-        )
-        if company_summary is not None:
-            company_summary.clear()
-            company_summary["status"] = "fail"
-            company_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+    # Required tools
+    if not _check_required_tool(
+        tool_name="company_search",
+        tool=tools.get("company_search"),
+        context=context,
+        logger=logger,
+        diagnostic_fn=_run_company_search_diagnostics,
+        failures=failures,
+        summary=_summary_entry("company_search"),
+    ):
         success = False
-    else:
-        if company_summary is not None:
-            company_summary.clear()
-        if not _run_company_search_diagnostics(
-            context=context,
-            logger=logger,
-            tool=company_search_tool,
-            failures=failures,
-            summary=company_summary,
-        ):
-            success = False
 
-    rating_tool = tools.get("get_company_rating")
-    rating_summary = _summary_entry("get_company_rating")
-    if rating_tool is None:
-        logger.critical("healthcheck.tool_missing", tool="get_company_rating")
-        _record_failure(
-            failures,
-            tool="get_company_rating",
-            stage="discovery",
-            message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
-        )
-        if rating_summary is not None:
-            rating_summary.clear()
-            rating_summary["status"] = "fail"
-            rating_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+    if not _check_required_tool(
+        tool_name="get_company_rating",
+        tool=tools.get("get_company_rating"),
+        context=context,
+        logger=logger,
+        diagnostic_fn=_run_rating_diagnostics,
+        failures=failures,
+        summary=_summary_entry("get_company_rating"),
+    ):
         success = False
-    else:
-        if rating_summary is not None:
-            rating_summary.clear()
-        if not _run_rating_diagnostics(
-            context=context,
-            logger=logger,
-            tool=rating_tool,
-            failures=failures,
-            summary=rating_summary,
-        ):
-            success = False
 
-    interactive_tool = tools.get("company_search_interactive")
-    if interactive_tool is not None:
-        interactive_summary = _summary_entry("company_search_interactive")
-        if interactive_summary is not None:
-            interactive_summary.clear()
-        if not _run_company_search_interactive_diagnostics(
-            context=context,
-            logger=logger,
-            tool=interactive_tool,
-            failures=failures,
-            summary=interactive_summary,
-        ):
-            success = False
-    else:
-        interactive_summary = _summary_entry("company_search_interactive")
-        if interactive_summary is not None:
-            interactive_summary.clear()
-            interactive_summary["status"] = "warning"
-            interactive_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+    # Optional tools
+    if not _check_optional_tool(
+        tool=tools.get("company_search_interactive"),
+        context=context,
+        logger=logger,
+        diagnostic_fn=_run_company_search_interactive_diagnostics,
+        failures=failures,
+        summary=_summary_entry("company_search_interactive"),
+    ):
+        success = False
 
-    manage_tool = tools.get("manage_subscriptions")
-    if manage_tool is not None:
-        manage_summary = _summary_entry("manage_subscriptions")
-        if manage_summary is not None:
-            manage_summary.clear()
-        if not _run_manage_subscriptions_diagnostics(
-            context=context,
-            logger=logger,
-            tool=manage_tool,
-            failures=failures,
-            summary=manage_summary,
-        ):
-            success = False
-    else:
-        manage_summary = _summary_entry("manage_subscriptions")
-        if manage_summary is not None:
-            manage_summary.clear()
-            manage_summary["status"] = "warning"
-            manage_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+    if not _check_optional_tool(
+        tool=tools.get("manage_subscriptions"),
+        context=context,
+        logger=logger,
+        diagnostic_fn=_run_manage_subscriptions_diagnostics,
+        failures=failures,
+        summary=_summary_entry("manage_subscriptions"),
+    ):
+        success = False
 
-    request_tool = tools.get("request_company")
-    if request_tool is not None:
-        request_summary = _summary_entry("request_company")
-        if request_summary is not None:
-            request_summary.clear()
-        if not _run_request_company_diagnostics(
-            context=context,
-            logger=logger,
-            tool=request_tool,
-            failures=failures,
-            summary=request_summary,
-        ):
-            success = False
-    else:
-        request_summary = _summary_entry("request_company")
-        if request_summary is not None:
-            request_summary.clear()
-            request_summary["status"] = "warning"
-            request_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
+    if not _check_optional_tool(
+        tool=tools.get("request_company"),
+        context=context,
+        logger=logger,
+        diagnostic_fn=_run_request_company_diagnostics,
+        failures=failures,
+        summary=_summary_entry("request_company"),
+    ):
+        success = False
 
     return success
 
@@ -2904,6 +3018,8 @@ def _prepare_server(runtime_settings, logger, **create_kwargs):
 @app.command(
     help="Start the BiRRe FastMCP server with BitSight connectivity."
 )
+# Typer CLI entry point: Each parameter maps to a command-line option.
+# 17 parameters is acceptable for comprehensive CLI configuration interface.
 def run(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     bitsight_api_key: BitsightApiKeyOption = None,
@@ -3039,10 +3155,10 @@ def selftest(
     )
     if environment_label == "testing" and not offline:
         stdout_console.print(
-            "[yellow]Note:[/yellow] BitSight's testing environment often returns [bold]HTTP 403[/bold] for "
-            "subscription management tools even with valid credentials. This is expected for accounts "
-            "without sandbox write access. Re-run with [green]--production[/green] to validate against the "
-            "live API."
+            "[yellow]Note:[/yellow] BitSight's testing environment often returns "
+            "[bold]HTTP 403[/bold] for subscription management tools even with valid credentials. "
+            "This is expected for accounts without sandbox write access. "
+            "Re-run with [green]--production[/green] to validate against the live API."
         )
     if offline:
         logger.info("Offline mode enabled; skipping online diagnostics")
@@ -3147,46 +3263,158 @@ def _collect_or_prompt_string(
                 continue
             return None
 
-        normalized = _validate_and_apply_normalizer(response, required=required, normalizer=normalizer)
+        normalized = _validate_and_apply_normalizer(
+            response, required=required, normalizer=normalizer
+        )
         if normalized is not None or not required:
             return normalized
 
 
-def _generate_local_config_content(values: dict[str, Any], *, include_header: bool = True) -> str:
-    def format_value(value: Any) -> str:
-        if isinstance(value, bool):
-            return "true" if value else "false"
-        if isinstance(value, (int, float)):
-            return str(value)
-        if isinstance(value, (list, tuple)):
-            formatted = ", ".join(format_value(item) for item in value)
-            return f"[{formatted}]"
-        if value is None:
-            return ""  # Should not be serialized
-        escaped = (
-            str(value)
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-        )
-        return f'"{escaped}"'
+def _format_config_value(value: Any) -> str:
+    """Format a single config value for TOML."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        formatted = ", ".join(_format_config_value(item) for item in value)
+        return f"[{formatted}]"
+    if value is None:
+        return ""  # Should not be serialized
+    escaped = str(value).replace("\\", "\\\\").replace("\"", "\\\"")
+    return f'"{escaped}"'
 
+
+def _format_config_section(section: str, section_values: dict[str, Any]) -> list[str]:
+    """Format a single config section."""
+    if not isinstance(section_values, dict) or not section_values:
+        return []
+    
+    lines = ["", f"[{section}]"]
+    for key, entry in sorted(section_values.items()):
+        if entry is None:
+            continue
+        if isinstance(entry, str) and not entry.strip():
+            continue
+        lines.append(f"{key} = {_format_config_value(entry)}")
+    return lines
+
+
+def _generate_local_config_content(values: dict[str, Any], *, include_header: bool = True) -> str:
     lines: list[str] = []
     if include_header:
         lines.append("## Generated local configuration")
 
     for section, section_values in sorted(values.items()):
-        if not isinstance(section_values, dict) or not section_values:
-            continue
-        lines.append("")
-        lines.append(f"[{section}]")
-        for key, entry in sorted(section_values.items()):
-            if entry is None:
-                continue
-            if isinstance(entry, str) and not entry.strip():
-                continue
-            lines.append(f"{key} = {format_value(entry)}")
+        lines.extend(_format_config_section(section, section_values))
+    
     lines.append("")
     return "\n".join(lines)
+
+
+def _determine_value_source(value, default_value, normalizer):
+    """Determine the source of a prompted value (Default vs User Input)."""
+    if default_value and value == default_value:
+        return "Default"
+    
+    normalized_default = (
+        normalizer(default_value) if normalizer and default_value else None
+    )
+    normalized_value = normalizer(value) if normalizer else value
+    
+    if normalized_default and normalized_value == normalized_default:
+        return "Default"
+    return SOURCE_USER_INPUT
+
+
+def _prompt_and_record_string(
+    cli_value,
+    prompt_text,
+    default_value,
+    summary_rows,
+    config_key,
+    *,
+    normalizer=None,
+    secret=False,
+    required=False,
+    cli_source="CLI Option",
+):
+    """Prompt for a string value and add to summary if provided."""
+    if cli_value is not None:
+        value = cli_value
+        source = cli_source
+    else:
+        value = _collect_or_prompt_string(
+            None,
+            prompt=prompt_text,
+            default=default_value,
+            secret=secret,
+            required=required,
+            normalizer=normalizer,
+        )
+        if value is not None:
+            source = _determine_value_source(value, default_value, normalizer)
+        else:
+            return None
+    
+    if value and value not in (None, ""):
+        display_value = _format_display_value(config_key, value)
+        summary_rows.append((config_key, display_value, source))
+    return value
+
+
+def _prompt_and_record_bool(
+    cli_value,
+    prompt_text,
+    default_value,
+    summary_rows,
+    config_key,
+):
+    """Prompt for a boolean value and add to summary."""
+    if cli_value is not None:
+        value = cli_value
+        source = "CLI Option"
+    else:
+        value = _prompt_bool(prompt_text, default=default_value)
+        source = "Default" if value == default_value else SOURCE_USER_INPUT
+    
+    display_value = _format_display_value(config_key, value)
+    summary_rows.append((config_key, display_value, source))
+    return value
+
+
+def _check_overwrite_destination(destination, overwrite):
+    """Check if destination exists and handle overwrite logic."""
+    if not destination.exists():
+        return
+    
+    if overwrite:
+        stdout_console.print(
+            f"[yellow]Overwriting existing configuration at[/yellow] {destination}"
+        )
+    else:
+        stdout_console.print(f"[yellow]{destination} already exists.[/yellow]")
+        if not typer.confirm("Overwrite this file?", default=False):
+            stdout_console.print(
+                "[red]Aborted without changing the existing configuration.[/red]"
+            )
+            raise typer.Exit(code=1)
+
+
+def _display_config_preview(summary_rows):
+    """Display configuration preview table."""
+    if not summary_rows:
+        return
+    
+    summary_rows.sort(key=lambda entry: entry[0])
+    preview = Table(title="Local configuration preview")
+    preview.add_column("Config Key", style=_RichStyles.ACCENT)
+    preview.add_column("Value", style=_RichStyles.SECONDARY)
+    preview.add_column("Source", style=_RichStyles.SUCCESS)
+    for dotted_key, display_value, source in summary_rows:
+        preview.add_row(dotted_key, display_value, source)
+    stdout_console.print()
+    stdout_console.print(preview)
 
 
 @config_app.command(
@@ -3206,34 +3434,17 @@ def config_init(
     config_source = ctx.get_parameter_source("config_path")
     destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
 
-    if destination.exists():
-        if overwrite:
-            stdout_console.print(
-                f"[yellow]Overwriting existing configuration at[/yellow] {destination}"
-            )
-        else:
-            stdout_console.print(
-                f"[yellow]{destination} already exists.[/yellow]"
-            )
-            if not typer.confirm("Overwrite this file?", default=False):
-                stdout_console.print(
-                    "[red]Aborted without changing the existing configuration.[/red]"
-                )
-                raise typer.Exit(code=1)
+    _check_overwrite_destination(destination, overwrite)
 
-    defaults_settings = load_settings(str(config_path) if config_source is ParameterSource.COMMANDLINE else None)
+    defaults_settings = load_settings(
+        str(config_path) if config_source is ParameterSource.COMMANDLINE else None
+    )
     default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
     default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
     default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
     default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
 
     summary_rows: list[tuple[str, str, str]] = []
-
-    def add_summary(dotted_key: str, value: Any, source: str) -> None:
-        if value in (None, ""):
-            return
-        display_value = _format_display_value(dotted_key, value)
-        summary_rows.append((dotted_key, display_value, source))
 
     stdout_console.print("[bold]BiRRe local configuration generator[/bold]")
 
@@ -3244,75 +3455,42 @@ def config_init(
         secret=True,
         required=True,
     )
-    add_summary(BITSIGHT_API_KEY_KEY, api_key, SOURCE_USER_INPUT)
+    if api_key:
+        display_value = _format_display_value(BITSIGHT_API_KEY_KEY, api_key)
+        summary_rows.append((BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT))
 
-    default_subscription_folder_str = (
-        str(default_subscription_folder)
-        if default_subscription_folder is not None
-        else ""
-    )
-    subscription_folder = _collect_or_prompt_string(
+    subscription_folder = _prompt_and_record_string(
         None,
-        prompt="Default subscription folder",
-        default=default_subscription_folder_str,
+        "Default subscription folder",
+        str(default_subscription_folder) if default_subscription_folder else "",
+        summary_rows,
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
     )
-    if subscription_folder is not None:
-        folder_source = (
-            "Default"
-            if default_subscription_folder_str
-            and subscription_folder == default_subscription_folder_str
-            else SOURCE_USER_INPUT
-        )
-        add_summary(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, subscription_folder, folder_source)
 
-    default_subscription_type_str = (
-        str(default_subscription_type)
-        if default_subscription_type is not None
-        else ""
-    )
-    subscription_type_value = _collect_or_prompt_string(
+    subscription_type_value = _prompt_and_record_string(
         subscription_type,
-        prompt="Default subscription type",
-        default=default_subscription_type_str,
+        "Default subscription type",
+        str(default_subscription_type) if default_subscription_type else "",
+        summary_rows,
+        BITSIGHT_SUBSCRIPTION_TYPE_KEY,
     )
-    if subscription_type_value is not None:
-        if subscription_type is not None:
-            type_source = "CLI Option"
-        else:
-            type_source = (
-                "Default"
-                if default_subscription_type_str
-                and subscription_type_value == default_subscription_type_str
-                else SOURCE_USER_INPUT
-            )
-        add_summary(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_type_value, type_source)
 
-    default_context_str = str(default_context or "standard")
-    default_context_normalized = (
-        _normalize_context(default_context_str) or _clean_string(default_context_str)
-    )
-    context_value = _collect_or_prompt_string(
+    context_value = _prompt_and_record_string(
         None,
-        prompt="Default persona (standard or risk_manager)",
-        default=default_context_str,
+        "Default persona (standard or risk_manager)",
+        str(default_context or "standard"),
+        summary_rows,
+        ROLE_CONTEXT_KEY,
         normalizer=_normalize_context,
     )
-    if context_value is not None:
-        context_source = (
-            "Default"
-            if default_context_normalized is not None
-            and context_value == default_context_normalized
-            else SOURCE_USER_INPUT
-        )
-        add_summary(ROLE_CONTEXT_KEY, context_value, context_source)
 
-    if debug is not None:
-        debug_value = debug
-        add_summary(RUNTIME_DEBUG_KEY, debug_value, "CLI Option")
-    else:
-        debug_value = _prompt_bool("Enable debug mode?", default=default_debug)
-        debug_source = "Default" if debug_value == default_debug else SOURCE_USER_INPUT
-        add_summary(RUNTIME_DEBUG_KEY, debug_value, debug_source)
+    debug_value = _prompt_and_record_bool(
+        debug,
+        "Enable debug mode?",
+        default_debug,
+        summary_rows,
+        RUNTIME_DEBUG_KEY,
+    )
 
     generated = {
         "bitsight": {
@@ -3340,16 +3518,7 @@ def config_init(
         )
         raise typer.Exit(code=1)
 
-    if summary_rows:
-        summary_rows.sort(key=lambda entry: entry[0])
-        preview = Table(title="Local configuration preview")
-        preview.add_column("Config Key", style=_RichStyles.ACCENT)
-        preview.add_column("Value", style=_RichStyles.SECONDARY)
-        preview.add_column("Source", style=_RichStyles.SUCCESS)
-        for dotted_key, display_value, source in summary_rows:
-            preview.add_row(dotted_key, display_value, source)
-        stdout_console.print()
-        stdout_console.print(preview)
+    _display_config_preview(summary_rows)
 
     content = _generate_local_config_content(serializable)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -3440,32 +3609,38 @@ def _parse_relative_duration(value: str) -> timedelta | None:
     return multiplier * amount
 
 
-def _parse_log_line(line: str, format_hint: str) -> _LogViewLine:
-    stripped = line.rstrip("\n")
-    if format_hint == "json":
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError:
-            return _LogViewLine(raw=stripped, level=None, timestamp=None, json_data=None)
-        timestamp = None
-        for key in ("timestamp", "time", "@timestamp", "ts"):
-            value = data.get(key)
-            if isinstance(value, str):
-                timestamp = _parse_iso_timestamp_to_epoch(value)
-                if timestamp is not None:
-                    break
-        level_value = data.get("level") or data.get("levelname") or data.get("severity")
-        if isinstance(level_value, str):
-            level = _LOG_LEVEL_MAP.get(level_value.strip().upper())
-        elif isinstance(level_value, int):
-            level = level_value
-        else:
-            level = None
-        return _LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=data)
+def _parse_json_log_line(stripped: str) -> _LogViewLine:
+    """Parse a JSON-formatted log line."""
+    try:
+        data = json.loads(stripped)
+    except json.JSONDecodeError:
+        return _LogViewLine(raw=stripped, level=None, timestamp=None, json_data=None)
 
+    timestamp = None
+    for key in ("timestamp", "time", "@timestamp", "ts"):
+        value = data.get(key)
+        if isinstance(value, str):
+            timestamp = _parse_iso_timestamp_to_epoch(value)
+            if timestamp is not None:
+                break
+
+    level_value = data.get("level") or data.get("levelname") or data.get("severity")
+    if isinstance(level_value, str):
+        level = _LOG_LEVEL_MAP.get(level_value.strip().upper())
+    elif isinstance(level_value, int):
+        level = level_value
+    else:
+        level = None
+
+    return _LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=data)
+
+
+def _parse_text_log_line(stripped: str) -> _LogViewLine:
+    """Parse a text-formatted log line."""
     timestamp = None
     level = None
     tokens = stripped.split()
+    
     if tokens:
         timestamp = _parse_iso_timestamp_to_epoch(tokens[0].strip("[]"))
         for token in tokens[:3]:
@@ -3473,7 +3648,15 @@ def _parse_log_line(line: str, format_hint: str) -> _LogViewLine:
             if candidate is not None:
                 level = candidate
                 break
+    
     return _LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=None)
+
+
+def _parse_log_line(line: str, format_hint: str) -> _LogViewLine:
+    stripped = line.rstrip("\n")
+    if format_hint == "json":
+        return _parse_json_log_line(stripped)
+    return _parse_text_log_line(stripped)
 
 
 @config_app.command(
@@ -3562,7 +3745,9 @@ def config_show(
         _print_config_table("Environment overrides", env_rows)
 
     cli_labels = {
-        key: label for key, label in _build_cli_source_labels(invocation).items() if key not in env_labels
+        key: label
+        for key, label in _build_cli_source_labels(invocation).items()
+        if key not in env_labels
     }
     cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
     if cli_rows:
@@ -3608,7 +3793,9 @@ def config_validate(
         typer.echo(ctx.get_help())
         raise typer.Exit()
     if config is None:
-        raise typer.BadParameter("Configuration path could not be determined.", param_hint="--config")
+        raise typer.BadParameter(
+            "Configuration path could not be determined.", param_hint="--config"
+        )
 
     if not config.exists():
         raise typer.BadParameter(f"{config} does not exist", param_hint="--config")
@@ -3643,7 +3830,8 @@ def config_validate(
         shutil.copy2(config, backup_path)
         config.write_text(minimized, encoding="utf-8")
         stdout_console.print(
-            f"[green]Minimized configuration written to[/green] {config} [dim](backup: {backup_path})[/dim]"
+            f"[green]Minimized configuration written to[/green] {config} "
+            f"[dim](backup: {backup_path})[/dim]"
         )
 
 
@@ -3760,6 +3948,96 @@ def logs_path(
     stdout_console.print(f"[green]Log file (absolute)[/green]: {absolute}")
 
 
+
+
+def _validate_logs_show_params(
+    tail: int,
+    since: str | None,
+    last: str | None,
+    format_override: str | None,
+) -> str | None:
+    """Validate logs_show parameters. Returns normalized format or None."""
+    if tail < 0:
+        raise typer.BadParameter(
+            "Tail must be greater than or equal to zero.", param_hint="--tail"
+        )
+    if since and last:
+        raise typer.BadParameter(
+            "Only one of --since or --last can be provided.", param_hint="--since"
+        )
+    
+    if format_override is not None:
+        normalized = format_override.strip().lower()
+        if normalized not in _LOG_FORMAT_CHOICES:
+            raise typer.BadParameter(
+                "Format must be either 'text' or 'json'.", param_hint="--format"
+            )
+        return normalized
+    return None
+
+
+def _resolve_start_timestamp(since: str | None, last: str | None) -> float | None:
+    """Calculate start timestamp from --since or --last options."""
+    if since:
+        timestamp = _parse_iso_timestamp_to_epoch(since)
+        if timestamp is None:
+            raise typer.BadParameter(
+                "Invalid ISO 8601 timestamp.", param_hint="--since"
+            )
+        return timestamp
+    
+    if last:
+        duration = _parse_relative_duration(last)
+        if duration is None:
+            raise typer.BadParameter(
+                "Invalid relative duration; use values like 30m, 1h, or 2d.",
+                param_hint="--last",
+            )
+        return (datetime.now(timezone.utc) - duration).timestamp()
+    
+    return None
+
+
+def _should_include_log_entry(
+    parsed: _LogViewLine,
+    level_threshold: int | None,
+    normalized_level: str | None,
+    start_timestamp: float | None,
+) -> bool:
+    """Check if log entry passes level and timestamp filters."""
+    if level_threshold is not None:
+        if parsed.level is not None:
+            if parsed.level < level_threshold:
+                return False
+        else:
+            if normalized_level not in parsed.raw.upper():
+                return False
+    
+    if start_timestamp is not None:
+        if parsed.timestamp is None or parsed.timestamp < start_timestamp:
+            return False
+    
+    return True
+
+
+def _display_log_entries(
+    matched: list[_LogViewLine],
+    resolved_format: str,
+) -> None:
+    """Display filtered log entries to stdout."""
+    if not matched:
+        stdout_console.print(
+            "[yellow]No log entries matched the supplied filters[/yellow]"
+        )
+        return
+    
+    for entry in matched:
+        if resolved_format == "json" and entry.json_data is not None:
+            stdout_console.print_json(data=entry.json_data)
+        else:
+            stdout_console.print(entry.raw, markup=False, highlight=False)
+
+
 @logs_app.command(
     "show",
     help="Display recent log entries with optional level and time filtering.",
@@ -3800,20 +4078,10 @@ def logs_show(
     ),
 ) -> None:
     """Render log entries to stdout."""
-    if tail < 0:
-        raise typer.BadParameter("Tail must be greater than or equal to zero.", param_hint="--tail")
-    if since and last:
-        raise typer.BadParameter("Only one of --since or --last can be provided.", param_hint="--since")
-
+    normalized_format = _validate_logs_show_params(tail, since, last, format_override)
+    
     normalized_level = _normalize_log_level(level) if level is not None else None
     level_threshold = _LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
-
-    if format_override is not None:
-        normalized_format = format_override.strip().lower()
-        if normalized_format not in _LOG_FORMAT_CHOICES:
-            raise typer.BadParameter("Format must be either 'text' or 'json'.", param_hint="--format")
-    else:
-        normalized_format = None
 
     _, logging_settings = _resolve_logging_settings_from_cli(
         config_path=config,
@@ -3835,45 +4103,21 @@ def logs_show(
         stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
         return
 
-    start_timestamp: float | None = None
-    if since:
-        start_timestamp = _parse_iso_timestamp_to_epoch(since)
-        if start_timestamp is None:
-            raise typer.BadParameter("Invalid ISO 8601 timestamp.", param_hint="--since")
-    elif last:
-        duration = _parse_relative_duration(last)
-        if duration is None:
-            raise typer.BadParameter("Invalid relative duration; use values like 30m, 1h, or 2d.", param_hint="--last")
-        start_timestamp = (datetime.now(timezone.utc) - duration).timestamp()
+    start_timestamp = _resolve_start_timestamp(since, last)
 
     matched: list[_LogViewLine] = []
     with path.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             parsed = _parse_log_line(line, resolved_format)
-            if level_threshold is not None:
-                if parsed.level is not None:
-                    if parsed.level < level_threshold:
-                        continue
-                else:
-                    if normalized_level not in parsed.raw.upper():
-                        continue
-            if start_timestamp is not None:
-                if parsed.timestamp is None or parsed.timestamp < start_timestamp:
-                    continue
-            matched.append(parsed)
+            if _should_include_log_entry(
+                parsed, level_threshold, normalized_level, start_timestamp
+            ):
+                matched.append(parsed)
 
     if tail and tail > 0:
         matched = matched[-tail:]
 
-    if not matched:
-        stdout_console.print("[yellow]No log entries matched the supplied filters[/yellow]")
-        return
-
-    for entry in matched:
-        if resolved_format == "json" and entry.json_data is not None:
-            stdout_console.print_json(data=entry.json_data)
-        else:
-            stdout_console.print(entry.raw, markup=False, highlight=False)
+    _display_log_entries(matched, resolved_format)
 
 
 @app.command(help="Show the installed BiRRe package version.")

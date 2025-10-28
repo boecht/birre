@@ -6,26 +6,25 @@ import csv
 import io
 import logging
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
-
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import DEFAULT_MAX_FINDINGS
-from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
-
 from birre.domain.common import CallV1Tool, CallV2Tool
+from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
 
 class SubscriptionSnapshot(BaseModel):
     active: bool
-    subscription_type: Optional[str] = None
-    folders: List[str] = Field(default_factory=list)
-    subscription_end_date: Optional[str] = None
+    subscription_type: str | None = None
+    folders: list[str] = Field(default_factory=list)
+    subscription_end_date: str | None = None
 
 
 class CompanyInteractiveResult(BaseModel):
@@ -35,12 +34,12 @@ class CompanyInteractiveResult(BaseModel):
     primary_domain: str
     website: str
     description: str
-    employee_count: Optional[int] = None
+    employee_count: int | None = None
     subscription: SubscriptionSnapshot
 
     @model_validator(mode="before")
     @classmethod
-    def _coerce_input(cls, value: Any) -> Dict[str, Any]:
+    def _coerce_input(cls, value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return {
                 "label": "",
@@ -65,7 +64,7 @@ class CompanyInteractiveResult(BaseModel):
 
     @field_validator("employee_count", mode="before")
     @classmethod
-    def _normalize_employee_count(cls, value: Any) -> Optional[int]:
+    def _normalize_employee_count(cls, value: Any) -> int | None:
         if value is None or value == "":
             return None
         try:
@@ -75,21 +74,21 @@ class CompanyInteractiveResult(BaseModel):
 
 
 class RiskManagerGuidance(BaseModel):
-    selection: Optional[str] = None
-    if_missing: Optional[str] = None
-    default_folder: Optional[str] = None
-    default_subscription_type: Optional[str] = None
+    selection: str | None = None
+    if_missing: str | None = None
+    default_folder: str | None = None
+    default_subscription_type: str | None = None
 
 
 class CompanySearchInteractiveResponse(BaseModel):
-    error: Optional[str] = None
+    error: str | None = None
     count: int = Field(default=0, ge=0)
-    results: List[CompanyInteractiveResult] = Field(default_factory=list)
-    search_term: Optional[str] = None
-    guidance: Optional[RiskManagerGuidance] = None
+    results: list[CompanyInteractiveResult] = Field(default_factory=list)
+    search_term: str | None = None
+    guidance: RiskManagerGuidance | None = None
     truncated: bool = False
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
         data = self.model_dump(exclude_unset=True)
@@ -98,23 +97,23 @@ class CompanySearchInteractiveResponse(BaseModel):
 
 
 class RequestGuidance(BaseModel):
-    next_steps: Optional[str] = None
-    confirmation: Optional[str] = None
+    next_steps: str | None = None
+    confirmation: str | None = None
 
 
 class RequestCompanyResponse(BaseModel):
-    error: Optional[str] = None
-    status: Optional[str] = None
-    domain: Optional[str] = None
-    requests: Optional[List[Dict[str, Any]]] = None
-    guidance: Optional[RequestGuidance] = None
-    folder: Optional[str] = None
-    payload: Optional[Dict[str, Any]] = None
-    subscription_type: Optional[str] = None
-    result: Optional[Any] = None
-    warning: Optional[str] = None
+    error: str | None = None
+    status: str | None = None
+    domain: str | None = None
+    requests: list[dict[str, Any | None]] = None
+    guidance: RequestGuidance | None = None
+    folder: str | None = None
+    payload: dict[str, Any | None] = None
+    subscription_type: str | None = None
+    result: Any | None = None
+    warning: str | None = None
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
         data = self.model_dump(exclude_unset=True)
@@ -123,28 +122,28 @@ class RequestCompanyResponse(BaseModel):
 
 
 class ManageSubscriptionsGuidance(BaseModel):
-    confirmation: Optional[str] = None
-    next_steps: Optional[str] = None
+    confirmation: str | None = None
+    next_steps: str | None = None
 
 
 class ManageSubscriptionsSummary(BaseModel):
-    added: List[Any] = Field(default_factory=list)
-    deleted: List[Any] = Field(default_factory=list)
-    modified: List[Any] = Field(default_factory=list)
-    errors: List[Any] = Field(default_factory=list)
+    added: list[Any] = Field(default_factory=list)
+    deleted: list[Any] = Field(default_factory=list)
+    modified: list[Any] = Field(default_factory=list)
+    errors: list[Any] = Field(default_factory=list)
 
 
 class ManageSubscriptionsResponse(BaseModel):
-    error: Optional[str] = None
-    status: Optional[str] = None
-    action: Optional[str] = None
-    guids: Optional[List[str]] = None
-    folder: Optional[str] = None
-    payload: Optional[Dict[str, Any]] = None
-    guidance: Optional[ManageSubscriptionsGuidance] = None
-    summary: Optional[ManageSubscriptionsSummary] = None
+    error: str | None = None
+    status: str | None = None
+    action: str | None = None
+    guids: list[str] | None = None
+    folder: str | None = None
+    payload: dict[str, Any] | None = None
+    guidance: ManageSubscriptionsGuidance | None = None
+    summary: ManageSubscriptionsSummary | None = None
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
         data = self.model_dump(exclude_unset=True)
@@ -152,42 +151,42 @@ class ManageSubscriptionsResponse(BaseModel):
         return data
 
 
-COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: Dict[str, Any] = (
+COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[str, Any] = (
     CompanySearchInteractiveResponse.model_json_schema()
 )
 
-REQUEST_COMPANY_OUTPUT_SCHEMA: Dict[str, Any] = (
+REQUEST_COMPANY_OUTPUT_SCHEMA: dict[str, Any] = (
     RequestCompanyResponse.model_json_schema()
 )
 
-MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: Dict[str, Any] = (
+MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: dict[str, Any] = (
     ManageSubscriptionsResponse.model_json_schema()
 )
 
 
 @dataclass(frozen=True)
 class CompanySearchInputs:
-    name: Optional[str]
-    domain: Optional[str]
+    name: str | None
+    domain: str | None
     term: str
 
 
 @dataclass(frozen=True)
 class CompanySearchDefaults:
-    folder: Optional[str]
-    subscription_type: Optional[str]
+    folder: str | None
+    subscription_type: str | None
     limit: int
 
 
-def _coerce_guid_list(guids: Any) -> List[str]:
+def _coerce_guid_list(guids: Any) -> list[str]:
     if isinstance(guids, str):
         return [guid.strip() for guid in guids.split(",") if guid.strip()]
-    if isinstance(guids, Sequence):
+    if isinstance(guids, Iterable):
         return [str(item).strip() for item in guids if str(item).strip()]
     return []
 
 
-def _normalize_action(value: str) -> Optional[str]:
+def _normalize_action(value: str) -> str | None:
     mapping = {
         "add": "add",
         "create": "add",
@@ -208,14 +207,14 @@ async def _fetch_company_details(
     *,
     logger: BoundLogger,
     limit: int,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """Retrieve detailed company records for the provided GUIDs."""
 
     effective_limit = (
         limit if isinstance(limit, int) and limit > 0 else DEFAULT_MAX_FINDINGS
     )
 
-    details: Dict[str, Dict[str, Any]] = {}
+    details: dict[str, dict[str, Any]] = {}
     for guid in list(guids)[:effective_limit]:
         if not guid:
             continue
@@ -224,7 +223,10 @@ async def _fetch_company_details(
             continue
         params = {
             "guid": guid_str,
-            "fields": "name,primary_domain,display_url,homepage,description,people_count,subscription_type,in_spm_portfolio,subscription_end_date",
+            "fields": (
+                "name,primary_domain,display_url,homepage,description,"
+                "people_count,subscription_type,in_spm_portfolio,subscription_end_date"
+            ),
         }
         try:
             result = await call_v1_tool("getCompany", ctx, params)
@@ -239,7 +241,7 @@ async def _fetch_company_details(
     return details
 
 
-def _extract_folder_name(folder: Any) -> Optional[str]:
+def _extract_folder_name(folder: Any) -> str | None:
     if not isinstance(folder, dict):
         return None
     folder_name = folder.get("name") or folder.get("description")
@@ -248,7 +250,7 @@ def _extract_folder_name(folder: Any) -> Optional[str]:
     return folder_name
 
 
-def _iter_folder_guids(folder: Dict[str, Any]) -> Iterable[str]:
+def _iter_folder_guids(folder: dict[str, Any]) -> Iterable[str]:
     company_ids = folder.get("companies")
     if not isinstance(company_ids, list):
         return ()
@@ -273,7 +275,7 @@ async def _fetch_folder_memberships(
     target_guids: Iterable[str],
     *,
     logger: BoundLogger,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """Build a mapping of company GUID to folder names."""
 
     guid_set = {str(guid) for guid in target_guids if guid}
@@ -298,13 +300,13 @@ async def _fetch_folder_memberships(
     if not isinstance(folders, list):
         return {}
 
-    membership: defaultdict[str, List[str]] = defaultdict(list)
+    membership: defaultdict[str, list[str]] = defaultdict(list)
     for guid, folder_name in _iter_folder_memberships(folders, guid_set):
         membership[guid].append(folder_name)
     return dict(membership)
 
 
-def _normalize_candidate_results(raw_result: Any) -> List[Any]:
+def _normalize_candidate_results(raw_result: Any) -> list[Any]:
     if isinstance(raw_result, dict):
         for key in ("results", "companies"):
             value = raw_result.get(key)
@@ -316,7 +318,7 @@ def _normalize_candidate_results(raw_result: Any) -> List[Any]:
     return []
 
 
-def _build_candidate(entry: Any) -> Optional[Dict[str, Any]]:
+def _build_candidate(entry: Any) -> dict[str, Any | None]:
     if not isinstance(entry, dict):
         return None
 
@@ -348,8 +350,8 @@ def _build_candidate(entry: Any) -> Optional[Dict[str, Any]]:
     }
 
 
-def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
-    candidates: List[Dict[str, Any]] = []
+def _extract_search_candidates(raw_result: Any) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
     for entry in _normalize_candidate_results(raw_result):
         candidate = _build_candidate(entry)
         if candidate is not None:
@@ -358,9 +360,9 @@ def _extract_search_candidates(raw_result: Any) -> List[Dict[str, Any]]:
 
 
 def _build_subscription_snapshot(
-    detail: Dict[str, Any],
+    detail: dict[str, Any],
     folders: Sequence[str],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     active = bool(detail.get("in_spm_portfolio")) or bool(folders)
     return {
         "active": active,
@@ -371,10 +373,10 @@ def _build_subscription_snapshot(
 
 
 def _format_result_entry(
-    candidate: Dict[str, Any],
-    detail: Dict[str, Any],
+    candidate: dict[str, Any],
+    detail: dict[str, Any],
     folders: Sequence[str],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     guid = candidate.get("guid") or detail.get("guid") or ""
     name = candidate.get("name") or detail.get("name") or ""
     label = f"{name} ({guid})" if guid else name
@@ -399,8 +401,8 @@ def _format_result_entry(
 
 
 def _validate_company_search_inputs(
-    name: Optional[str], domain: Optional[str]
-) -> Optional[Dict[str, Any]]:
+    name: str | None, domain: str | None
+) -> dict[str, Any | None]:
     if name or domain:
         return None
     return {
@@ -409,9 +411,9 @@ def _validate_company_search_inputs(
 
 
 def _build_company_search_params(
-    name: Optional[str], domain: Optional[str]
-) -> tuple[Dict[str, Any], str]:
-    params: Dict[str, Any] = {"expand": "details.employee_count"}
+    name: str | None, domain: str | None
+) -> tuple[dict[str, Any], str]:
+    params: dict[str, Any] = {"expand": "details.employee_count"}
     if domain:
         params["domain"] = domain
         if name:
@@ -425,12 +427,12 @@ def _build_company_search_params(
 async def _perform_company_search(
     call_v1_tool: CallV1Tool,
     ctx: Context,
-    search_params: Dict[str, Any],
+    search_params: dict[str, Any],
     logger: BoundLogger,
     *,
-    name: Optional[str],
-    domain: Optional[str],
-) -> tuple[Optional[Any], Optional[Dict[str, Any]]]:
+    name: str | None,
+    domain: str | None,
+) -> tuple[Any | None, dict[str, Any | None]]:
     try:
         result = await call_v1_tool("companySearch", ctx, search_params)
     except Exception as exc:
@@ -450,16 +452,22 @@ async def _perform_company_search(
 def _build_empty_search_response(
     search_term: str,
     *,
-    default_folder: Optional[str],
-    default_type: Optional[str],
+    default_folder: str | None,
+    default_type: str | None,
 ) -> CompanySearchInteractiveResponse:
     return CompanySearchInteractiveResponse(
         count=0,
         results=[],
         search_term=search_term,
         guidance=RiskManagerGuidance(
-            selection="No matches were returned. Confirm the organization name or domain with the operator.",
-            if_missing="Invoke `request_company` to submit an onboarding request when the entity is absent.",
+            selection=(
+                "No matches were returned. Confirm the organization name or "
+                "domain with the operator."
+            ),
+            if_missing=(
+                "Invoke `request_company` to submit an onboarding request "
+                "when the entity is absent."
+            ),
             default_folder=default_folder,
             default_subscription_type=default_type,
         ),
@@ -467,8 +475,8 @@ def _build_empty_search_response(
     )
 
 
-def _build_guid_order(candidates: Iterable[Dict[str, Any]]) -> List[str]:
-    guid_order: List[str] = []
+def _build_guid_order(candidates: Iterable[dict[str, Any]]) -> list[str]:
+    guid_order: list[str] = []
     for candidate in candidates:
         guid_value = candidate.get("guid")
         if isinstance(guid_value, str):
@@ -479,11 +487,11 @@ def _build_guid_order(candidates: Iterable[Dict[str, Any]]) -> List[str]:
 
 
 def _enrich_candidates(
-    candidates: Iterable[Dict[str, Any]],
-    details: Dict[str, Dict[str, Any]],
-    memberships: Dict[str, List[str]],
-) -> List[Dict[str, Any]]:
-    enriched: List[Dict[str, Any]] = []
+    candidates: Iterable[dict[str, Any]],
+    details: dict[str, dict[str, Any]],
+    memberships: dict[str, list[str]],
+) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
     for candidate in candidates:
         guid_any = candidate.get("guid")
         if not isinstance(guid_any, str) or not guid_any:
@@ -558,8 +566,14 @@ async def _build_company_search_response(
         results=result_models,
         search_term=search.term,
         guidance=RiskManagerGuidance(
-            selection="Present the results to the human risk manager and collect the desired GUID before calling subscription or rating tools.",
-            if_missing="If the correct organization is absent, call `request_company` with the validated domain and optional folder.",
+            selection=(
+                "Present the results to the human risk manager and collect the "
+                "desired GUID before calling subscription or rating tools."
+            ),
+            if_missing=(
+                "If the correct organization is absent, call `request_company` "
+                "with the validated domain and optional folder."
+            ),
             default_folder=defaults.folder,
             default_subscription_type=defaults.subscription_type,
         ),
@@ -572,17 +586,17 @@ def register_company_search_interactive_tool(
     call_v1_tool: CallV1Tool,
     *,
     logger: BoundLogger,
-    default_folder: Optional[str],
-    default_type: Optional[str],
+    default_folder: str | None,
+    default_type: str | None,
     max_findings: int = DEFAULT_MAX_FINDINGS,
 ) -> FunctionTool:
     effective_limit = max_findings if max_findings > 0 else DEFAULT_MAX_FINDINGS
 
     async def company_search_interactive(
         ctx: Context,
-        name: Optional[str] = None,
-        domain: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        name: str | None = None,
+        domain: str | None = None,
+    ) -> dict[str, Any]:
         """Return enriched search results for human-in-the-loop selection."""
 
         validation_error = _validate_company_search_inputs(name, domain)
@@ -636,8 +650,8 @@ def register_company_search_interactive_tool(
 async def _resolve_folder_guid(
     call_v1_tool: CallV1Tool,
     ctx: Context,
-    folder_name: Optional[str],
-) -> Optional[str]:
+    folder_name: str | None,
+) -> str | None:
     if not folder_name:
         return None
     folders = await call_v1_tool("getFolders", ctx, {})
@@ -660,7 +674,7 @@ async def _list_company_requests(
     call_v2_tool: CallV2Tool,
     ctx: Context,
     domain: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     params = {"domain": domain, "limit": 5}
     try:
         result = await call_v2_tool("getCompanyRequests", ctx, params)
@@ -674,7 +688,7 @@ async def _list_company_requests(
     return []
 
 
-def _serialize_bulk_csv(domain: str, company_name: Optional[str]) -> str:
+def _serialize_bulk_csv(domain: str, company_name: str | None) -> str:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["domain", "company_name"])
@@ -687,7 +701,7 @@ def _normalize_domain(
     *,
     logger: BoundLogger,
     ctx: Context,
-) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+) -> tuple[str | None, dict[str, Any | None]]:
     domain_value = (domain or "").strip().lower()
     if domain_value:
         return domain_value, None
@@ -708,8 +722,8 @@ async def _resolve_folder_selection(
     *,
     logger: BoundLogger,
     domain_value: str,
-    selected_folder: Optional[str],
-) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    selected_folder: str | None,
+) -> tuple[str | None, dict[str, Any | None]]:
     if not selected_folder:
         return None, None
 
@@ -738,7 +752,7 @@ def _existing_requests_response(
     logger: BoundLogger,
     ctx: Context,
     domain_value: str,
-    existing: List[Dict[str, Any]],
+    existing: list[dict[str, Any]],
 ) -> RequestCompanyResponse:
     log_event(
         logger,
@@ -752,18 +766,21 @@ def _existing_requests_response(
         domain=domain_value,
         requests=existing,
         guidance=RequestGuidance(
-            next_steps="Monitor the existing request in BitSight or wait for fulfillment before retrying."
+            next_steps=(
+                "Monitor the existing request in BitSight or wait for "
+                "fulfillment before retrying."
+            )
         ),
     )
 
 
 def _build_bulk_payload(
     domain_value: str,
-    company_name: Optional[str],
-    folder_guid: Optional[str],
-    subscription_type: Optional[str],
-) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {
+    company_name: str | None,
+    folder_guid: str | None,
+    subscription_type: str | None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "file": _serialize_bulk_csv(domain_value, company_name),
     }
     if folder_guid:
@@ -778,9 +795,9 @@ def _dry_run_response(
     logger: BoundLogger,
     ctx: Context,
     domain_value: str,
-    selected_folder: Optional[str],
-    subscription_type: Optional[str],
-    bulk_payload: Dict[str, Any],
+    selected_folder: str | None,
+    subscription_type: str | None,
+    bulk_payload: dict[str, Any],
 ) -> RequestCompanyResponse:
     log_event(
         logger,
@@ -796,7 +813,10 @@ def _dry_run_response(
         folder=selected_folder,
         payload=bulk_payload,
         guidance=RequestGuidance(
-            confirmation="Share the preview with the human operator before submitting the real request."
+            confirmation=(
+                "Share the preview with the human operator before "
+                "submitting the real request."
+            )
         ),
     )
 
@@ -807,9 +827,9 @@ async def _submit_company_request(
     *,
     logger: BoundLogger,
     domain_value: str,
-    selected_folder: Optional[str],
-    subscription_type: Optional[str],
-    bulk_payload: Dict[str, Any],
+    selected_folder: str | None,
+    subscription_type: str | None,
+    bulk_payload: dict[str, Any],
 ) -> RequestCompanyResponse:
     try:
         result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
@@ -857,7 +877,10 @@ async def _submit_company_request(
             folder=selected_folder,
             subscription_type=subscription_type,
             result=result,
-            warning="The folder could not be specified via bulk API; adjust subscriptions once the request is approved.",
+            warning=(
+                "The folder could not be specified via bulk API; adjust "
+                "subscriptions once the request is approved."
+            ),
         )
 
 
@@ -867,17 +890,17 @@ def register_request_company_tool(
     call_v2_tool: CallV2Tool,
     *,
     logger: BoundLogger,
-    default_folder: Optional[str],
-    default_type: Optional[str],
+    default_folder: str | None,
+    default_type: str | None,
 ) -> FunctionTool:
     async def request_company(
         ctx: Context,
         domain: str,
         *,
-        company_name: Optional[str] = None,
-        folder: Optional[str] = None,
+        company_name: str | None = None,
+        folder: str | None = None,
         dry_run: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Submit a BitSight company onboarding request when an entity is missing."""
 
         domain_value, error = _normalize_domain(domain, logger=logger, ctx=ctx)
@@ -951,13 +974,13 @@ def _build_subscription_payload(
     action: str,
     guids: Sequence[str],
     *,
-    folder: Optional[str],
-    subscription_type: Optional[str],
-) -> Dict[str, Any]:
+    folder: str | None,
+    subscription_type: str | None,
+) -> dict[str, Any]:
     if action == "add":
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for guid in guids:
-            entry: Dict[str, Any] = {"guid": guid}
+            entry: dict[str, Any] = {"guid": guid}
             if subscription_type:
                 entry["type"] = subscription_type
             if folder:
@@ -969,7 +992,7 @@ def _build_subscription_payload(
     raise ValueError(f"Unsupported action: {action}")
 
 
-def _summarize_bulk_result(result: Any) -> Dict[str, Any]:
+def _summarize_bulk_result(result: Any) -> dict[str, Any]:
     if not isinstance(result, dict):
         return {"raw": result}
     return {
@@ -980,7 +1003,7 @@ def _summarize_bulk_result(result: Any) -> Dict[str, Any]:
     }
 
 
-def _manage_subscriptions_error(message: str) -> Dict[str, Any]:
+def _manage_subscriptions_error(message: str) -> dict[str, Any]:
     return ManageSubscriptionsResponse(error=message).to_payload()
 
 
@@ -988,8 +1011,8 @@ def _validate_manage_subscriptions_inputs(
     action: str,
     guids: Sequence[str],
     *,
-    default_type: Optional[str],
-) -> tuple[Optional[str], List[str], Optional[Dict[str, Any]]]:
+    default_type: str | None,
+) -> tuple[str | None, list[str], dict[str, Any | None]]:
     normalized_action = _normalize_action(action)
     if normalized_action is None:
         return (
@@ -1028,9 +1051,9 @@ def _manage_subscriptions_dry_run_response(
     *,
     action: str,
     guids: Sequence[str],
-    folder: Optional[str],
-    payload: Dict[str, Any],
-) -> Dict[str, Any]:
+    folder: str | None,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
     return ManageSubscriptionsResponse(
         status="dry_run",
         action=action,
@@ -1038,7 +1061,10 @@ def _manage_subscriptions_dry_run_response(
         folder=folder,
         payload=payload,
         guidance=ManageSubscriptionsGuidance(
-            confirmation="Review the payload with the human operator. Re-run with dry_run=false to apply changes."
+            confirmation=(
+                "Review the payload with the human operator. Re-run with "
+                "dry_run=false to apply changes."
+            )
         ),
     ).to_payload()
 
@@ -1048,17 +1074,17 @@ def register_manage_subscriptions_tool(
     call_v1_tool: CallV1Tool,
     *,
     logger: BoundLogger,
-    default_folder: Optional[str],
-    default_type: Optional[str],
+    default_folder: str | None,
+    default_type: str | None,
 ) -> FunctionTool:
     async def manage_subscriptions(
         ctx: Context,
         action: str,
         guids: Sequence[str],
         *,
-        folder: Optional[str] = None,
+        folder: str | None = None,
         dry_run: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Bulk subscribe or unsubscribe companies using BitSight's v1 API."""
 
         normalized_action, guid_list, error_payload = _validate_manage_subscriptions_inputs(
@@ -1088,7 +1114,8 @@ def register_manage_subscriptions_tool(
             )
 
         await ctx.info(
-            f"Executing manageSubscriptionsBulk action={normalized_action} for {len(guid_list)} companies"
+            f"Executing manageSubscriptionsBulk action={normalized_action} "
+            f"for {len(guid_list)} companies"
         )
 
         try:
@@ -1118,7 +1145,10 @@ def register_manage_subscriptions_tool(
             folder=target_folder,
             summary=summary_model,
             guidance=ManageSubscriptionsGuidance(
-                next_steps="Run `get_company_rating` for a sample GUID to verify post-change access."
+                next_steps=(
+                    "Run `get_company_rating` for a sample GUID to verify "
+                    "post-change access."
+                )
             ),
         ).to_payload()
 
