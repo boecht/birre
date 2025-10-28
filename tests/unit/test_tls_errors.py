@@ -1,14 +1,14 @@
 import asyncio
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 import pytest
 
-from birre.integrations.bitsight.v1_bridge import call_openapi_tool
+from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
 from birre.infrastructure.errors import ErrorCode, TlsCertificateChainInterceptedError
 from birre.infrastructure.logging import configure_logging, get_logger
-from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.integrations.bitsight.v1_bridge import call_openapi_tool
 
 
 class _StubContext:
@@ -27,7 +27,7 @@ class _StubContext:
 
 
 class _FailingServer:
-    async def _call_tool(self, tool_name: str, params: Dict[str, Any]):
+    async def _call_tool(self, tool_name: str, params: dict[str, Any]):
         await asyncio.sleep(0)
         request = httpx.Request(
             "GET",

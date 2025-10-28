@@ -1,9 +1,8 @@
 import asyncio
+import importlib
 import warnings
 
 import pytest
-
-import importlib
 
 server = importlib.import_module("birre.cli.app")
 

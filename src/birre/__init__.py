@@ -6,8 +6,11 @@ from birre.application.server import (
     create_birre_server,
 )
 
+__version__ = "3.0.0"
+
 __all__ = [
     "create_birre_server",
     "_resolve_tls_verification",
     "INSTRUCTIONS_MAP",
+    "__version__",
 ]

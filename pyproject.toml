@@ -10,17 +10,33 @@ license = { file = "LICENSE" }
 authors = [{ name = "boecht" }]
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "bitsight",
+    "security-ratings",
+    "cybersecurity",
+    "risk-management",
+    "fastmcp",
+    "llm-tools",
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Financial and Insurance Industry",
     "Topic :: Security",
     "Topic :: Security :: Monitoring",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: FastMCP",
+    "Environment :: Console",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
     "Typing :: Typed",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
     "fastmcp>=2.13.0,<2.14",
@@ -35,6 +51,13 @@ dependencies = [
     "structlog>=24.1.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.12.0",
+]
+
 [project.optional-dependencies]
 pytest-dependencies = [
     "pytest>=8.0.0",
@@ -45,12 +68,21 @@ pytest-dependencies = [
 [project.scripts]
 birre = "birre.cli.app:main"
 
+[project.entry-points."mcp.servers"]
+birre = "birre:create_birre_server"
+
 [project.urls]
 repository = "https://github.com/boecht/birre"
 
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+ignore = []
 select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
@@ -58,15 +90,9 @@ select = [
     "UP",  # pyupgrade
 ]
 
-[tool.ruff.format]
-quote-style = "double"
-
-[tool.ruff.lint]
-ignore = []
-
 [tool.setuptools.package-data]
 "birre.resources" = ["apis/**/*.json"]
-"birre" = ["py.typed"]
+"birre" = ["py.typed", "mcp_metadata.json"]
 
 [tool.setuptools.package-dir]
 "" = "src"

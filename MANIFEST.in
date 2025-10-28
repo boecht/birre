@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include config.toml
+recursive-include src/birre/resources *.json
+include src/birre/py.typed
+include src/birre/mcp_metadata.json
+recursive-include docs *.md
+prune tests
+prune scripts
+global-exclude __pycache__
+global-exclude *.py[co]

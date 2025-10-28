@@ -1,0 +1,44 @@
+{
+  "name": "BiRRe",
+  "version": "3.0.0",
+  "description": "BitSight Rating Retriever - MCP server for BitSight security ratings",
+  "author": "boecht",
+  "license": "Unlicense",
+  "homepage": "https://github.com/boecht/birre",
+  "categories": ["security", "risk-management", "data-retrieval"],
+  "mcp": {
+    "protocol_version": "1.0",
+    "capabilities": {
+      "tools": true,
+      "resources": false,
+      "prompts": false,
+      "sampling": false
+    },
+    "contexts": {
+      "standard": {
+        "description": "Quick rating workflows for common tasks",
+        "tools": [
+          "company_search",
+          "get_company_rating"
+        ]
+      },
+      "risk_manager": {
+        "description": "Advanced subscription and onboarding operations",
+        "tools": [
+          "company_search",
+          "get_company_rating",
+          "company_search_interactive",
+          "manage_subscriptions",
+          "request_company"
+        ]
+      }
+    }
+  },
+  "requirements": {
+    "api_key": {
+      "required": true,
+      "env_var": "BITSIGHT_API_KEY",
+      "description": "BitSight API key for authentication"
+    }
+  }
+}

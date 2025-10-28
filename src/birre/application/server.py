@@ -24,22 +24,42 @@ from birre.integrations.bitsight.v1_bridge import (
 
 
 def register_company_rating_tool(*args, **kwargs):
+    """Register the company rating tool with a FastMCP server.
+    
+    Forwards to domain.company_rating.register_company_rating_tool.
+    """
     return company_rating.register_company_rating_tool(*args, **kwargs)
 
 
 def register_company_search_tool(*args, **kwargs):
+    """Register the company search tool with a FastMCP server.
+    
+    Forwards to domain.company_search.register_company_search_tool.
+    """
     return company_search.register_company_search_tool(*args, **kwargs)
 
 
 def register_company_search_interactive_tool(*args, **kwargs):
+    """Register the interactive company search tool with a FastMCP server.
+    
+    Forwards to domain.risk_manager.register_company_search_interactive_tool.
+    """
     return risk_manager.register_company_search_interactive_tool(*args, **kwargs)
 
 
 def register_manage_subscriptions_tool(*args, **kwargs):
+    """Register the subscription management tool with a FastMCP server.
+    
+    Forwards to domain.risk_manager.register_manage_subscriptions_tool.
+    """
     return risk_manager.register_manage_subscriptions_tool(*args, **kwargs)
 
 
 def register_request_company_tool(*args, **kwargs):
+    """Register the company request tool with a FastMCP server.
+    
+    Forwards to domain.risk_manager.register_request_company_tool.
+    """
     return risk_manager.register_request_company_tool(*args, **kwargs)
 
 _tool_logger = logging.getLogger("birre.tools")

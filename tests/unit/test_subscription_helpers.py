@@ -1,6 +1,5 @@
 import asyncio
-from types import SimpleNamespace
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from fastmcp import Context
@@ -14,7 +13,7 @@ from birre.domain.subscription import (
 
 class StubContext(Context):
     def __init__(self) -> None:
-        self.messages: Dict[str, list[str]] = {"info": [], "warning": [], "error": []}
+        self.messages: dict[str, list[str]] = {"info": [], "warning": [], "error": []}
         self.metadata = {}
         self.tool = "subscription"
         self._request_id = "sub-test"
@@ -44,7 +43,7 @@ class StubContext(Context):
 async def test_create_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = StubContext()
 
-    async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+    async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
         await asyncio.sleep(0)
         assert name == "manageSubscriptionsBulk"
         assert payload["add"][0]["guid"] == "guid-1"
@@ -64,10 +63,12 @@ async def test_create_ephemeral_subscription_success(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_already_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_already_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = StubContext()
 
-    async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+    async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
         await asyncio.sleep(0)
         return {"errors": [{"guid": "guid-1", "message": "Already exists"}]}
 
@@ -84,10 +85,12 @@ async def test_create_ephemeral_subscription_already_exists(monkeypatch: pytest.
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_missing_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = StubContext()
 
-    async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+    async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
         await asyncio.sleep(0)
         raise AssertionError("call_v1 should not be invoked when config missing")
 
@@ -103,7 +106,10 @@ async def test_create_ephemeral_subscription_missing_config(monkeypatch: pytest.
     assert not attempt.success
     assert (
         attempt.message
-        == "Subscription settings are missing. Configure subscription_folder and subscription_type via CLI or configuration."
+        == (
+            "Subscription settings are missing. "
+            "Configure subscription_folder and subscription_type via CLI or configuration."
+        )
     )
     assert ctx.messages["error"]
 
@@ -112,7 +118,7 @@ async def test_create_ephemeral_subscription_missing_config(monkeypatch: pytest.
 async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = StubContext()
 
-    async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+    async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
         await asyncio.sleep(0)
         return {"errors": ["boom"]}
 
@@ -130,7 +136,7 @@ async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyP
 async def test_cleanup_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = StubContext()
 
-    async def call_v1(name: str, ctx: Context, payload: Dict[str, Any]):
+    async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
         await asyncio.sleep(0)
         return {"deleted": ["guid-1"]}
 
