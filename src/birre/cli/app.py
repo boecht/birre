@@ -15,35 +15,20 @@ import shutil
 import ssl
 import sys
 import threading
-from dataclasses import dataclass, replace
-from enum import Enum
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
-from typing import (
-    Annotated,
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Final,
-    FrozenSet,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-)
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Annotated, Any, Final
+from uuid import uuid4
 
 import click
 import httpx
-from uuid import uuid4
-from click.core import ParameterSource
-
 import typer
-from rich.console import Console
+from click.core import ParameterSource
 from rich import box
+from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 from typer.main import get_command
@@ -52,7 +37,7 @@ from typer.main import get_command
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
-from birre import create_birre_server, _resolve_tls_verification
+from birre import _resolve_tls_verification, create_birre_server
 from birre.application.startup import (
     run_offline_startup_checks,
     run_online_startup_checks,
@@ -172,7 +157,15 @@ _HEALTHCHECK_COMPANY_DOMAIN: Final = "github.com"
 _HEALTHCHECK_COMPANY_GUID: Final = "6ca077e2-b5a7-42c2-ae1e-a974c3a91dc1"
 _HEALTHCHECK_REQUEST_DOMAIN: Final = "healthcheck-birre-example.com"
 
-_EXPECTED_TOOLS_BY_CONTEXT: Dict[str, FrozenSet[str]] = {
+# Error/status message constants
+MSG_NOT_A_DICT: Final = "not a dict"
+MSG_TOOL_INVOCATION_FAILED: Final = "tool invocation failed"
+MSG_UNEXPECTED_PAYLOAD_STRUCTURE: Final = "unexpected payload structure"
+MSG_EXPECTED_TOOL_NOT_REGISTERED: Final = "expected tool not registered"
+MSG_TOOL_NOT_REGISTERED: Final = "tool not registered"
+MSG_CONFIG_CA_BUNDLE: Final = "config.ca_bundle"
+
+_EXPECTED_TOOLS_BY_CONTEXT: dict[str, frozenset[str]] = {
     "standard": frozenset({"company_search", "get_company_rating"}),
     "risk_manager": frozenset(
         {
@@ -200,7 +193,7 @@ ConfigPathOption = Annotated[
 ]
 
 BitsightApiKeyOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--bitsight-api-key",
         help="BitSight API key (overrides BITSIGHT_API_KEY env var)",
@@ -211,7 +204,7 @@ BitsightApiKeyOption = Annotated[
 ]
 
 SubscriptionFolderOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--subscription-folder",
         help="BitSight subscription folder override",
@@ -222,7 +215,7 @@ SubscriptionFolderOption = Annotated[
 ]
 
 SubscriptionTypeOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--subscription-type",
         help="BitSight subscription type override",
@@ -233,7 +226,7 @@ SubscriptionTypeOption = Annotated[
 ]
 
 SkipStartupChecksOption = Annotated[
-    Optional[bool],
+    bool | None,
     typer.Option(
         "--skip-startup-checks/--require-startup-checks",
         help="Skip online startup checks (use --require-startup-checks to override any configured skip)",
@@ -244,7 +237,7 @@ SkipStartupChecksOption = Annotated[
 ]
 
 DebugOption = Annotated[
-    Optional[bool],
+    bool | None,
     typer.Option(
         "--debug/--no-debug",
         help="Enable verbose diagnostics",
@@ -255,7 +248,7 @@ DebugOption = Annotated[
 ]
 
 AllowInsecureTlsOption = Annotated[
-    Optional[bool],
+    bool | None,
     typer.Option(
         "--allow-insecure-tls/--enforce-tls",
         help="Disable TLS verification for API calls (not recommended)",
@@ -266,7 +259,7 @@ AllowInsecureTlsOption = Annotated[
 ]
 
 CaBundleOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--ca-bundle",
         help="Path to a custom certificate authority bundle, e.g. for TLS interception",
@@ -277,7 +270,7 @@ CaBundleOption = Annotated[
 ]
 
 ContextOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--context",
         help="Tool persona to expose (standard or risk_manager)",
@@ -288,7 +281,7 @@ ContextOption = Annotated[
 ]
 
 RiskVectorFilterOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--risk-vector-filter",
         help="Comma separated list of BitSight risk vectors",
@@ -299,7 +292,7 @@ RiskVectorFilterOption = Annotated[
 ]
 
 MaxFindingsOption = Annotated[
-    Optional[int],
+    int | None,
     typer.Option(
         "--max-findings",
         min=1,
@@ -311,7 +304,7 @@ MaxFindingsOption = Annotated[
 ]
 
 LogLevelOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--log-level",
         help="Logging level (e.g. INFO, DEBUG)",
@@ -322,7 +315,7 @@ LogLevelOption = Annotated[
 ]
 
 LogFormatOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--log-format",
         help="Logging format (text or json)",
@@ -333,7 +326,7 @@ LogFormatOption = Annotated[
 ]
 
 LogFileOption = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--log-file",
         help="Path to a log file (use '-', none, stderr to disable)",
@@ -344,7 +337,7 @@ LogFileOption = Annotated[
 ]
 
 LogMaxBytesOption = Annotated[
-    Optional[int],
+    int | None,
     typer.Option(
         "--log-max-bytes",
         min=1,
@@ -356,7 +349,7 @@ LogMaxBytesOption = Annotated[
 ]
 
 LogBackupCountOption = Annotated[
-    Optional[int],
+    int | None,
     typer.Option(
         "--log-backup-count",
         min=1,
@@ -368,7 +361,7 @@ LogBackupCountOption = Annotated[
 ]
 
 ProfilePathOption = Annotated[
-    Optional[Path],
+    Path | None,
     typer.Option(
         "--profile",
         help="Write Python profiling data to the provided path",
@@ -446,8 +439,8 @@ def _format_display_value(key: str, value: Any) -> str:
     return text
 
 
-def _flatten_to_dotted(mapping: Mapping[str, Any], prefix: str = "") -> Dict[str, Any]:
-    flattened: Dict[str, Any] = {}
+def _flatten_to_dotted(mapping: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+    flattened: dict[str, Any] = {}
     for key, value in mapping.items():
         dotted = f"{prefix}.{key}" if prefix else key
         if isinstance(value, Mapping):
@@ -457,10 +450,10 @@ def _flatten_to_dotted(mapping: Mapping[str, Any], prefix: str = "") -> Dict[str
     return flattened
 
 
-def _collect_config_file_entries(files: Sequence[Path]) -> Dict[str, Tuple[Any, str]]:
+def _collect_config_file_entries(files: Sequence[Path]) -> dict[str, tuple[Any, str]]:
     import tomllib
 
-    entries: Dict[str, Tuple[Any, str]] = {}
+    entries: dict[str, tuple[Any, str]] = {}
     for file in files:
         if not file.exists():
             continue
@@ -472,8 +465,8 @@ def _collect_config_file_entries(files: Sequence[Path]) -> Dict[str, Tuple[Any, 
     return entries
 
 
-def _build_cli_source_labels(invocation: "_CliInvocation") -> Dict[str, str]:
-    labels: Dict[str, str] = {}
+def _build_cli_source_labels(invocation: _CliInvocation) -> dict[str, str]:
+    labels: dict[str, str] = {}
     if invocation.auth.api_key:
         labels[BITSIGHT_API_KEY_KEY] = "CLI"
     if invocation.subscription.folder:
@@ -507,10 +500,10 @@ def _build_cli_source_labels(invocation: "_CliInvocation") -> Dict[str, str]:
     return labels
 
 
-def _build_env_source_labels(env_overrides: Mapping[str, str]) -> Dict[str, str]:
+def _build_env_source_labels(env_overrides: Mapping[str, str]) -> dict[str, str]:
     from birre.config.settings import ENVVAR_TO_SETTINGS_KEY
 
-    labels: Dict[str, str] = {}
+    labels: dict[str, str] = {}
     for env_var in env_overrides:
         config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
         if config_key:
@@ -518,17 +511,17 @@ def _build_env_source_labels(env_overrides: Mapping[str, str]) -> Dict[str, str]
     return labels
 
 
-def _build_cli_override_rows(invocation: "_CliInvocation") -> Sequence[Tuple[str, str, str]]:
-    rows: list[Tuple[str, str, str]] = []
+def _build_cli_override_rows(invocation: _CliInvocation) -> Sequence[tuple[str, str, str]]:
+    rows: list[tuple[str, str, str]] = []
     for key, value in invocation.describe_cli_overrides().items():
         rows.append((key, _format_display_value(key, value), "CLI"))
     return rows
 
 
-def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[Tuple[str, str, str]]:
+def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[tuple[str, str, str]]:
     from birre.config.settings import ENVVAR_TO_SETTINGS_KEY
 
-    rows: list[Tuple[str, str, str]] = []
+    rows: list[tuple[str, str, str]] = []
     for env_var, value in env_overrides.items():
         config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
         if not config_key:
@@ -537,7 +530,7 @@ def _build_env_override_rows(env_overrides: Mapping[str, str]) -> Sequence[Tuple
     return rows
 
 
-_EFFECTIVE_CONFIG_KEY_ORDER: Tuple[str, ...] = (
+_EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
     BITSIGHT_API_KEY_KEY,
     BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
     BITSIGHT_SUBSCRIPTION_TYPE_KEY,
@@ -556,8 +549,8 @@ _EFFECTIVE_CONFIG_KEY_ORDER: Tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(runtime_settings, logging_settings) -> Dict[str, Any]:
-    values: Dict[str, Any] = {
+def _effective_configuration_values(runtime_settings, logging_settings) -> dict[str, Any]:
+    values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
         BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(runtime_settings, "subscription_folder", None),
         BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(runtime_settings, "subscription_type", None),
@@ -581,7 +574,7 @@ def _determine_source_label(
     key: str,
     cli_labels: Mapping[str, str],
     env_labels: Mapping[str, str],
-    config_entries: Mapping[str, Tuple[Any, str]],
+    config_entries: Mapping[str, tuple[Any, str]],
 ) -> str:
     if key in cli_labels:
         return cli_labels[key]
@@ -592,7 +585,7 @@ def _determine_source_label(
     return "Default"
 
 
-def _print_config_table(title: str, rows: Sequence[Tuple[str, str, str]]) -> None:
+def _print_config_table(title: str, rows: Sequence[tuple[str, str, str]]) -> None:
     table = Table(title=title, box=box.SIMPLE_HEAVY)
     table.add_column("Config Key", style=_RichStyles.ACCENT, no_wrap=True)
     table.add_column("Resolved Value", overflow="fold")
@@ -633,7 +626,7 @@ def _keyboard_interrupt_banner() -> Text:
     )
 
 
-def _normalize_context(value: Optional[str]) -> Optional[str]:
+def _normalize_context(value: str | None) -> str | None:
     if value is None:
         return None
     candidate = value.strip().lower().replace("-", "_")
@@ -647,7 +640,7 @@ def _normalize_context(value: Optional[str]) -> Optional[str]:
     return candidate
 
 
-def _normalize_log_format(value: Optional[str]) -> Optional[str]:
+def _normalize_log_format(value: str | None) -> str | None:
     if value is None:
         return None
     candidate = value.strip().lower()
@@ -661,7 +654,7 @@ def _normalize_log_format(value: Optional[str]) -> Optional[str]:
     return candidate
 
 
-def _normalize_log_level(value: Optional[str]) -> Optional[str]:
+def _normalize_log_level(value: str | None) -> str | None:
     if value is None:
         return None
     candidate = value.strip().upper()
@@ -675,14 +668,14 @@ def _normalize_log_level(value: Optional[str]) -> Optional[str]:
     return candidate
 
 
-def _clean_string(value: Optional[str]) -> Optional[str]:
+def _clean_string(value: str | None) -> str | None:
     if value is None:
         return None
     candidate = value.strip()
     return candidate or None
 
 
-def _validate_positive(name: str, value: Optional[int]) -> Optional[int]:
+def _validate_positive(name: str, value: int | None) -> int | None:
     if value is None:
         return None
     if value <= 0:
@@ -692,59 +685,59 @@ def _validate_positive(name: str, value: Optional[int]) -> Optional[int]:
 
 @dataclass(frozen=True)
 class _AuthCliOverrides:
-    api_key: Optional[str] = None
+    api_key: str | None = None
 
 
 @dataclass(frozen=True)
 class _SubscriptionCliOverrides:
-    folder: Optional[str] = None
-    type: Optional[str] = None
+    folder: str | None = None
+    type: str | None = None
 
 
 @dataclass(frozen=True)
 class _RuntimeCliOverrides:
-    context: Optional[str] = None
-    debug: Optional[bool] = None
-    risk_vector_filter: Optional[str] = None
-    max_findings: Optional[int] = None
-    skip_startup_checks: Optional[bool] = None
+    context: str | None = None
+    debug: bool | None = None
+    risk_vector_filter: str | None = None
+    max_findings: int | None = None
+    skip_startup_checks: bool | None = None
 
 
 @dataclass(frozen=True)
 class _TlsCliOverrides:
-    allow_insecure: Optional[bool] = None
-    ca_bundle_path: Optional[str] = None
+    allow_insecure: bool | None = None
+    ca_bundle_path: str | None = None
 
 
 @dataclass(frozen=True)
 class _LoggingCliOverrides:
-    level: Optional[str] = None
-    format: Optional[str] = None
-    file_path: Optional[str] = None
-    max_bytes: Optional[int] = None
-    backup_count: Optional[int] = None
+    level: str | None = None
+    format: str | None = None
+    file_path: str | None = None
+    max_bytes: int | None = None
+    backup_count: int | None = None
 
 
 @dataclass
 class _LogViewLine:
     raw: str
-    level: Optional[int]
-    timestamp: Optional[float]
-    json_data: Optional[Dict[str, Any]] = None
+    level: int | None
+    timestamp: float | None
+    json_data: dict[str, Any | None] = None
 
 
 @dataclass(frozen=True)
 class _CliInvocation:
-    config_path: Optional[str]
+    config_path: str | None
     auth: _AuthCliOverrides
     subscription: _SubscriptionCliOverrides
     runtime: _RuntimeCliOverrides
     tls: _TlsCliOverrides
     logging: _LoggingCliOverrides
-    profile_path: Optional[Path] = None
+    profile_path: Path | None = None
 
-    def describe_cli_overrides(self) -> Dict[str, str]:
-        details: Dict[str, str] = {}
+    def describe_cli_overrides(self) -> dict[str, str]:
+        details: dict[str, str] = {}
         if self.auth.api_key:
             details[BITSIGHT_API_KEY_KEY] = _format_display_value(BITSIGHT_API_KEY_KEY, self.auth.api_key)
         if self.subscription.folder:
@@ -797,24 +790,25 @@ class _CliInvocation:
 
 
 def _build_invocation(
+    # noqa: PLR0913 - Typer CLI pattern requires many parameters to capture all CLI options
     *,
-    config_path: Optional[Path | str],
-    api_key: Optional[str],
-    subscription_folder: Optional[str],
-    subscription_type: Optional[str],
-    context: Optional[str],
-    debug: Optional[bool],
-    risk_vector_filter: Optional[str],
-    max_findings: Optional[int],
-    skip_startup_checks: Optional[bool],
-    allow_insecure_tls: Optional[bool],
-    ca_bundle: Optional[str],
-    log_level: Optional[str],
-    log_format: Optional[str],
-    log_file: Optional[str],
-    log_max_bytes: Optional[int],
-    log_backup_count: Optional[int],
-    profile_path: Optional[Path] = None,
+    config_path: Path | str | None,
+    api_key: str | None,
+    subscription_folder: str | None,
+    subscription_type: str | None,
+    context: str | None,
+    debug: bool | None,
+    risk_vector_filter: str | None,
+    max_findings: int | None,
+    skip_startup_checks: bool | None,
+    allow_insecure_tls: bool | None,
+    ca_bundle: str | None,
+    log_level: str | None,
+    log_format: str | None,
+    log_file: str | None,
+    log_max_bytes: int | None,
+    log_backup_count: int | None,
+    profile_path: Path | None = None,
 ) -> _CliInvocation:
     normalized_context = _normalize_context(context)
     normalized_log_format = _normalize_log_format(log_format)
@@ -854,13 +848,13 @@ def _build_invocation(
     )
 
 
-def _subscription_inputs(overrides: _SubscriptionCliOverrides) -> Optional[SubscriptionInputs]:
+def _subscription_inputs(overrides: _SubscriptionCliOverrides) -> SubscriptionInputs | None:
     if overrides.folder is None and overrides.type is None:
         return None
     return SubscriptionInputs(folder=overrides.folder, type=overrides.type)
 
 
-def _runtime_inputs(overrides: _RuntimeCliOverrides) -> Optional[RuntimeInputs]:
+def _runtime_inputs(overrides: _RuntimeCliOverrides) -> RuntimeInputs | None:
     if (
         overrides.context is None
         and overrides.debug is None
@@ -878,7 +872,7 @@ def _runtime_inputs(overrides: _RuntimeCliOverrides) -> Optional[RuntimeInputs]:
     )
 
 
-def _tls_inputs(overrides: _TlsCliOverrides) -> Optional[TlsInputs]:
+def _tls_inputs(overrides: _TlsCliOverrides) -> TlsInputs | None:
     if overrides.allow_insecure is None and overrides.ca_bundle_path is None:
         return None
     return TlsInputs(
@@ -887,7 +881,7 @@ def _tls_inputs(overrides: _TlsCliOverrides) -> Optional[TlsInputs]:
     )
 
 
-def _logging_inputs(overrides: _LoggingCliOverrides) -> Optional[LoggingInputs]:
+def _logging_inputs(overrides: _LoggingCliOverrides) -> LoggingInputs | None:
     if (
         overrides.level is None
         and overrides.format is None
@@ -897,7 +891,7 @@ def _logging_inputs(overrides: _LoggingCliOverrides) -> Optional[LoggingInputs]:
     ):
         return None
 
-    file_override: Optional[str]
+    file_override: str | None
     if overrides.file_path is None:
         file_override = None
     elif is_logfile_disabled_value(overrides.file_path):
@@ -960,7 +954,7 @@ def _run_online_checks(
     runtime_settings,
     logger,
     *,
-    v1_base_url: Optional[str] = None,
+    v1_base_url: str | None = None,
 ) -> bool:
     logger.info("Running online startup checks")
 
@@ -974,7 +968,7 @@ def _run_online_checks(
             base_url=base_url,
         )
 
-        async def call_v1_tool(tool_name: str, ctx, params: Dict[str, Any]) -> Any:
+        async def call_v1_tool(tool_name: str, ctx, params: dict[str, Any]) -> Any:
             return await call_v1_openapi_tool(
                 api_server,
                 tool_name,
@@ -1029,7 +1023,7 @@ def _close_sync_bridge_loop() -> None:
     loop = _SYNC_BRIDGE_LOOP
     if loop is None or loop.is_closed():
         return
-    for handler in list(_loop_logger.handlers):
+    for handler in _loop_logger.handlers:
         stream = getattr(handler, "stream", None)
         if stream is not None and getattr(stream, "closed", False):
             continue
@@ -1083,8 +1077,8 @@ def _await_sync(coro: Awaitable[Any]) -> Any:
         return result
 
 
-def _discover_context_tools(server) -> Set[str]:
-    names: Set[str] = set()
+def _discover_context_tools(server) -> set[str]:
+    names: set[str] = set()
     tools_attr = getattr(server, "tools", None)
     if isinstance(tools_attr, dict):
         names.update(str(name) for name in tools_attr.keys() if isinstance(name, str))
@@ -1111,10 +1105,10 @@ class _HealthcheckContext:
         self._tool_name = tool_name
         self._logger = logger
         self._request_id = f"healthcheck-{context}-{tool_name}-{uuid4().hex}"
-        self.metadata: Dict[str, Any] = {"healthcheck": True, "context": context, "tool": tool_name}
+        self.metadata: dict[str, Any] = {"healthcheck": True, "context": context, "tool": tool_name}
         self.tool = tool_name
 
-    async def info(self, message: str) -> None:
+    def info(self, message: str) -> None:
         self._logger.info(
             "healthcheck.ctx.info",
             message=message,
@@ -1122,7 +1116,7 @@ class _HealthcheckContext:
             tool=self._tool_name,
         )
 
-    async def warning(self, message: str) -> None:
+    def warning(self, message: str) -> None:
         self._logger.warning(
             "healthcheck.ctx.warning",
             message=message,
@@ -1130,7 +1124,7 @@ class _HealthcheckContext:
             tool=self._tool_name,
         )
 
-    async def error(self, message: str) -> None:
+    def error(self, message: str) -> None:
         self._logger.error(
             "healthcheck.ctx.error",
             message=message,
@@ -1152,9 +1146,9 @@ class DiagnosticFailure:
     tool: str
     stage: str
     message: str
-    mode: Optional[str] = None
-    exception: Optional[BaseException] = None
-    category: Optional[str] = None
+    mode: str | None = None
+    exception: BaseException | None = None
+    category: str | None = None
 
 
 @dataclass
@@ -1164,11 +1158,11 @@ class AttemptReport:
     failures: list[DiagnosticFailure]
     notes: list[str]
     allow_insecure_tls: bool
-    ca_bundle: Optional[str]
-    online_success: Optional[bool]
+    ca_bundle: str | None
+    online_success: bool | None
     discovered_tools: list[str]
     missing_tools: list[str]
-    tools: Dict[str, Dict[str, Any]]
+    tools: dict[str, dict[str, Any]]
 
 
 @dataclass
@@ -1178,7 +1172,7 @@ class ContextDiagnosticsResult:
     name: str
     success: bool
     degraded: bool
-    report: Dict[str, Any]
+    report: dict[str, Any]
 
 
 @dataclass
@@ -1187,9 +1181,9 @@ class HealthcheckResult:
 
     success: bool
     degraded: bool
-    summary: Dict[str, Any]
-    contexts: Tuple[str, ...]
-    alerts: Tuple[str, ...] = ()
+    summary: dict[str, Any]
+    contexts: tuple[str, ...]
+    alerts: tuple[str, ...] = ()
 
     def exit_code(self) -> int:
         """Return the CLI exit code representing this result."""
@@ -1220,7 +1214,7 @@ class HealthcheckRunner:
         self._offline = offline
         self._target_base_url = target_base_url
         self._environment_label = environment_label
-        self._contexts: Tuple[str, ...] = tuple(sorted(_CONTEXT_CHOICES))
+        self._contexts: tuple[str, ...] = tuple(sorted(_CONTEXT_CHOICES))
         self._alerts: set[str] = set()
 
     def run(self) -> HealthcheckResult:
@@ -1228,7 +1222,7 @@ class HealthcheckRunner:
 
         self._alerts.clear()
         offline_ok = _run_offline_checks(self._base_runtime_settings, self._logger)
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "environment": self._environment_label,
             "offline_check": {"status": "pass" if offline_ok else "fail"},
             "contexts": {},
@@ -1247,7 +1241,7 @@ class HealthcheckRunner:
 
         overall_success = True
         degraded = self._offline
-        context_reports: Dict[str, Dict[str, Any]] = summary["contexts"]
+        context_reports: dict[str, dict[str, Any]] = summary["contexts"]
 
         for context_name in self._contexts:
             result = self._evaluate_context(context_name)
@@ -1275,7 +1269,7 @@ class HealthcheckRunner:
         logger.info("Preparing context diagnostics")
 
         expected_tools = _EXPECTED_TOOLS_BY_CONTEXT.get(context_name)
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "offline_mode": bool(self._offline),
             "attempts": [],
             "encountered_categories": [],
@@ -1352,8 +1346,8 @@ class HealthcheckRunner:
         self,
         context_name: str,
         logger: BoundLogger,
-        expected_tools: FrozenSet[str],
-        report: Dict[str, Any],
+        expected_tools: frozenset[str],
+        report: dict[str, Any],
         effective_settings,
         degraded: bool,
     ) -> ContextDiagnosticsResult:
@@ -1417,8 +1411,8 @@ class HealthcheckRunner:
         self,
         context_name: str,
         logger: BoundLogger,
-        expected_tools: FrozenSet[str],
-        report: Dict[str, Any],
+        expected_tools: frozenset[str],
+        report: dict[str, Any],
         effective_settings,
         degraded: bool,
     ) -> ContextDiagnosticsResult:
@@ -1426,7 +1420,7 @@ class HealthcheckRunner:
         encountered_categories: set[str] = set()
         failure_categories: set[str] = set()
         fallback_attempted = False
-        fallback_success_value: Optional[bool] = None
+        fallback_success_value: bool | None = None
 
         primary_report = self._run_diagnostic_attempt(
             context_name=context_name,
@@ -1498,11 +1492,11 @@ class HealthcheckRunner:
         if not context_success:
             recoverable = sorted(
                 (failure_categories | encountered_categories)
-                & {"tls", "config.ca_bundle"}
+                & {"tls", MSG_CONFIG_CA_BUNDLE}
             )
             unrecoverable = sorted(
                 (failure_categories | encountered_categories)
-                - {"tls", "config.ca_bundle"}
+                - {"tls", MSG_CONFIG_CA_BUNDLE}
             )
             logger.error(
                 "Context diagnostics failed",
@@ -1559,7 +1553,7 @@ class HealthcheckRunner:
         ]
         report["attempts"] = attempt_summaries
 
-        online_attempts: Dict[str, str] = {}
+        online_attempts: dict[str, str] = {}
         for attempt in attempt_summaries:
             result = attempt.get("online_success")
             if result is None:
@@ -1571,7 +1565,7 @@ class HealthcheckRunner:
             online_status = "fail"
         else:
             online_status = "warning"
-        online_summary: Dict[str, Any] = {"status": online_status}
+        online_summary: dict[str, Any] = {"status": online_status}
         if online_attempts:
             online_summary["attempts"] = online_attempts
         report["online"] = online_summary
@@ -1607,15 +1601,92 @@ class HealthcheckRunner:
             report=report,
         )
 
+    def _handle_missing_tools(
+        self,
+        missing_tools: list[str],
+        expected_tools: frozenset[str],
+        context_logger: BoundLogger,
+        label: str,
+        failure_records: list,
+    ) -> dict[str, dict[str, Any]]:
+        """Handle missing tool discovery."""
+        context_logger.critical(
+            "Tool discovery failed",
+            missing_tools=missing_tools,
+            discovered=sorted(set(expected_tools) - set(missing_tools)),
+            attempt=label,
+        )
+        for tool_name in missing_tools:
+            _record_failure(
+                failure_records,
+                tool=tool_name,
+                stage="discovery",
+                message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
+            )
+
+        tool_report: dict[str, dict[str, Any]] = {}
+        for tool_name in sorted(expected_tools):
+            if tool_name in missing_tools:
+                tool_report[tool_name] = {
+                    "status": "fail",
+                    "details": {"reason": MSG_TOOL_NOT_REGISTERED},
+                }
+            else:
+                tool_report[tool_name] = {
+                    "status": "warning",
+                    "details": {"reason": "not evaluated"},
+                }
+        return tool_report
+
+    def _run_online_diagnostics(
+        self,
+        settings,
+        context_logger: BoundLogger,
+        attempt_notes: list,
+        failure_records: list,
+    ) -> tuple[bool | None, bool]:
+        """Run online startup checks and return (online_success, skip_tool_checks)."""
+        try:
+            online_ok = _run_online_checks(
+                settings,
+                context_logger,
+                v1_base_url=self._target_base_url,
+            )
+        except BirreError as exc:
+            self._alerts.add(exc.code)
+            _record_failure(
+                failure_records,
+                tool="startup_checks",
+                stage="online",
+                message="online startup checks failed",
+                exception=exc,
+            )
+            context_logger.error(
+                "Online startup checks failed",
+                reason=exc.user_message,
+                **exc.log_fields(),
+            )
+            attempt_notes.append(exc.context.code)
+            return False, True
+        else:
+            if not online_ok:
+                _record_failure(
+                    failure_records,
+                    tool="startup_checks",
+                    stage="online",
+                    message="online startup checks failed",
+                )
+            return online_ok, False
+
     def _run_diagnostic_attempt(
         self,
         *,
         context_name: str,
         settings,
         context_logger: BoundLogger,
-        expected_tools: FrozenSet[str],
+        expected_tools: frozenset[str],
         label: str,
-        notes: Optional[Sequence[str]],
+        notes: Sequence[str | None],
     ) -> AttemptReport:
         attempt_notes = list(notes or ())
         context_logger.info(
@@ -1636,77 +1707,33 @@ class HealthcheckRunner:
         missing_tools = sorted(expected_tools - discovered_tools)
         failure_records: list[DiagnosticFailure] = []
         attempt_success = True
-        tool_report: Dict[str, Dict[str, Any]] = {}
-        online_success: Optional[bool] = None
+        online_success: bool | None = None
         skip_tool_checks = False
 
         if missing_tools:
-            context_logger.critical(
-                "Tool discovery failed",
-                missing_tools=missing_tools,
-                discovered=sorted(discovered_tools),
-                attempt=label,
+            tool_report = self._handle_missing_tools(
+                missing_tools,
+                expected_tools,
+                context_logger,
+                label,
+                failure_records,
             )
-            for tool_name in missing_tools:
-                _record_failure(
-                    failure_records,
-                    tool=tool_name,
-                    stage="discovery",
-                    message="expected tool not registered",
-                )
-                attempt_success = False
-            for tool_name in sorted(expected_tools):
-                if tool_name in missing_tools:
-                    tool_report[tool_name] = {
-                        "status": "fail",
-                        "details": {"reason": "tool not registered"},
-                    }
-                else:
-                    tool_report[tool_name] = {
-                        "status": "warning",
-                        "details": {"reason": "not evaluated"},
-                    }
+            attempt_success = False
         else:
             context_logger.info(
                 "Tool discovery succeeded",
                 tools=sorted(discovered_tools),
                 attempt=label,
             )
-
-            try:
-                online_ok = _run_online_checks(
-                    settings,
-                    context_logger,
-                    v1_base_url=self._target_base_url,
-                )
-            except BirreError as exc:
-                online_success = False
+            tool_report: dict[str, dict[str, Any]] = {}
+            online_success, skip_tool_checks = self._run_online_diagnostics(
+                settings,
+                context_logger,
+                attempt_notes,
+                failure_records,
+            )
+            if not online_success:
                 attempt_success = False
-                skip_tool_checks = True
-                self._alerts.add(exc.code)
-                _record_failure(
-                    failure_records,
-                    tool="startup_checks",
-                    stage="online",
-                    message="online startup checks failed",
-                    exception=exc,
-                )
-                context_logger.error(
-                    "Online startup checks failed",
-                    reason=exc.user_message,
-                    **exc.log_fields(),
-                )
-                attempt_notes.append(exc.context.code)
-            else:
-                online_success = online_ok
-                if not online_ok:
-                    _record_failure(
-                        failure_records,
-                        tool="startup_checks",
-                        stage="online",
-                        message="online startup checks failed",
-                    )
-                    attempt_success = False
 
             if not skip_tool_checks and not _run_context_tool_diagnostics(
                 context=context_name,
@@ -1761,11 +1788,8 @@ class HealthcheckRunner:
             if failure.category
         )
 
-    def _has_degraded_outcomes(
-        self,
-        report: Mapping[str, Any],
-        attempts: Sequence[AttemptReport],
-    ) -> bool:
+    def _check_basic_degradations(self, report: Mapping[str, Any]) -> bool:
+        """Check for basic degradation indicators in report."""
         if report.get("offline_mode"):
             return True
         if report.get("notes"):
@@ -1776,40 +1800,57 @@ class HealthcheckRunner:
             return True
         if report.get("fallback_attempted"):
             return True
-        if any(not attempt.success for attempt in attempts):
-            return True
+        return False
 
-        online_status = None
+    def _check_online_status(self, report: Mapping[str, Any]) -> bool:
+        """Check if online section has warning status."""
         online_section = report.get("online")
         if isinstance(online_section, Mapping):
-            online_status = online_section.get("status")
-        if online_status == "warning":
-            return True
+            if online_section.get("status") == "warning":
+                return True
+        return False
 
+    def _check_tools_status(self, report: Mapping[str, Any]) -> bool:
+        """Check if any tool has warning status or warning attempts."""
         tools_section = report.get("tools")
-        if isinstance(tools_section, Mapping):
-            for entry in tools_section.values():
-                if not isinstance(entry, Mapping):
-                    continue
-                status = entry.get("status")
-                if status == "warning":
-                    return True
-                attempts_map = entry.get("attempts")
-                if isinstance(attempts_map, Mapping) and any(
-                    value == "warning" for value in attempts_map.values()
-                ):
-                    return True
+        if not isinstance(tools_section, Mapping):
+            return False
 
+        for entry in tools_section.values():
+            if not isinstance(entry, Mapping):
+                continue
+            if entry.get("status") == "warning":
+                return True
+            attempts_map = entry.get("attempts")
+            if isinstance(attempts_map, Mapping) and any(
+                value == "warning" for value in attempts_map.values()
+            ):
+                return True
+        return False
+
+    def _has_degraded_outcomes(
+        self,
+        report: Mapping[str, Any],
+        attempts: Sequence[AttemptReport],
+    ) -> bool:
+        if self._check_basic_degradations(report):
+            return True
+        if any(not attempt.success for attempt in attempts):
+            return True
+        if self._check_online_status(report):
+            return True
+        if self._check_tools_status(report):
+            return True
         return False
 
 def _record_failure(
-    failures: Optional[list[DiagnosticFailure]],
+    failures: list[DiagnosticFailure | None],
     *,
     tool: str,
     stage: str,
     message: str,
-    mode: Optional[str] = None,
-    exception: Optional[BaseException] = None,
+    mode: str | None = None,
+    exception: BaseException | None = None,
 ) -> None:
     if failures is None:
         return
@@ -1855,7 +1896,7 @@ def _is_missing_ca_bundle_exception(exc: BaseException) -> bool:
     return False
 
 
-def _classify_failure(failure: DiagnosticFailure) -> Optional[str]:
+def _classify_failure(failure: DiagnosticFailure) -> str | None:
     if failure.exception is None:
         message = failure.message.lower()
         if any(token in message for token in ("ssl", "tls", "certificate")):
@@ -1864,12 +1905,12 @@ def _classify_failure(failure: DiagnosticFailure) -> Optional[str]:
     if _is_tls_exception(failure.exception):
         failure.category = "tls"
     elif _is_missing_ca_bundle_exception(failure.exception):
-        failure.category = "config.ca_bundle"
+        failure.category = MSG_CONFIG_CA_BUNDLE
     return failure.category
 
 
-def _summarize_failure(failure: DiagnosticFailure) -> Dict[str, Any]:
-    summary: Dict[str, Any] = {
+def _summarize_failure(failure: DiagnosticFailure) -> dict[str, Any]:
+    summary: dict[str, Any] = {
         "tool": failure.tool,
         "stage": failure.stage,
     }
@@ -1885,20 +1926,20 @@ def _summarize_failure(failure: DiagnosticFailure) -> Dict[str, Any]:
 
 
 def _aggregate_tool_outcomes(
-    expected_tools: FrozenSet[str],
-    attempts: Sequence[Dict[str, Any]],
+    expected_tools: frozenset[str],
+    attempts: Sequence[dict[str, Any]],
     *,
     offline_mode: bool = False,
-    offline_missing: Optional[Sequence[str]] = None,
-) -> Dict[str, Dict[str, Any]]:
-    aggregated: Dict[str, Dict[str, Any]] = {}
+    offline_missing: Sequence[str | None] = None,
+) -> dict[str, dict[str, Any]]:
+    aggregated: dict[str, dict[str, Any]] = {}
     if offline_mode:
         missing_set = set(offline_missing or ())
         for tool_name in sorted(expected_tools):
             if tool_name in missing_set:
                 aggregated[tool_name] = {
                     "status": "fail",
-                    "details": {"reason": "tool not registered"},
+                    "details": {"reason": MSG_TOOL_NOT_REGISTERED},
                 }
             else:
                 aggregated[tool_name] = {
@@ -1908,7 +1949,7 @@ def _aggregate_tool_outcomes(
         return aggregated
 
     for tool_name in sorted(expected_tools):
-        attempt_details: Dict[str, Dict[str, Any]] = {}
+        attempt_details: dict[str, dict[str, Any]] = {}
         statuses: list[str] = []
         for attempt in attempts:
             tool_entry = attempt.get("tools", {}).get(tool_name)
@@ -1930,15 +1971,15 @@ def _aggregate_tool_outcomes(
             final_status = "fail"
         else:
             final_status = statuses[0]
-        entry: Dict[str, Any] = {"status": final_status}
+        entry: dict[str, Any] = {"status": final_status}
         if attempt_details:
             entry["attempts"] = attempt_details
         aggregated[tool_name] = entry
     return aggregated
 
 
-def _render_healthcheck_summary(report: Dict[str, Any]) -> None:
-    def status_label(value: Optional[str]) -> str:
+def _render_healthcheck_summary(report: dict[str, Any]) -> None:
+    def status_label(value: str | None) -> str:
         mapping = {"pass": "PASS", "fail": "FAIL", "warning": "WARNING"}
         if not value:
             return "WARNING"
@@ -2075,8 +2116,8 @@ def _format_exception_message(exc: BaseException) -> str:
     return str(exc)
 
 
-def _collect_tool_map(server_instance: Any) -> Dict[str, Any]:
-    tools: Dict[str, Any] = {}
+def _collect_tool_map(server_instance: Any) -> dict[str, Any]:
+    tools: dict[str, Any] = {}
 
     tools_attr = getattr(server_instance, "tools", None)
     if isinstance(tools_attr, dict):
@@ -2098,7 +2139,7 @@ def _collect_tool_map(server_instance: Any) -> Dict[str, Any]:
     return tools
 
 
-def _resolve_tool_callable(tool: Any) -> Optional[Callable[..., Any]]:
+def _resolve_tool_callable(tool: Any) -> Callable[..., Any | None]:
     if tool is None:
         return None
     if hasattr(tool, "fn") and callable(getattr(tool, "fn")):
@@ -2119,14 +2160,39 @@ def _invoke_tool(tool: Any, ctx: _HealthcheckContext, **params: Any) -> Any:
     return result
 
 
+def _validate_company_entry(entry: Any, logger: BoundLogger) -> bool:
+    """Validate a single company entry in search results."""
+    if not isinstance(entry, dict):
+        logger.critical("healthcheck.company_search.invalid_company", reason="entry not dict")
+        return False
+    if not entry.get("guid") or not entry.get("name"):
+        logger.critical(
+            "healthcheck.company_search.invalid_company",
+            reason="missing guid/name",
+            company=entry,
+        )
+        return False
+    return True
+
+
+def _check_domain_match(companies: list, expected_domain: str, logger: BoundLogger) -> bool:
+    """Check if expected domain is present in company list."""
+    for entry in companies:
+        domain_value = str(entry.get("domain") or "")
+        if domain_value.lower() == expected_domain.lower():
+            return True
+    logger.critical("healthcheck.company_search.domain_missing", expected=expected_domain)
+    return False
+
+
 def _validate_company_search_payload(
     payload: Any,
     *,
     logger: BoundLogger,
-    expected_domain: Optional[str] = None,
+    expected_domain: str | None = None,
 ) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.company_search.invalid_response", reason="not a dict")
+        logger.critical("healthcheck.company_search.invalid_response", reason=MSG_NOT_A_DICT)
         return False
 
     if payload.get("error"):
@@ -2138,28 +2204,16 @@ def _validate_company_search_payload(
         logger.critical("healthcheck.company_search.empty", reason="no companies returned")
         return False
 
-    matched_domain = False
     for entry in companies:
-        if not isinstance(entry, dict):
-            logger.critical("healthcheck.company_search.invalid_company", reason="entry not dict")
+        if not _validate_company_entry(entry, logger):
             return False
-        if not entry.get("guid") or not entry.get("name"):
-            logger.critical("healthcheck.company_search.invalid_company", reason="missing guid/name", company=entry)
-            return False
-        domain_value = str(entry.get("domain") or "")
-        if expected_domain and domain_value.lower() == expected_domain.lower():
-            matched_domain = True
 
     count_value = payload.get("count")
     if not isinstance(count_value, int) or count_value <= 0:
         logger.critical("healthcheck.company_search.invalid_count", count=count_value)
         return False
 
-    if expected_domain and not matched_domain:
-        logger.critical(
-            "healthcheck.company_search.domain_missing",
-            expected=expected_domain,
-        )
+    if expected_domain and not _check_domain_match(companies, expected_domain, logger):
         return False
 
     return True
@@ -2167,7 +2221,7 @@ def _validate_company_search_payload(
 
 def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.rating.invalid_response", reason="not a dict")
+        logger.critical("healthcheck.rating.invalid_response", reason=MSG_NOT_A_DICT)
         return False
 
     if payload.get("error"):
@@ -2209,7 +2263,7 @@ def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
 
 def _validate_company_search_interactive_payload(payload: Any, *, logger: BoundLogger) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.company_search_interactive.invalid_response", reason="not a dict")
+        logger.critical("healthcheck.company_search_interactive.invalid_response", reason=MSG_NOT_A_DICT)
         return False
 
     if payload.get("error"):
@@ -2267,7 +2321,7 @@ def _validate_company_search_interactive_payload(payload: Any, *, logger: BoundL
 
 def _validate_manage_subscriptions_payload(payload: Any, *, logger: BoundLogger, expected_guid: str) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.manage_subscriptions.invalid_response", reason="not a dict")
+        logger.critical("healthcheck.manage_subscriptions.invalid_response", reason=MSG_NOT_A_DICT)
         return False
 
     if payload.get("error"):
@@ -2302,7 +2356,7 @@ def _validate_manage_subscriptions_payload(payload: Any, *, logger: BoundLogger,
 
 def _validate_request_company_payload(payload: Any, *, logger: BoundLogger, expected_domain: str) -> bool:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.request_company.invalid_response", reason="not a dict")
+        logger.critical("healthcheck.request_company.invalid_response", reason=MSG_NOT_A_DICT)
         return False
 
     if payload.get("error"):
@@ -2345,8 +2399,8 @@ def _run_company_search_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: Optional[list[DiagnosticFailure]] = None,
-    summary: Optional[Dict[str, Any]] = None,
+    failures: list[DiagnosticFailure | None] = None,
+    summary: dict[str, Any | None] = None,
 ) -> bool:
     tool_logger = logger.bind(tool="company_search")
     ctx = _HealthcheckContext(context=context, tool_name="company_search", logger=tool_logger)
@@ -2363,13 +2417,13 @@ def _run_company_search_diagnostics(
             tool="company_search",
             stage="call",
             mode="name",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "mode": "name",
                 "error": str(exc),
             }
@@ -2385,17 +2439,17 @@ def _run_company_search_diagnostics(
             tool="company_search",
             stage="validation",
             mode="name",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "unexpected payload structure",
+                "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
                 "mode": "name",
             }
             summary.setdefault("modes", {})["name"] = {
                 "status": "fail",
-                "detail": "unexpected payload structure",
+                "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
             }
         return False
 
@@ -2411,13 +2465,13 @@ def _run_company_search_diagnostics(
             tool="company_search",
             stage="call",
             mode="domain",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "mode": "domain",
                 "error": str(exc),
             }
@@ -2437,17 +2491,17 @@ def _run_company_search_diagnostics(
             tool="company_search",
             stage="validation",
             mode="domain",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "unexpected payload structure",
+                "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
                 "mode": "domain",
             }
             summary.setdefault("modes", {})["domain"] = {
                 "status": "fail",
-                "detail": "unexpected payload structure",
+                "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
             }
         return False
 
@@ -2463,8 +2517,8 @@ def _run_rating_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: Optional[list[DiagnosticFailure]] = None,
-    summary: Optional[Dict[str, Any]] = None,
+    failures: list[DiagnosticFailure | None] = None,
+    summary: dict[str, Any | None] = None,
 ) -> bool:
     tool_logger = logger.bind(tool="get_company_rating")
     ctx = _HealthcheckContext(context=context, tool_name="get_company_rating", logger=tool_logger)
@@ -2479,13 +2533,13 @@ def _run_rating_diagnostics(
             failures,
             tool="get_company_rating",
             stage="call",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "error": str(exc),
             }
         return False
@@ -2495,11 +2549,11 @@ def _run_rating_diagnostics(
             failures,
             tool="get_company_rating",
             stage="validation",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
-            summary["details"] = {"reason": "unexpected payload structure"}
+            summary["details"] = {"reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
         return False
 
     domain_value = payload.get("domain")
@@ -2532,8 +2586,8 @@ def _run_company_search_interactive_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: Optional[list[DiagnosticFailure]] = None,
-    summary: Optional[Dict[str, Any]] = None,
+    failures: list[DiagnosticFailure | None] = None,
+    summary: dict[str, Any | None] = None,
 ) -> bool:
     tool_logger = logger.bind(tool="company_search_interactive")
     ctx = _HealthcheckContext(
@@ -2552,13 +2606,13 @@ def _run_company_search_interactive_diagnostics(
             failures,
             tool="company_search_interactive",
             stage="call",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "error": str(exc),
             }
         return False
@@ -2568,11 +2622,11 @@ def _run_company_search_interactive_diagnostics(
             failures,
             tool="company_search_interactive",
             stage="validation",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
-            summary["details"] = {"reason": "unexpected payload structure"}
+            summary["details"] = {"reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
         return False
 
     tool_logger.info("healthcheck.company_search_interactive.success")
@@ -2584,8 +2638,8 @@ def _run_manage_subscriptions_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: Optional[list[DiagnosticFailure]] = None,
-    summary: Optional[Dict[str, Any]] = None,
+    failures: list[DiagnosticFailure | None] = None,
+    summary: dict[str, Any | None] = None,
 ) -> bool:
     tool_logger = logger.bind(tool="manage_subscriptions")
     ctx = _HealthcheckContext(context=context, tool_name="manage_subscriptions", logger=tool_logger)
@@ -2606,13 +2660,13 @@ def _run_manage_subscriptions_diagnostics(
             failures,
             tool="manage_subscriptions",
             stage="call",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "error": str(exc),
             }
         return False
@@ -2626,11 +2680,11 @@ def _run_manage_subscriptions_diagnostics(
             failures,
             tool="manage_subscriptions",
             stage="validation",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
-            summary["details"] = {"reason": "unexpected payload structure"}
+            summary["details"] = {"reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
         return False
 
     tool_logger.info("healthcheck.manage_subscriptions.success")
@@ -2642,8 +2696,8 @@ def _run_request_company_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: Optional[list[DiagnosticFailure]] = None,
-    summary: Optional[Dict[str, Any]] = None,
+    failures: list[DiagnosticFailure | None] = None,
+    summary: dict[str, Any | None] = None,
 ) -> bool:
     tool_logger = logger.bind(tool="request_company")
     ctx = _HealthcheckContext(context=context, tool_name="request_company", logger=tool_logger)
@@ -2663,13 +2717,13 @@ def _run_request_company_diagnostics(
             failures,
             tool="request_company",
             stage="call",
-            message="tool invocation failed",
+            message=MSG_TOOL_INVOCATION_FAILED,
             exception=exc,
         )
         if summary is not None:
             summary["status"] = "fail"
             summary["details"] = {
-                "reason": "tool invocation failed",
+                "reason": MSG_TOOL_INVOCATION_FAILED,
                 "error": str(exc),
             }
         return False
@@ -2683,11 +2737,11 @@ def _run_request_company_diagnostics(
             failures,
             tool="request_company",
             stage="validation",
-            message="unexpected payload structure",
+            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
         )
         if summary is not None:
             summary["status"] = "fail"
-            summary["details"] = {"reason": "unexpected payload structure"}
+            summary["details"] = {"reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
         return False
 
     tool_logger.info("healthcheck.request_company.success")
@@ -2699,9 +2753,9 @@ def _run_context_tool_diagnostics(
     context: str,
     logger: BoundLogger,
     server_instance: Any,
-    expected_tools: FrozenSet[str],
-    summary: Optional[Dict[str, Dict[str, Any]]] = None,
-    failures: Optional[list[DiagnosticFailure]] = None,
+    expected_tools: frozenset[str],
+    summary: dict[str, dict[str, Any | None]] = None,
+    failures: list[DiagnosticFailure | None] = None,
 ) -> bool:
     tools = _collect_tool_map(server_instance)
     success = True
@@ -2716,7 +2770,7 @@ def _run_context_tool_diagnostics(
                 },
             )
 
-    def _summary_entry(name: str) -> Optional[Dict[str, Any]]:
+    def _summary_entry(name: str) -> dict[str, Any | None]:
         if summary is None:
             return None
         return summary.setdefault(name, {})
@@ -2729,12 +2783,12 @@ def _run_context_tool_diagnostics(
             failures,
             tool="company_search",
             stage="discovery",
-            message="expected tool not registered",
+            message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
         )
         if company_summary is not None:
             company_summary.clear()
             company_summary["status"] = "fail"
-            company_summary["details"] = {"reason": "tool not registered"}
+            company_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
         success = False
     else:
         if company_summary is not None:
@@ -2756,12 +2810,12 @@ def _run_context_tool_diagnostics(
             failures,
             tool="get_company_rating",
             stage="discovery",
-            message="expected tool not registered",
+            message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
         )
         if rating_summary is not None:
             rating_summary.clear()
             rating_summary["status"] = "fail"
-            rating_summary["details"] = {"reason": "tool not registered"}
+            rating_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
         success = False
     else:
         if rating_summary is not None:
@@ -2793,7 +2847,7 @@ def _run_context_tool_diagnostics(
         if interactive_summary is not None:
             interactive_summary.clear()
             interactive_summary["status"] = "warning"
-            interactive_summary["details"] = {"reason": "tool not registered"}
+            interactive_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
 
     manage_tool = tools.get("manage_subscriptions")
     if manage_tool is not None:
@@ -2813,7 +2867,7 @@ def _run_context_tool_diagnostics(
         if manage_summary is not None:
             manage_summary.clear()
             manage_summary["status"] = "warning"
-            manage_summary["details"] = {"reason": "tool not registered"}
+            manage_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
 
     request_tool = tools.get("request_company")
     if request_tool is not None:
@@ -2833,7 +2887,7 @@ def _run_context_tool_diagnostics(
         if request_summary is not None:
             request_summary.clear()
             request_summary["status"] = "warning"
-            request_summary["details"] = {"reason": "tool not registered"}
+            request_summary["details"] = {"reason": MSG_TOOL_NOT_REGISTERED}
 
     return success
 
@@ -3033,23 +3087,48 @@ def _prompt_bool(prompt: str, default: bool) -> bool:
     return typer.confirm(prompt, default=default)
 
 
-def _prompt_str(prompt: str, default: Optional[str], secret: bool = False) -> Optional[str]:
+def _prompt_str(prompt: str, default: str | None, secret: bool = False) -> str | None:
     value = typer.prompt(prompt, default=default or "", hide_input=secret).strip()
     return value or None
 
 
+def _validate_and_apply_normalizer(
+    response: str | None, *, required: bool, normalizer: Callable[[str | None, str | None]] | None
+) -> str | None:
+    """Apply normalizer and validate the result."""
+    def _apply(value: str | None) -> str | None:
+        cleaned = _clean_string(value)
+        if cleaned is None:
+            return None
+        if normalizer is None:
+            return cleaned
+        return normalizer(cleaned)
+
+    try:
+        normalized = _apply(response)
+    except typer.BadParameter as exc:  # pragma: no cover - defensive; normalizer raises
+        stdout_console.print(f"[red]{exc}[/red]")
+        return None
+
+    if normalized is None and required:
+        stdout_console.print("[red]A value is required.[/red]")
+        return None
+
+    return normalized
+
+
 def _collect_or_prompt_string(
-    provided: Optional[str],
+    provided: str | None,
     *,
     prompt: str,
-    default: Optional[str],
+    default: str | None,
     secret: bool = False,
     required: bool = False,
-    normalizer: Optional[Callable[[Optional[str]], Optional[str]]] = None,
-) -> Optional[str]:
+    normalizer: Callable[[str | None, str | None]] | None = None,
+) -> str | None:
     """Return a CLI-provided string or interactively prompt for one."""
 
-    def _apply(value: Optional[str]) -> Optional[str]:
+    def _apply(value: str | None) -> str | None:
         cleaned = _clean_string(value)
         if cleaned is None:
             return None
@@ -3067,19 +3146,13 @@ def _collect_or_prompt_string(
                 stdout_console.print("[red]A value is required.[/red]")
                 continue
             return None
-        try:
-            normalized = _apply(response)
-        except typer.BadParameter as exc:  # pragma: no cover - defensive; normalizer raises
-            stdout_console.print(f"[red]{exc}[/red]")
-            continue
 
-        if normalized is None and required:
-            stdout_console.print("[red]A value is required.[/red]")
-            continue
-        return normalized
+        normalized = _validate_and_apply_normalizer(response, required=required, normalizer=normalizer)
+        if normalized is not None or not required:
+            return normalized
 
 
-def _generate_local_config_content(values: Dict[str, Any], *, include_header: bool = True) -> str:
+def _generate_local_config_content(values: dict[str, Any], *, include_header: bool = True) -> str:
     def format_value(value: Any) -> str:
         if isinstance(value, bool):
             return "true" if value else "false"
@@ -3255,7 +3328,7 @@ def config_init(
         },
     }
 
-    serializable: Dict[str, Dict[str, Any]] = {}
+    serializable: dict[str, dict[str, Any]] = {}
     for section, section_values in generated.items():
         filtered = {k: v for k, v in section_values.items() if v not in (None, "")}
         if filtered:
@@ -3291,19 +3364,19 @@ def config_init(
     stdout_console.print(f"[green]Local configuration saved to[/green] {destination}")
 
 
-def _resolve_settings_files(config_path: Optional[str]) -> Tuple[Path, ...]:
+def _resolve_settings_files(config_path: str | None) -> tuple[Path, ...]:
     return resolve_config_file_candidates(config_path)
 
 
 def _resolve_logging_settings_from_cli(
     *,
-    config_path: Optional[Path],
-    log_level: Optional[str],
-    log_format: Optional[str],
-    log_file: Optional[str],
-    log_max_bytes: Optional[int],
-    log_backup_count: Optional[int],
-) -> Tuple[_CliInvocation, Any]:
+    config_path: Path | None,
+    log_level: str | None,
+    log_format: str | None,
+    log_file: str | None,
+    log_max_bytes: int | None,
+    log_backup_count: int | None,
+) -> tuple[_CliInvocation, Any]:
     invocation = _build_invocation(
         config_path=str(config_path) if config_path is not None else None,
         api_key=None,
@@ -3329,7 +3402,7 @@ def _resolve_logging_settings_from_cli(
 _RELATIVE_DURATION_PATTERN = re.compile(r"^\s*(\d+)([smhd])\s*$", re.IGNORECASE)
 
 
-def _parse_iso_timestamp_to_epoch(value: str) -> Optional[float]:
+def _parse_iso_timestamp_to_epoch(value: str) -> float | None:
     if value is None:
         return None
     candidate = value.strip()
@@ -3348,7 +3421,7 @@ def _parse_iso_timestamp_to_epoch(value: str) -> Optional[float]:
     return parsed.timestamp()
 
 
-def _parse_relative_duration(value: str) -> Optional[timedelta]:
+def _parse_relative_duration(value: str) -> timedelta | None:
     if value is None:
         return None
     match = _RELATIVE_DURATION_PATTERN.match(value)
@@ -3497,7 +3570,7 @@ def config_show(
         _print_config_table("CLI overrides", cli_rows)
 
     effective_values = _effective_configuration_values(runtime_settings, logging_settings)
-    effective_rows: list[Tuple[str, str, str]] = []
+    effective_rows: list[tuple[str, str, str]] = []
     for key in _EFFECTIVE_CONFIG_KEY_ORDER:
         display_value = _format_display_value(key, effective_values.get(key))
         source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
@@ -3512,7 +3585,7 @@ def config_show(
     help="Validate or minimize a BiRRe configuration file before use.",
 )
 def config_validate(
-    config: Optional[Path] = typer.Option(
+    config: Path | None = typer.Option(
         None,
         "--config",
         help="Configuration TOML file to validate",
@@ -3694,7 +3767,7 @@ def logs_path(
 def logs_show(
     config: ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
     log_file: LogFileOption = None,
-    level: Optional[str] = typer.Option(
+    level: str | None = typer.Option(
         None,
         "--level",
         help="Minimum log level to include (e.g. INFO, WARNING).",
@@ -3706,19 +3779,19 @@ def logs_show(
         help="Number of lines from the end of the log to display (0 to show all).",
         rich_help_panel="Filtering",
     ),
-    since: Optional[str] = typer.Option(
+    since: str | None = typer.Option(
         None,
         "--since",
         help="Only include entries at or after the given ISO 8601 timestamp.",
         rich_help_panel="Filtering",
     ),
-    last: Optional[str] = typer.Option(
+    last: str | None = typer.Option(
         None,
         "--last",
         help="Only include entries from the relative window (e.g. 1h, 30m).",
         rich_help_panel="Filtering",
     ),
-    format_override: Optional[str] = typer.Option(
+    format_override: str | None = typer.Option(
         None,
         "--format",
         case_sensitive=False,
@@ -3762,7 +3835,7 @@ def logs_show(
         stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
         return
 
-    start_timestamp: Optional[float] = None
+    start_timestamp: float | None = None
     if since:
         start_timestamp = _parse_iso_timestamp_to_epoch(since)
         if start_timestamp is None:
@@ -3773,7 +3846,7 @@ def logs_show(
             raise typer.BadParameter("Invalid relative duration; use values like 30m, 1h, or 2d.", param_hint="--last")
         start_timestamp = (datetime.now(timezone.utc) - duration).timestamp()
 
-    matched: List[_LogViewLine] = []
+    matched: list[_LogViewLine] = []
     with path.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             parsed = _parse_log_line(line, resolved_format)
@@ -3831,7 +3904,7 @@ def readme() -> None:
     stdout_console.print(readme_path.read_text(encoding="utf-8"))
 
 
-def main(argv: Optional[Sequence[str]] = None) -> None:
+def main(argv: Sequence[str | None] = None) -> None:
     """Main entry point for BiRRe MCP server."""
 
     args = list(sys.argv[1:] if argv is None else argv)
