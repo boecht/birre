@@ -5,9 +5,8 @@ This file provides guidance to LLM agents when working with code in this reposit
 ## Project overview
 
 - Project Overview: @README
-- Requirements Specification: @docs/REQUIREMENTS.md
+- Roadmap & Version History: @docs/ROADMAP.md
 - Project Architecture: @docs/ARCHITECTURE.md
-- Implementation Status: @docs/STATUS.md
 - BitSight API v1 Reference: @apis/bitsight.v1.overview.md
 - BitSight API v2 Reference: @apis/bitsight.v2.overview.md
 

@@ -1,3 +1,5 @@
+"""Offline and online startup checks for the BiRRe server."""
+
 from __future__ import annotations
 
 import asyncio

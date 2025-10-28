@@ -1,3 +1,10 @@
+# BiRRe
+
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
+[![Type Checked](https://img.shields.io/badge/type--checked-yes-success)](src/birre/py.typed)
+
 <div align="center">
 <img src="birre-logo.png" alt="BiRRe Logo" width="375">
 </div>
@@ -162,16 +169,28 @@ BiRRe ships with both offline unit tests and opt-in online integration checks.
 The offline suite exercises configuration layering, logging formatters, startup
 checks, subscription helpers, and both standard and risk-manager tools without
 touching the BitSight API. The online tests drive the FastMCP client end-to-end
-against BitSight’s production environment and require valid credentials.
+against BitSight’s production API and require valid credentials.
 
 ```bash
 # Run the offline suite
-uv run pytest -m offline
+uv run --extra pytest-dependencies pytest -m offline
 
 # Run the online smoke tests against the BitSight production API.
-uv run pytest -m online
+uv run --extra pytest-dependencies pytest -m online
 ```
 
-Online tests also require a valid `BITSIGHT_API_KEY` in the environment (or
-`config.local.toml`) and the `fastmcp` client dependency, which `uv run` will
-install on demand inside an isolated virtual environment.
+If you prefer a plain virtual environment, install the same extras explicitly
+before invoking pytest:
+
+```bash
+pip install '.[pytest-dependencies]'
+pytest -m offline
+```
+
+## Further Documentation
+
+- [Changelog](CHANGELOG.md) – detailed list of fixes and enhancements per release.
+- [Roadmap & version history](docs/ROADMAP.md) – shipped releases, upcoming milestones, and ongoing initiatives.
+- [CLI reference](docs/CLI.md) – command usage, shared options, and subcommands.
+- [Architecture guide](docs/ARCHITECTURE.md) – FastMCP layering, tooling strategy, and API integration details.
+- [BitSight API references](docs/apis) – curated overviews extracted from the official v1/v2 documentation.

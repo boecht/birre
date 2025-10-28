@@ -1,3 +1,5 @@
+"""BitSight FastMCP client wiring and schema loaders."""
+
 from __future__ import annotations
 
 import ssl

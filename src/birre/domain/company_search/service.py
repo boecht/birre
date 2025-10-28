@@ -1,3 +1,5 @@
+"""Company search tool implementation for BiRRe."""
+
 from __future__ import annotations
 
 import logging

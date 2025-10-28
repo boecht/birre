@@ -1,3 +1,5 @@
+"""Assembly for the BiRRe FastMCP business server."""
+
 from __future__ import annotations
 
 import logging

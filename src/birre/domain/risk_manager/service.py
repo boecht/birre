@@ -1,3 +1,5 @@
+"""Risk manager tooling (interactive search, subscriptions, onboarding)."""
+
 from __future__ import annotations
 
 import csv

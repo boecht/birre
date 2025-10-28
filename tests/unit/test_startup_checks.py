@@ -60,12 +60,14 @@ def test_offline_checks_fail_without_api_key(caplog: pytest.LogCaptureFixture) -
 def test_offline_checks_success_logs_debug_and_warnings(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    schema_one = tmp_path / "bitsight.v1.schema.json"
-    schema_two = tmp_path / "bitsight.v2.schema.json"
+    schema_dir = tmp_path / "apis"
+    schema_dir.mkdir()
+    schema_one = schema_dir / "bitsight.v1.schema.json"
+    schema_two = schema_dir / "bitsight.v2.schema.json"
     schema_one.write_text(json.dumps({"title": "schema1"}), encoding="utf-8")
     schema_two.write_text(json.dumps({"title": "schema2"}), encoding="utf-8")
 
-    monkeypatch.setattr(startup_checks, "SCHEMA_PATHS", (schema_one, schema_two))
+    monkeypatch.setattr(startup_checks.resources, "files", lambda _: tmp_path)
 
     logger = get_logger("birre.startup.test_success")
     caplog.set_level(logging.DEBUG)

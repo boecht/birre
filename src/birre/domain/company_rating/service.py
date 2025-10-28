@@ -1,3 +1,5 @@
+"""Company rating tools and helpers for BiRRe."""
+
 from __future__ import annotations
 
 import json
