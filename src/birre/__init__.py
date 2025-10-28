@@ -2,8 +2,8 @@
 
 from birre.application.server import (
     INSTRUCTIONS_MAP,
-    create_birre_server,
     _resolve_tls_verification,
+    create_birre_server,
 )
 
 __all__ = [
