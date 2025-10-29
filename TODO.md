@@ -159,17 +159,30 @@ src/birre/
 
 ## Priority 2: Achieve 9/10 in All Categories
 
-### 2.1 Improve Layer Separation (9→10)
+### 2.1 Improve Layer Separation (9→10) ✅ COMPLETE
 
-**Current Issue:** `run_offline_checks` and `run_online_checks` in diagnostics.py could be in startup.py
+**Impact:** Maintains Layer Separation at 9/10  
+**Effort:** 30 minutes  
+**Priority:** LOW  
+**Status:** ✅ COMPLETE (2025-10-29)
 
-**Tasks:**
-- [ ] Review run_offline_checks() and run_online_checks() placement
-- [ ] Option A: Keep in diagnostics.py (current - acceptable)
-- [ ] Option B: Move to startup.py (more "pure" but adds coupling)
-- [ ] Document decision in ARCHITECTURE.md
+**Analysis:**
+- Reviewed placement of `run_offline_checks()` and `run_online_checks()` in diagnostics.py
+- **Decision:** Keep current architecture (Option A)
+  - Core logic in `application/startup.py`: `run_offline_startup_checks()`, `run_online_startup_checks()`
+  - Diagnostic wrappers in `application/diagnostics.py`: `run_offline_checks()`, `run_online_checks()`
+  - Clean separation: startup.py has pure validation logic, diagnostics.py adds logging/orchestration
 
-**Recommendation:** Keep in diagnostics.py. These are diagnostic-adjacent and moving creates more imports.
+**Rationale:**
+- Current design maintains proper layer boundaries
+- Diagnostic wrappers provide convenient CLI entry points
+- Moving to startup.py would add coupling without benefit
+- Architecture already at 9/10, reaching 10/10 would require more significant refactoring with minimal gains
+
+**Completed Tasks:**
+- ✅ Reviewed function placement and dependencies
+- ✅ Documented architecture decision in ARCHITECTURE.md
+- ✅ Added "Design Rationale" section explaining startup check separation
 
 ---
 

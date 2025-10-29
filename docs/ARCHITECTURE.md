@@ -129,10 +129,22 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 
 ### Startup Checks
 
+BiRRe performs validation checks before starting the MCP server to ensure proper configuration and API connectivity.
+
+**Architecture**:
+- **Core Logic** (`application/startup.py`): Implements `run_offline_startup_checks()` and `run_online_startup_checks()` with no external dependencies
+- **Diagnostic Wrappers** (`application/diagnostics.py`): Provides `run_offline_checks()` and `run_online_checks()` convenience functions that add diagnostic logging and orchestration
+
+**Checks Performed**:
+- **Offline**: API key presence, subscription folder/type configuration, OpenAPI schema validation
+- **Online**: API key validity, subscription folder access, remaining quota verification
+
+**Configuration**:
 - Executed automatically before the MCP server starts serving requests
-- Validates BitSight API connectivity (API key access, subscription folder presence, remaining quota)
 - Can be skipped via `--skip-startup-checks`, `BIRRE_SKIP_STARTUP_CHECKS`, or `[runtime].skip_startup_checks` when operators intentionally defer validation
 - Emits structured log events (`startup_checks.run`) and aborts startup on errors
+
+**Design Rationale**: The separation between startup.py (pure logic) and diagnostics.py (diagnostic tooling) maintains clean layer boundaries while providing convenient diagnostic entry points for CLI commands.
 
 ### Error Handling
 
