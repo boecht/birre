@@ -79,9 +79,10 @@ class SelfTestResult:
 HealthcheckResult = SelfTestResult
 
 
-class _HealthcheckContext:
-    """Context object passed to diagnostic tool functions.
+class _MockSelfTestContext:
+    """Mock context object for diagnostic tool invocations.
     
+    Simulates the MCP Context interface for selftest tool execution.
     Provides logging methods and metadata for diagnostic tool invocations.
     """
     

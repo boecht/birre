@@ -30,7 +30,7 @@ from birre.domain.selftest_models import (
     ContextDiagnosticsResult,
     DiagnosticFailure,
     SelfTestResult,
-    _HealthcheckContext,
+    _MockSelfTestContext,
 )
 from birre.infrastructure.errors import TlsCertificateChainInterceptedError
 from birre.infrastructure.logging import BoundLogger
@@ -111,7 +111,7 @@ def _resolve_tool_callable(tool: Any) -> Callable[..., Any | None] | None:
 
 def _invoke_tool(
     tool: Any,
-    ctx: _HealthcheckContext,
+    ctx: _MockSelfTestContext,
     *,
     run_sync: SyncRunner | None,
     **params: Any,
@@ -458,7 +458,7 @@ def run_company_search_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="company_search")
-    ctx = _HealthcheckContext(context=context, tool_name="company_search", logger=tool_logger)
+    ctx = _MockSelfTestContext(context=context, tool_name="company_search", logger=tool_logger)
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -582,7 +582,7 @@ def run_rating_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="get_company_rating")
-    ctx = _HealthcheckContext(context=context, tool_name="get_company_rating", logger=tool_logger)
+    ctx = _MockSelfTestContext(context=context, tool_name="get_company_rating", logger=tool_logger)
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -657,7 +657,7 @@ def run_company_search_interactive_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="company_search_interactive")
-    ctx = _HealthcheckContext(
+    ctx = _MockSelfTestContext(
         context=context,
         tool_name="company_search_interactive",
         logger=tool_logger,
@@ -715,7 +715,7 @@ def run_manage_subscriptions_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="manage_subscriptions")
-    ctx = _HealthcheckContext(context=context, tool_name="manage_subscriptions", logger=tool_logger)
+    ctx = _MockSelfTestContext(context=context, tool_name="manage_subscriptions", logger=tool_logger)
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -774,7 +774,7 @@ def run_request_company_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="request_company")
-    ctx = _HealthcheckContext(context=context, tool_name="request_company", logger=tool_logger)
+    ctx = _MockSelfTestContext(context=context, tool_name="request_company", logger=tool_logger)
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
