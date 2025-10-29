@@ -85,6 +85,81 @@ async def company_search(ctx, name=None, domain=None):
 
 Reference: FastMCP tool management documentation at <https://gofastmcp.com/servers/tools>
 
+### Server Factory Pattern
+
+BiRRe uses a factory function to create and configure the FastMCP server instance.
+
+**Factory Function** (`application/server.py`):
+
+```python
+def create_birre_server(runtime_settings: RuntimeSettings) -> FastMCP:
+    """Create and configure a BiRRe MCP server instance.
+    
+    This factory:
+    1. Creates FastMCP server from OpenAPI specs (v1 + v2)
+    2. Disables auto-generated API tools (hides from client)
+    3. Registers context-specific business tools
+    4. Returns configured server ready to serve
+    """
+    server = FastMCP.from_openapi(...)
+    # ... configuration ...
+    return server
+```
+
+**Key Design Decisions**:
+
+- **Server in application/**: Business logic layer, orchestrates domain tools
+- **Context Switching**: Runtime selection of tool sets (standard vs risk_manager)
+- **Lazy Loading**: API tools generated on demand, not at import time
+- **Stateless**: Server configuration is immutable after creation
+
+### MCP Context vs Mock Context
+
+BiRRe uses two different context objects depending on execution mode:
+
+**Production: FastMCP Context** (MCP protocol):
+- Provided by FastMCP framework during MCP protocol communication
+- Includes logging methods: `ctx.info()`, `ctx.warning()`, `ctx.error()`
+- Has metadata about the client request
+- Used by business tools in `domain/` layer
+
+**Testing: _MockSelfTestContext** (diagnostics):
+- Defined in `domain/selftest_models.py`
+- Simulates MCP Context interface for selftest validation
+- Enables testing tool logic without MCP client connection
+- Used by diagnostic functions in `application/diagnostics.py`
+
+**Why the separation?**
+- Allows testing business logic without running MCP server
+- Diagnostic validation works offline (no client needed)
+- Mock context captures logging for test assertions
+- Clean boundary between production and test code
+
+### Tool Discovery and Registration
+
+BiRRe uses a multi-stage tool registration process:
+
+**Stage 1: Auto-generation** (startup)
+1. Load OpenAPI schemas from `resources/apis/`
+2. FastMCP generates 478+ API tools automatically
+3. All tools get type validation from schemas
+
+**Stage 2: Filtering** (startup)
+1. Disable all auto-generated tools via `tool.disable()`
+2. Tools remain callable internally via `server.call_tool()`
+3. Hidden from MCP `list_tools` protocol response
+
+**Stage 3: Business Tool Registration** (startup)
+1. Register domain tools based on selected context
+2. Standard context: 2 tools (search, rating)
+3. Risk-manager context: 5 tools (adds interactive search, subscriptions, requests)
+4. Each tool orchestrates multiple internal API calls
+
+**Stage 4: Runtime** (per request)
+1. Client calls business tool via MCP protocol
+2. Business tool calls internal API tools via `server.call_tool()`
+3. Results aggregated and returned to client
+
 ### API Resources
 
 **BitSight API Documentation** (no access, requires manual authentication):
