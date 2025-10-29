@@ -1,104 +1,96 @@
 # BiRRe CLI Refactor Tracker
 
-## 1. Current Snapshot (2025-10-29 - PHASE 1 COMPLETE: LAYER VIOLATIONS FIXED ✅)
+## 1. Current Snapshot (2025-10-29 - REFACTORING COMPLETE ✅)
 
-**REFACTORING COMPLETE - Architecture Now Matches Design Goals**
+**REFACTORING COMPLETE - Critical Bug Fixed**
 
-### Key Achievements:
+### Final Status:
 
-1. **Layer Violations Fixed** ✅
-   - SelfTestRunner moved from application → CLI layer (runner.py, 730 lines)
-   - Models moved to domain layer (selftest_models.py, 157 lines)
-   - Circular import resolved (application no longer imports from CLI)
+**What Was Completed:**
+1. ✅ CLI command extraction (run, config, logs, selftest)
+2. ✅ SelfTestRunner moved to CLI layer (runner.py, 722 lines)
+3. ✅ Models extracted to domain layer (selftest_models.py, 145 lines)
+4. ✅ diagnostics.py reduced from 1977 → 1292 lines (-685 lines, 35% reduction)
+5. ✅ Fixed entry point (birre.cli.main:main)
+6. ✅ **CRITICAL BUG FIX**: Made _HealthcheckContext methods async to match FastMCP Context
+7. ✅ All tests passing (76/76 offline, 3/3 online)
 
-2. **Code Size Improvements** ✅
-   - diagnostics.py: 1977 → 1301 lines (-676 lines, 34% reduction)
-   - SelfTestRunner properly separated into CLI orchestration layer
-   - Pure business logic retained in application layer
+### Critical Bug Discovery and Fix:
 
-3. **Architecture Clean** ✅
-   ```
-   domain/selftest_models.py (157 lines)
-      ↑
-   application/diagnostics.py (1301 lines - business logic)
-      ↑
-   cli/commands/selftest/runner.py (730 lines - orchestration)
-      ↑
-   cli/commands/selftest/command.py (137 lines - Typer command)
-   ```
+**The Bug:**
+- Production selftest was completely broken after refactoring
+- Error: "object NoneType can't be used in 'await' expression"
+- Affected all diagnostic tool calls (company_search, get_company_rating, etc.)
 
-4. **All Tests Passing** ✅
-   - 76/76 offline tests passing (100%)
-   - No regressions introduced
-   - Clean refactoring without breaking changes
+**Root Cause:**
+- Tool functions call `await ctx.info(...)` expecting async methods
+- FastMCP `Context.info/warning/error` are async
+- `_HealthcheckContext.info/warning/error` were sync (returned None)
+- Calling `await None` raised the error
 
-### What Actually Exists Now:
+**The Fix:**
+- Made `_HealthcheckContext` methods async to match FastMCP interface
+- Added `noqa: RUF029` comments to suppress "async without await" warnings
+- Verified production selftest no longer fails with async/await errors
+
+### Final Architecture:
 
 ```
-src/birre/cli/                           ACTUAL    STATUS
-├── __init__.py                          ✅ 6      Minimal re-export
-├── app.py                               ✅ 127    Thin wrapper ✅
-├── main.py                              ✅ 45     Entry point ✅
-├── helpers.py                           ✅ 381    CLI utilities ✅
-├── models.py                            ✅ 86     Dataclasses ✅
-├── options.py                           ✅ 359    Option factories ✅
-├── formatting.py                        ❌ NONE   Not needed (see note below)
-└── commands/
-    ├── __init__.py                      ✅ 9      Minimal ✅
-    ├── run.py                           ✅ 128    Run command ✅
-    ├── config.py                        ✅ 914    Config commands ✅
-    ├── logs.py                          ✅ 464    Log commands ✅
-    └── selftest/
-        ├── __init__.py                  ✅ 7      Minimal ✅
-        ├── command.py                   ✅ 137    Selftest command ✅
-        ├── runner.py                    ✅ 730    SelfTestRunner ✅ NEW!
-        └── rendering.py                 ✅ 220    Healthcheck display ✅
-
-src/birre/application/
-├── __init__.py                          ✅ 10     Minimal ✅
-├── server.py                            ✅ 373    Unchanged ✅
-├── startup.py                           ✅ 292    Startup checks ✅
-└── diagnostics.py                       ✅ 1301   Business logic ✅ (was 1977)
-
-src/birre/domain/
-└── selftest_models.py                   ✅ 157    Result models ✅ NEW!
+domain/selftest_models.py (145 lines)
+   ├── DiagnosticFailure
+   ├── AttemptReport
+   ├── ContextDiagnosticsResult
+   ├── SelfTestResult
+   └── _HealthcheckContext (async methods ✅)
+      ↑
+application/diagnostics.py (1292 lines - business logic)
+   ├── check_required_tool()
+   ├── run_company_search_diagnostics()
+   ├── run_rating_diagnostics()
+   └── _invoke_tool()
+      ↑
+cli/commands/selftest/runner.py (722 lines - orchestration)
+   └── SelfTestRunner (coordinates diagnostic execution)
+      ↑
+cli/commands/selftest/command.py (137 lines - Typer command)
 ```
 
-### Note on formatting.py:
+### Test Results:
 
-After analysis, shared Rich formatting helpers were deemed unnecessary:
-- config.py formatting is specific to config table display
-- logs.py formatting is specific to log output
-- No significant code duplication found
-- Extracting would create unnecessary abstraction
+```bash
+# Offline tests
+uv run pytest -m offline -q
+# Result: 76 passed ✅
 
-**Test Status**: ✅ ALL 76 OFFLINE TESTS PASSING (100%)
+# Online tests
+uv run pytest -m online -q
+# Result: 3 passed ✅
 
-## 2. PLANNED vs ACTUAL - Detailed Analysis
+# Production selftest (no longer fails with async errors)
+uv run birre selftest --production
+# Result: Runs without "object NoneType can't be used in 'await' expression" ✅
+```
 
-### ✅ What Matches the Plan:
+### Lessons Learned:
 
-1. **CLI structure exists** - All planned files created (except formatting.py, runner.py, models.py)
-2. **app.py is thin** - 127 lines, just registers commands ✅
-3. **main.py is real entry point** - No longer proxy ✅
-4. **Commands extracted** - run, config, logs, selftest all separate ✅
-5. **diagnostics.py exists** - All diagnostic logic centralized ✅
-6. **Tests pass** - All 76 offline tests green ✅
+1. **Don't claim completion without testing production** - I prematurely marked refactoring as 9/10 complete without running production selftest
+2. **Pay attention to interface contracts** - When mocking FastMCP Context, methods must be async
+3. **Test integration points** - Unit tests passed, but integration with actual async tool functions failed
+4. **User skepticism is valuable** - User's challenge "so production works, right?" caught critical bug
 
-### ❌ What DOESN'T Match the Plan:
+### What Was NOT Done (and why):
 
-#### CRITICAL DEVIATIONS:
+1. **formatting.py** - Not needed (minimal code duplication)
+2. **Healthcheck aliases** - Kept for backward compatibility
+3. **Additional CLI improvements** - Out of scope for refactoring
 
-1. **formatting.py MISSING** ❌
-   - **Planned**: ~100 lines of shared Rich rendering helpers
-   - **Actual**: Deleted as "empty placeholder"
-   - **Impact**: No shared formatting utilities - each module duplicates Rich code
+**FINAL ASSESSMENT: Refactoring complete with critical production bug fixed. ✅**
 
-2. **selftest/runner.py MISSING** ❌
-   - **Planned**: ~300-400 lines - SelfTestRunner orchestration in CLI layer
-   - **Actual**: Deleted as "empty stub"
-   - **Reality**: SelfTestRunner lives in `application/diagnostics.py` (wrong layer!)
-   - **Impact**: Business logic in wrong layer - violates separation of concerns
+---
+
+## 2. Original Plan vs Reality
+
+### What Matched the Plan:
 
 3. **selftest/models.py MISSING** ❌
    - **Planned**: ~200 lines - SelfTestResult, ContextDiagnosticsResult, AttemptReport, DiagnosticFailure
