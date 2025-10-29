@@ -724,7 +724,7 @@ def run_manage_subscriptions_diagnostics(
             tool,
             ctx,
             run_sync=run_sync,
-            name=HEALTHCHECK_COMPANY_NAME,
+            action="subscribe",
             guids=[HEALTHCHECK_COMPANY_GUID],
             dry_run=True,
         )
@@ -784,8 +784,9 @@ def run_request_company_diagnostics(
             tool,
             ctx,
             run_sync=run_sync,
-            name=HEALTHCHECK_COMPANY_NAME,
             domain=HEALTHCHECK_REQUEST_DOMAIN,
+            company_name=HEALTHCHECK_COMPANY_NAME,
+            dry_run=True,
         )
     except Exception as exc:  # pragma: no cover - network failures
         tool_logger.warning("healthcheck.request_company.call_failed", error=str(exc))
@@ -1057,10 +1058,20 @@ def _validate_request_company_payload(
         return False
 
     status = payload.get("status")
-    if status not in {"requested", "existing"}:
+    if status not in {"requested", "existing", "dry_run"}:
         logger.critical("healthcheck.request_company.unexpected_status", status=status)
         return False
 
+    # For dry_run, just check domain field, not domains list
+    if status == "dry_run":
+        domain = payload.get("domain")
+        if not domain or domain.lower() != expected_domain.lower():
+            logger.critical("healthcheck.request_company.domain_mismatch", 
+                          domain=domain, expected=expected_domain)
+            return False
+        return True
+
+    # For actual requests, check domains list
     domains = payload.get("domains")
     if not _validate_request_company_domains(domains, logger=logger, expected=expected_domain):
         return False
