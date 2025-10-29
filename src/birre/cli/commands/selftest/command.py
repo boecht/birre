@@ -5,8 +5,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from birre.application.diagnostics import SelfTestRunner
 from birre.cli import options as cli_options
+from birre.cli.commands.selftest.runner import SelfTestRunner
 from birre.cli.helpers import (
     await_sync,
     build_invocation,
