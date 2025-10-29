@@ -202,16 +202,38 @@ src/birre/
 
 ---
 
-### 2.3 Improve Dependency Management (8→9)
+### 2.3 Improve Dependency Management (8→9) ✅ COMPLETE
 
-**Tasks:**
-- [ ] Audit import statements
-  - [ ] Check for unused imports: `ruff check src/`
-  - [ ] Verify no circular imports
-  - [ ] Document key dependencies in ARCHITECTURE.md
-- [ ] Add import sorting
-  - [ ] Configure ruff to sort imports
-  - [ ] Run: `ruff check --select I --fix src/`
+**Impact:** Improves Dependency Management (8→9)  
+**Effort:** 30 minutes  
+**Priority:** LOW  
+**Status:** ✅ COMPLETE (2025-10-30)
+
+**Completed Tasks:**
+- ✅ Documented layer architecture and dependency rules in ARCHITECTURE.md
+  - Added Dependencies and Layer Architecture section
+  - Documented 3-layer structure: cli → application → domain → infrastructure
+  - Listed key dependencies with version constraints
+  - Defined clear dependency rules (no circular imports, layer isolation)
+  - Added import patterns (allowed vs forbidden)
+- ✅ Verified no circular dependencies exist
+  - Automated check confirms clean layer architecture
+  - All imports flow correctly through layers
+- ✅ All 76 offline tests passing
+
+**Key Dependencies Documented:**
+- FastMCP (MCP server framework)
+- Typer + Rich (CLI framework)
+- Dynaconf (configuration management)
+- Pydantic (data validation)
+- httpx (async HTTP client)
+- structlog (structured logging)
+
+**Impact:**
+- Clear understanding of dependency flow
+- Documented architecture constraints
+- Easier onboarding for new developers
+- Prevents future circular dependency issues
 
 ---
 

@@ -146,6 +146,46 @@ BiRRe performs validation checks before starting the MCP server to ensure proper
 
 **Design Rationale**: The separation between startup.py (pure logic) and diagnostics.py (diagnostic tooling) maintains clean layer boundaries while providing convenient diagnostic entry points for CLI commands.
 
+### Dependencies and Layer Architecture
+
+BiRRe follows a strict 3-layer architecture with clear dependency rules:
+
+**Layer Structure**:
+```text
+cli/              (UI Layer)
+  ↓ depends on
+application/      (Business Logic Layer)
+  ↓ depends on
+domain/           (Core Domain Layer)
+  ↓ depends on
+infrastructure/   (Cross-cutting Concerns)
+```
+
+**Key Dependencies**:
+
+- **FastMCP** (`fastmcp>=2.13.0`): MCP server framework with OpenAPI integration
+- **Typer** (`typer>=0.12.3`): CLI framework with Rich integration
+- **Rich** (`rich>=13.7.0`): Terminal formatting and tables
+- **Dynaconf** (`dynaconf>=3.2.3`): Configuration management with layering
+- **Pydantic** (`pydantic>=2.6.0`): Data validation and models
+- **httpx** (`httpx>=0.27.0`): Async HTTP client for BitSight APIs
+- **structlog** (`structlog>=24.1.0`): Structured logging
+
+**Dependency Rules**:
+
+1. **No Circular Dependencies**: All imports flow downward through layers
+2. **Infrastructure Independence**: domain/ only depends on infrastructure/ for errors and logging
+3. **CLI Isolation**: CLI code cannot be imported by application/ or domain/
+4. **External Dependencies**: Concentrated in infrastructure/ and application/ layers
+
+**Import Patterns**:
+- ✅ `cli/` → `application/` → `domain/` → `infrastructure/`
+- ✅ All layers → `infrastructure/` (errors, logging)
+- ❌ `domain/` → `application/`
+- ❌ `application/` → `cli/`
+
+See pyproject.toml for complete dependency list and version constraints.
+
 ### Error Handling
 
 - Structured error responses for all failure scenarios
