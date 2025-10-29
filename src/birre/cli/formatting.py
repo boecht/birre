@@ -10,6 +10,16 @@ from rich.console import Console
 from rich.table import Table
 
 
+__all__ = [
+    "RichStyles",
+    "mask_sensitive_value",
+    "format_config_value",
+    "flatten_to_dotted",
+    "create_config_table",
+    "stringify_value",
+]
+
+
 class RichStyles:
     """Rich console styling constants shared across CLI commands."""
 

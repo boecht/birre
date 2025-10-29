@@ -5,12 +5,6 @@
 We currently support the latest release line of BiRRe. Older releases are
 considered end-of-life and will not receive security fixes.
 
-| Version        | Supported          |
-| -------------- | ------------------ |
-| 2.x (current)  | :white_check_mark: |
-| 1.x            | :x:                |
-| < 1.0          | :x:                |
-
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please open a new issue on the
