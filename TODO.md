@@ -1,58 +1,300 @@
 # BiRRe CLI Refactor Tracker
 
-## 1. Current Snapshot (2025-10-29 - NOW ACTUALLY COMPLETE ✅)
+## 1. Current Snapshot (2025-10-29 - CLEANUP COMPLETE, BUT DEVIATES FROM PLAN)
 
-**After user feedback and real cleanup:**
+**Reality check - what actually exists:**
 
-- **Status**: ✅ CLI refactor NOW TRULY COMPLETE
-- **app.py**: 127 lines (96% reduction from original 3513 lines)
-- **Test Status**: ✅ ALL 76 OFFLINE TESTS PASSING (100%)
-- **Architecture**: app.py is now a thin wrapper (creates app, registers modules, defines 2 commands)
+```
+src/birre/cli/                           ACTUAL    vs    PLANNED
+├── __init__.py                          ✅ 6      vs    minimal re-export
+├── app.py                               ✅ 127    vs    ~200 (thin wrapper)
+├── main.py                              ✅ 45     vs    ~50 (entry point)
+├── helpers.py                           ✅ 381    vs    ~200 (CLI utilities)
+├── models.py                            ✅ 86     vs    ~100 (dataclasses)
+├── options.py                           ✅ 359    vs    ~200 (option factories)
+├── formatting.py                        ❌ NONE   vs    ~100 (Rich helpers)
+└── commands/
+    ├── __init__.py                      ✅ 9      vs    minimal
+    ├── run.py                           ✅ 128    vs    ~300-400
+    ├── config.py                        ✅ 914    vs    ~300
+    ├── logs.py                          ✅ 464    vs    ~250
+    └── selftest/
+        ├── __init__.py                  ✅ 7      vs    minimal
+        ├── command.py                   ✅ 137    vs    ~150
+        ├── runner.py                    ❌ NONE   vs    ~300-400 (orchestration)
+        ├── models.py                    ❌ NONE   vs    ~200 (result dataclasses)
+        └── rendering.py                 ✅ 220    vs    ~300-400
 
-**What was actually done (5 commits total):**
+src/birre/application/
+├── __init__.py                          ✅ 10     vs    minimal
+├── server.py                            ✅ 373    vs    unchanged
+├── startup.py                           ✅ 292    vs    minimal
+└── diagnostics.py                       ✅ 2070   vs    ~400-500 (BLOATED!)
+```
+
+**Test Status**: ✅ ALL 76 OFFLINE TESTS PASSING (100%)
+
+## 2. PLANNED vs ACTUAL - Detailed Analysis
+
+### ✅ What Matches the Plan:
+
+1. **CLI structure exists** - All planned files created (except formatting.py, runner.py, models.py)
+2. **app.py is thin** - 127 lines, just registers commands ✅
+3. **main.py is real entry point** - No longer proxy ✅
+4. **Commands extracted** - run, config, logs, selftest all separate ✅
+5. **diagnostics.py exists** - All diagnostic logic centralized ✅
+6. **Tests pass** - All 76 offline tests green ✅
+
+### ❌ What DOESN'T Match the Plan:
+
+#### CRITICAL DEVIATIONS:
+
+1. **formatting.py MISSING** ❌
+   - **Planned**: ~100 lines of shared Rich rendering helpers
+   - **Actual**: Deleted as "empty placeholder"
+   - **Impact**: No shared formatting utilities - each module duplicates Rich code
+
+2. **selftest/runner.py MISSING** ❌
+   - **Planned**: ~300-400 lines - SelfTestRunner orchestration in CLI layer
+   - **Actual**: Deleted as "empty stub"
+   - **Reality**: SelfTestRunner lives in `application/diagnostics.py` (wrong layer!)
+   - **Impact**: Business logic in wrong layer - violates separation of concerns
+
+3. **selftest/models.py MISSING** ❌
+   - **Planned**: ~200 lines - SelfTestResult, ContextDiagnosticsResult, AttemptReport, DiagnosticFailure
+   - **Actual**: Deleted as "empty stub"  
+   - **Reality**: ALL these dataclasses are in `application/diagnostics.py` (wrong layer!)
+   - **Impact**: CLI-specific result models in application layer
+
+4. **diagnostics.py BLOATED** ❌
+   - **Planned**: ~400-500 lines of pure business logic (tool discovery, validation)
+   - **Actual**: 2070 lines (4x larger than planned!)
+   - **Contains**:
+     - ✅ Tool discovery (correct)
+     - ✅ Validation functions (correct)
+     - ❌ SelfTestRunner class (should be in cli/commands/selftest/runner.py)
+     - ❌ SelfTestResult, ContextDiagnosticsResult, AttemptReport dataclasses (should be in cli/commands/selftest/models.py)
+     - ❌ DiagnosticFailure class (should be in cli/commands/selftest/models.py)
+     - ❌ HealthcheckRunner logic (wrong name, should be SelfTestRunner in CLI layer)
+     - ❌ Tool aggregation helpers (mixed concerns)
+     - ❌ run_offline_checks, run_online_checks (should these be in startup.py?)
+
+#### MINOR DEVIATIONS:
+
+5. **config.py TOO LARGE** ⚠️
+   - **Planned**: ~300 lines
+   - **Actual**: 914 lines (3x larger)
+   - **Why**: Contains all helper functions inline instead of using shared formatting.py
+
+6. **logs.py TOO LARGE** ⚠️
+   - **Planned**: ~250 lines
+   - **Actual**: 464 lines (2x larger)
+   - **Why**: Contains all helper functions inline
+
+7. **helpers.py TOO LARGE** ⚠️
+   - **Planned**: ~200 lines
+   - **Actual**: 381 lines (2x larger)
+   - **Why**: Contains functions that might belong in other modules
+
+8. **options.py TOO LARGE** ⚠️
+   - **Planned**: ~200 lines  
+   - **Actual**: 359 lines (2x larger)
+   - **Why**: Possibly acceptable - lots of option definitions
+
+### 🔍 Layer Violation Analysis:
+
+**The Big Problem**: Application layer contains CLI concerns
+
+```
+WRONG (current):
+  application/diagnostics.py (2070 lines)
+    ├── Tool discovery ✅ (correct - business logic)
+    ├── Validation functions ✅ (correct - business logic)
+    ├── SelfTestRunner ❌ (CLI orchestration - wrong layer!)
+    ├── SelfTestResult, AttemptReport ❌ (CLI models - wrong layer!)
+    └── DiagnosticFailure ❌ (CLI concern - wrong layer!)
+
+RIGHT (planned):
+  application/diagnostics.py (~400-500 lines)
+    ├── Tool discovery ✅
+    ├── Validation functions ✅
+    └── Pure business logic only
+  
+  cli/commands/selftest/runner.py (~300-400 lines)
+    └── SelfTestRunner (orchestrates calls to diagnostics.py)
+  
+  cli/commands/selftest/models.py (~200 lines)
+    ├── SelfTestResult
+    ├── ContextDiagnosticsResult  
+    ├── AttemptReport
+    └── DiagnosticFailure
+```
+
+## 3. Gap Analysis & Required Work
+
+### MUST FIX (Layer Violations):
+
+1. **Extract SelfTestRunner from diagnostics.py → cli/commands/selftest/runner.py**
+   - Move ~300-400 lines of orchestration logic
+   - Keep only the pure diagnostic functions in diagnostics.py
+
+2. **Extract result models from diagnostics.py → cli/commands/selftest/models.py**
+   - Move SelfTestResult, ContextDiagnosticsResult, AttemptReport, DiagnosticFailure
+   - ~200 lines of dataclasses
+
+3. **Create cli/formatting.py for shared Rich helpers**
+   - Extract common table/text formatting from config.py, logs.py
+   - Prevent code duplication across command modules
+   - ~100-150 lines
+
+### SHOULD FIX (Size/Organization):
+
+4. **Slim down config.py (914 → ~300 lines)**
+   - Move shared formatting to formatting.py
+   - Consider splitting into config/init.py, config/show.py, config/validate.py
+
+5. **Slim down logs.py (464 → ~250 lines)**
+   - Move shared formatting to formatting.py
+   - Extract log parsing helpers
+
+6. **Review diagnostics.py structure**
+   - After extracting SelfTestRunner & models, should be ~400-500 lines
+   - Verify run_offline_checks/run_online_checks belong here (or in startup.py?)
+
+### NICE TO HAVE (Polish):
+
+7. **Review helpers.py (381 lines)**
+   - Audit what's actually used
+   - Consider splitting if too many unrelated concerns
+
+8. **Review options.py (359 lines)**  
+   - Probably fine - option definitions are verbose
+
+## 4. Execution Plan - FROM CURRENT STATE TO PLANNED STATE
+
+### Phase 1: Fix Layer Violations (CRITICAL)
+
+**Step 1.1**: Create cli/commands/selftest/models.py
+- Copy dataclasses from diagnostics.py:
+  - DiagnosticFailure (lines 77-84)
+  - AttemptReport (lines 87-98)
+  - ContextDiagnosticsResult (lines 101-107)
+  - SelfTestResult (lines 109-128)
+  - _HealthcheckContext (lines 131-175)
+- Update imports in diagnostics.py to import from cli.commands.selftest.models
+- Update imports in command.py
+- **Estimate**: 30 minutes, ~200 lines moved
+
+**Step 1.2**: Create cli/commands/selftest/runner.py
+- Move SelfTestRunner class from diagnostics.py (lines 1365-end, ~700 lines)
+- Import diagnostic functions from application.diagnostics
+- Import models from cli.commands.selftest.models
+- Update command.py to import from runner module
+- **Estimate**: 1 hour, ~700 lines moved
+
+**Step 1.3**: Clean up diagnostics.py after extraction
+- Remove moved classes and SelfTestRunner
+- Keep only pure diagnostic/validation functions
+- Verify it's now ~400-500 lines as planned
+- **Estimate**: 15 minutes
+
+**Step 1.4**: Run tests and fix imports
+- Fix any broken imports
+- Ensure all 76 tests still pass
+- **Estimate**: 30 minutes
+
+**Phase 1 Total**: ~2.5 hours, reduces diagnostics.py from 2070 → ~500 lines
+
+### Phase 2: Add Missing Shared Module (IMPORTANT)
+
+**Step 2.1**: Create cli/formatting.py
+- Extract shared Rich helpers from config.py:
+  - Table creation helpers
+  - Text formatting utilities
+- Extract shared helpers from logs.py:
+  - Common display functions
+- **Estimate**: 1 hour, ~100-150 lines
+
+**Step 2.2**: Update config.py and logs.py to use formatting.py
+- Replace inline helpers with imports
+- Reduce config.py from 914 → ~600 lines (still large due to command logic)
+- Reduce logs.py from 464 → ~350 lines
+- Run tests
+- **Estimate**: 45 minutes
+
+**Phase 2 Total**: ~2 hours, adds formatting.py, slims command modules
+
+### Phase 3: Optional Refinements (NICE TO HAVE)
+
+**Step 3.1**: Further split config.py if still too large
+- Consider config/init.py, config/show.py, config/validate.py submodules
+- **Estimate**: 1 hour if needed
+
+**Step 3.2**: Review and optimize helpers.py
+- Audit actual usage
+- Consider splitting if too many concerns
+- **Estimate**: 30 minutes if needed
+
+**Phase 3 Total**: ~1.5 hours (optional)
+
+### GRAND TOTAL: ~6 hours to reach planned architecture
+
+### Success Criteria:
+
+✅ diagnostics.py: ~400-500 lines (pure business logic)
+✅ cli/commands/selftest/runner.py: exists, ~300-400 lines  
+✅ cli/commands/selftest/models.py: exists, ~200 lines
+✅ cli/formatting.py: exists, ~100-150 lines
+✅ No layer violations (CLI concerns in CLI, business logic in application)
+✅ All 76 tests passing
+✅ All command modules < 500 lines (or split into submodules)
+
+## 5. Why This Matters
+
+**Current state works but violates architectural principles:**
+
+1. **Testability**: SelfTestRunner in diagnostics.py makes it hard to test CLI orchestration separately from business logic
+2. **Maintainability**: 2070-line diagnostics.py is hard to navigate and understand
+3. **Reusability**: Can't reuse diagnostic functions without pulling in CLI orchestration
+4. **Clarity**: Mixing layers confuses future developers about what belongs where
+
+**Planned state provides:**
+
+1. **Clean separation**: Business logic (diagnostics.py) vs CLI orchestration (runner.py)
+2. **Right-sized modules**: All modules < 500 lines, easy to understand
+3. **Shared utilities**: formatting.py prevents duplication across commands
+4. **Clear ownership**: Models in the right layer, runner in the right layer
+
+## 6. What Was Actually Done (5 Commits)
 
 1. **Commit 1**: Removed 437 lines of duplicate config helpers
 2. **Commit 2**: Removed 217 lines of diagnostic delegates + monkey-patching
 3. **Commit 3**: Removed 839 lines of old command implementations + sub-app definitions  
-4. **Commit 4**: Removed 1766 lines of duplicate healthcheck/validation helpers (THE BIG ONE)
-   - Found 4 complete copies of all healthcheck rendering functions
-   - Found duplicate validation functions (all exist in diagnostics.py)
+4. **Commit 4**: Removed 1766 lines of duplicate healthcheck/validation helpers
 5. **Commit 5**: Final cleanup - removed empty stubs, cleaned imports, moved entry point
-   - Deleted 3 empty placeholder files (runner.py, models.py, formatting.py)
-   - Removed 60+ unused imports from app.py
-   - Moved main() from app.py to main.py (proper entry point)
 
-**Total removed: 3,320 lines** (437 + 217 + 839 + 1766 + ~60 from final cleanup)
+**Total removed: 3,320 lines**
+**Result: Code works, tests pass, BUT architecture deviates from plan**
 
-**Final CLI structure:**
-```
-src/birre/cli/
-├── __init__.py              # Exports app and main
-├── app.py                   # 127 lines - THIN WRAPPER (creates app, registers modules)
-├── main.py                  # 45 lines - Entry point with arg parsing
-├── helpers.py               # Sync bridge, invocation builders
-├── models.py                # CLI dataclasses
-├── options.py               # Shared Typer options
-└── commands/
-    ├── config.py            # 914 lines - config init/show/validate
-    ├── logs.py              # 464 lines - logs clear/rotate/path/show
-    ├── run.py               # 128 lines - server startup
-    └── selftest/
-        ├── command.py       # 137 lines - selftest command
-        └── rendering.py     # 220 lines - healthcheck output formatting
-```
+## 7. Decision Point
 
-**What remains in diagnostics.py (by design):**
-- SelfTestRunner orchestration (stays in application layer - this is correct)
-- All validation functions (_validate_company_search_payload, etc.)
-- Tool discovery and diagnostic logic
+**QUESTION FOR USER**: Do we proceed with Phase 1 & 2 to match the planned architecture?
 
-**No more:**
-- ❌ Empty stub files
-- ❌ Duplicate helper functions
-- ❌ "Will eventually" placeholder files
-- ❌ Proxy/legacy patterns
-- ❌ Unused imports
+**Pros:**
+- Proper layer separation
+- Easier to test and maintain  
+- Matches original architectural plan
+- Prevents future confusion
+
+**Cons:**
+- Requires ~4-6 hours more work
+- Code currently works and tests pass
+- Risk of introducing bugs during refactoring
+
+**Recommendation**: YES, proceed with at least Phase 1 (fix layer violations)
+- Moving SelfTestRunner to CLI layer is architecturally correct
+- Extracting models prevents future confusion
+- ~2.5 hours is reasonable for proper architecture
 
 ## 2. Target Architecture (Agreed Plan)
 
