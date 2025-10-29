@@ -4,13 +4,14 @@
 [![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
 [![Type Checked](https://img.shields.io/badge/type--checked-yes-success)](src/birre/py.typed)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11405/badge)](https://www.bestpractices.dev/projects/11405)
 
-<div align="center">
-<img src="birre-logo.png" alt="BiRRe Logo" width="375">
-</div>
+<div align="center"><img src="birre-logo.png" alt="BiRRe Logo" width="375"></div>
 
-**BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server that provides access to BitSight security rating data through an existing subscription.
-It utilizes [FastMCP](https://gofastmcp.com/) for API integration and can be run easily without installation in a temporary, isolated Python environment with uv.
+**BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server
+that provides access to BitSight security rating data through an existing subscription.
+It utilizes [FastMCP](https://gofastmcp.com/) for API integration  
+and can be run easily without installation in a temporary, isolated Python environment with uv.
 
 ## Installation
 
@@ -24,12 +25,14 @@ uvx --from git+https://github.com/boecht/birre birre run
 ```
 
 - Point your LLM of choice to the MCP server and ask it for the BitSight rating of any company.
-- Explore the CLI with the added `--help` flag or consult [docs/CLI.md](docs/CLI.md). Individual subcommands such as `run` and `selftest` also provide dedicated `--help` output.
+- Explore the CLI with the added `--help` flag or consult [docs/CLI.md](docs/CLI.md).
+  Individual subcommands such as `run` and `selftest` also provide dedicated `--help` output.
 
 ### Configuration
 
 Configuration sources (lowest → highest): `config.toml` → `config.local.toml` → environment → CLI.
-See the descriptions in `config.toml` for available fields and details. For CLI options, run with `--help` or consult [docs/CLI.md](docs/CLI.md).
+See the descriptions in `config.toml` for available fields and details. For CLI options,
+run with `--help` or consult [docs/CLI.md](docs/CLI.md).
 
 ### Run directly from GitHub with uvx
 
@@ -48,13 +51,18 @@ That's it! The script will automatically install all dependencies using uv.
 
 ## Disclaimer
 
-**BiRRe** (*Bi*tsight *R*ating *Re*triever) is **not affiliated with, endorsed by, or sponsored by BitSight Technologies, Inc.** This is an unofficial, community-developed MCP server that provides integration with Bitsight's publicly available services.
+**BiRRe** (*Bi*tsight *R*ating *Re*triever) is
+**not affiliated with, endorsed by, or sponsored by BitSight Technologies, Inc.**
+This is an unofficial, community-developed MCP server that provides integration with
+Bitsight's publicly available services.
 
 - This project is developed and maintained independently by the open source community
 - "Bitsight" is a registered trademark of BitSight Technologies, Inc.
-- This integration is provided "as-is" without any warranty or official support from BitSight Technologies, Inc.
+- This integration is provided "as-is" without any warranty
+or official support from BitSight Technologies, Inc.
 
-This project enables third-party access to Bitsight services through their public APIs and is intended for educational and integration purposes only.
+This project enables third-party access to Bitsight services through their public APIs
+and is intended for educational and integration purposes only.
 
 ## Features
 
@@ -66,16 +74,19 @@ BiRRe supports context-specific toolsets:
   - `company_search`: Search BitSight for companies by name or domain
   - `get_company_rating`: Retrieve security ratings with automatic subscription management
 - **`risk_manager` context** – subscription and onboarding operations
-  - `company_search_interactive`: Enriched search results (name + GUID, domains, description, employee count, subscription folders) for human-in-the-loop selection
+  - `company_search_interactive`: Enriched search results (name + GUID, domains, description,
+  employee count, subscription folders) for human-in-the-loop selection
   - `manage_subscriptions`: Bulk subscribe/unsubscribe GUIDs with dry-run support and audit summaries
-  - `request_company`: Submit BitSight company requests (deduplicates existing requests, attempts v2 bulk workflow with folder targeting, falls back gracefully)
+  - `request_company`: Submit BitSight company requests
+  (deduplicates existing requests, attempts v2 bulk workflow with folder targeting, falls back gracefully)
   - regular `company_search` and `get_company_rating` remain available for spot checks
 
 Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` config key.
 
 ## BitSight API Documentation (v1 + v2 are complementary)
 
-**API Version**: This implementation is based on BitSight APIs as of July 24th, 2025. For the latest API changes and updates, refer to the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
+**API Version**: This implementation is based on BitSight APIs as of July 24th, 2025.
+For the latest API changes and updates, refer to the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
 
 **Interactive API Documentation** (requires BitSight account login):
 
@@ -102,15 +113,18 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ### Version 2.0: Top Vulnerability Insights
 
-- **Top Findings Summary**: Attach the most impactful vulnerabilities to the rating payload, using relaxed severity filters (severe/material first, then moderate with web-appsec padding when needed)
-- **Enhanced Sorting**: Prioritise findings by severity, asset importance, and recency to keep the worst issues on top
+- **Top Findings Summary**: Attach the most impactful vulnerabilities to the rating payload,
+using relaxed severity filters (severe/material first, then moderate with web-appsec padding when needed)
+- **Enhanced Sorting**: Prioritise findings by severity, asset importance,
+and recency to keep the worst issues on top
 - **Narrative Improvements**: Normalise detection/remediation text for quick consumption by MCP clients
 
 ### Version 3.0: Context Modes (Current)
 
 - Two personas: `standard` (quick ratings) and `risk_manager` (subscription operations)
 - Context-driven tool filtering via CLI (`--context`), env (`BIRRE_CONTEXT`), or config
-- Risk manager tooling delivers enriched search data, dry-run batch subscription workflows, and company onboarding requests without in-tool prompts (LLMs coordinate user confirmations)
+- Risk manager tooling delivers enriched search data, dry-run batch subscription workflows,
+and company onboarding requests without in-tool prompts (LLMs coordinate user confirmations)
 
 ### Version 4.0: Caching Layer (Not Implemented)
 
@@ -132,7 +146,10 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 
 ### Review configuration state
 
-Use the `config` command group to review or validate the effective settings before you run diagnostics or bring up the server. It surfaces the values assembled from `config.toml`, `config.local.toml`, environment variables, and CLI overrides, and can also sanity-check standalone configuration files.
+Use the `config` command group to review or validate the effective settings before
+you run diagnostics or bring up the server. It surfaces the values assembled from
+`config.toml`, `config.local.toml`, environment variables, and CLI overrides,
+and can also sanity-check standalone configuration files.
 
 ```bash
 # Inspect configuration sources and resolved settings.
@@ -192,5 +209,5 @@ pytest -m offline
 - [Changelog](CHANGELOG.md) – detailed list of fixes and enhancements per release.
 - [Roadmap & version history](docs/ROADMAP.md) – shipped releases, upcoming milestones, and ongoing initiatives.
 - [CLI reference](docs/CLI.md) – command usage, shared options, and subcommands.
-- [Architecture guide](docs/ARCHITECTURE.md) – FastMCP layering, tooling strategy, and API integration details.
+- [Architecture guide](docs/ARCHITECTURE.md) – FastMCP layering, tooling, and API integration details.
 - [BitSight API references](docs/apis) – curated overviews extracted from the official v1/v2 documentation.

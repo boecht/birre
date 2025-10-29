@@ -27,7 +27,7 @@ class _StubContext:
 
 
 class _FailingServer:
-    async def _call_tool(self, tool_name: str, params: dict[str, Any]):
+    async def _call_tool_middleware(self, tool_name: str, params: dict[str, Any]):
         await asyncio.sleep(0)
         request = httpx.Request(
             "GET",

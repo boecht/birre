@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 import logging
+from pathlib import Path
+
 import pytest
 
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
@@ -79,7 +80,9 @@ def test_runtime_defaults_from_config(tmp_path: Path, monkeypatch: pytest.Monkey
     assert runtime.overrides == ()
 
 
-def test_environment_overrides_take_precedence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_environment_overrides_take_precedence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 
@@ -106,11 +109,14 @@ def test_environment_overrides_take_precedence(tmp_path: Path, monkeypatch: pyte
     assert runtime.allow_insecure_tls is True
     assert runtime.ca_bundle_path is None
     assert runtime.warnings == (
-        "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled",
+        "allow_insecure_tls takes precedence over ca_bundle_path; "
+        "HTTPS verification will be disabled",
     )
 
 
-def test_cli_overrides_supersede_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_overrides_supersede_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 
@@ -144,7 +150,10 @@ def test_cli_overrides_supersede_environment(tmp_path: Path, monkeypatch: pytest
     assert runtime.ca_bundle_path == "/etc/ssl/custom.pem"
 
 
-def test_blank_environment_values_are_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_blank_environment_values_are_ignored(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 
@@ -174,7 +183,8 @@ def test_allow_insecure_tls_warning(tmp_path: Path) -> None:
     assert runtime.allow_insecure_tls is True
     assert runtime.ca_bundle_path is None
     assert runtime.warnings == (
-        "allow_insecure_tls takes precedence over ca_bundle_path; HTTPS verification will be disabled",
+        "allow_insecure_tls takes precedence over ca_bundle_path; "
+        "HTTPS verification will be disabled",
     )
 
 
@@ -203,7 +213,9 @@ def test_logging_overrides_follow_cli(tmp_path: Path) -> None:
     assert logging_settings.backup_count == 2
 
 
-def test_birre_config_env_overrides_default_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_birre_config_env_overrides_default_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / "custom.toml"
     config_path.write_text(
         "\n".join(

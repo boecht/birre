@@ -5,16 +5,16 @@ import logging
 
 import pytest
 
+from birre.config.settings import LOG_FORMAT_JSON, LOG_FORMAT_TEXT, LoggingSettings
 from birre.infrastructure.logging import (
     attach_request_context,
     configure_logging,
     get_logger,
     log_event,
 )
-from birre.config.settings import LOG_FORMAT_JSON, LOG_FORMAT_TEXT, LoggingSettings
 
 
-def test_text_logging_renders_structured_fields(capfd: "pytest.CaptureFixture[str]") -> None:
+def test_text_logging_renders_structured_fields(capfd: pytest.CaptureFixture[str]) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_TEXT,
@@ -34,7 +34,7 @@ def test_text_logging_renders_structured_fields(capfd: "pytest.CaptureFixture[st
     assert "status=ok" in output
 
 
-def test_json_logging_emits_valid_payload(capfd: "pytest.CaptureFixture[str]") -> None:
+def test_json_logging_emits_valid_payload(capfd: pytest.CaptureFixture[str]) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_JSON,
@@ -60,7 +60,7 @@ class _DummyContext:
         self.tool = tool
 
 
-def test_attach_request_context_binds_fields(capfd: "pytest.CaptureFixture[str]") -> None:
+def test_attach_request_context_binds_fields(capfd: pytest.CaptureFixture[str]) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_JSON,
@@ -83,7 +83,7 @@ def test_attach_request_context_binds_fields(capfd: "pytest.CaptureFixture[str]"
     assert payload["scope"] == "unit"
 
 
-def test_log_event_includes_event_field(capfd: "pytest.CaptureFixture[str]") -> None:
+def test_log_event_includes_event_field(capfd: pytest.CaptureFixture[str]) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_JSON,

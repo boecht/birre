@@ -119,8 +119,9 @@ async def call_openapi_tool(
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
         async with Context(api_server):
-            tool_result = await api_server._call_tool(
-                resolved_tool_name, filtered_params
+            tool_result = await api_server._call_tool_middleware(
+                resolved_tool_name,
+                filtered_params,
             )
 
         return await _normalize_tool_result(
