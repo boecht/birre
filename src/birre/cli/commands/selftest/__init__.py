@@ -2,4 +2,6 @@
 
 from __future__ import annotations
 
-__all__ = []
+from birre.cli.commands.selftest.command import register
+
+__all__ = ["register"]

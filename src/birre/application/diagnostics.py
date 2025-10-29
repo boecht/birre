@@ -106,7 +106,8 @@ class ContextDiagnosticsResult:
 
 
 @dataclass
-class HealthcheckResult:
+class SelfTestResult:
+    """Result of running BiRRe self-tests/diagnostics."""
     success: bool
     degraded: bool
     summary: dict[str, Any]
@@ -121,6 +122,10 @@ class HealthcheckResult:
         if self.degraded:
             return 2
         return 0
+
+
+# Backward compatibility alias - remove after migration
+HealthcheckResult = SelfTestResult
 
 
 class _HealthcheckContext:
@@ -1357,8 +1362,8 @@ def run_online_checks(
     return _sync(_execute_checks(), run_sync=run_sync)
 
 
-class HealthcheckRunner:
-    """Execute BiRRe health checks in a structured, testable manner."""
+class SelfTestRunner:
+    """Execute BiRRe self-tests and diagnostics in a structured, testable manner."""
 
     def __init__(
         self,
@@ -2032,12 +2037,18 @@ class HealthcheckRunner:
         return False
 
 
+# Backward compatibility aliases - remove after full migration
+HealthcheckRunner = SelfTestRunner
+
+
 __all__ = [
     "AttemptReport",
     "ContextDiagnosticsResult",
     "DiagnosticFailure",
-    "HealthcheckResult",
-    "HealthcheckRunner",
+    "SelfTestResult",
+    "SelfTestRunner",
+    "HealthcheckResult",  # Backward compatibility alias
+    "HealthcheckRunner",  # Backward compatibility alias
     "CONTEXT_CHOICES",
     "EXPECTED_TOOLS_BY_CONTEXT",
     "MSG_CONFIG_CA_BUNDLE",

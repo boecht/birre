@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import cProfile
 import inspect
+from collections.abc import Callable
 from pathlib import Path
-from birre.config.constants import DEFAULT_CONFIG_FILENAME
-from typing import Callable
 
 import typer
 
@@ -20,6 +19,7 @@ from birre.cli.helpers import (
     run_offline_checks,
     run_online_checks,
 )
+from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.infrastructure.errors import BirreError
 
 
