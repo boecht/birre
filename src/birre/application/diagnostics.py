@@ -6,7 +6,7 @@ This module hosts the shared business logic for:
 - Diagnostic test execution
 
 CLI orchestration (SelfTestRunner) lives in cli.commands.selftest.runner.
-Result models live in cli.commands.selftest.models.
+Result models live in birre.domain.selftest_models.
 """
 
 from __future__ import annotations

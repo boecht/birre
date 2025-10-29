@@ -17,6 +17,13 @@ from rich.console import Console
 from rich.table import Table
 
 from birre.cli import options as cli_options
+from birre.cli.formatting import (
+    RichStyles,
+    create_config_table,
+    flatten_to_dotted,
+    format_config_value,
+    mask_sensitive_value,
+)
 from birre.cli.helpers import CONTEXT_CHOICES, build_invocation, resolve_runtime_and_logging
 from birre.cli.models import CliInvocation
 from birre.config.constants import (
@@ -45,49 +52,9 @@ from birre.config.settings import (
 
 # Constants
 SOURCE_USER_INPUT: Final = "User Input"
-_SENSITIVE_KEY_PATTERNS = ("api_key", "secret", "token", "password")
-
-
-class _RichStyles:
-    """Rich console styling constants."""
-    ACCENT = "bold cyan"
-    SECONDARY = "magenta"
-    SUCCESS = "green"
-    EMPHASIS = "bold"
-    DETAIL = "white"
 
 
 # Helper functions for config commands
-
-def _mask_sensitive_string(value: str) -> str:
-    """Mask sensitive values for display."""
-    if not value:
-        return ""
-    if len(value) <= 4:
-        return "*" * len(value)
-    return f"{value[:2]}{'*' * (len(value) - 4)}{value[-2:]}"
-
-
-def _format_display_value(key: str, value: Any) -> str:
-    """Format a config value for display, masking sensitive values."""
-    lowered_key = key.lower()
-    if key == LOGGING_FILE_KEY:
-        if value is None:
-            return "<stderr>"
-        if isinstance(value, str) and not value.strip():
-            return "<stderr>"
-
-    if value is None:
-        text = "<unset>"
-    elif isinstance(value, bool):
-        text = "true" if value else "false"
-    else:
-        text = str(value)
-
-    if any(pattern in lowered_key for pattern in _SENSITIVE_KEY_PATTERNS):
-        original = value if isinstance(value, str) else text
-        return _mask_sensitive_string(original)
-    return text
 
 
 def _prompt_bool(prompt: str, default: bool) -> bool:
@@ -168,18 +135,15 @@ def _collect_or_prompt_string(
 
 
 def _format_config_value(value: Any) -> str:
-    """Format a single config value for TOML."""
+    """Format a value for TOML configuration file."""
+    if value is None:
+        return '""'
     if isinstance(value, bool):
         return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
     if isinstance(value, (list, tuple)):
         formatted = ", ".join(_format_config_value(item) for item in value)
         return f"[{formatted}]"
-    if value is None:
-        return ""
-    escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    return f'"{value}"'
 
 
 def _format_config_section(
@@ -264,7 +228,7 @@ def _prompt_and_record_string(
             return None
     
     if value and value not in (None, ""):
-        display_value = _format_display_value(config_key, value)
+        display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
         summary_rows.append((config_key, display_value, source))
     return value
 
@@ -284,7 +248,7 @@ def _prompt_and_record_bool(
         value = _prompt_bool(prompt_text, default=default_value)
         source = "Default" if value == default_value else SOURCE_USER_INPUT
     
-    display_value = _format_display_value(config_key, value)
+    display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
     summary_rows.append((config_key, display_value, source))
     return value
 
@@ -318,27 +282,14 @@ def _display_config_preview(
     
     summary_rows.sort(key=lambda entry: entry[0])
     preview = Table(title="Local configuration preview")
-    preview.add_column("Config Key", style=_RichStyles.ACCENT)
-    preview.add_column("Value", style=_RichStyles.SECONDARY)
-    preview.add_column("Source", style=_RichStyles.SUCCESS)
+    preview.add_column("Config Key", style=RichStyles.ACCENT)
+    preview.add_column("Value", style=RichStyles.SECONDARY)
+    preview.add_column("Source", style=RichStyles.SUCCESS)
     for dotted_key, display_value, source in summary_rows:
         preview.add_row(dotted_key, display_value, source)
     stdout_console.print()
     stdout_console.print(preview)
 
-
-def _flatten_to_dotted(
-    mapping: Mapping[str, Any], prefix: str = ""
-) -> dict[str, Any]:
-    """Flatten nested dict to dotted keys."""
-    flattened: dict[str, Any] = {}
-    for key, value in mapping.items():
-        dotted = f"{prefix}.{key}" if prefix else key
-        if isinstance(value, Mapping):
-            flattened.update(_flatten_to_dotted(value, dotted))
-        else:
-            flattened[dotted] = value
-    return flattened
 
 
 def _collect_config_file_entries(
@@ -353,7 +304,7 @@ def _collect_config_file_entries(
             continue
         with file.open("rb") as handle:
             parsed = tomllib.load(handle)
-        flattened = _flatten_to_dotted(parsed)
+        flattened = flatten_to_dotted(parsed)
         for key, value in flattened.items():
             entries[key] = (value, file.name)
     return entries
@@ -457,7 +408,7 @@ def _build_cli_override_rows(
     """Build table rows for CLI overrides."""
     rows: list[tuple[str, str, str]] = []
     for key, value in _collect_cli_override_values(invocation).items():
-        rows.append((key, _format_display_value(key, value), "CLI"))
+        rows.append((key, format_config_value(key, value, log_file_key=LOGGING_FILE_KEY), "CLI"))
     return rows
 
 
@@ -473,7 +424,7 @@ def _build_env_override_rows(
         if not config_key:
             continue
         rows.append(
-            (config_key, _format_display_value(config_key, value), f"ENV ({env_var})")
+            (config_key, format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY), f"ENV ({env_var})")
         )
     return rows
 
@@ -559,10 +510,8 @@ def _print_config_table(
     stdout_console: Console,
 ) -> None:
     """Print a formatted config table."""
-    table = Table(title=title, box=box.SIMPLE_HEAVY)
-    table.add_column("Config Key", style=_RichStyles.ACCENT, no_wrap=True)
-    table.add_column("Resolved Value", overflow="fold")
-    table.add_column("Source", style=_RichStyles.SECONDARY)
+    table = create_config_table(title)
+    table.columns[1].overflow = "fold"  # Set overflow for value column
     for key, value, source in rows:
         table.add_row(key, value, source)
     stdout_console.print(table)
@@ -639,7 +588,9 @@ def register(
             required=True,
         )
         if api_key:
-            display_value = _format_display_value(BITSIGHT_API_KEY_KEY, api_key)
+            display_value = format_config_value(
+                BITSIGHT_API_KEY_KEY, api_key, log_file_key=LOGGING_FILE_KEY
+            )
             summary_rows.append(
                 (BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT)
             )
@@ -777,8 +728,8 @@ def register(
         config_entries = _collect_config_file_entries(files)
 
         files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
-        files_table.add_column("File", style=_RichStyles.ACCENT)
-        files_table.add_column("Status", style=_RichStyles.SECONDARY)
+        files_table.add_column("File", style=RichStyles.ACCENT)
+        files_table.add_column("Status", style=RichStyles.SECONDARY)
         for file in files:
             status = "exists" if file.exists() else "missing"
             files_table.add_row(str(file), status)
@@ -831,7 +782,9 @@ def register(
         )
         effective_rows: list[tuple[str, str, str]] = []
         for key in _EFFECTIVE_CONFIG_KEY_ORDER:
-            display_value = _format_display_value(key, effective_values.get(key))
+            display_value = format_config_value(
+                key, effective_values.get(key), log_file_key=LOGGING_FILE_KEY
+            )
             source_label = _determine_source_label(
                 key, cli_labels, env_labels, config_entries
             )

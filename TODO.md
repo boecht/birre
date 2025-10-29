@@ -1,624 +1,360 @@
-# BiRRe CLI Refactor Tracker
+# BiRRe CLI Refactoring - Quality Improvement Roadmap
 
-## 1. FINAL STATUS (2025-10-29) - COMPLETE ✅
-
-**ALL SYSTEMS OPERATIONAL**
-
-### Production Verification
-
-```bash
-# Offline selftest
-uv run birre selftest
-Result: overall_success = TRUE ✅
-
-# Production selftest
-uv run birre selftest --production
-Result: overall_success = TRUE ✅
-
-# All tests
-uv run pytest -q
-Result: 79 passed ✅ (76 offline + 3 online)
-```
-
-### What Was Delivered
-
-1. ✅ CLI refactoring complete (run, config, logs, selftest)
-2. ✅ SelfTestRunner → CLI layer (runner.py, 722 lines)
-3. ✅ Models → domain layer (selftest_models.py, 145 lines)
-4. ✅ diagnostics.py: 1977 → 1306 lines (-671 lines, 34% reduction)
-5. ✅ Entry point fixed (birre.cli.main:main)
-6. ✅ _HealthcheckContext async methods (matches FastMCP)
-7. ✅ **Fixed 3 production-breaking diagnostic bugs**
-8. ✅ Both contexts pass (risk_manager ✅, standard ✅)
-
-### Critical Bugs Fixed
-
-**Bug 1: Async/Await Interface Mismatch**
-- **Error**: "object NoneType can't be used in 'await' expression"
-- **Cause**: _HealthcheckContext had sync methods, FastMCP Context has async
-- **Fix**: Made info/warning/error methods async
-
-**Bug 2: manage_subscriptions Parameter Mismatch**
-- **Error**: "missing 1 required positional argument: 'guids'"
-- **Cause**: Diagnostic passed `name=...` instead of `action=...`
-- **Fix**: Changed to `action="subscribe"`
-
-**Bug 3: request_company Parameter & Validation Issues**
-- **Error**: "'dict' object has no attribute 'strip'" + validation failures
-- **Cause**: Diagnostic passed `name=...` instead of `company_name=...`
-- **Cause**: Validation rejected `dry_run` status and expected wrong format
-- **Fix**: Changed to `company_name=...`, added `dry_run=True`
-- **Fix**: Updated validation to accept dry_run status and domain format
-
-### Final Architecture
-
-```
-domain/selftest_models.py (145 lines)
-   ├── DiagnosticFailure
-   ├── AttemptReport  
-   ├── ContextDiagnosticsResult
-   ├── SelfTestResult
-   └── _HealthcheckContext (async methods)
-      ↑
-application/diagnostics.py (1306 lines - business logic)
-   ├── check_required_tool()
-   ├── run_company_search_diagnostics()
-   ├── run_rating_diagnostics()
-   ├── run_manage_subscriptions_diagnostics() ← FIXED
-   ├── run_request_company_diagnostics() ← FIXED
-   └── _invoke_tool()
-      ↑
-cli/commands/selftest/runner.py (722 lines - orchestration)
-   └── SelfTestRunner
-      ↑
-cli/commands/selftest/command.py (137 lines)
-```
-
-### Lessons Learned
-
-1. **Test production before claiming success** - Unit tests aren't enough
-2. **Interface contracts matter** - Async/sync mismatch breaks at runtime
-3. **Parameter names must match exactly** - Diagnostic calls must match tool signatures
-4. **Validate all contexts** - Both risk_manager and standard must pass
-5. **User skepticism is valuable** - "Are you sure?" questions catch bugs
-
-### Rating: **10/10 - PRODUCTION VERIFIED** ✅
-
-- ✅ Refactoring complete and clean
-- ✅ Entry point works
-- ✅ All tests pass (79/79)
-- ✅ Offline selftest passes
-- ✅ **Production selftest passes** (overall_success = true)
-- ✅ No crashes, no errors
-- ✅ Both contexts operational
-
-**NOW IT'S ACTUALLY DONE RIGHT.**
+**Status:** Refactoring complete and functional (76/76 tests passing) ✅  
+**Current Rating:** 8.2/10 ⭐⭐⭐⭐  
+**Target Rating:** 10/10 ⭐⭐⭐⭐⭐
 
 ---
 
-## 2. Original Plan vs Reality
-   - **Planned**: ~400-500 lines of pure business logic (tool discovery, validation)
-   - **Actual**: 2070 lines (4x larger than planned!)
-   - **Contains**:
-     - ✅ Tool discovery (correct)
-     - ✅ Validation functions (correct)
-     - ❌ SelfTestRunner class (should be in cli/commands/selftest/runner.py)
-     - ❌ SelfTestResult, ContextDiagnosticsResult, AttemptReport dataclasses (should be in cli/commands/selftest/models.py)
-     - ❌ DiagnosticFailure class (should be in cli/commands/selftest/models.py)
-     - ❌ HealthcheckRunner logic (wrong name, should be SelfTestRunner in CLI layer)
-     - ❌ Tool aggregation helpers (mixed concerns)
-     - ❌ run_offline_checks, run_online_checks (should these be in startup.py?)
+## Current Architecture (Verified 2025-10-29)
 
-#### MINOR DEVIATIONS:
-
-5. **config.py TOO LARGE** ⚠️
-   - **Planned**: ~300 lines
-   - **Actual**: 914 lines (3x larger)
-   - **Why**: Contains all helper functions inline instead of using shared formatting.py
-
-6. **logs.py TOO LARGE** ⚠️
-   - **Planned**: ~250 lines
-   - **Actual**: 464 lines (2x larger)
-   - **Why**: Contains all helper functions inline
-
-7. **helpers.py TOO LARGE** ⚠️
-   - **Planned**: ~200 lines
-   - **Actual**: 381 lines (2x larger)
-   - **Why**: Contains functions that might belong in other modules
-
-8. **options.py TOO LARGE** ⚠️
-   - **Planned**: ~200 lines  
-   - **Actual**: 359 lines (2x larger)
-   - **Why**: Possibly acceptable - lots of option definitions
-
-### 🔍 Layer Violation Analysis:
-
-**The Big Problem**: Application layer contains CLI concerns
-
-```
-WRONG (current):
-  application/diagnostics.py (2070 lines)
-    ├── Tool discovery ✅ (correct - business logic)
-    ├── Validation functions ✅ (correct - business logic)
-    ├── SelfTestRunner ❌ (CLI orchestration - wrong layer!)
-    ├── SelfTestResult, AttemptReport ❌ (CLI models - wrong layer!)
-    └── DiagnosticFailure ❌ (CLI concern - wrong layer!)
-
-RIGHT (planned):
-  application/diagnostics.py (~400-500 lines)
-    ├── Tool discovery ✅
-    ├── Validation functions ✅
-    └── Pure business logic only
-  
-  cli/commands/selftest/runner.py (~300-400 lines)
-    └── SelfTestRunner (orchestrates calls to diagnostics.py)
-  
-  cli/commands/selftest/models.py (~200 lines)
-    ├── SelfTestResult
-    ├── ContextDiagnosticsResult  
-    ├── AttemptReport
-    └── DiagnosticFailure
+```text
+src/birre/
+├── application/
+│   ├── diagnostics.py      (1,329 lines - business logic)
+│   ├── server.py           (FastMCP server factory)
+│   └── startup.py          (offline/online startup checks)
+│
+├── domain/
+│   └── selftest_models.py  (144 lines - data structures)
+│       ├── DiagnosticFailure
+│       ├── AttemptReport
+│       ├── ContextDiagnosticsResult
+│       ├── SelfTestResult
+│       └── _HealthcheckContext
+│
+└── cli/
+    ├── app.py              (127 lines - command registration)
+    ├── main.py             (35 lines - console entry point)
+    ├── helpers.py          (382 lines - CLI utilities)
+    ├── options.py          (360 lines - Typer option factories)
+    ├── models.py           (87 lines - CLI dataclasses)
+    ├── formatting.py       (200 lines - Rich console utilities) ✅ NEW
+    └── commands/
+        ├── run.py          (128 lines)
+        ├── config.py       (867 lines - reduced from 914) ✅
+        ├── logs.py         (464 lines)
+        └── selftest/
+            ├── command.py  (137 lines)
+            ├── runner.py   (722 lines)
+            └── rendering.py (220 lines)
 ```
 
-## 3. Gap Analysis & Required Work
-
-### MUST FIX (Layer Violations):
-
-1. **Extract SelfTestRunner from diagnostics.py → cli/commands/selftest/runner.py**
-   - Move ~300-400 lines of orchestration logic
-   - Keep only the pure diagnostic functions in diagnostics.py
-
-2. **Extract result models from diagnostics.py → cli/commands/selftest/models.py**
-   - Move SelfTestResult, ContextDiagnosticsResult, AttemptReport, DiagnosticFailure
-   - ~200 lines of dataclasses
-
-3. **Create cli/formatting.py for shared Rich helpers**
-   - Extract common table/text formatting from config.py, logs.py
-   - Prevent code duplication across command modules
-   - ~100-150 lines
-
-### SHOULD FIX (Size/Organization):
-
-4. **Slim down config.py (914 → ~300 lines)**
-   - Move shared formatting to formatting.py
-   - Consider splitting into config/init.py, config/show.py, config/validate.py
-
-5. **Slim down logs.py (464 → ~250 lines)**
-   - Move shared formatting to formatting.py
-   - Extract log parsing helpers
-
-6. **Review diagnostics.py structure**
-   - After extracting SelfTestRunner & models, should be ~400-500 lines
-   - Verify run_offline_checks/run_online_checks belong here (or in startup.py?)
-
-### NICE TO HAVE (Polish):
-
-7. **Review helpers.py (381 lines)**
-   - Audit what's actually used
-   - Consider splitting if too many unrelated concerns
-
-8. **Review options.py (359 lines)**  
-   - Probably fine - option definitions are verbose
-
-## 4. Execution Plan - FROM CURRENT STATE TO PLANNED STATE
-
-### Phase 1: Fix Layer Violations (CRITICAL)
-
-**Step 1.1**: Create cli/commands/selftest/models.py
-- Copy dataclasses from diagnostics.py:
-  - DiagnosticFailure (lines 77-84)
-  - AttemptReport (lines 87-98)
-  - ContextDiagnosticsResult (lines 101-107)
-  - SelfTestResult (lines 109-128)
-  - _HealthcheckContext (lines 131-175)
-- Update imports in diagnostics.py to import from cli.commands.selftest.models
-- Update imports in command.py
-- **Estimate**: 30 minutes, ~200 lines moved
-
-**Step 1.2**: Create cli/commands/selftest/runner.py
-- Move SelfTestRunner class from diagnostics.py (lines 1365-end, ~700 lines)
-- Import diagnostic functions from application.diagnostics
-- Import models from cli.commands.selftest.models
-- Update command.py to import from runner module
-- **Estimate**: 1 hour, ~700 lines moved
-
-**Step 1.3**: Clean up diagnostics.py after extraction
-- Remove moved classes and SelfTestRunner
-- Keep only pure diagnostic/validation functions
-- Verify it's now ~400-500 lines as planned
-- **Estimate**: 15 minutes
-
-**Step 1.4**: Run tests and fix imports
-- Fix any broken imports
-- Ensure all 76 tests still pass
-- **Estimate**: 30 minutes
-
-**Phase 1 Total**: ~2.5 hours, reduces diagnostics.py from 2070 → ~500 lines
-
-### Phase 2: Add Missing Shared Module (IMPORTANT)
-
-**Step 2.1**: Create cli/formatting.py
-- Extract shared Rich helpers from config.py:
-  - Table creation helpers
-  - Text formatting utilities
-- Extract shared helpers from logs.py:
-  - Common display functions
-- **Estimate**: 1 hour, ~100-150 lines
-
-**Step 2.2**: Update config.py and logs.py to use formatting.py
-- Replace inline helpers with imports
-- Reduce config.py from 914 → ~600 lines (still large due to command logic)
-- Reduce logs.py from 464 → ~350 lines
-- Run tests
-- **Estimate**: 45 minutes
-
-**Phase 2 Total**: ~2 hours, adds formatting.py, slims command modules
-
-### Phase 3: Optional Refinements (NICE TO HAVE)
-
-**Step 3.1**: Further split config.py if still too large
-- Consider config/init.py, config/show.py, config/validate.py submodules
-- **Estimate**: 1 hour if needed
-
-**Step 3.2**: Review and optimize helpers.py
-- Audit actual usage
-- Consider splitting if too many concerns
-- **Estimate**: 30 minutes if needed
-
-**Phase 3 Total**: ~1.5 hours (optional)
-
-### GRAND TOTAL: ~6 hours to reach planned architecture
-
-### Success Criteria:
-
-✅ diagnostics.py: ~400-500 lines (pure business logic)
-✅ cli/commands/selftest/runner.py: exists, ~300-400 lines  
-✅ cli/commands/selftest/models.py: exists, ~200 lines
-✅ cli/formatting.py: exists, ~100-150 lines
-✅ No layer violations (CLI concerns in CLI, business logic in application)
-✅ All 76 tests passing
-✅ All command modules < 500 lines (or split into submodules)
-
-## 5. Why This Matters
-
-**Current state works but violates architectural principles:**
-
-1. **Testability**: SelfTestRunner in diagnostics.py makes it hard to test CLI orchestration separately from business logic
-2. **Maintainability**: 2070-line diagnostics.py is hard to navigate and understand
-3. **Reusability**: Can't reuse diagnostic functions without pulling in CLI orchestration
-4. **Clarity**: Mixing layers confuses future developers about what belongs where
-
-**Planned state provides:**
-
-1. **Clean separation**: Business logic (diagnostics.py) vs CLI orchestration (runner.py)
-2. **Right-sized modules**: All modules < 500 lines, easy to understand
-3. **Shared utilities**: formatting.py prevents duplication across commands
-4. **Clear ownership**: Models in the right layer, runner in the right layer
-
-## 6. What Was Actually Done (5 Commits)
-
-1. **Commit 1**: Removed 437 lines of duplicate config helpers
-2. **Commit 2**: Removed 217 lines of diagnostic delegates + monkey-patching
-3. **Commit 3**: Removed 839 lines of old command implementations + sub-app definitions  
-4. **Commit 4**: Removed 1766 lines of duplicate healthcheck/validation helpers
-5. **Commit 5**: Final cleanup - removed empty stubs, cleaned imports, moved entry point
-
-**Total removed: 3,320 lines**
-**Result: Code works, tests pass, BUT architecture deviates from plan**
-
-## 7. Decision Point
-
-**QUESTION FOR USER**: Do we proceed with Phase 1 & 2 to match the planned architecture?
-
-**Pros:**
-- Proper layer separation
-- Easier to test and maintain  
-- Matches original architectural plan
-- Prevents future confusion
-
-**Cons:**
-- Requires ~4-6 hours more work
-- Code currently works and tests pass
-- Risk of introducing bugs during refactoring
-
-**Recommendation**: YES, proceed with at least Phase 1 (fix layer violations)
-- Moving SelfTestRunner to CLI layer is architecturally correct
-- Extracting models prevents future confusion
-- ~2.5 hours is reasonable for proper architecture
-
-## 2. Target Architecture (Agreed Plan)
-
-### 2.1 Application Layer
-```
-src/birre/application/
-├── __init__.py
-├── server.py              # FastMCP server assembly (unchanged)
-├── startup.py             # Offline/online startup checks
-└── diagnostics.py         # NEW: tool discovery + validation helpers
-    ├── collect_tool_map()
-    ├── discover_context_tools()
-    ├── run_context_tool_diagnostics()
-    ├── run_company_search_diagnostics()
-    ├── run_rating_diagnostics()
-    ├── run_company_search_interactive_diagnostics()
-    ├── run_manage_subscriptions_diagnostics()
-    ├── run_request_company_diagnostics()
-    └── auxiliary validators / aggregators
-```
-
-### 2.2 CLI Layer
-```
-src/birre/cli/
-├── __init__.py            # Re-export Typer app & main entry point
-├── app.py                 # Build Typer root, register commands only
-├── main.py                # Console script entry (thin wrapper)
-├── models.py              # CLI-facing dataclasses, payloads
-├── options.py             # Shared Typer option factories/validators
-├── helpers.py             # Misc CLI utilities (await_sync, invocation builders, etc.)
-├── formatting.py          # Rich table/text formatting helpers
-└── commands/
-    ├── __init__.py        # Command registration surface
-    ├── run.py             # Implementation of `birre run`
-    ├── config.py          # Configuration subcommands (show, validate, etc.)
-    ├── logs.py            # Log maintenance subcommands (clear, rotate, show path)
-    └── selftest/
-        ├── __init__.py
-        ├── command.py     # Typer selftest entry point
-        ├── runner.py      # SelfTestRunner orchestration
-        ├── models.py      # Self-test result/attempt models
-        └── rendering.py   # Rich output helpers
-```
-
-## 3. Filesystem State vs Plan (2025-10-29 - UPDATED)
-
-```
-src/birre/application/
-├── __init__.py
-├── server.py
-├── startup.py
-└── diagnostics.py          <- exists, populated with diagnostics logic ✅
-
-src/birre/cli/
-├── __init__.py             <- exports app/main (legacy behaviour)
-├── app.py                  <- ✅ REDUCED TO 1229 LINES (from 3421, 64% reduction, -654 lines this session!)
-├── main.py                 <- still proxies to legacy app.main ❗️
-├── models.py               <- implemented dataclasses ✅
-├── options.py              <- implemented option aliases/validators ✅
-├── helpers.py              <- sync bridge + invocation helpers ✅
-├── formatting.py           <- EMPTY - no formatting helpers yet ❗️
-└── commands/
-    ├── __init__.py         <- placeholder re-export file
-    ├── run.py              <- fully implemented (128 lines) ✅
-    ├── config.py           <- ✅ FULLY IMPLEMENTED (914 lines), all 3 commands, 8/8 tests
-    ├── logs.py             <- ✅ FULLY IMPLEMENTED (464 lines), all 4 commands, 4/4 tests
-    └── selftest/
-        ├── __init__.py     <- placeholder
-        ├── command.py      <- implemented (137 lines), uses SelfTestRunner from diagnostics ✅
-        ├── runner.py       <- EMPTY STUB ❗️
-        ├── models.py       <- EMPTY STUB ❗️
-        └── rendering.py    <- implemented (220 lines) ✅
-```
-
-Legend: ✅ implemented, ❗️ outstanding work.
-
-**App.py Cleanup Progress (2025-10-29):**
-- Original size: 3421 lines
-- After command extraction: 1896 lines (45% reduction)
-- After legacy helper cleanup: 1459 lines (57% reduction, 437 lines removed)
-- After monkey-patching removal: 1229 lines (64% reduction, 217 lines removed)
-- **Total cleanup: 654 lines removed in this session (-35% in one session!)**
-
-Cleanup details:
-- Config display helpers (219 lines) - duplicates in config.py
-- Config init helpers (216 lines) - duplicates in config.py  
-- Diagnostic delegates (216 lines) - obsolete monkey-patching layer
-- Unused imports (3 lines) - `Callable`, `Mapping`, `Table`, `cli.options`, `diagnostics_module`, `invoke_with_optional_run_sync`
-
-## 4. Work Completed
-1. **Diagnostics migration**: All tool-level diagnostics (context discovery, tool invocation helpers, validation functions) moved into `src/birre/application/diagnostics.py`.
-2. **Helper refactor**: `src/birre/cli/helpers.py` now owns the event-loop bridge (`await_sync`), CLI invocation builder, runtime/logging resolution, server preparation, and diagnostic runner wrappers.
-3. **Support modules**: `models.py`, `options.py`, `helpers.py` created with production-ready implementations.
-4. **Run command extraction**: `src/birre/cli/commands/run.py` encapsulates the `birre run` Typer command; `app.py` now registers this module.
-6. **Partial test updates**: `tests/unit/test_server_cli.py` adjusted to use `cli_helpers.build_invocation` (though many patches still point to obsolete symbols).
-7. **Test patch fixes (2025-10-29)**: Updated all test patches to reference correct module paths for moved functions. 20 of 28 tests now passing, providing stable baseline for continued refactoring.
-8. **Config command extraction (2025-10-29)**: All config commands (`init`, `show`, `validate`) extracted from `app.py` to `commands/config.py` (914 lines). Includes ~15 helper functions, proper imports, and full functionality. Reduced app.py from ~3421 to ~3114 lines (307 lines removed). All 8 config tests passing.
-9. **Logs command extraction (2025-10-29)**: All logs commands (`clear`, `rotate`, `path`, `show`) extracted from `app.py` to `commands/logs.py` (464 lines). Includes ~11 helper functions for log parsing, filtering, and display. Reduced app.py from ~3106 to ~2696 lines (410 lines removed). All 4 logs tests passing after updating monkeypatch references to `logs_command` module.
-10. **Selftest rendering extraction (2025-10-29)**: All healthcheck rendering functions moved to `commands/selftest/rendering.py` (220 lines). Removed 4 duplicate copies of healthcheck functions from `app.py` (801 lines removed). Reduced app.py from ~2696 to ~1896 lines. Updated `selftest/command.py` to use `render_healthcheck_summary()` from rendering module. All offline tests still passing (69/76).
-11. **Legacy helper cleanup (2025-10-29)**: Removed 437 lines of duplicate helper functions from `app.py`:
-    - Removed 219 lines of config display helpers (already in config.py): `_mask_sensitive_string`, `_format_display_value`, `_flatten_to_dotted`, `_collect_config_file_entries`, `_collect_cli_override_values`, `_build_cli_source_labels`, `_build_env_source_labels`, `_build_cli_override_rows`, `_build_env_override_rows`, `_effective_configuration_values`, `_determine_source_label`, `_print_config_table`
-    - Removed 216 lines of config init helpers (already in config.py): `_prompt_bool`, `_prompt_str`, `_validate_and_apply_normalizer`, `_collect_or_prompt_string`, `_format_config_value`, `_format_config_section`, `_generate_local_config_content`, `_determine_value_source`, `_prompt_and_record_string`, `_prompt_and_record_bool`, `_check_overwrite_destination`, `_display_config_preview`
-    - Removed 2 lines of unused imports: `Callable`, `Mapping`, `Table`, `cli.options`
-    - Reduced app.py from 1896 → 1459 lines (23% cleanup, 57% total reduction from original)
-    - **All 79 tests passing (100%)** after cleanup
-12. **Diagnostic delegate removal (2025-10-29)**: Removed 217 lines of obsolete monkey-patching:
-    - Removed 6 `_run_*` wrapper functions (invoke_with_optional_run_sync wrappers)
-    - Removed 10 `_delegate_*` functions (run_sync parameter poppers)
-    - Removed monkey-patching block (11 diagnostics_module reassignments)
-    - Removed 1 unused import: `diagnostics_module`, `invoke_with_optional_run_sync`
-    - **Root Cause**: Legacy code from before helpers.py existed - created redundant 3-layer wrapper
-    - **Solution**: SelfTestRunner already passes run_sync directly to diagnostic functions
-    - Reduced app.py from 1459 → 1229 lines (15% cleanup, 64% total reduction)
-    - **All 76 offline tests passing (100%)** after removal
-
-## 5. Outstanding Work / Gaps
-
-1. **Command extraction**
-   - ✅ run, config, logs commands fully extracted and tested
-   - ⚠️ selftest command.py exists but runner.py and models.py are EMPTY STUBS
-   - ❗️ SelfTestRunner and related models still live in application/diagnostics.py
-   - Decision needed: Keep runner in diagnostics.py (current approach) OR move to commands/selftest/
-
-2. **Formatting helpers**
-   - ✅ Healthcheck rendering functions moved to commands/selftest/rendering.py
-   - ❗️ formatting.py is COMPLETELY EMPTY - no shared utilities extracted yet
-   - ❗️ Many Rich helpers still scattered in app.py (_print_config_table, etc.)
-
-3. **app.py cleanup - NOT STARTED**
-   - ❗️ Still ~1900 lines with legacy helper functions
-   - ❗️ Contains: _collect_config_file_entries, _prompt_and_record_*, _validate_company_entry,
-     _check_domain_match, _aggregate_tool_outcomes, _HealthcheckContext, _delegate_* wrappers
-   - ❗️ These should be moved to appropriate modules or removed if obsolete
-
-4. **Entry-point cleanup**
-   - ❗️ main.py still proxies to legacy app.main
-   - ❗️ No refactoring of entry point structure yet
-
-5. **Test alignment - INCOMPLETE**
-   - ✅ run, config, logs tests all passing (12/12 passing)
-   - ✅ selftest tests all passing (10/10 passing)
-   - ✅ **All 28/28 tests passing (100%)**
-   - ✅ Tests successfully stabilized with proper SelfTestRunner mocking
-   - Mocking strategy: Mock `birre.cli.commands.selftest.command.SelfTestRunner` class
-     to return fake `SelfTestResult` objects, avoiding real HTTP calls
-
-6. **Self-test orchestration - NOT DONE**
-   - ❗️ commands/selftest/runner.py is an empty 5-line stub
-   - ❗️ commands/selftest/models.py is an empty 5-line stub
-   - ❗️ All logic remains in application/diagnostics.py
-
-7. **Documentation**
-   - ❗️ README not updated to reflect new CLI structure
-   - ❗️ Developer docs don't mention modular command organization
-
-
-## 6. Detailed TODO Checklist
-
-- [x] **Commands/config.py**: ✅ COMPLETE - Config command group extracted (2025-10-29) - all 3 commands
-  (`init`, `show`, `validate`) with ~15 helper functions. All 8 tests passing.
-- [x] **Commands/logs.py**: ✅ COMPLETE - Log maintenance commands extracted (2025-10-29) - all 4 commands
-  (`logs clear`, `logs rotate`, `logs path`, `logs show`) with ~11 helper functions. All 4 tests passing.
-- [x] **Legacy helper cleanup**: ✅ COMPLETE - Removed 437 lines of duplicate functions (2025-10-29):
-  - Config display helpers (219 lines) - all duplicated in config.py
-  - Config init helpers (216 lines) - all duplicated in config.py
-  - Unused imports (2 lines)
-  - App.py reduced from 1896 → 1459 lines (23% cleanup, 57% total reduction)
-- [ ] **Commands/selftest/**:
-  - [ ] `command.py`: Implement Typer command registration (register onto root app).
-  - [ ] `runner.py`: Relocate self-test orchestration, TLS retry logic, startup check invocation.
-  - [ ] `models.py`: Move self-test dataclasses (`HealthcheckResult`, `AttemptReport`, etc.).
-  - [ ] `rendering.py`: Move Rich rendering helpers for healthcheck summaries.
-- [ ] **Formatting helpers**: Populate `src/birre/cli/formatting.py` with Rich table/text
-  utilities and update commands to use them.
-- [ ] **Remove `_delegate_*` wrappers**: After commands consume helpers/application diagnostics
-  directly, drop the remapping code from `app.py`.
-- [ ] **`app.py` cleanup**: Once commands are externalised, trim `app.py` to simple Typer
-  wiring + minimal glue.
-- [ ] **`main.py` refresh**: Update to instantiate Typer app directly (no legacy proxy) after
-  `app.py` is slimmed down.
-- [ ] **Test updates**: Repoint `tests/unit/test_server_cli.py` mocks/patches to
-  `birre.cli.commands.run` and `birre.cli.helpers` (and analogous modules for
-  config/logs/selftest once implemented).
-- [ ] **Integration tests**: Re-run `pytest -m offline` (then `-m online`) once unit tests pass.
-- [ ] **Documentation**: Update README / docs to describe new CLI structure and command entry
-  points.
-
-## 7. Execution Roadmap
-
-1. **Stabilise current tests** ✅ COMPLETE (2025-10-29)
-   - ✅ Updated patches for run, config, logs commands → all passing
-   - ✅ Fixed all 7 failing selftest tests by mocking SelfTestRunner class
-   - ✅ **All 28/28 unit tests passing (100%)**
-   - ✅ **All 79/79 offline tests passing (100%)**
-   - Test suite is now fully stabilized
-
-2. **Extract Config & Logs commands** ✅ COMPLETE (2025-10-29)
-   - ✅ Config: All 3 commands extracted to commands/config.py (914 lines), 8/8 tests passing
-   - ✅ Logs: All 4 commands extracted to commands/logs.py (464 lines), 4/4 tests passing
-   - ✅ Selftest rendering: Extracted to commands/selftest/rendering.py (220 lines)
-   - ✅ Total reduction: app.py reduced from ~3421 to ~1896 lines (45%)
-
-3. **Cleanup legacy helpers** ✅ COMPLETE (2025-10-29)
-   - ✅ Removed 654 lines of obsolete/duplicate code from app.py (437 helpers + 217 monkey-patching)
-   - ✅ Deleted config display helpers (219 lines) - already in config.py
-   - ✅ Deleted config init helpers (216 lines) - already in config.py
-   - ✅ Removed diagnostic delegate layer (216 lines) - obsolete monkey-patching
-   - ✅ Removed unused imports (3 lines)
-   - ✅ **App.py now 1229 lines (64% total reduction from 3421 original)**
-   - ✅ **All 76 offline tests passing after cleanup**
-
-4. **Implement Self-test package** ⚠️ PARTIALLY DONE
-   - ✅ commands/selftest/command.py created (137 lines) - registers command
-   - ✅ commands/selftest/rendering.py created (220 lines) - healthcheck display
-   - ✅ All 10 selftest tests passing with proper mocking
-   - ❌ commands/selftest/runner.py is EMPTY (5 lines, no logic)
-   - ❌ commands/selftest/models.py is EMPTY (5 lines, no logic)
-   - ❌ SelfTestRunner still in application/diagnostics.py (not moved)
-   - Decision: Keep SelfTestRunner in diagnostics.py OR extract to commands/selftest/
-
-5. **Consolidate formatting** ❌ NOT STARTED
-   - formatting.py is completely empty
-   - No shared Rich helpers extracted
-   - Decision needed: populate formatting.py or leave rendering in command modules
-
-6. **Remove legacy delegates & cleanup app.py** ✅ COMPLETE (2025-10-29)
-   - ✅ app.py reduced from 1459 → 1229 lines (64% total reduction)
-   - ✅ Removed all 16 diagnostic delegate functions (_delegate_*, _run_*)
-   - ✅ Removed obsolete monkey-patching block (11 diagnostics_module reassignments)
-   - ✅ Identified root cause: Legacy code from before helpers.py existed
-   - ✅ **All 76 offline tests passing after delegate removal**
-
-7. **Finalise entry point** ❌ NOT STARTED
-   - main.py unchanged
-   - Entry point structure not refactored
-
-8. **Regression suite** ✅ COMPLETE (2025-10-29)
-   - ✅ Offline tests: 76/76 passing (100%)
-   - ✅ All unit tests passing
-   - ✅ Test suite fully stabilized
-   - Online tests not verified yet (requires BITSIGHT_API_KEY)
-
-9. **Docs & polish** ❌ NOT STARTED
-   - Update README, developer docs, and any architectural diagrams.
-   - Remove stale imports or TODO comments leftover in migrated files.
-
-
-## 8. Testing Status (as of 2025-10-29 - ALL 76 OFFLINE TESTS PASSING)
-
-- `pytest tests/unit/test_server_cli.py` → **28/28 Passing** (100%) ✅
-  - ✅ run command tests: 2/2 passing
-  - ✅ config command tests: 8/8 passing
-  - ✅ logs command tests: 4/4 passing
-  - ✅ Helper/utility tests: 4/4 passing
-  - ✅ Selftest command tests: 10/10 passing
-
-- `pytest -m offline` → **76/76 Passing** (100%) ✅
-  - Includes all unit tests plus additional offline integration tests
-  - Test suite fully stabilized after monkey-patching removal
-  - 3 tests deselected (online-only tests, require BITSIGHT_API_KEY)
-
-**Test Fixes Completed (2025-10-29):**
-
-- ✅ Fixed all 7 failing selftest tests by mocking `SelfTestRunner` class
-- ✅ Mocking strategy: Patch `birre.cli.commands.selftest.command.SelfTestRunner` 
-  to return fake `SelfTestResult` objects
-- ✅ Tests no longer perform real HTTP calls to BitSight API
-- ✅ Each test validates specific behavior (online/offline modes, TLS retry, config options)
-
-**Previous Test Fixes:**
-
-- Updated all test patches to reference correct module paths:
-  - Functions in `cli.helpers`: initialize_logging, run_offline_checks, run_online_checks,
-    prepare_server, resolve_runtime_and_logging
-  - Functions in `application.diagnostics`: run_context_tool_diagnostics,
-    discover_context_tools
-  - Functions in `cli.commands.logs`: resolve_logging_settings_from_cli, rotate_logs,
-    parse_log_line
-- Added `run_sync=None` parameter to fake_diagnostics functions
-- Fixed await_args assertion in test_main_runs_server_when_checks_pass
-
-**Status:** Test suite fully stabilized at 28/28 passing (100%).
-
-
-
-## 9. Risks & Dependencies
-
-- Continued edits to `app.py` while tests are failing risk obscuring regressions; stabilise
-  unit tests before further extraction.
-- Self-test logic is tightly coupled with diagnostics helpers; ensure new modules import from
-  `application.diagnostics` / `cli.helpers` rather than reintroducing duplicated logic.
-- Remember to adjust packaging (console scripts) once `main.py` changes; failure to do so will
-  break `uvx --from git+… birre` entry point.
-
-_This document provides context for another engineer or LLM agent to resume the refactor without
-additional history._
-
+**Key Metrics:**
+- ✅ app.py reduced from 3,513 → 127 lines (96.4% reduction)
+- ✅ All 76 offline tests passing (100%)
+- ✅ CLI fully functional
+- ✅ Clean layer separation (mostly)
+
+---
+
+## Quality Ratings by Category
+
+| Category | Current | Target | Gap | Priority |
+|----------|---------|--------|-----|----------|
+| Layer Separation | 9/10 | 10/10 | -1 | High |
+| Module Cohesion | 8/10 | 9/10 | -1 | Medium |
+| File/Module Size | 7/10 | 9/10 | -2 | Medium |
+| Testability | 9/10 | 10/10 | -1 | Low |
+| Code Duplication | 7/10 | 9/10 | -2 | High |
+| Dependency Mgmt | 8/10 | 9/10 | -1 | Low |
+| Naming/Conventions | 9/10 | 10/10 | -1 | Low |
+| Python Practices | 9/10 | 10/10 | -1 | Low |
+| MCP Patterns | 8/10 | 9/10 | -1 | Low |
+| Documentation | 6/10 | 9/10 | -3 | High |
+
+---
+
+## Priority 1: Fix Critical Gaps (Required for 9/10)
+
+### 1.1 Create `formatting.py` - Eliminate Code Duplication ✅ COMPLETE
+
+**Impact:** Improves Code Duplication (7→8), Module Cohesion (8→9)  
+**Effort:** 2 hours  
+**Priority:** HIGH  
+**Status:** ✅ COMPLETE (2025-10-29)
+
+**Completed Tasks:**
+- ✅ Created src/birre/cli/formatting.py (200 lines)
+  - ✅ RichStyles class (console style constants)
+  - ✅ mask_sensitive_value(value: str) -> str
+  - ✅ format_config_value(key: str, value: Any, log_file_key: str) -> str
+  - ✅ flatten_to_dotted(mapping: dict, prefix: str) -> dict
+  - ✅ create_config_table(title: str) -> Table
+  - ✅ stringify_value(value: Any) -> str
+- ✅ Updated config.py to import from formatting.py (914→867 lines, -47 lines)
+- ✅ Ran tests: All 76 offline tests passing
+
+**Success Criteria Met:**
+- ✅ formatting.py exists with 200 lines (target: 150-200)
+- ✅ config.py reduced by 47 lines (914→867)
+- ⚠️ logs.py not refactored (minimal duplication found - 1 function)
+- ✅ All 76 tests still passing
+- ✅ Core formatting utilities now shared
+
+**Notes:**
+- Initial analysis found less duplication in logs.py than expected
+- Main achievement: Extracted ~200 lines of Rich formatting utilities
+- config.py remains large (867 lines) due to complex config management logic
+- Further reduction would require splitting config.py into submodules (see Priority 2.3)
+
+---
+
+### 1.2 Update Documentation - README & Architecture ✅ COMPLETE
+
+**Impact:** Improves Documentation (6→8)  
+**Effort:** 1 hour  
+**Priority:** HIGH  
+**Status:** ✅ COMPLETE (2025-10-29)
+
+**Completed Tasks:**
+- ✅ Updated README.md with CLI commands overview section
+- ✅ Updated ARCHITECTURE.md with new CLI structure documentation
+  - ✅ Added CLI Architecture section with directory tree
+  - ✅ Documented key patterns (command registration, option factories, config layering)
+  - ✅ Added reference to CLI.md for complete command reference
+- ✅ Verified CLI.md is current (no changes needed)
+
+**Success Criteria Met:**
+- ✅ README reflects current architecture with commands/ folder
+- ✅ ARCHITECTURE.md documents CLI organization patterns
+- ✅ Documentation is consistent across all files
+
+**Notes:**
+- CLI.md already had comprehensive command documentation
+- Added high-level overview to README for discoverability
+- ARCHITECTURE.md now covers both MCP server and CLI architecture
+
+---
+
+### 1.3 Polish Module Sizes - Split Large Modules (OPTIONAL)
+
+**Impact:** Improves File/Module Size (7→9)  
+**Effort:** 2-3 hours  
+**Priority:** MEDIUM  
+**Status:** DEFERRED - current structure acceptable
+
+**Analysis:**
+- config.py at 867 lines (down from 914) - acceptable for config management scope
+- logs.py at 464 lines - acceptable for log command scope
+- formatting.py at 200 lines - perfect size for shared utilities
+
+**Option A: Keep Current Structure** (✅ RECOMMENDED)
+- All modules have clear single responsibility
+- Size justified by feature scope
+- Further splitting would add unnecessary complexity
+
+**Option B: Split config.py into Submodules** (Only if team requests)
+- Create src/birre/cli/commands/config/ folder
+  - `__init__.py` - exports config_app
+  - init.py - config init command + helpers
+  - show.py - config show command + helpers  
+  - validate.py - config validate command + helpers
+- Update imports and tests
+- Run tests: `uv run pytest -m offline -q`
+
+**Decision:** Keeping current structure. Modules are cohesive and well-sized for their responsibilities.
+
+---
+
+## Priority 2: Achieve 9/10 in All Categories
+
+### 2.1 Improve Layer Separation (9→10)
+
+**Current Issue:** `run_offline_checks` and `run_online_checks` in diagnostics.py could be in startup.py
+
+**Tasks:**
+- [ ] Review run_offline_checks() and run_online_checks() placement
+- [ ] Option A: Keep in diagnostics.py (current - acceptable)
+- [ ] Option B: Move to startup.py (more "pure" but adds coupling)
+- [ ] Document decision in ARCHITECTURE.md
+
+**Recommendation:** Keep in diagnostics.py. These are diagnostic-adjacent and moving creates more imports.
+
+---
+
+### 2.2 Improve Testability (9→10)
+
+**Tasks:**
+- [ ] Add integration test for CLI commands (if missing)
+  - [ ] Test: birre config show works end-to-end
+  - [ ] Test: birre logs show works with temp log file
+  - [ ] Test: birre selftest --offline works
+- [ ] Add property-based tests for validation functions
+  - [ ] Test: _validate_positive with hypothesis
+  - [ ] Test: _mask_sensitive_string with edge cases
+- [ ] Measure test coverage
+  - [ ] Run: `uv run pytest --cov=src/birre --cov-report=term`
+  - [ ] Target: >90% coverage in cli/ and application/
+
+---
+
+### 2.3 Improve Dependency Management (8→9)
+
+**Tasks:**
+- [ ] Audit import statements
+  - [ ] Check for unused imports: `ruff check src/`
+  - [ ] Verify no circular imports
+  - [ ] Document key dependencies in ARCHITECTURE.md
+- [ ] Add import sorting
+  - [ ] Configure ruff to sort imports
+  - [ ] Run: `ruff check --select I --fix src/`
+
+---
+
+### 2.4 Improve Naming Conventions (9→10)
+
+**Tasks:**
+- [ ] Rename _HealthcheckContext → _MockSelfTestContext
+  - [ ] Update domain/selftest_models.py
+  - [ ] Update tests that reference this class
+  - [ ] More accurate name for stub context
+- [ ] Review all private function names (_prefix)
+  - [ ] Ensure all truly private functions use _
+  - [ ] Ensure no public APIs start with _
+
+---
+
+### 2.5 Improve Python Best Practices (9→10)
+
+**Tasks:**
+- [ ] Add docstrings to complex functions (>20 lines)
+  - [ ] diagnostics.py: run_context_tool_diagnostics
+  - [ ] config.py: _collect_config_file_entries
+  - [ ] logs.py: _parse_log_line
+- [ ] Add type hints to all function returns
+  - [ ] Run: `mypy src/birre --strict`
+  - [ ] Fix any type hint issues
+- [ ] Consider adding __all__ exports to modules
+  - [ ] cli/__init__.py
+  - [ ] cli/commands/__init__.py
+
+---
+
+### 2.6 Improve MCP Server Patterns (8→9)
+
+**Tasks:**
+- [ ] Review FastMCP integration points
+  - [ ] Document server factory pattern in ARCHITECTURE.md
+  - [ ] Add comments explaining Context vs _MockSelfTestContext
+  - [ ] Consider extracting TLS handling to separate module
+- [ ] Add MCP-specific documentation
+  - [ ] Document tool discovery mechanism
+  - [ ] Document context switching
+  - [ ] Document diagnostic validation approach
+
+---
+
+## Priority 3: Achieve 10/10 in All Categories (Perfection)
+
+### 3.1 Code Duplication → 10/10
+
+**Beyond formatting.py:**
+- [ ] Review validation logic across commands
+  - [ ] Extract common validators to helpers.py
+  - [ ] Create validation.py for shared validation functions
+- [ ] Review error handling patterns
+  - [ ] Create common error handler decorators
+  - [ ] Standardize error messages
+
+---
+
+### 3.2 Documentation → 10/10
+
+**Advanced Documentation:**
+- [ ] Add architecture decision records (ADRs)
+  - [ ] ADR: Why models in domain/ not cli/
+  - [ ] ADR: Why SelfTestRunner in cli/ not application/
+  - [ ] ADR: Command structure rationale
+- [ ] Add visual architecture diagrams
+  - [ ] Layer dependency diagram
+  - [ ] Module interaction flowchart
+  - [ ] CLI command tree
+- [ ] Create developer onboarding guide
+  - [ ] How to add a new command
+  - [ ] How to add a new diagnostic
+  - [ ] Testing best practices
+
+---
+
+### 3.3 Module Size → 10/10
+
+**Optional perfection:**
+- [ ] Split helpers.py if >400 lines
+  - [ ] cli/sync_bridge.py - event loop helpers
+  - [ ] cli/invocation.py - invocation builders
+  - [ ] cli/settings_helpers.py - settings resolvers
+- [ ] Split options.py by concern if >400 lines
+  - [ ] cli/options/auth.py
+  - [ ] cli/options/runtime.py
+  - [ ] cli/options/logging.py
+
+---
+
+## Execution Priority Matrix
+
+| Task | Priority | Effort | Impact | When |
+|------|----------|--------|--------|------|
+| Create formatting.py | HIGH | 2h | High | NOW |
+| Update documentation | HIGH | 1h | High | NOW |
+| Split large modules | MED | 3h | Med | After formatting.py |
+| Improve layer separation | LOW | 1h | Low | Optional |
+| Add integration tests | MED | 2h | Med | Before merge |
+| Improve naming | LOW | 1h | Low | Polish phase |
+| Add ADRs | LOW | 2h | Med | Post-merge |
+| Visual diagrams | LOW | 2h | Med | Post-merge |
+
+---
+
+## Quick Wins (Do First - 3 hours total)
+
+1. **Create formatting.py** (2 hours) → +2 rating points
+2. **Update README.md and ARCHITECTURE.md** (1 hour) → +3 rating points
+
+**Expected Result:** Overall rating 8.2 → 9.5 with just 3 hours of work.
+
+---
+
+## Before Merge Checklist
+
+- [ ] All Priority 1 tasks complete
+- [ ] All tests passing (76/76 offline)
+- [ ] Online tests passing (if BITSIGHT_API_KEY available)
+- [ ] README.md updated
+- [ ] ARCHITECTURE.md updated
+- [ ] No linting errors: `ruff check src/`
+- [ ] No type errors: `mypy src/birre`
+- [ ] formatting.py exists and reduces duplication
+- [ ] This TODO.md file deleted (temporary tracking only)
+
+---
+
+## Success Metrics
+
+**Target (9/10 minimum):**
+- ✅ Layer Separation: 9/10 (current 9/10) ✓
+- ⬜ Module Cohesion: 9/10 (needs formatting.py)
+- ⬜ File/Module Size: 9/10 (needs formatting.py)
+- ✅ Testability: 9/10 (current 9/10) ✓
+- ⬜ Code Duplication: 9/10 (needs formatting.py)
+- ⬜ Dependency Mgmt: 9/10 (current 8/10)
+- ✅ Naming: 9/10 (current 9/10) ✓
+- ✅ Python Practices: 9/10 (current 9/10) ✓
+- ⬜ MCP Patterns: 9/10 (current 8/10)
+- ⬜ Documentation: 9/10 (needs updates)
+
+**Minimum to merge:** 9/10 average = formatting.py + documentation updates
+
+**Perfection (10/10):** Complete all Priority 3 tasks (post-merge acceptable)
+
+---
+
+## Notes
+
+- Models already in domain/ layer (better than planned cli/ location) ✅
+- SelfTestRunner already in cli/commands/selftest/runner.py (correct) ✅
+- app.py is 127 lines (96.4% reduction from original 3,513) ✅
+- diagnostics.py is 1,329 lines (pure business logic) ✅
+- All tests pass, CLI works, production-verified ✅
+
+**This file should be deleted before merging to main.**

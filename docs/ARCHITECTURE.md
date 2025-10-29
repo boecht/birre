@@ -147,6 +147,40 @@ Reference: FastMCP tool management documentation at <https://gofastmcp.com/serve
 - Minimal abstraction layers between business logic and API calls
 - Type validation through OpenAPI schema integration
 
+### CLI Architecture
+
+BiRRe provides a Typer-based CLI with modular command organization:
+
+**Structure**:
+
+```text
+src/birre/cli/
+├── app.py              # Main CLI app with command registration
+├── main.py             # Console entry point
+├── helpers.py          # Shared CLI utilities and config resolution
+├── options.py          # Reusable Typer option factories
+├── models.py           # CLI dataclasses (CliInvocation, etc.)
+├── formatting.py       # Rich console formatting utilities
+└── commands/           # Command group implementations
+    ├── run.py          # MCP server startup command
+    ├── config.py       # Config management (init, show, validate)
+    ├── logs.py         # Log maintenance (clear, rotate, show, path)
+    └── selftest/       # Diagnostics command group
+        ├── command.py  # Selftest command registration
+        ├── runner.py   # Test execution logic
+        └── rendering.py # Rich console output formatting
+```
+
+**Key Patterns**:
+
+- **Command Registration**: Each command module exports a `register(app, ...)` function that registers commands with the main Typer app
+- **Option Factories**: Reusable option definitions in `options.py` ensure consistent flag names and environment variable mappings
+- **Configuration Layering**: `helpers.py` provides utilities for merging config.toml → config.local.toml → environment → CLI flags
+- **Rich Console**: All CLI output uses Rich for formatted tables, styled text, and progress indicators
+- **Shared Formatting**: Common utilities (table creation, value masking, config formatting) in `formatting.py` eliminate duplication
+
+See [docs/CLI.md](CLI.md) for complete command reference.
+
 ## Benefits
 
 **Interface Simplicity**: Context-specific business toolsets (2 for standard, 5 for risk-manager) instead of 478 API endpoints

@@ -144,6 +144,17 @@ and company onboarding requests without in-tool prompts (LLMs coordinate user co
 
 ## Testing
 
+### CLI Commands Overview
+
+BiRRe provides a modular CLI with the following command groups:
+
+- **`run`** - Start the MCP server with optional startup checks and context selection
+- **`config`** - Initialize, show, or validate configuration files and settings
+- **`logs`** - Inspect and maintain log files (clear, rotate, show, path)
+- **`selftest`** - Run comprehensive diagnostics against BitSight APIs
+
+All commands support `--help` for detailed usage. See [docs/CLI.md](docs/CLI.md) for complete CLI reference.
+
 ### Review configuration state
 
 Use the `config` command group to review or validate the effective settings before
