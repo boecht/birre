@@ -65,7 +65,7 @@ MSG_CONFIG_CA_BUNDLE: Final = "config.ca_bundle"
 HEALTHCHECK_COMPANY_NAME: Final = "GitHub"
 HEALTHCHECK_COMPANY_DOMAIN: Final = "github.com"
 HEALTHCHECK_COMPANY_GUID: Final = "6ca077e2-b5a7-42c2-ae1e-a974c3a91dc1"
-HEALTHCHECK_REQUEST_DOMAIN: Final = "healthcheck-birre-example.com"
+HEALTHCHECK_REQUEST_DOMAIN: Final = "github.com"  # Use existing domain to avoid creating tickets
 
 
 def _default_run_sync(coro: Awaitable[Any]) -> Any:
@@ -726,7 +726,6 @@ def run_manage_subscriptions_diagnostics(
             run_sync=run_sync,
             action="subscribe",
             guids=[HEALTHCHECK_COMPANY_GUID],
-            dry_run=True,
         )
     except Exception as exc:  # pragma: no cover - network failures
         tool_logger.warning("healthcheck.manage_subscriptions.call_failed", error=str(exc))
@@ -786,7 +785,7 @@ def run_request_company_diagnostics(
             run_sync=run_sync,
             domain=HEALTHCHECK_REQUEST_DOMAIN,
             company_name=HEALTHCHECK_COMPANY_NAME,
-            dry_run=True,
+            dry_run=True,  # Must use dry_run - github.com already exists, can't request it
         )
     except Exception as exc:  # pragma: no cover - network failures
         tool_logger.warning("healthcheck.request_company.call_failed", error=str(exc))
@@ -1058,20 +1057,32 @@ def _validate_request_company_payload(
         return False
 
     status = payload.get("status")
-    if status not in {"requested", "existing", "dry_run"}:
+    if status not in {"requested", "existing", "already_requested", "submitted_v2_bulk", "dry_run"}:
         logger.critical("healthcheck.request_company.unexpected_status", status=status)
         return False
 
-    # For dry_run, just check domain field, not domains list
+    # For dry_run, check domain field (used when testing to avoid creating tickets)
     if status == "dry_run":
         domain = payload.get("domain")
         if not domain or domain.lower() != expected_domain.lower():
-            logger.critical("healthcheck.request_company.domain_mismatch", 
+            logger.critical("healthcheck.request_company.domain_mismatch",
                           domain=domain, expected=expected_domain)
             return False
         return True
 
-    # For actual requests, check domains list
+    # For "already_requested", check requests field exists
+    if status == "already_requested":
+        requests = payload.get("requests")
+        if not isinstance(requests, list):
+            logger.critical("healthcheck.request_company.invalid_requests", requests=requests)
+            return False
+        return True
+
+    # For submitted requests, just verify it completed
+    if status == "submitted_v2_bulk":
+        return True
+
+    # For actual requests with domains list
     domains = payload.get("domains")
     if not _validate_request_company_domains(domains, logger=logger, expected=expected_domain):
         return False
