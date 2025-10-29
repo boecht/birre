@@ -1,11 +1,12 @@
 # BiRRe CLI Refactor Tracker
 
-## 1. Current Snapshot (2025-10-29 - MAJOR BREAKTHROUGH)
-- **Status**: CLI refactor MAJOR breakthrough. `app.py` reduced from 3421 → 1229 lines (64% reduction).
-- **Test Status**: ✅ ALL 76 OFFLINE TESTS PASSING (100%)
-- **Commands Extracted**: run, config (3 commands), logs (4 commands), selftest (partial)
-- **Legacy Code Cleanup**: Removed 654 lines total (437 duplicate helpers + 217 obsolete monkey-patching)
-- **Remaining Work**: Selftest completion, formatting.py population, main.py refactor
+## 1. Current Snapshot (2025-10-29 - IN PROGRESS)
+- **Status**: CLI refactor IN PROGRESS. `app.py` reduced from 3513 → 2857 lines (19% reduction so far).
+- **Test Status**: ❌ 16 TESTS FAILING - old command implementations still reference deleted helpers
+- **Commands Extracted**: run, config (3 commands), logs (4 commands), selftest (partial) - exist in commands/ but NOT YET registered in app.py
+- **Completed**: Removed 656 lines (437 duplicate helpers + 217 delegates + 2 imports)
+- **Remaining Work**: Remove old command implementations from app.py, register extracted commands, verify tests pass
+- **CRITICAL**: Commands were extracted to separate files BUT app.py still has the old implementations causing duplication
 
 ## 2. Target Architecture (Agreed Plan)
 
