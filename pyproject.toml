@@ -10,7 +10,7 @@ authors = [{ name = "boecht" }]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastmcp==2.12.4",
+    "fastmcp==2.13.0",
     "dynaconf",
     "pydantic>=2.6.0,<3",
     "python-dotenv",
