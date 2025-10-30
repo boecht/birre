@@ -433,7 +433,7 @@ def _normalize_candidate_results(raw_result: Any) -> list[Any]:
     return []
 
 
-def _build_candidate(entry: Any) -> dict[str, Any | None]:
+def _build_candidate(entry: Any) -> dict[str, Any | None] | None:
     if not isinstance(entry, dict):
         return None
 
@@ -545,7 +545,7 @@ async def _perform_company_search(
     *,
     name: str | None,
     domain: str | None,
-) -> tuple[Any | None, dict[str, Any | None]]:
+) -> tuple[Any | None, dict[str, Any | None] | None]:
     try:
         result = await call_v1_tool("companySearch", ctx, search_params)
     except Exception as exc:
@@ -1022,7 +1022,7 @@ def _normalize_domain(
     *,
     logger: BoundLogger,
     ctx: Context,
-) -> tuple[str | None, dict[str, Any | None]]:
+) -> tuple[str | None, dict[str, Any | None] | None]:
     domain_value = (domain or "").strip().lower()
     if domain_value:
         return domain_value, None
@@ -1044,7 +1044,7 @@ async def _resolve_folder_selection(
     logger: BoundLogger,
     domain_value: str,
     selected_folder: str | None,
-) -> tuple[str | None, dict[str, Any | None]]:
+) -> tuple[str | None, dict[str, Any | None] | None]:
     if not selected_folder:
         return None, None
 
@@ -1335,7 +1335,7 @@ def _validate_manage_subscriptions_inputs(
     guids: Sequence[str],
     *,
     default_type: str | None,
-) -> tuple[str | None, list[str], dict[str, Any | None]]:
+) -> tuple[str | None, list[str], dict[str, Any | None] | None]:
     normalized_action = _normalize_action(action)
     if normalized_action is None:
         return (

@@ -128,6 +128,7 @@ def classify_request_error(
 ) -> BirreError | None:
     """Map HTTP client errors to BiRRe domain errors when possible."""
 
+    request: httpx.Request | None
     if isinstance(exc, httpx.RequestError) and _matches_intercept_marker(exc):
         request = exc.request
     elif _matches_intercept_marker(exc):
