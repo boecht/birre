@@ -4,8 +4,8 @@ from functools import partial
 import pytest
 
 from birre.application import server as birre_server
-from birre.infrastructure.logging import BoundLogger, get_logger
 from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from birre.infrastructure.logging import BoundLogger, get_logger
 
 
 class DummyFastMCP:
@@ -54,6 +54,7 @@ EXPECTED_V1_KEEP = {
     "companySearch",
     "manageSubscriptionsBulk",
     "getCompany",
+    "getCompaniesTree",
     "getCompaniesFindings",
     "getFolders",
     "getCompanySubscriptions",
@@ -283,16 +284,24 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
 
     import birre.domain.risk_manager as risk_manager
 
-    def capture_interactive(server, call_v1_tool, *, logger, default_folder, default_type, max_findings):
+    def capture_interactive(
+        server, call_v1_tool, *, logger, default_folder, default_type, max_findings
+    ):
         captures.setdefault("interactive", []).append((default_folder, default_type, max_findings))
 
     def capture_manage(server, call_v1_tool, *, logger, default_folder, default_type):
         captures.setdefault("manage", []).append((default_folder, default_type))
 
-    def capture_request(server, call_v1_tool, call_v2_tool, *, logger, default_folder, default_type):
+    def capture_request(
+        server, call_v1_tool, call_v2_tool, *, logger, default_folder, default_type
+    ):
         captures.setdefault("request", []).append((default_folder, default_type))
 
-    monkeypatch.setattr(risk_manager, "register_company_search_interactive_tool", capture_interactive)
+    monkeypatch.setattr(
+        risk_manager,
+        "register_company_search_interactive_tool",
+        capture_interactive
+    )
     monkeypatch.setattr(risk_manager, "register_manage_subscriptions_tool", capture_manage)
     monkeypatch.setattr(risk_manager, "register_request_company_tool", capture_request)
 

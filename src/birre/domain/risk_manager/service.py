@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import DEFAULT_MAX_FINDINGS
 from birre.domain.common import CallV1Tool, CallV2Tool
+from birre.domain.company_rating.service import _rating_color
 from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
 
@@ -35,6 +36,8 @@ class CompanyInteractiveResult(BaseModel):
     website: str
     description: str
     employee_count: int | None = None
+    rating: int | None = None
+    rating_color: str | None = None
     subscription: SubscriptionSnapshot
 
     @model_validator(mode="before")
@@ -49,6 +52,8 @@ class CompanyInteractiveResult(BaseModel):
                 "website": "",
                 "description": "",
                 "employee_count": None,
+                "rating": None,
+                "rating_color": None,
                 "subscription": {},
             }
         return {
@@ -59,6 +64,8 @@ class CompanyInteractiveResult(BaseModel):
             "website": str(value.get("website") or ""),
             "description": str(value.get("description") or ""),
             "employee_count": value.get("employee_count"),
+            "rating": value.get("rating"),
+            "rating_color": value.get("rating_color"),
             "subscription": value.get("subscription") or {},
         }
 
@@ -208,7 +215,10 @@ async def _fetch_company_details(
     logger: BoundLogger,
     limit: int,
 ) -> dict[str, dict[str, Any]]:
-    """Retrieve detailed company records for the provided GUIDs."""
+    """Retrieve detailed company records for the provided GUIDs.
+    
+    Requires companies to be already subscribed (via bulk subscription).
+    """
 
     effective_limit = (
         limit if isinstance(limit, int) and limit > 0 else DEFAULT_MAX_FINDINGS
@@ -221,11 +231,13 @@ async def _fetch_company_details(
         guid_str = str(guid).strip()
         if not guid_str:
             continue
+        
         params = {
             "guid": guid_str,
             "fields": (
-                "name,primary_domain,display_url,homepage,description,"
-                "people_count,subscription_type,in_spm_portfolio,subscription_end_date"
+                "guid,name,description,primary_domain,display_url,homepage,"
+                "people_count,subscription_type,in_spm_portfolio,subscription_end_date,"
+                "current_rating,has_company_tree"
             ),
         }
         try:
@@ -238,7 +250,120 @@ async def _fetch_company_details(
                 "company_detail.fetch_failed",
                 company_guid=guid_str,
             )
+    
     return details
+
+
+async def _fetch_company_tree(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    *,
+    logger: BoundLogger,
+) -> dict[str, Any] | None:
+    """
+    Fetch company tree from BitSight API.
+    
+    Returns tree structure with parent-child relationships, or None if no tree exists.
+    """
+    try:
+        params = {"guid": str(guid).strip()}
+        tree_data = await call_v1_tool("getCompaniesTree", ctx, params)
+        if isinstance(tree_data, dict):
+            logger.debug(
+                "company_tree.fetched",
+                company_guid=guid,
+                has_tree=True,
+            )
+            return tree_data
+        return None
+    except Exception as error:  # pragma: no cover - defensive
+        await ctx.warning(f"Failed to fetch company tree for {guid}: {error}")
+        logger.warning(
+            "company_tree.fetch_failed",
+            company_guid=guid,
+            error=str(error),
+        )
+        return None
+
+
+def _find_company_in_tree(
+    tree_node: dict[str, Any], target_guid: str, path: list[str] | None = None
+) -> list[str] | None:
+    """
+    Recursively find path from root to target company in tree.
+    
+    Returns list of GUIDs from root to target (excluding target itself),
+    or None if target not found in this branch.
+    """
+    if path is None:
+        path = []
+    
+    node_guid = tree_node.get("guid")
+    if not node_guid:
+        return None
+    
+    # Found the target - return path (excluding target)
+    if str(node_guid) == str(target_guid):
+        return path.copy()
+    
+    # Recurse into children
+    children = tree_node.get("children", [])
+    if not isinstance(children, list):
+        return None
+    
+    new_path = path + [str(node_guid)]
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        result = _find_company_in_tree(child, target_guid, new_path)
+        if result is not None:
+            return result
+    
+    return None
+
+
+def _find_node_in_tree(
+    tree_node: dict[str, Any], target_guid: str
+) -> dict[str, Any] | None:
+    """
+    Recursively find a node with the given GUID in the tree.
+    
+    Returns the node dict if found, None otherwise.
+    """
+    node_guid = tree_node.get("guid")
+    if node_guid and str(node_guid) == str(target_guid):
+        return tree_node
+    
+    children = tree_node.get("children", [])
+    if not isinstance(children, list):
+        return None
+    
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        result = _find_node_in_tree(child, target_guid)
+        if result is not None:
+            return result
+    
+    return None
+
+
+def _extract_parent_guids(
+    tree_root: dict[str, Any], company_guid: str
+) -> list[str]:
+    """
+    Extract all parent GUIDs from root to company (excluding company itself).
+    
+    Returns list ordered from immediate parent to root.
+    Example: If tree is Root -> Parent -> Company, returns [Parent, Root]
+    """
+    path = _find_company_in_tree(tree_root, company_guid)
+    if not path:
+        return []
+    
+    # Reverse to get immediate parent first, then grandparent, etc.
+    return list(reversed(path))
 
 
 def _extract_folder_name(folder: Any) -> str | None:
@@ -345,7 +470,7 @@ def _build_candidate(entry: Any) -> dict[str, Any | None]:
         or entry.get("business_description"),
         "employee_count": details.get("employee_count")
         or entry.get("people_count"),
-        "in_portfolio": entry.get("in_portfolio"),
+        "in_portfolio": details.get("in_portfolio") or entry.get("in_portfolio"),
         "subscription_type": entry.get("subscription_type"),
     }
 
@@ -386,6 +511,16 @@ def _format_result_entry(
         or detail.get("shortname")
     )
     employee_count = candidate.get("employee_count") or detail.get("people_count")
+    
+    # Extract rating from detail (from getCompany call)
+    current_rating = detail.get("current_rating")
+    rating_value = None
+    if current_rating is not None:
+        try:
+            rating_value = int(current_rating)
+        except (TypeError, ValueError):
+            pass
+    
     return {
         "label": label,
         "guid": guid,
@@ -396,6 +531,8 @@ def _format_result_entry(
         "website": candidate.get("website") or detail.get("homepage") or "",
         "description": description or "",
         "employee_count": employee_count,
+        "rating": rating_value,
+        "rating_color": _rating_color(rating_value),
         "subscription": _build_subscription_snapshot(detail, folders),
     }
 
@@ -413,7 +550,7 @@ def _validate_company_search_inputs(
 def _build_company_search_params(
     name: str | None, domain: str | None
 ) -> tuple[dict[str, Any], str]:
-    params: dict[str, Any] = {"expand": "details.employee_count"}
+    params: dict[str, Any] = {"expand": "details.employee_count,details.in_portfolio"}
     if domain:
         params["domain"] = domain
         if name:
@@ -502,6 +639,86 @@ def _enrich_candidates(
     return enriched
 
 
+def _identify_non_subscribed_companies(
+    candidates: Iterable[dict[str, Any]],
+) -> list[str]:
+    """Extract GUIDs of companies not in portfolio (need ephemeral subscription)."""
+    non_subscribed: list[str] = []
+    for candidate in candidates:
+        if not candidate.get("in_portfolio"):
+            guid = candidate.get("guid")
+            if isinstance(guid, str) and guid:
+                non_subscribed.append(guid)
+    return non_subscribed
+
+
+async def _bulk_subscribe_companies(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guids: Sequence[str],
+    *,
+    logger: BoundLogger,
+    folder: str | None,
+    subscription_type: str | None,
+) -> set[str]:
+    """Subscribe to multiple companies at once. Returns set of subscribed GUIDs."""
+    if not guids:
+        return set()
+    
+    try:
+        payload = {
+            "add": [
+                {
+                    "guid": guid,
+                    **({"type": subscription_type} if subscription_type else {}),
+                    **({"folder": [folder]} if folder else {}),
+                }
+                for guid in guids
+            ]
+        }
+        await call_v1_tool("manageSubscriptionsBulk", ctx, payload)
+        logger.info(
+            "bulk_subscribe.success",
+            count=len(guids),
+            folder=folder,
+            subscription_type=subscription_type,
+        )
+        return set(guids)
+    except Exception as exc:
+        await ctx.warning(f"Bulk subscription failed: {exc}")
+        logger.warning(
+            "bulk_subscribe.failed",
+            count=len(guids),
+            error=str(exc),
+        )
+        return set()
+
+
+async def _bulk_unsubscribe_companies(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guids: Iterable[str],
+    *,
+    logger: BoundLogger,
+) -> None:
+    """Unsubscribe from multiple companies at once (cleanup ephemeral subscriptions)."""
+    guid_list = list(guids)
+    if not guid_list:
+        return
+    
+    try:
+        payload = {"delete": [{"guid": guid} for guid in guid_list]}
+        await call_v1_tool("manageSubscriptionsBulk", ctx, payload)
+        logger.info("bulk_unsubscribe.success", count=len(guid_list))
+    except Exception as exc:
+        await ctx.warning(f"Bulk unsubscription failed: {exc}")
+        logger.warning(
+            "bulk_unsubscribe.failed",
+            count=len(guid_list),
+            error=str(exc),
+        )
+
+
 async def _build_company_search_response(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -529,31 +746,155 @@ async def _build_company_search_response(
             default_type=defaults.subscription_type,
         )
 
-    details = await _fetch_company_details(
+    # Step 2: Bulk subscribe to non-portfolio companies
+    non_subscribed_guids = _identify_non_subscribed_companies(candidates)
+    ephemeral_subscriptions = await _bulk_subscribe_companies(
         call_v1_tool,
         ctx,
-        guid_order,
+        non_subscribed_guids[:defaults.limit],
         logger=logger,
-        limit=defaults.limit,
-    )
-    memberships = await _fetch_folder_memberships(
-        call_v1_tool,
-        ctx,
-        guid_order,
-        logger=logger,
+        folder=defaults.folder,
+        subscription_type=defaults.subscription_type,
     )
 
-    enriched = _enrich_candidates(candidates, details, memberships)
-    result_count = len(enriched)
+    try:
+        # Step 3a: Get company details + rating
+        details = await _fetch_company_details(
+            call_v1_tool,
+            ctx,
+            guid_order,
+            logger=logger,
+            limit=defaults.limit,
+        )
+        
+        # Step 3b: Fetch company trees for companies that have them
+        trees: dict[str, dict[str, Any]] = {}
+        for guid, detail in details.items():
+            has_tree = detail.get("has_company_tree")
+            if has_tree:
+                tree_data = await _fetch_company_tree(
+                    call_v1_tool,
+                    ctx,
+                    guid,
+                    logger=logger,
+                )
+                if tree_data:
+                    trees[guid] = tree_data
+        
+        # Step 3c: Extract and enrich with parent companies
+        parent_details: dict[str, dict[str, Any]] = {}
+        parent_to_children: dict[str, list[str]] = {}  # Track which child each parent belongs to
+        
+        for company_guid, tree_data in trees.items():
+            parent_guids = _extract_parent_guids(tree_data, company_guid)
+            
+            # For each parent, check if we need to subscribe and fetch details
+            for parent_guid in parent_guids:
+                # Track which child this parent belongs to (for labeling)
+                if parent_guid not in parent_to_children:
+                    parent_to_children[parent_guid] = []
+                parent_to_children[parent_guid].append(company_guid)
+                
+                # Skip if we already have this parent (either from search or already fetched)
+                if parent_guid in details or parent_guid in parent_details:
+                    continue
+                
+                # Check if parent is already subscribed (from tree data)
+                parent_node = _find_node_in_tree(tree_data, parent_guid)
+                parent_is_subscribed = (
+                    parent_node.get("is_subscribed", False) if parent_node else False
+                )
+                
+                # Subscribe if needed
+                if not parent_is_subscribed:
+                    parent_ephemeral = await _bulk_subscribe_companies(
+                        call_v1_tool,
+                        ctx,
+                        [parent_guid],
+                        logger=logger,
+                        folder=defaults.folder,
+                        subscription_type=defaults.subscription_type,
+                    )
+                    ephemeral_subscriptions.update(parent_ephemeral)
+                
+                # Fetch parent company details
+                parent_data_map = await _fetch_company_details(
+                    call_v1_tool,
+                    ctx,
+                    [parent_guid],
+                    logger=logger,
+                    limit=1,
+                )
+                if parent_guid in parent_data_map:
+                    parent_details[parent_guid] = parent_data_map[parent_guid]
+        
+        # Merge parent details into main details dict (not yet added to candidates)
+        all_details = {**details, **parent_details}
+        
+        # Step 4: Get folder memberships (for all companies including parents)
+        all_guids = list(guid_order) + list(parent_details.keys())
+        memberships = await _fetch_folder_memberships(
+            call_v1_tool,
+            ctx,
+            all_guids,
+            logger=logger,
+        )
 
-    log_search_event(
-        logger,
-        "success",
-        ctx=ctx,
-        company_name=search.name,
-        company_domain=search.domain,
-        result_count=result_count,
-    )
+        # Enrich original search candidates
+        enriched = _enrich_candidates(candidates, all_details, memberships)
+        
+        # Add parent company entries
+        for parent_guid, parent_detail in parent_details.items():
+            # Get first child for labeling
+            child_guids = parent_to_children.get(parent_guid, [])
+            if child_guids:
+                child_guid = child_guids[0]
+                child_detail = details.get(child_guid, {})
+                child_name = child_detail.get("name", "Unknown Company")
+                
+                # Build parent candidate structure
+                parent_candidate = {
+                    "guid": parent_guid,
+                    "name": parent_detail.get("name", ""),
+                    "primary_domain": parent_detail.get("primary_domain", ""),
+                    "website": parent_detail.get("display_url", ""),
+                    "description": parent_detail.get("description", ""),
+                    "employee_count": parent_detail.get("people_count"),
+                    "in_portfolio": parent_detail.get("in_spm_portfolio", False),
+                    "subscription_type": parent_detail.get("subscription_type"),
+                    "is_parent_entry": True,
+                    "parent_of": child_name,
+                }
+                
+                # Format and add to enriched results
+                parent_folders = memberships.get(parent_guid, [])
+                parent_entry = _format_result_entry(
+                    parent_candidate,
+                    parent_detail,
+                    parent_folders,
+                )
+                # Override label to indicate parent relationship
+                parent_entry["label"] = f"Parent of {child_name}"
+                enriched.append(parent_entry)
+        
+        result_count = len(enriched)
+
+        log_search_event(
+            logger,
+            "success",
+            ctx=ctx,
+            company_name=search.name,
+            company_domain=search.domain,
+            result_count=result_count,
+        )
+    finally:
+        # Step 6: Cleanup ephemeral subscriptions
+        await _bulk_unsubscribe_companies(
+            call_v1_tool,
+            ctx,
+            ephemeral_subscriptions,
+            logger=logger,
+        )
 
     truncated = len(guid_order) > defaults.limit
 
