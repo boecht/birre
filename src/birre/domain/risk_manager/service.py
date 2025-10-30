@@ -112,10 +112,10 @@ class RequestCompanyResponse(BaseModel):
     error: str | None = None
     status: str | None = None
     domain: str | None = None
-    requests: list[dict[str, Any | None]] = None
+    requests: list[dict[str, Any | None]] = Field(default_factory=list)
     guidance: RequestGuidance | None = None
     folder: str | None = None
-    payload: dict[str, Any | None] = None
+    payload: dict[str, Any | None] = Field(default_factory=dict)
     subscription_type: str | None = None
     result: Any | None = None
     warning: str | None = None
@@ -1226,6 +1226,10 @@ def register_request_company_tool(
         if error:
             # Pydantic models accept **kwargs, but mypy can't verify field names
             return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
+        
+        # After error check, domain_value is guaranteed to be non-None
+        assert domain_value is not None
+        
         selected_folder = folder or default_folder
         folder_guid = None
         log_event(

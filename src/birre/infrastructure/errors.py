@@ -131,11 +131,13 @@ def classify_request_error(
     if isinstance(exc, httpx.RequestError) and _matches_intercept_marker(exc):
         request = exc.request
     elif _matches_intercept_marker(exc):
-        request = getattr(exc, "request", None)
+        request_attr = getattr(exc, "request", None)
+        request = request_attr if isinstance(request_attr, httpx.Request) else None
     else:
         cause = getattr(exc, "__cause__", None)
         if isinstance(cause, BaseException) and _matches_intercept_marker(cause):
-            request = getattr(cause, "request", None)
+            request_attr = getattr(cause, "request", None)
+            request = request_attr if isinstance(request_attr, httpx.Request) else None
         else:
             return None
 
