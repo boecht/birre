@@ -234,11 +234,12 @@ def _prompt_and_record_bool(
     config_key: Any,
 ) -> bool:
     """Prompt for a boolean value and add to summary."""
+    value: bool
     if cli_value is not None:
         value = cli_value
         source = "CLI Option"
     else:
-        value: bool = _prompt_bool(prompt_text, default=default_value)
+        value = _prompt_bool(prompt_text, default=default_value)
         source = "Default" if value == default_value else SOURCE_USER_INPUT
 
     display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
@@ -703,8 +704,12 @@ def register(
             )
             if os.getenv(name) is not None
         }
-        env_labels = _build_env_source_labels(env_overrides)
-        env_rows = list(_build_env_override_rows(env_overrides))
+        # Filter out None values for type compatibility
+        env_overrides_filtered: dict[str, str] = {
+            k: v for k, v in env_overrides.items() if v is not None
+        }
+        env_labels = _build_env_source_labels(env_overrides_filtered)
+        env_rows = list(_build_env_override_rows(env_overrides_filtered))
         if env_rows:
             stdout_console.print()
             _print_config_table("Environment overrides", env_rows, stdout_console)
