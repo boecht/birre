@@ -1,6 +1,7 @@
 """Selftest command for BiRRe CLI."""
 
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -19,8 +20,8 @@ def register(
     *,
     stderr_console: Console,
     stdout_console: Console,
-    banner_factory,
-    expected_tools_by_context: dict,
+    banner_factory: Any,
+    expected_tools_by_context: dict[str, Any],
     healthcheck_testing_v1_base_url: str,
     healthcheck_production_v1_base_url: str,
 ) -> None:

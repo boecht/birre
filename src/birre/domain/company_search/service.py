@@ -235,7 +235,7 @@ def register_company_search_tool(
                 "error": error_msg,
             }
 
-    return company_search  # type: ignore[return-value]
+    return company_search
 
 
 __all__ = ["register_company_search_tool"]

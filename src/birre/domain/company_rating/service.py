@@ -264,7 +264,7 @@ def _derive_asset_importance_score(obj: Any) -> float:
     return 0.0
 
 
-def _build_finding_sort_key(item: Any):
+def _build_finding_sort_key(item: Any) -> tuple[float, int, float, float, str]:
     sev_num = _derive_numeric_severity_score(item)
     sev_cat = _rank_severity_category_value(
         item.get("severity") if isinstance(item, dict) else None
@@ -277,7 +277,7 @@ def _build_finding_sort_key(item: Any):
     return (-sev_num, -sev_cat, -imp, -last, rv)
 
 
-def _build_finding_score_tuple(item: Any):
+def _build_finding_score_tuple(item: Any) -> tuple[float, int, float, float]:
     # Positive score tuple for heapq.nlargest (descending desired)
     sev_num = _derive_numeric_severity_score(item)
     sev_cat = _rank_severity_category_value(
@@ -312,9 +312,9 @@ INFECTION_RISK_VECTORS = {
 def _determine_finding_label(item: dict[str, Any], details: dict[str, Any]) -> str | None:
     """Choose a finding label from details.name/display_name or risk_vector_label."""
     if isinstance(details.get("name"), str):
-        return details.get("name")  # type: ignore[return-value]
+        return details.get("name")
     if isinstance(details.get("display_name"), str):
-        return details.get("display_name")  # type: ignore[return-value]
+        return details.get("display_name")
     rv_label = item.get("risk_vector_label")
     return rv_label if isinstance(rv_label, str) else None
 
@@ -335,7 +335,7 @@ def _compose_base_details_text(details: dict[str, Any]) -> str | None:
     if display_name:
         return display_name
     if isinstance(details.get("searchable_details"), str):
-        return details.get("searchable_details")  # type: ignore[return-value]
+        return details.get("searchable_details")
     inf = details.get("infection")
     if isinstance(inf, dict) and isinstance(inf.get("family"), str):
         return f"Infection: {inf['family']}"
@@ -727,7 +727,7 @@ def _debug(ctx: Context, message: str, obj: Any, *, debug_enabled: bool) -> None
         except RuntimeError:
             return None
 
-        loop.create_task(ctx.info(f"{message}: {pretty}"))  # type: ignore[name-defined]
+        loop.create_task(ctx.info(f"{message}: {pretty}"))
     except Exception:
         return None
 
@@ -1033,7 +1033,7 @@ def register_company_rating_tool(
 
         return result_model.to_payload()
 
-    return get_company_rating  # type: ignore[return-value]
+    return get_company_rating
 
 
 __all__ = ["register_company_rating_tool"]

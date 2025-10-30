@@ -513,7 +513,7 @@ def _format_result_entry(
     }
 
 
-def _validate_company_search_inputs(name: str | None, domain: str | None) -> dict[str, Any | None]:
+def _validate_company_search_inputs(name: str | None, domain: str | None) -> dict[str, str] | None:
     if name or domain:
         return None
     return {
@@ -914,7 +914,8 @@ def register_company_search_interactive_tool(
 
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
-            return CompanySearchInteractiveResponse(**validation_error).to_payload()
+            # Pydantic models accept **kwargs, but mypy can't verify field names
+            return CompanySearchInteractiveResponse(**validation_error).to_payload()  # type: ignore[arg-type]
 
         search_params, search_term = _build_company_search_params(name, domain)
 
@@ -937,7 +938,8 @@ def register_company_search_interactive_tool(
             domain=domain,
         )
         if failure_response is not None:
-            return CompanySearchInteractiveResponse(**failure_response).to_payload()
+            # Pydantic models accept **kwargs, but mypy can't verify field names
+            return CompanySearchInteractiveResponse(**failure_response).to_payload()  # type: ignore[arg-type]
 
         search = CompanySearchInputs(name=name, domain=domain, term=search_term)
         defaults = CompanySearchDefaults(
@@ -1216,7 +1218,8 @@ def register_request_company_tool(
 
         domain_value, error = _normalize_domain(domain, logger=logger, ctx=ctx)
         if error:
-            return RequestCompanyResponse(**error).to_payload()
+            # Pydantic models accept **kwargs, but mypy can't verify field names
+            return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
         selected_folder = folder or default_folder
         folder_guid = None
         log_event(
@@ -1235,7 +1238,8 @@ def register_request_company_tool(
             selected_folder=selected_folder,
         )
         if error:
-            return RequestCompanyResponse(**error).to_payload()
+            # Pydantic models accept **kwargs, but mypy can't verify field names
+            return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
 
         existing = await _list_company_requests(call_v2_tool, ctx, domain_value)
         if existing:

@@ -1270,7 +1270,7 @@ def run_online_checks(
             base_url=base_url,
         )
 
-        async def call_v1_tool(tool_name: str, ctx, params: dict[str, Any]) -> Any:
+        async def call_v1_tool(tool_name: str, ctx: Any, params: dict[str, Any]) -> Any:
             return await call_v1_openapi_tool(
                 api_server,
                 tool_name,
@@ -1301,7 +1301,7 @@ def run_online_checks(
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):
                 with suppress(Exception):
-                    await shutdown()  # type: ignore[func-returns-value]
+                    await shutdown()
 
     return _sync(_execute_checks(), run_sync=run_sync)
 

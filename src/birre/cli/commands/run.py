@@ -6,6 +6,7 @@ import cProfile
 import inspect
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -26,7 +27,7 @@ from birre.infrastructure.errors import BirreError
 def register(
     app: typer.Typer,
     *,
-    stderr_console,
+    stderr_console: Any,
     banner_factory: Callable[[], object],
     keyboard_interrupt_banner: Callable[[], object],
 ) -> None:

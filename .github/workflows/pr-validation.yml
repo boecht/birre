@@ -40,7 +40,6 @@ jobs:
       - name: Type check with mypy
         run: |
           uv run mypy src
-        continue-on-error: true  # Allow failures initially until type issues are fixed
 
       - name: Run offline tests with coverage
         run: |

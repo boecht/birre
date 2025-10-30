@@ -82,7 +82,7 @@ def await_sync(coro: Awaitable[Any]) -> Any:
         return result
 
 
-def invoke_with_optional_run_sync(func: Callable[..., Any], *args, **kwargs):
+def invoke_with_optional_run_sync(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """Invoke *func*, binding :func:`await_sync` when it declares ``run_sync``."""
 
     kwargs = dict(kwargs)
@@ -90,7 +90,7 @@ def invoke_with_optional_run_sync(func: Callable[..., Any], *args, **kwargs):
     try:
         params = inspect.signature(func).parameters
     except (TypeError, ValueError):
-        params = {}
+        params = {}  # type: ignore[assignment]
     if "run_sync" in params:
         return func(*args, run_sync=await_sync, **kwargs)
     return func(*args, **kwargs)

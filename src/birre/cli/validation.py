@@ -101,7 +101,7 @@ def parse_toml_file(
 
 
 @contextmanager
-def toml_parse_context(param_hint: str | None = None):
+def toml_parse_context(param_hint: str | None = None) -> Any:
     """Context manager for TOML parsing with automatic error conversion.
 
     Args:

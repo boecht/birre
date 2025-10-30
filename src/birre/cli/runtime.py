@@ -30,16 +30,16 @@ from birre.infrastructure.logging import configure_logging, get_logger
 CONTEXT_CHOICES: frozenset[str] = frozenset(DIAGNOSTIC_CONTEXT_CHOICES)
 
 
-def emit_runtime_messages(runtime_settings, logger) -> None:
+def emit_runtime_messages(runtime_settings: Any, logger: Any) -> None:
     """Emit runtime informational and warning messages."""
 
-    for message in getattr(runtime_settings, "overrides", ()):  # type: ignore[attr-defined]
+    for message in getattr(runtime_settings, "overrides", ()):
         logger.info(message)
-    for message in getattr(runtime_settings, "warnings", ()):  # type: ignore[attr-defined]
+    for message in getattr(runtime_settings, "warnings", ()):
         logger.warning(message)
 
 
-def run_offline_checks(runtime_settings, logger, **kwargs) -> bool:
+def run_offline_checks(runtime_settings: Any, logger: Any, **kwargs: Any) -> bool:
     """Execute offline startup checks with optional run_sync binding."""
 
     return invoke_with_optional_run_sync(
@@ -51,11 +51,11 @@ def run_offline_checks(runtime_settings, logger, **kwargs) -> bool:
 
 
 def run_online_checks(
-    runtime_settings,
-    logger,
+    runtime_settings: Any,
+    logger: Any,
     *,
     v1_base_url: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> bool:
     """Execute online startup checks with optional run_sync binding."""
 
@@ -69,12 +69,12 @@ def run_online_checks(
 
 
 def initialize_logging(
-    runtime_settings,
-    logging_settings,
+    runtime_settings: Any,
+    logging_settings: Any,
     *,
     show_banner: bool = True,
     banner_printer: Callable[[], None] | None = None,
-):
+) -> Any:  # Returns BoundLogger
     """Configure logging and emit runtime messages."""
 
     if show_banner and banner_printer is not None:
@@ -85,7 +85,7 @@ def initialize_logging(
     return logger
 
 
-def collect_tool_map(server_instance: Any, **kwargs) -> dict[str, Any]:
+def collect_tool_map(server_instance: Any, **kwargs: Any) -> dict[str, Any]:
     """Collect tool map from a FastMCP server using CLI run-sync bridge."""
 
     return invoke_with_optional_run_sync(
@@ -95,7 +95,7 @@ def collect_tool_map(server_instance: Any, **kwargs) -> dict[str, Any]:
     )
 
 
-def prepare_server(runtime_settings, logger, **create_kwargs):
+def prepare_server(runtime_settings: Any, logger: Any, **create_kwargs: Any) -> Any:
     """Prepare the FastMCP server using diagnostics helpers."""
 
     return diagnostics_prepare_server(runtime_settings, logger, **create_kwargs)

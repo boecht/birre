@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ssl
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from importlib import resources
 from typing import Any
 
@@ -32,7 +32,7 @@ def _get_schema_definitions(spec: Any) -> Mapping[str, Any]:
     return schemas
 
 
-def _iter_api_responses(spec: Any):
+def _iter_api_responses(spec: Any) -> Iterator[Mapping[str, Any]]:
     if not isinstance(spec, Mapping):
         return
 

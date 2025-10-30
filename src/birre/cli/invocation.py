@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from birre.cli.models import (
     AuthOverrides,
@@ -162,7 +163,7 @@ def logging_inputs(overrides: LoggingOverrides) -> LoggingInputs | None:
     )
 
 
-def load_settings_from_invocation(invocation: CliInvocation):
+def load_settings_from_invocation(invocation: CliInvocation) -> Any:  # Returns BirreSettings
     """Load settings and apply CLI overrides."""
 
     settings = load_settings(invocation.config_path)
@@ -177,7 +178,9 @@ def load_settings_from_invocation(invocation: CliInvocation):
     return settings
 
 
-def resolve_runtime_and_logging(invocation: CliInvocation):
+def resolve_runtime_and_logging(
+    invocation: CliInvocation,
+) -> tuple[Any, Any]:  # (RuntimeSettings, LoggingSettings)
     """Resolve runtime and logging settings from a CLI invocation."""
 
     import logging

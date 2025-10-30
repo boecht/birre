@@ -173,7 +173,7 @@ def _generate_local_config_content(values: dict[str, Any], *, include_header: bo
     return "\n".join(lines)
 
 
-def _determine_value_source(value, default_value, normalizer):
+def _determine_value_source(value: Any, default_value: Any, normalizer: Any) -> str:
     """Determine the source of a prompted value (Default vs User Input)."""
     if default_value and value == default_value:
         return "Default"
@@ -191,17 +191,17 @@ def _determine_value_source(value, default_value, normalizer):
 
 
 def _prompt_and_record_string(
-    cli_value,
-    prompt_text,
-    default_value,
-    summary_rows,
-    config_key,
+    cli_value: Any,
+    prompt_text: Any,
+    default_value: Any,
+    summary_rows: Any,
+    config_key: Any,
     *,
-    normalizer=None,
-    secret=False,
-    required=False,
-    cli_source="CLI Option",
-):
+    normalizer: Any = None,
+    secret: bool = False,
+    required: bool = False,
+    cli_source: str = "CLI Option",
+) -> Any:
     """Prompt for a string value and add to summary if provided."""
     if cli_value is not None:
         value = cli_value
@@ -227,12 +227,12 @@ def _prompt_and_record_string(
 
 
 def _prompt_and_record_bool(
-    cli_value,
-    prompt_text,
-    default_value,
-    summary_rows,
-    config_key,
-):
+    cli_value: Any,
+    prompt_text: Any,
+    default_value: Any,
+    summary_rows: Any,
+    config_key: Any,
+) -> bool:
     """Prompt for a boolean value and add to summary."""
     if cli_value is not None:
         value = cli_value
@@ -246,7 +246,9 @@ def _prompt_and_record_bool(
     return value
 
 
-def _check_overwrite_destination(destination: Path, overwrite: bool, stdout_console: Console):
+def _check_overwrite_destination(
+    destination: Path, overwrite: bool, stdout_console: Console
+) -> None:
     """Check if destination exists and handle overwrite logic."""
     if not destination.exists():
         return
@@ -262,7 +264,9 @@ def _check_overwrite_destination(destination: Path, overwrite: bool, stdout_cons
             raise typer.Exit(code=1)
 
 
-def _display_config_preview(summary_rows: list[tuple[str, str, str]], stdout_console: Console):
+def _display_config_preview(
+    summary_rows: list[tuple[str, str, str]], stdout_console: Console
+) -> None:
     """Display configuration preview table."""
     if not summary_rows:
         return
@@ -427,7 +431,9 @@ _EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(runtime_settings, logging_settings) -> dict[str, Any]:
+def _effective_configuration_values(
+    runtime_settings: Any, logging_settings: Any
+) -> dict[str, Any]:
     """Extract effective configuration values from resolved settings."""
     values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
