@@ -1,16 +1,18 @@
 # Contributing to BiRRe
 
-Thank you for your interest in contributing to BiRRe! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to BiRRe! This document provides guidelines and
+instructions for contributing.
 
 ## Code of Conduct
 
-This project adheres to the Contributor Covenant [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+This project adheres to the Contributor Covenant [Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you are expected to uphold this code.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.11 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 - A BitSight API key for integration testing (optional)
@@ -20,7 +22,7 @@ This project adheres to the Contributor Covenant [Code of Conduct](CODE_OF_CONDU
 1. **Fork and clone the repository**
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/birre.git
+   git clone https://github.com/boecht/birre.git
    cd birre
    ```
 
@@ -140,7 +142,7 @@ uv run pytest -m offline --cov=src/birre --cov-report=term
 
 Use clear, descriptive commit messages:
 
-```
+```text
 Brief summary (50 chars or less)
 
 More detailed explanation if needed (wrap at 72 chars).
@@ -178,7 +180,7 @@ More detailed explanation if needed (wrap at 72 chars).
 
 ## Project Structure
 
-```
+```text
 birre/
 ├── src/birre/           # Source code
 │   ├── application/     # MCP server application layer
@@ -240,7 +242,8 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md):
 
 ### Security Issues
 
-**Do not** open public issues for security vulnerabilities. Instead, see [SECURITY.md](SECURITY.md) for responsible disclosure.
+**Do not** open public issues for security vulnerabilities.
+Instead, see [SECURITY.md](SECURITY.md) for responsible disclosure.
 
 ## Getting Help
 
@@ -250,7 +253,8 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md):
 
 ## License
 
-By contributing to BiRRe, you agree that your contributions will be licensed under the [Unlicense](LICENSE) (public domain).
+By contributing to BiRRe, you agree that your contributions will be licensed under
+the [Unlicense](LICENSE) (public domain).
 
 ## Recognition
 

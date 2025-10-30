@@ -223,3 +223,15 @@ pytest -m offline
 - [CLI reference](docs/CLI.md) – command usage, shared options, and subcommands.
 - [Architecture guide](docs/ARCHITECTURE.md) – FastMCP layering, tooling, and API integration details.
 - [BitSight API references](docs/apis) – curated overviews extracted from the official v1/v2 documentation.
+
+## Contributing
+
+We welcome contributions! Whether it's bug reports, feature requests, documentation improvements,
+or code contributions, your help makes BiRRe better.
+
+- Read our [Contributing Guide](CONTRIBUTING.md) for development setup and guidelines
+- Check out [open issues](https://github.com/boecht/birre/issues) or create a new one
+- Submit pull requests following our [PR template](.github/pull_request_template.md)
+- Review our [Security Policy](SECURITY.md) for reporting vulnerabilities
+
+All contributions are released under the [Unlicense](LICENSE) (public domain).
