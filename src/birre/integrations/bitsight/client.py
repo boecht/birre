@@ -32,7 +32,7 @@ def _get_schema_definitions(spec: Any) -> Mapping[str, Any]:
     return schemas
 
 
-def _iter_api_responses(spec: Any) -> Iterator[Mapping[str, Any]]:
+def _iter_api_responses(spec: Any) -> Iterator[dict[str, Any]]:
     if not isinstance(spec, Mapping):
         return
 
@@ -48,7 +48,7 @@ def _iter_api_responses(spec: Any) -> Iterator[Mapping[str, Any]]:
                 continue
             responses = operation.get("responses")
             if isinstance(responses, Mapping):
-                yield responses
+                yield responses  # type: ignore[misc]  # OpenAPI spec dict is mutable
 
 
 def _schema_description(schemas: Mapping[str, Any], ref: str) -> str:

@@ -180,7 +180,7 @@ def load_settings_from_invocation(invocation: CliInvocation) -> Any:  # Returns 
 
 def resolve_runtime_and_logging(
     invocation: CliInvocation,
-) -> tuple[Any, Any]:  # (RuntimeSettings, LoggingSettings)
+) -> tuple[Any, Any, Any]:  # (RuntimeSettings, LoggingSettings, Settings)
     """Resolve runtime and logging settings from a CLI invocation."""
 
     import logging

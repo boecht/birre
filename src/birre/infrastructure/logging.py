@@ -51,7 +51,7 @@ def _prepare_utf8_stream(stream: Any | None) -> Any:
     return text_stream
 
 
-class Utf8StreamHandler(logging.StreamHandler):
+class Utf8StreamHandler(logging.StreamHandler[Any]):
     """Stream handler that never raises on Unicode encoding errors."""
 
     def __init__(self, stream: Any | None = None) -> None:

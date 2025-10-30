@@ -12,7 +12,7 @@ from birre.cli.app import app
 _CLI_PROG_NAME = "birre"
 
 
-def main(argv: Sequence[str | None] = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Main entry point for BiRRe MCP server.
 
     Parameters

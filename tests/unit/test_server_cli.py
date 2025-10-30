@@ -139,7 +139,7 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
     assert await_args.kwargs["logger"] is root_logger
 
     prepare_server.assert_called_once()
-    prep_args, prep_kwargs = prepare_server.call_args
+    prep_args, _ = prepare_server.call_args
     assert prep_args[0] == runtime_settings
     assert prep_args[1] is root_logger
 
