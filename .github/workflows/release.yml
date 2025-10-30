@@ -19,7 +19,7 @@ jobs:
   validate:
     name: Pre-release Validation
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
     name: Build Distribution
     needs: validate
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -103,9 +103,13 @@ jobs:
 
       - name: Extract version from tag
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
@@ -117,15 +121,15 @@ jobs:
         run: |
           # Extract relevant section from CHANGELOG.md
           CHANGELOG_SECTION=$(awk '/^## \['"${{ steps.version.outputs.version }}"'\]/,/^## \[/' CHANGELOG.md | sed '$d')
-          
+
           # If no section found, create a simple one
           if [ -z "$CHANGELOG_SECTION" ]; then
             CHANGELOG_SECTION="Release ${{ steps.version.outputs.version }}"
           fi
-          
+
           # Save to file for multiline output
           echo "$CHANGELOG_SECTION" > changelog.txt
-          
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -145,7 +149,7 @@ jobs:
     environment:
       name: release
       url: https://pypi.org/project/birre/
-    
+
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4

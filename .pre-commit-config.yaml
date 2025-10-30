@@ -23,6 +23,7 @@ repos:
         args:
           - --strict
           - --python-version=3.11
+        files: ^src/
         additional_dependencies:
           - pydantic
           - httpx

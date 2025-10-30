@@ -7,14 +7,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-from typer.testing import CliRunner
-
 import birre.application.diagnostics as diagnostics_module
 import birre.cli.invocation as cli_invocation
 import birre.cli.runtime as cli_runtime
+import pytest
 from birre.cli.commands import logs as logs_command
 from birre.config.settings import LoggingSettings, RuntimeSettings
+from typer.testing import CliRunner
 
 server = importlib.import_module("birre.cli.app")
 
@@ -248,9 +247,12 @@ def test_config_validate_without_config_flag_shows_help() -> None:
     )
 
     assert result.exit_code == 0
-    # Rich may still include formatting codes, so check for key content
-    assert "config validate" in result.stdout
-    assert "--config" in result.stdout
+    # Rich may still include formatting codes in CI, so strip ANSI codes
+    # ANSI escape sequences start with \x1b[ and end with a letter
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    clean_output = ansi_escape.sub("", result.stdout)
+    assert "config validate" in clean_output
+    assert "--config" in clean_output
 
 
 def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
@@ -701,9 +703,9 @@ def test_selftest_passes_shared_options_to_build_invocation(
     # The command might fail due to missing config file, but we only care that
     # build_invocation was called with the right parameters
     assert result.exit_code in (0, 1), result.stdout
-    assert "config_path" in captured, (
-        f"build_invocation not called or not captured. Keys: {list(captured.keys())}"
-    )
+    assert (
+        "config_path" in captured
+    ), f"build_invocation not called or not captured. Keys: {list(captured.keys())}"
     assert captured["config_path"] == "custom.toml"
     assert captured["api_key"] == "abc"
     assert captured["subscription_folder"] == "folder"
