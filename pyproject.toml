@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "BiRRe"
-version = "3.0.0"
+version = "4.0.0a1"
 description = "Model Context Protocol server for BitSight security ratings"
 license = "Unlicense"
 license-files = ["LICENSE"]
@@ -22,7 +22,7 @@ keywords = [
     "llm-tools",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Financial and Insurance Industry",
     "Topic :: Security",

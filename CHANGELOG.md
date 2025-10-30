@@ -7,13 +7,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [4.0.0-alpha.1] - 2025-10-30
+
+### Breaking Changes
+
+- **Python 3.11+ Required**: Minimum Python version upgraded from 3.10 to 3.11
+  - Native `tomllib` support (removed `tomli` dependency)
+  - Improved type system features
+  - Better async/await support
+
+### Added
+
+- **Type Safety Infrastructure** (TD-001)
+  - Enabled mypy strict mode across entire codebase
+  - 100% type checking compliance (0 errors in 47 source files)
+  - Added mypy to pre-commit hooks for continuous enforcement
+  - CI/CD integration with PR validation workflow
+
+- **Test Coverage Infrastructure** (QA-001)
+  - CodeCov integration with enhanced features
+  - Coverage badge in README (current: 72%)
+  - `codecov.yml` configuration:
+    - Project coverage status checks (auto target, 1% threshold)
+    - Patch coverage requirement (70% minimum for new code)
+    - PR comments with diff, flags, and file coverage
+    - GitHub Checks annotations for line-by-line coverage
+  - Coverage enforcement in CI/CD (70%+ minimum)
+
+- **Community Documentation** (COM-001)
+  - Added CODE_OF_CONDUCT.md (Contributor Covenant 3.0)
+  - Created issue templates (bug_report.md, feature_request.md)
+  - Created pull request template
+  - Updated CONTRIBUTING.md with Python 3.11 requirement
+  - Added Contributing section to README
+
+- **PR Validation Workflow**
+  - Automated linting (ruff)
+  - Type checking (mypy --strict)
+  - Format validation (ruff format)
+  - Offline test suite with coverage
+  - CodeCov upload and reporting
+
 ### Changed
 
-- Reorganized project structure into clean architecture layers
-  - All source code now under `src/birre/` package
-  - Organized into `application/`, `domain/`, `infrastructure/`, `integrations/` layers
-  - API schemas moved to `resources/` directory
-  - API documentation moved to `docs/apis/`
+- Updated all type hints for strict mode compatibility
+- Improved error handling with explicit type narrowing
+- Enhanced Pydantic models with proper field defaults
+- CONTRIBUTING.md: Fixed repository clone URL, updated prerequisites
+
+### Fixed
+
+- Fixed mypy strict mode errors across 17 files (71 errors → 0)
+- Resolved type inference issues in service layers
+- Fixed tuple return types for error handling
+- Corrected dict type annotations for dynamic payloads
+- Pre-commit hook: Removed problematic types-all dependency
+
+### Development
+
+- Added pre-commit hooks: trailing-whitespace, end-of-file-fixer, yaml/json/toml checks
+- Enhanced development workflow with automated quality checks
+- Improved CI/CD reliability with consistent environments
 
 ## [3.2.0] - 2025-10-27
 

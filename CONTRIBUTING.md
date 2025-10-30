@@ -242,8 +242,7 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md):
 
 ### Security Issues
 
-**Do not** open public issues for security vulnerabilities.
-Instead, see [SECURITY.md](SECURITY.md) for responsible disclosure.
+See [SECURITY.md](SECURITY.md) for responsible disclosure.
 
 ## Getting Help
 
