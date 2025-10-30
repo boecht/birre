@@ -48,8 +48,7 @@ jobs:
             --cov=src/birre \
             --cov-report=term \
             --cov-report=xml \
-            --cov-fail-under=80
-        continue-on-error: true  # Allow failures initially until coverage threshold is met
+            --cov-fail-under=70
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v5
