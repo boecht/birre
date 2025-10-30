@@ -1,6 +1,7 @@
 import importlib
 import json
 import logging
+import re
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -511,14 +512,23 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
     assert result.exit_code == 0, result.stdout
     assert "Healthcheck Summary" in result.stdout
 
-    # Extract JSON portion between "Machine-readable summary:" and the table
+    # Extract JSON portion that appears after "Machine-readable summary:" line
+    # and before the "Healthcheck Summary" table
     output = result.stdout
-    json_start = output.find("Machine-readable summary:")
-    assert json_start != -1, "Machine-readable summary not found"
     
-    # Find the start of JSON (opening brace)
-    json_start = output.find("{", json_start)
-    assert json_start != -1, "JSON opening brace not found"
+    # Find the marker line
+    marker = "Machine-readable summary:"
+    marker_pos = output.find(marker)
+    assert marker_pos != -1, "Machine-readable summary marker not found"
+    
+    # Skip past the marker and any whitespace/newlines to find JSON start
+    search_start = marker_pos + len(marker)
+    remaining = output[search_start:]
+    
+    # Find first '{' after the marker (should be on next line)
+    json_start_offset = remaining.find("{")
+    assert json_start_offset != -1, "JSON opening brace not found after marker"
+    json_start = search_start + json_start_offset
     
     # Find the end of JSON by matching braces
     brace_count = 0
@@ -533,6 +543,8 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
                 break
     
     json_payload = output[json_start:json_end]
+    # Strip ANSI escape codes that Rich console may add even with color=False
+    json_payload = re.sub(r'\x1b\[[0-9;]*m', '', json_payload)
     summary = json.loads(json_payload)
 
     assert summary["offline_check"]["status"] == "pass"
