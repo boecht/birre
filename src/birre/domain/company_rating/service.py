@@ -61,10 +61,10 @@ class TopFindings(BaseModel):
         if not isinstance(values, dict):
             return {"policy": values, "findings": [], "count": 0}
         findings = values.get("findings") or []
-        values = dict(values)
-        values.setdefault("findings", findings)
-        values.setdefault("count", len(findings))
-        return values
+        values_dict: dict[str, Any] = dict(values)
+        values_dict.setdefault("findings", findings)
+        values_dict.setdefault("count", len(findings))
+        return values_dict
 
 
 class RatingLegendEntry(BaseModel):
@@ -334,8 +334,9 @@ def _compose_base_details_text(details: dict[str, Any]) -> str | None:
         return long_desc
     if display_name:
         return display_name
-    if isinstance(details.get("searchable_details"), str):
-        return details.get("searchable_details")
+    searchable_details = details.get("searchable_details")
+    if isinstance(searchable_details, str):
+        return searchable_details
     inf = details.get("infection")
     if isinstance(inf, dict) and isinstance(inf.get("family"), str):
         return f"Infection: {inf['family']}"

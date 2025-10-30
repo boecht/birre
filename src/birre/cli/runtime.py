@@ -42,12 +42,13 @@ def emit_runtime_messages(runtime_settings: Any, logger: Any) -> None:
 def run_offline_checks(runtime_settings: Any, logger: Any, **kwargs: Any) -> bool:
     """Execute offline startup checks with optional run_sync binding."""
 
-    return invoke_with_optional_run_sync(
+    result: bool = invoke_with_optional_run_sync(
         diagnostics_run_offline_checks,
         runtime_settings,
         logger,
         **kwargs,
     )
+    return result
 
 
 def run_online_checks(
@@ -59,13 +60,14 @@ def run_online_checks(
 ) -> bool:
     """Execute online startup checks with optional run_sync binding."""
 
-    return invoke_with_optional_run_sync(
+    result: bool = invoke_with_optional_run_sync(
         diagnostics_run_online_checks,
         runtime_settings,
         logger,
         v1_base_url=v1_base_url,
         **kwargs,
     )
+    return result
 
 
 def initialize_logging(
@@ -88,11 +90,12 @@ def initialize_logging(
 def collect_tool_map(server_instance: Any, **kwargs: Any) -> dict[str, Any]:
     """Collect tool map from a FastMCP server using CLI run-sync bridge."""
 
-    return invoke_with_optional_run_sync(
+    result: dict[str, Any] = invoke_with_optional_run_sync(
         diagnostics_collect_tool_map,
         server_instance,
         **kwargs,
     )
+    return result
 
 
 def prepare_server(runtime_settings: Any, logger: Any, **create_kwargs: Any) -> Any:

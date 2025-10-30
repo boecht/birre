@@ -238,7 +238,7 @@ def _prompt_and_record_bool(
         value = cli_value
         source = "CLI Option"
     else:
-        value = _prompt_bool(prompt_text, default=default_value)
+        value: bool = _prompt_bool(prompt_text, default=default_value)
         source = "Default" if value == default_value else SOURCE_USER_INPUT
 
     display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)

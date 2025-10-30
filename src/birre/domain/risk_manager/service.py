@@ -362,6 +362,8 @@ def _extract_folder_name(folder: Any) -> str | None:
     folder_name = folder.get("name") or folder.get("description")
     if not folder_name:
         return None
+    if not isinstance(folder_name, str):
+        return None
     return folder_name
 
 
@@ -980,6 +982,8 @@ async def _resolve_folder_guid(
         guid = folder.get("guid")
         if not name or not guid:
             continue
+        if not isinstance(name, str) or not isinstance(guid, str):
+            continue
         if name.strip().lower() == normalized:
             return guid
     return None
@@ -996,10 +1000,12 @@ async def _list_company_requests(
     except Exception:
         return []
     if isinstance(result, dict):
-        if isinstance(result.get("results"), list):
-            return result["results"]
-        if isinstance(result.get("company_requests"), list):
-            return result["company_requests"]
+        results = result.get("results")
+        if isinstance(results, list):
+            return results
+        company_requests = result.get("company_requests")
+        if isinstance(company_requests, list):
+            return company_requests
     return []
 
 

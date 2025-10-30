@@ -102,8 +102,10 @@ def record_failure(
 def _resolve_tool_callable(tool: Any) -> Callable[..., Any | None] | None:
     if tool is None:
         return None
-    if hasattr(tool, "fn") and callable(getattr(tool, "fn")):
-        return getattr(tool, "fn")
+    if hasattr(tool, "fn"):
+        fn = getattr(tool, "fn")
+        if callable(fn):
+            return fn
     if callable(tool):
         return tool
     return None
@@ -1303,7 +1305,8 @@ def run_online_checks(
                 with suppress(Exception):
                     await shutdown()
 
-    return _sync(_execute_checks(), run_sync=run_sync)
+    result: bool = _sync(_execute_checks(), run_sync=run_sync)
+    return result
 
 
 __all__ = [
