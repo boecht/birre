@@ -437,6 +437,7 @@ class SelfTestRunner:
         online_success: bool | None = None
         skip_tool_checks = False
 
+        tool_report: dict[str, dict[str, Any]]
         if missing_tools:
             tool_report = self._handle_missing_tools(
                 missing_tools,
@@ -452,7 +453,7 @@ class SelfTestRunner:
                 tools=sorted(discovered_tools),
                 attempt=label,
             )
-            tool_report: dict[str, dict[str, Any]] = {}
+            tool_report = {}
             online_success, skip_tool_checks = self._run_online_diagnostics(
                 settings,
                 context_logger,
@@ -468,7 +469,7 @@ class SelfTestRunner:
                 server_instance=server_instance,
                 expected_tools=expected_tools,
                 summary=tool_report,
-                failures=failure_records,
+                failures=failure_records,  # type: ignore[arg-type]  # list invariance
                 run_sync=self._run_sync,
             ):
                 attempt_success = False
@@ -477,7 +478,7 @@ class SelfTestRunner:
             label=label,
             success=attempt_success,
             failures=failure_records,
-            notes=attempt_notes,
+            notes=[n for n in attempt_notes if n is not None],  # Filter None values
             allow_insecure_tls=bool(settings.allow_insecure_tls),
             ca_bundle=str(settings.ca_bundle_path) if settings.ca_bundle_path else None,
             online_success=online_success,
@@ -516,7 +517,7 @@ class SelfTestRunner:
         )
         for tool_name in missing_tools:
             record_failure(
-                failure_records,
+                failure_records,  # type: ignore[arg-type]  # list invariance
                 tool=tool_name,
                 stage="discovery",
                 message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
@@ -553,7 +554,7 @@ class SelfTestRunner:
         except BirreError as exc:
             self._alerts.add(exc.code)
             record_failure(
-                failure_records,
+                failure_records,  # type: ignore[arg-type]  # list invariance
                 tool="startup_checks",
                 stage="online",
                 message="online startup checks failed",
@@ -569,7 +570,7 @@ class SelfTestRunner:
         else:
             if not online_ok:
                 record_failure(
-                    failure_records,
+                    failure_records,  # type: ignore[arg-type]  # list invariance
                     tool="startup_checks",
                     stage="online",
                     message="online startup checks failed",

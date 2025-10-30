@@ -128,11 +128,11 @@ def _build_processors(json_logs: bool, debug_enabled: bool) -> list[Processor]:
         processors.append(structlog.processors.StackInfoRenderer())
         processors.append(structlog.processors.format_exc_info)
     else:
-        processors.append(_strip_exc_info)
+        processors.append(_strip_exc_info)  # type: ignore[arg-type]  # structlog processor signature
     if json_logs:
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(_single_line_renderer)
+        processors.append(_single_line_renderer)  # type: ignore[arg-type]  # structlog processor signature
     return processors
 
 

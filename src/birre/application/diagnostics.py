@@ -69,7 +69,7 @@ HEALTHCHECK_REQUEST_DOMAIN: Final = "github.com"  # Use existing domain to avoid
 
 
 def _default_run_sync(coro: Awaitable[Any]) -> Any:
-    return asyncio.run(coro)
+    return asyncio.run(coro)  # type: ignore[arg-type]  # asyncio.run accepts Awaitable
 
 
 def _sync(coro: Awaitable[Any], run_sync: SyncRunner | None = None) -> Any:
@@ -105,9 +105,9 @@ def _resolve_tool_callable(tool: Any) -> Callable[..., Any | None] | None:
     if hasattr(tool, "fn"):
         fn = getattr(tool, "fn")
         if callable(fn):
-            return fn
+            return fn  # type: ignore[no-any-return]  # Dynamic tool resolution
     if callable(tool):
-        return tool
+        return tool  # type: ignore[no-any-return]  # Dynamic tool resolution
     return None
 
 
@@ -504,7 +504,7 @@ def run_company_search_diagnostics(
         return False
 
     if summary is not None:
-        summary.setdefault("modes", {})["name"] = {"status": "pass"}
+        summary.setdefault("modes", {})["name"] = {"status": "pass"}  # type: ignore[index]  # setdefault dict access
 
     try:
         by_domain = _invoke_tool(
@@ -530,7 +530,7 @@ def run_company_search_diagnostics(
                 "mode": "domain",
                 "error": str(exc),
             }
-            summary.setdefault("modes", {})["domain"] = {
+            summary.setdefault("modes", {})["domain"] = {  # type: ignore[index]  # setdefault dict access
                 "status": "fail",
                 "error": str(exc),
             }
@@ -554,14 +554,14 @@ def run_company_search_diagnostics(
                 "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
                 "mode": "domain",
             }
-            summary.setdefault("modes", {})["domain"] = {
+            summary.setdefault("modes", {})["domain"] = {  # type: ignore[index]  # setdefault dict access
                 "status": "fail",
                 "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
             }
         return False
 
     if summary is not None:
-        summary.setdefault("modes", {})["domain"] = {"status": "pass"}
+        summary.setdefault("modes", {})["domain"] = {"status": "pass"}  # type: ignore[index]  # setdefault dict access
 
     tool_logger.info("healthcheck.company_search.success")
     return True
@@ -851,7 +851,7 @@ def _validate_company_entry(entry: Any, logger: BoundLogger) -> bool:
     return True
 
 
-def _check_domain_match(companies: list, expected_domain: str, logger: BoundLogger) -> bool:
+def _check_domain_match(companies: list[Any], expected_domain: str, logger: BoundLogger) -> bool:
     for entry in companies:
         domain_value = str(entry.get("domain") or "")
         if domain_value.lower() == expected_domain.lower():
