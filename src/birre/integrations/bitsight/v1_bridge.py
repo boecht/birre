@@ -75,7 +75,8 @@ def _log_tls_error(
     exc: Exception,
 ) -> None:
     log_fields = mapped_error.log_fields()
-    logger.error(mapped_error.summary, **log_fields)
+    summary = getattr(mapped_error, "summary", str(mapped_error))
+    logger.error(summary, **log_fields)
     if debug_enabled:
         trace_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         logger.debug(

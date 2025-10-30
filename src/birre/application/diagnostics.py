@@ -1292,8 +1292,7 @@ def run_online_checks(
                     await close()
                 except Exception as exc:  # pragma: no cover - defensive logging
                     _LOOP_LOGGER.warning(
-                        "online_checks.client_close_failed",
-                        error=str(exc),
+                        "online_checks.client_close_failed: %s", str(exc)
                     )
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):

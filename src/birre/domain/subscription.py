@@ -142,7 +142,7 @@ async def create_ephemeral_subscription(
     try:
         await ctx.info(f"Ensuring BitSight subscription for company: {guid}")
 
-        subscription_base = _build_subscription_base(default_folder, subscription_type)
+        subscription_base = _build_subscription_payload(default_folder, subscription_type)
 
         if not subscription_base:
             message = (
