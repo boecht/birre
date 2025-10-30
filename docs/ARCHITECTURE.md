@@ -284,10 +284,11 @@ BiRRe provides a Typer-based CLI with modular command organization:
 src/birre/cli/
 ├── app.py              # Main CLI app with command registration
 ├── main.py             # Console entry point
-├── helpers.py          # Shared CLI utilities and config resolution
-├── options.py          # Reusable Typer option factories
+├── helpers.py          # Shared CLI utilities and config resolution (382 lines)
+├── options.py          # Reusable Typer option factories (360 lines)
 ├── models.py           # CLI dataclasses (CliInvocation, etc.)
-├── formatting.py       # Rich console formatting utilities
+├── formatting.py       # Rich console formatting utilities (200 lines)
+├── validation.py       # Common validators and error handling (188 lines)
 └── commands/           # Command group implementations
     ├── run.py          # MCP server startup command
     ├── config.py       # Config management (init, show, validate)
@@ -305,6 +306,21 @@ src/birre/cli/
 - **Configuration Layering**: `helpers.py` provides utilities for merging config.toml → config.local.toml → environment → CLI flags
 - **Rich Console**: All CLI output uses Rich for formatted tables, styled text, and progress indicators
 - **Shared Formatting**: Common utilities (table creation, value masking, config formatting) in `formatting.py` eliminate duplication
+- **Validation Utilities**: `validation.py` provides reusable validators (file existence, TOML parsing, parameter validation) with consistent error handling
+
+**Module Sizing Philosophy**:
+
+BiRRe CLI modules follow a pragmatic sizing approach:
+- **helpers.py (382 lines)**: 16 functions organized into 6 clear categories (sync bridge, invocation building, settings conversion, runtime utilities, diagnostics)
+- **options.py (360 lines)**: 20+ Typer option declarations with normalization helpers, organized by concern (auth, runtime, logging)
+- **validation.py (188 lines)**: 6 reusable validators for common CLI validation patterns
+
+These modules remain intentionally unified rather than split because:
+1. **Cohesion**: Each module has a single, clear responsibility
+2. **Discoverability**: Related functions are co-located for easy navigation
+3. **Simplicity**: Splitting would increase import complexity without improving maintainability
+4. **Threshold**: All modules are under the 400-line practical limit for CLI utilities
+5. **MVP Principle**: Avoid premature abstraction when current organization serves its purpose
 
 See [docs/CLI.md](CLI.md) for complete command reference.
 
