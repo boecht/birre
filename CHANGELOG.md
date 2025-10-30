@@ -7,6 +7,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [4.0.0-alpha.2] - 2025-10-30
+
+### Changed
+
+- **Code complexity reduction (TD-002)**
+  - Enabled cyclomatic complexity checking (C90, max-complexity=10)
+  - Refactored 7 complex functions across 5 modules
+  - Eliminated 200+ lines of code duplication
+  - All functions now meet complexity threshold
+
+### Refactored
+
+- `_has_degraded_outcomes` (selftest/runner.py): 13 → 5 complexity
+  - Extracted 5 helper methods for outcome checking
+- `run_company_search_diagnostics` (diagnostics.py): 12 → 5 complexity
+  - Eliminated duplication with test mode abstraction
+- `_build_company_search_response` (risk_manager/service.py): 13 → 6 complexity
+  - Separated tree fetching, parent processing, and entry building
+- `_collect_cli_override_values` (config.py): 16 → 3 complexity
+  - Data-driven approach with central mapping configuration
+- `_build_cli_source_labels` (config.py): 16 → 3 complexity
+  - Shared mapping infrastructure eliminates duplication
+- `logs.register` (logs.py): 17 → 5 complexity
+  - Extracted 4 command implementation functions
+- `config.register` (config.py): 22 → 5 complexity
+  - Extracted 3 command implementation functions
+
+### Improved
+
+- Code maintainability through smaller, focused functions
+- Testability with isolated, independently testable helpers
+- Readability with descriptive method names and clear responsibilities
+
+### Technical
+
+- Zero complexity violations across entire codebase
+- All 76 offline tests passing
+- 100% functionality preserved with no behavioral changes
+
 ## [4.0.0-alpha.1] - 2025-10-30
 
 ### ⚠️ BREAKING CHANGES

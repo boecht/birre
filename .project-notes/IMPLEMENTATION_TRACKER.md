@@ -31,7 +31,7 @@
 - [ ] PKG-002: SBOM Generation (3h)
 
 #### P2 (Important - 19 items, ~159 hours)
-- [ ] TD-002: Code Complexity Analysis (4h)
+- [x] TD-002: Code Complexity Analysis (4h) ✅ Completed 2025-10-30
 - [ ] TD-003: Async/Sync Bridge Simplification (8h)
 - [ ] QA-002: Expand Online Test Suite (12h)
 - [ ] CI-003: Cross-Platform Testing (4h)
@@ -68,7 +68,7 @@
 #### Technical Debt & Code Quality (4 items, 15h)
 
 - [x] TD-001: Type Checking Infrastructure (P1, 8h) ✅ Completed 2025-10-30
-- [ ] TD-002: Code Complexity Analysis (P2, 4h)
+- [x] TD-002: Code Complexity Analysis (P2, 4h) ✅ Completed 2025-10-30
 - [ ] TD-003: Async/Sync Bridge Simplification (P2, 8h)
 - [ ] TD-004: Magic Number Extraction (P3, 3h)
 
@@ -386,12 +386,68 @@ Select based on strategic priorities:
 
 ---
 
-## Completed (4 items)
+### TD-002: Code Complexity Analysis
+
+**Status**: ✅ Complete (2025-10-30)
+**Dependencies**: None
+**Priority**: P2
+**Estimated**: 4h | **Actual**: 4h
+
+**Objective**: Enable cyclomatic complexity checking and refactor complex functions to meet max-complexity=10 threshold.
+
+**Completed Tasks**:
+1. ✅ Added C90 (McCabe complexity) to ruff configuration
+2. ✅ Set max-complexity=10 threshold in pyproject.toml
+3. ✅ Identified 7 functions exceeding complexity limit
+4. ✅ Systematically refactored all 7 functions
+5. ✅ Verified zero complexity violations across codebase
+6. ✅ All 76 offline tests passing after refactoring
+
+**Refactored Functions**:
+1. ✅ `_has_degraded_outcomes` (runner.py): 13 → 5 complexity
+2. ✅ `run_company_search_diagnostics` (diagnostics.py): 12 → 5 complexity
+3. ✅ `_build_company_search_response` (risk_manager/service.py): 13 → 6 complexity
+4. ✅ `_collect_cli_override_values` (config.py): 16 → 3 complexity
+5. ✅ `_build_cli_source_labels` (config.py): 16 → 3 complexity
+6. ✅ `logs.register` (logs.py): 17 → 5 complexity
+7. ✅ `config.register` (config.py): 22 → 5 complexity
+
+**Refactoring Techniques Applied**:
+- Extracted helper methods for distinct responsibilities
+- Eliminated code duplication (200+ lines reduced)
+- Data-driven approaches with mapping configurations
+- Separated command registration from implementation
+- Early returns and guard clauses to reduce nesting
+
+**Benefits Achieved**:
+- ✅ Zero complexity violations across entire codebase
+- ✅ Improved maintainability through smaller, focused functions
+- ✅ Better testability with isolated helper functions
+- ✅ Enhanced readability with descriptive method names
+- ✅ 100% functionality preserved (no behavioral changes)
+
+**Commits Made**: 7 systematic commits (1 per function/pair)
+
+**Key Technical Decisions**:
+- ✅ Breaking changes allowed (no backwards compatibility constraints)
+- ✅ Extracted helpers as private module-level functions
+- ✅ Preserved public API surface unchanged
+- ✅ Maintained test coverage throughout refactoring
+
+**CI/CD Integration**:
+- ✅ Complexity checking enabled in ruff configuration
+- ✅ Pre-commit hook enforces C90 on all commits
+- ✅ All source files pass `ruff check --select C90`
+
+---
+
+## Completed (5 items)
 
 - ✅ Project Analysis (PROJECT_ANALYSIS.md)
 - ✅ Improvement Planning (IMPROVEMENT_PLAN.md)
 - ✅ TD-001: Type Checking Infrastructure (2025-10-30)
 - ✅ QA-001: Test Coverage Infrastructure (2025-10-30)
+- ✅ TD-002: Code Complexity Analysis (2025-10-30)
 
 ## Deferred (3 items)
 

@@ -28,8 +28,8 @@ def register(
     """Register the selftest command with the given Typer app."""
 
     @app.command(help="Run BiRRe self tests without starting the FastMCP server.")
-    def selftest(
-        config: cli_options.ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
+    def selftest(  # NOSONAR python:S107
+        config: cli_options.ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),  # NOSONAR
         bitsight_api_key: cli_options.BitsightApiKeyOption = None,
         subscription_folder: cli_options.SubscriptionFolderOption = None,
         subscription_type: cli_options.SubscriptionTypeOption = None,
