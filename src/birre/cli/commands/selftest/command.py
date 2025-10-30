@@ -7,12 +7,9 @@ from rich.console import Console
 
 from birre.cli import options as cli_options
 from birre.cli.commands.selftest.runner import SelfTestRunner
-from birre.cli.helpers import (
-    await_sync,
-    build_invocation,
-    initialize_logging,
-    resolve_runtime_and_logging,
-)
+from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.runtime import CONTEXT_CHOICES, initialize_logging
+from birre.cli.sync_bridge import await_sync
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.infrastructure.errors import ErrorCode
 
@@ -51,6 +48,7 @@ def register(
         """Execute BiRRe diagnostics and optional online checks."""
 
         invocation = build_invocation(
+            context_choices=CONTEXT_CHOICES,
             config_path=str(config) if config is not None else None,
             api_key=bitsight_api_key,
             subscription_folder=subscription_folder,

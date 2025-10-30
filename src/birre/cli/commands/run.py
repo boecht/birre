@@ -10,15 +10,15 @@ from pathlib import Path
 import typer
 
 from birre.cli import options as cli_options
-from birre.cli.helpers import (
-    await_sync,
-    build_invocation,
+from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.runtime import (
+    CONTEXT_CHOICES,
     initialize_logging,
     prepare_server,
-    resolve_runtime_and_logging,
     run_offline_checks,
     run_online_checks,
 )
+from birre.cli.sync_bridge import await_sync
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.infrastructure.errors import BirreError
 
@@ -62,6 +62,7 @@ def register(
             subscription_folder=subscription_folder,
             subscription_type=subscription_type,
             context=context,
+            context_choices=CONTEXT_CHOICES,
             debug=debug,
             risk_vector_filter=risk_vector_filter,
             max_findings=max_findings,

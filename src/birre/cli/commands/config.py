@@ -22,10 +22,10 @@ from birre.cli.formatting import (
     create_config_table,
     flatten_to_dotted,
     format_config_value,
-    mask_sensitive_value,
 )
-from birre.cli.helpers import CONTEXT_CHOICES, build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
 from birre.cli.models import CliInvocation
+from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import parse_toml_file, require_file_exists
 from birre.config.constants import (
     DEFAULT_CONFIG_FILENAME,
@@ -711,6 +711,7 @@ def register(
             subscription_folder=subscription_folder,
             subscription_type=subscription_type,
             context=context,
+            context_choices=CONTEXT_CHOICES,
             debug=debug,
             risk_vector_filter=risk_vector_filter,
             max_findings=max_findings,

@@ -10,7 +10,9 @@ import pytest
 from typer.testing import CliRunner
 
 import birre.application.diagnostics as diagnostics_module
-import birre.cli.helpers as cli_helpers
+import birre.cli.invocation as cli_invocation
+import birre.cli.runtime as cli_runtime
+import birre.cli.sync_bridge as cli_sync_bridge
 from birre.cli.commands import logs as logs_command
 from birre.config.settings import LoggingSettings, RuntimeSettings
 
@@ -45,6 +47,7 @@ def _logging_settings() -> LoggingSettings:
 
 def _build_invocation(**overrides):
     defaults = {
+        "context_choices": cli_runtime.CONTEXT_CHOICES,
         "config_path": None,
         "api_key": None,
         "subscription_folder": None,
@@ -64,7 +67,7 @@ def _build_invocation(**overrides):
         "profile_path": None,
     }
     defaults.update(overrides)
-    return cli_helpers.build_invocation(**defaults)
+    return cli_invocation.build_invocation(**defaults)
 
 
 def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,13 +165,13 @@ def test_build_invocation_strips_log_file() -> None:
 def test_logging_inputs_returns_none_when_no_overrides() -> None:
     invocation = _build_invocation()
 
-    assert cli_helpers.logging_inputs(invocation.logging) is None
+    assert cli_invocation.logging_inputs(invocation.logging) is None
 
 
 def test_logging_inputs_disables_file_logging_via_sentinel() -> None:
     invocation = _build_invocation(log_file=" none ")
 
-    logging_inputs = cli_helpers.logging_inputs(invocation.logging)
+    logging_inputs = cli_invocation.logging_inputs(invocation.logging)
     assert logging_inputs is not None
     assert logging_inputs.file_path == ""
 
@@ -515,7 +518,7 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
     summary = json.loads(json_payload)
 
     assert summary["offline_check"]["status"] == "pass"
-    for context in cli_helpers.CONTEXT_CHOICES:
+    for context in cli_runtime.CONTEXT_CHOICES:
         context_entry = summary["contexts"].get(context)
         assert context_entry is not None
         assert context_entry["online"]["status"] == "pass"
@@ -586,14 +589,14 @@ def test_selftest_passes_shared_options_to_build_invocation(
     # Import the selftest command module to patch the right location
     from birre.cli.commands.selftest import command as selftest_command
     
-    original_build = cli_helpers.build_invocation
+    original_build = cli_invocation.build_invocation
 
     def record_build_invocation(**kwargs):
         captured.update(kwargs)
         return original_build(**kwargs)
 
     # Patch in both locations to be safe
-    monkeypatch.setattr(cli_helpers, "build_invocation", record_build_invocation)
+    monkeypatch.setattr(cli_invocation, "build_invocation", record_build_invocation)
     monkeypatch.setattr(selftest_command, "build_invocation", record_build_invocation)
 
     class FakeSelfTestRunner:
@@ -693,14 +696,14 @@ def test_selftest_uses_environment_config_path(
     # Import the selftest command module to patch the right location
     from birre.cli.commands.selftest import command as selftest_command
     
-    original_build = cli_helpers.build_invocation
+    original_build = cli_invocation.build_invocation
 
     def record_build_invocation(**kwargs):
         captured.update(kwargs)
         return original_build(**kwargs)
 
     # Apply monkeypatch to both locations
-    monkeypatch.setattr(cli_helpers, "build_invocation", record_build_invocation)
+    monkeypatch.setattr(cli_invocation, "build_invocation", record_build_invocation)
     monkeypatch.setattr(selftest_command, "build_invocation", record_build_invocation)
 
     class FakeSelfTestRunner:
@@ -759,15 +762,15 @@ def test_selftest_fails_when_context_tools_missing(
 ) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_helpers, "run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
-    monkeypatch.setattr(cli_helpers, "initialize_logging",
+    monkeypatch.setattr(cli_runtime, "initialize_logging",
         lambda runtime, logging_settings, *, show_banner=False: logger,
     )
 
     expected = {
         context: set(server._EXPECTED_TOOLS_BY_CONTEXT[context])
-        for context in cli_helpers.CONTEXT_CHOICES
+        for context in cli_runtime.CONTEXT_CHOICES
     }
 
     def fake_prepare(runtime, log, **kwargs):
@@ -784,8 +787,8 @@ def test_selftest_fails_when_context_tools_missing(
             call_v1_tool=object(),
         )
 
-    monkeypatch.setattr(cli_helpers, "prepare_server", fake_prepare)
-    monkeypatch.setattr(cli_helpers, "run_online_checks",
+    monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
+    monkeypatch.setattr(cli_runtime, "run_online_checks",
         lambda runtime, log, *, v1_base_url=None: True,
     )
     def fake_diagnostics(
@@ -819,15 +822,15 @@ def test_selftest_fails_when_context_tools_missing(
 
 def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
-    monkeypatch.setattr(cli_helpers, "run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
-    monkeypatch.setattr(cli_helpers, "initialize_logging",
+    monkeypatch.setattr(cli_runtime, "initialize_logging",
         lambda runtime, logging_settings, *, show_banner=False: logger,
     )
 
     expected = {
         context: set(server._EXPECTED_TOOLS_BY_CONTEXT[context])
-        for context in cli_helpers.CONTEXT_CHOICES
+        for context in cli_runtime.CONTEXT_CHOICES
     }
 
     def fake_prepare(runtime, log, **kwargs):
@@ -842,8 +845,8 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
             call_v1_tool=object(),
         )
 
-    monkeypatch.setattr(cli_helpers, "prepare_server", fake_prepare)
-    monkeypatch.setattr(cli_helpers, "run_online_checks",
+    monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
+    monkeypatch.setattr(cli_runtime, "run_online_checks",
         lambda runtime, log, *, v1_base_url=None: True,
     )
 
@@ -1031,7 +1034,7 @@ def test_selftest_missing_ca_bundle_falls_back_to_defaults(
 
     with (
         patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner),
-        patch("birre.cli.helpers.resolve_runtime_and_logging") as resolve_mock,
+        patch("birre.cli.invocation.resolve_runtime_and_logging") as resolve_mock,
     ):
         # Configure the mock to return settings with nonexistent CA bundle
         runtime = replace(_runtime_settings(), ca_bundle_path="/nonexistent/ca.pem")

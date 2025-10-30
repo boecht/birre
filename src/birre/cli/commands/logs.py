@@ -9,8 +9,9 @@ import typer
 from rich.console import Console
 
 from birre.cli import options as cli_options
-from birre.cli.helpers import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
 from birre.cli.models import CliInvocation, LogViewLine
+from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import validate_path_exists
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 
@@ -48,6 +49,7 @@ def _resolve_logging_settings_from_cli(
         subscription_folder=None,
         subscription_type=None,
         context=None,
+        context_choices=CONTEXT_CHOICES,
         debug=None,
         risk_vector_filter=None,
         max_findings=None,
