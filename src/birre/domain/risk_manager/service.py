@@ -17,10 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import DEFAULT_MAX_FINDINGS
 from birre.domain.common import CallV1Tool, CallV2Tool
-from birre.domain.subscription import (
-    create_ephemeral_subscription,
-    cleanup_ephemeral_subscription,
-)
+from birre.domain.company_rating.service import _rating_color
 from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
 
@@ -39,6 +36,8 @@ class CompanyInteractiveResult(BaseModel):
     website: str
     description: str
     employee_count: int | None = None
+    rating: int | None = None
+    rating_color: str | None = None
     subscription: SubscriptionSnapshot
 
     @model_validator(mode="before")
@@ -53,6 +52,8 @@ class CompanyInteractiveResult(BaseModel):
                 "website": "",
                 "description": "",
                 "employee_count": None,
+                "rating": None,
+                "rating_color": None,
                 "subscription": {},
             }
         return {
@@ -63,6 +64,8 @@ class CompanyInteractiveResult(BaseModel):
             "website": str(value.get("website") or ""),
             "description": str(value.get("description") or ""),
             "employee_count": value.get("employee_count"),
+            "rating": value.get("rating"),
+            "rating_color": value.get("rating_color"),
             "subscription": value.get("subscription") or {},
         }
 
@@ -211,13 +214,10 @@ async def _fetch_company_details(
     *,
     logger: BoundLogger,
     limit: int,
-    default_folder: str | None,
-    subscription_type: str | None,
-    debug_enabled: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Retrieve detailed company records for the provided GUIDs.
     
-    Creates ephemeral subscriptions if needed to access company details.
+    Requires companies to be already subscribed (via bulk subscription).
     """
 
     effective_limit = (
@@ -232,34 +232,12 @@ async def _fetch_company_details(
         if not guid_str:
             continue
         
-        # Create ephemeral subscription to ensure access to company details
-        attempt = await create_ephemeral_subscription(
-            call_v1_tool,
-            ctx,
-            guid_str,
-            logger=logger,
-            default_folder=default_folder,
-            subscription_type=subscription_type,
-            debug_enabled=debug_enabled,
-        )
-        
-        if not attempt.success:
-            await ctx.warning(
-                f"Cannot fetch details for {guid_str}: subscription unavailable"
-            )
-            logger.warning(
-                "company_detail.subscription_failed",
-                company_guid=guid_str,
-            )
-            continue
-        
-        auto_subscribed = attempt.created
-        
         params = {
             "guid": guid_str,
             "fields": (
-                "name,primary_domain,display_url,homepage,description,"
-                "people_count,subscription_type,in_spm_portfolio,subscription_end_date"
+                "guid,name,description,primary_domain,display_url,homepage,"
+                "people_count,subscription_type,in_spm_portfolio,subscription_end_date,"
+                "current_rating,has_company_tree"
             ),
         }
         try:
@@ -272,15 +250,6 @@ async def _fetch_company_details(
                 "company_detail.fetch_failed",
                 company_guid=guid_str,
             )
-        finally:
-            # Clean up ephemeral subscription if we created it
-            if auto_subscribed:
-                await cleanup_ephemeral_subscription(
-                    call_v1_tool,
-                    ctx,
-                    guid_str,
-                    debug_enabled=debug_enabled,
-                )
     
     return details
 
@@ -430,6 +399,16 @@ def _format_result_entry(
         or detail.get("shortname")
     )
     employee_count = candidate.get("employee_count") or detail.get("people_count")
+    
+    # Extract rating from detail (from getCompany call)
+    current_rating = detail.get("current_rating")
+    rating_value = None
+    if current_rating is not None:
+        try:
+            rating_value = int(current_rating)
+        except (TypeError, ValueError):
+            pass
+    
     return {
         "label": label,
         "guid": guid,
@@ -440,6 +419,8 @@ def _format_result_entry(
         "website": candidate.get("website") or detail.get("homepage") or "",
         "description": description or "",
         "employee_count": employee_count,
+        "rating": rating_value,
+        "rating_color": _rating_color(rating_value),
         "subscription": _build_subscription_snapshot(detail, folders),
     }
 
@@ -672,8 +653,6 @@ async def _build_company_search_response(
             guid_order,
             logger=logger,
             limit=defaults.limit,
-            default_folder=defaults.folder,
-            subscription_type=defaults.subscription_type,
         )
         
         # Step 4: Get folder memberships
