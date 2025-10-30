@@ -54,6 +54,7 @@ EXPECTED_V1_KEEP = {
     "companySearch",
     "manageSubscriptionsBulk",
     "getCompany",
+    "getCompaniesTree",
     "getCompaniesFindings",
     "getFolders",
     "getCompanySubscriptions",

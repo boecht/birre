@@ -325,6 +325,7 @@ def create_birre_server(
             "companySearch",
             "manageSubscriptionsBulk",
             "getCompany",
+            "getCompaniesTree",
             "getCompaniesFindings",
             "getFolders",
             "getCompanySubscriptions",
