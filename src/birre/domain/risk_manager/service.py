@@ -389,7 +389,7 @@ def _build_candidate(entry: Any) -> dict[str, Any | None]:
         or entry.get("business_description"),
         "employee_count": details.get("employee_count")
         or entry.get("people_count"),
-        "in_portfolio": entry.get("in_portfolio"),
+        "in_portfolio": details.get("in_portfolio") or entry.get("in_portfolio"),
         "subscription_type": entry.get("subscription_type"),
     }
 
@@ -457,7 +457,7 @@ def _validate_company_search_inputs(
 def _build_company_search_params(
     name: str | None, domain: str | None
 ) -> tuple[dict[str, Any], str]:
-    params: dict[str, Any] = {"expand": "details.employee_count"}
+    params: dict[str, Any] = {"expand": "details.employee_count,details.in_portfolio"}
     if domain:
         params["domain"] = domain
         if name:
@@ -546,6 +546,86 @@ def _enrich_candidates(
     return enriched
 
 
+def _identify_non_subscribed_companies(
+    candidates: Iterable[dict[str, Any]],
+) -> list[str]:
+    """Extract GUIDs of companies not in portfolio (need ephemeral subscription)."""
+    non_subscribed: list[str] = []
+    for candidate in candidates:
+        if not candidate.get("in_portfolio"):
+            guid = candidate.get("guid")
+            if isinstance(guid, str) and guid:
+                non_subscribed.append(guid)
+    return non_subscribed
+
+
+async def _bulk_subscribe_companies(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guids: Sequence[str],
+    *,
+    logger: BoundLogger,
+    folder: str | None,
+    subscription_type: str | None,
+) -> set[str]:
+    """Subscribe to multiple companies at once. Returns set of subscribed GUIDs."""
+    if not guids:
+        return set()
+    
+    try:
+        payload = {
+            "add": [
+                {
+                    "guid": guid,
+                    **({"type": subscription_type} if subscription_type else {}),
+                    **({"folder": [folder]} if folder else {}),
+                }
+                for guid in guids
+            ]
+        }
+        await call_v1_tool("manageSubscriptionsBulk", ctx, payload)
+        logger.info(
+            "bulk_subscribe.success",
+            count=len(guids),
+            folder=folder,
+            subscription_type=subscription_type,
+        )
+        return set(guids)
+    except Exception as exc:
+        await ctx.warning(f"Bulk subscription failed: {exc}")
+        logger.warning(
+            "bulk_subscribe.failed",
+            count=len(guids),
+            error=str(exc),
+        )
+        return set()
+
+
+async def _bulk_unsubscribe_companies(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guids: Iterable[str],
+    *,
+    logger: BoundLogger,
+) -> None:
+    """Unsubscribe from multiple companies at once (cleanup ephemeral subscriptions)."""
+    guid_list = list(guids)
+    if not guid_list:
+        return
+    
+    try:
+        payload = {"delete": [{"guid": guid} for guid in guid_list]}
+        await call_v1_tool("manageSubscriptionsBulk", ctx, payload)
+        logger.info("bulk_unsubscribe.success", count=len(guid_list))
+    except Exception as exc:
+        await ctx.warning(f"Bulk unsubscription failed: {exc}")
+        logger.warning(
+            "bulk_unsubscribe.failed",
+            count=len(guid_list),
+            error=str(exc),
+        )
+
+
 async def _build_company_search_response(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -573,33 +653,56 @@ async def _build_company_search_response(
             default_type=defaults.subscription_type,
         )
 
-    details = await _fetch_company_details(
+    # Step 2: Bulk subscribe to non-portfolio companies
+    non_subscribed_guids = _identify_non_subscribed_companies(candidates)
+    ephemeral_subscriptions = await _bulk_subscribe_companies(
         call_v1_tool,
         ctx,
-        guid_order,
+        non_subscribed_guids[:defaults.limit],
         logger=logger,
-        limit=defaults.limit,
-        default_folder=defaults.folder,
+        folder=defaults.folder,
         subscription_type=defaults.subscription_type,
     )
-    memberships = await _fetch_folder_memberships(
-        call_v1_tool,
-        ctx,
-        guid_order,
-        logger=logger,
-    )
 
-    enriched = _enrich_candidates(candidates, details, memberships)
-    result_count = len(enriched)
+    try:
+        # Step 3a: Get company details + rating
+        details = await _fetch_company_details(
+            call_v1_tool,
+            ctx,
+            guid_order,
+            logger=logger,
+            limit=defaults.limit,
+            default_folder=defaults.folder,
+            subscription_type=defaults.subscription_type,
+        )
+        
+        # Step 4: Get folder memberships
+        memberships = await _fetch_folder_memberships(
+            call_v1_tool,
+            ctx,
+            guid_order,
+            logger=logger,
+        )
 
-    log_search_event(
-        logger,
-        "success",
-        ctx=ctx,
-        company_name=search.name,
-        company_domain=search.domain,
-        result_count=result_count,
-    )
+        enriched = _enrich_candidates(candidates, details, memberships)
+        result_count = len(enriched)
+
+        log_search_event(
+            logger,
+            "success",
+            ctx=ctx,
+            company_name=search.name,
+            company_domain=search.domain,
+            result_count=result_count,
+        )
+    finally:
+        # Step 6: Cleanup ephemeral subscriptions
+        await _bulk_unsubscribe_companies(
+            call_v1_tool,
+            ctx,
+            ephemeral_subscriptions,
+            logger=logger,
+        )
 
     truncated = len(guid_order) > defaults.limit
 
