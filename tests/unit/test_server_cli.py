@@ -511,10 +511,28 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
     assert result.exit_code == 0, result.stdout
     assert "Healthcheck Summary" in result.stdout
 
-    lines = result.stdout.splitlines()
-    assert "Machine-readable summary:" in lines
-    index = lines.index("Machine-readable summary:")
-    json_payload = "\n".join(lines[index + 1 :]).strip()
+    # Extract JSON portion between "Machine-readable summary:" and the table
+    output = result.stdout
+    json_start = output.find("Machine-readable summary:")
+    assert json_start != -1, "Machine-readable summary not found"
+    
+    # Find the start of JSON (opening brace)
+    json_start = output.find("{", json_start)
+    assert json_start != -1, "JSON opening brace not found"
+    
+    # Find the end of JSON by matching braces
+    brace_count = 0
+    json_end = json_start
+    for i, char in enumerate(output[json_start:], start=json_start):
+        if char == "{":
+            brace_count += 1
+        elif char == "}":
+            brace_count -= 1
+            if brace_count == 0:
+                json_end = i + 1
+                break
+    
+    json_payload = output[json_start:json_end]
     summary = json.loads(json_payload)
 
     assert summary["offline_check"]["status"] == "pass"
