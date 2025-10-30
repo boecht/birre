@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Improved
+
+- **Enhanced startup reliability**
+  - Improved async operation handling during server startup
+  - Eliminated potential race conditions in event loop management
+  - More predictable behavior when running health checks
+  - Reduced memory footprint during initialization
+
 ## [4.0.0-alpha.2] - 2025-10-30
 
 ### Changed
