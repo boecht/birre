@@ -254,6 +254,118 @@ async def _fetch_company_details(
     return details
 
 
+async def _fetch_company_tree(
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    guid: str,
+    *,
+    logger: BoundLogger,
+) -> dict[str, Any] | None:
+    """
+    Fetch company tree from BitSight API.
+    
+    Returns tree structure with parent-child relationships, or None if no tree exists.
+    """
+    try:
+        params = {"guid": str(guid).strip()}
+        tree_data = await call_v1_tool("getCompaniesTree", ctx, params)
+        if isinstance(tree_data, dict):
+            logger.debug(
+                "company_tree.fetched",
+                company_guid=guid,
+                has_tree=True,
+            )
+            return tree_data
+        return None
+    except Exception as error:  # pragma: no cover - defensive
+        await ctx.warning(f"Failed to fetch company tree for {guid}: {error}")
+        logger.warning(
+            "company_tree.fetch_failed",
+            company_guid=guid,
+            error=str(error),
+        )
+        return None
+
+
+def _find_company_in_tree(
+    tree_node: dict[str, Any], target_guid: str, path: list[str] | None = None
+) -> list[str] | None:
+    """
+    Recursively find path from root to target company in tree.
+    
+    Returns list of GUIDs from root to target (excluding target itself),
+    or None if target not found in this branch.
+    """
+    if path is None:
+        path = []
+    
+    node_guid = tree_node.get("guid")
+    if not node_guid:
+        return None
+    
+    # Found the target - return path (excluding target)
+    if str(node_guid) == str(target_guid):
+        return path.copy()
+    
+    # Recurse into children
+    children = tree_node.get("children", [])
+    if not isinstance(children, list):
+        return None
+    
+    new_path = path + [str(node_guid)]
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        result = _find_company_in_tree(child, target_guid, new_path)
+        if result is not None:
+            return result
+    
+    return None
+
+
+def _find_node_in_tree(
+    tree_node: dict[str, Any], target_guid: str
+) -> dict[str, Any] | None:
+    """
+    Recursively find a node with the given GUID in the tree.
+    
+    Returns the node dict if found, None otherwise.
+    """
+    node_guid = tree_node.get("guid")
+    if node_guid and str(node_guid) == str(target_guid):
+        return tree_node
+    
+    children = tree_node.get("children", [])
+    if not isinstance(children, list):
+        return None
+    
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        result = _find_node_in_tree(child, target_guid)
+        if result is not None:
+            return result
+    
+    return None
+
+
+def _extract_parent_guids(
+    tree_root: dict[str, Any], company_guid: str
+) -> list[str]:
+    """
+    Extract all parent GUIDs from root to company (excluding company itself).
+    
+    Returns list ordered from immediate parent to root.
+    Example: If tree is Root -> Parent -> Company, returns [Parent, Root]
+    """
+    path = _find_company_in_tree(tree_root, company_guid)
+    if not path:
+        return []
+    
+    # Reverse to get immediate parent first, then grandparent, etc.
+    return list(reversed(path))
+
+
 def _extract_folder_name(folder: Any) -> str | None:
     if not isinstance(folder, dict):
         return None
@@ -655,15 +767,116 @@ async def _build_company_search_response(
             limit=defaults.limit,
         )
         
-        # Step 4: Get folder memberships
+        # Step 3b: Fetch company trees for companies that have them
+        trees: dict[str, dict[str, Any]] = {}
+        for guid, detail in details.items():
+            has_tree = detail.get("has_company_tree")
+            if has_tree:
+                tree_data = await _fetch_company_tree(
+                    call_v1_tool,
+                    ctx,
+                    guid,
+                    logger=logger,
+                )
+                if tree_data:
+                    trees[guid] = tree_data
+        
+        # Step 3c: Extract and enrich with parent companies
+        parent_details: dict[str, dict[str, Any]] = {}
+        parent_to_children: dict[str, list[str]] = {}  # Track which child each parent belongs to
+        
+        for company_guid, tree_data in trees.items():
+            parent_guids = _extract_parent_guids(tree_data, company_guid)
+            
+            # For each parent, check if we need to subscribe and fetch details
+            for parent_guid in parent_guids:
+                # Track which child this parent belongs to (for labeling)
+                if parent_guid not in parent_to_children:
+                    parent_to_children[parent_guid] = []
+                parent_to_children[parent_guid].append(company_guid)
+                
+                # Skip if we already have this parent (either from search or already fetched)
+                if parent_guid in details or parent_guid in parent_details:
+                    continue
+                
+                # Check if parent is already subscribed (from tree data)
+                parent_node = _find_node_in_tree(tree_data, parent_guid)
+                parent_is_subscribed = (
+                    parent_node.get("is_subscribed", False) if parent_node else False
+                )
+                
+                # Subscribe if needed
+                if not parent_is_subscribed:
+                    parent_ephemeral = await _bulk_subscribe_companies(
+                        call_v1_tool,
+                        ctx,
+                        [parent_guid],
+                        logger=logger,
+                        folder=defaults.folder,
+                        subscription_type=defaults.subscription_type,
+                    )
+                    ephemeral_subscriptions.update(parent_ephemeral)
+                
+                # Fetch parent company details
+                parent_data_map = await _fetch_company_details(
+                    call_v1_tool,
+                    ctx,
+                    [parent_guid],
+                    logger=logger,
+                    limit=1,
+                )
+                if parent_guid in parent_data_map:
+                    parent_details[parent_guid] = parent_data_map[parent_guid]
+        
+        # Merge parent details into main details dict (not yet added to candidates)
+        all_details = {**details, **parent_details}
+        
+        # Step 4: Get folder memberships (for all companies including parents)
+        all_guids = list(guid_order) + list(parent_details.keys())
         memberships = await _fetch_folder_memberships(
             call_v1_tool,
             ctx,
-            guid_order,
+            all_guids,
             logger=logger,
         )
 
-        enriched = _enrich_candidates(candidates, details, memberships)
+        # Enrich original search candidates
+        enriched = _enrich_candidates(candidates, all_details, memberships)
+        
+        # Add parent company entries
+        for parent_guid, parent_detail in parent_details.items():
+            # Get first child for labeling
+            child_guids = parent_to_children.get(parent_guid, [])
+            if child_guids:
+                child_guid = child_guids[0]
+                child_detail = details.get(child_guid, {})
+                child_name = child_detail.get("name", "Unknown Company")
+                
+                # Build parent candidate structure
+                parent_candidate = {
+                    "guid": parent_guid,
+                    "name": parent_detail.get("name", ""),
+                    "primary_domain": parent_detail.get("primary_domain", ""),
+                    "website": parent_detail.get("display_url", ""),
+                    "description": parent_detail.get("description", ""),
+                    "employee_count": parent_detail.get("people_count"),
+                    "in_portfolio": parent_detail.get("in_spm_portfolio", False),
+                    "subscription_type": parent_detail.get("subscription_type"),
+                    "is_parent_entry": True,
+                    "parent_of": child_name,
+                }
+                
+                # Format and add to enriched results
+                parent_folders = memberships.get(parent_guid, [])
+                parent_entry = _format_result_entry(
+                    parent_candidate,
+                    parent_detail,
+                    parent_folders,
+                )
+                # Override label to indicate parent relationship
+                parent_entry["label"] = f"Parent of {child_name}"
+                enriched.append(parent_entry)
+        
         result_count = len(enriched)
 
         log_search_event(
