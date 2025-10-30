@@ -437,7 +437,7 @@ def _build_candidate(entry: Any) -> dict[str, Any | None] | None:
     if not isinstance(entry, dict):
         return None
 
-    details = entry.get("details") if isinstance(entry.get("details"), dict) else {}
+    details: dict[str, Any] = entry.get("details") if isinstance(entry.get("details"), dict) else {}
     primary_domain = (
         entry.get("primary_domain") or entry.get("domain") or entry.get("display_url") or ""
     )

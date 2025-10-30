@@ -8,6 +8,7 @@ from functools import partial
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.tools.tool import FunctionTool
 
 from birre.config.settings import (
     DEFAULT_MAX_FINDINGS,
@@ -23,7 +24,7 @@ from birre.integrations.bitsight.v1_bridge import (
 )
 
 
-def register_company_rating_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+def register_company_rating_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     """Register the company rating tool with a FastMCP server.
 
     Forwards to domain.company_rating.register_company_rating_tool.
@@ -31,7 +32,7 @@ def register_company_rating_tool(*args: Any, **kwargs: Any) -> Callable[..., Any
     return company_rating.register_company_rating_tool(*args, **kwargs)
 
 
-def register_company_search_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+def register_company_search_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     """Register the company search tool with a FastMCP server.
 
     Forwards to domain.company_search.register_company_search_tool.
@@ -39,7 +40,7 @@ def register_company_search_tool(*args: Any, **kwargs: Any) -> Callable[..., Any
     return company_search.register_company_search_tool(*args, **kwargs)
 
 
-def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     """Register the interactive company search tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_company_search_interactive_tool.
@@ -47,7 +48,7 @@ def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> Calla
     return risk_manager.register_company_search_interactive_tool(*args, **kwargs)
 
 
-def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     """Register the subscription management tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_manage_subscriptions_tool.
@@ -55,7 +56,7 @@ def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> Callable[..
     return risk_manager.register_manage_subscriptions_tool(*args, **kwargs)
 
 
-def register_request_company_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+def register_request_company_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     """Register the company request tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_request_company_tool.

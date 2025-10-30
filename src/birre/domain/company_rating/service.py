@@ -324,10 +324,12 @@ def _compose_base_details_text(details: dict[str, Any]) -> str | None:
     Build the base details text from display_name/description/
     searchable_details/infection.family.
     """
-    display_name = (
+    display_name: str | None = (
         details.get("display_name") if isinstance(details.get("display_name"), str) else None
     )
-    long_desc = details.get("description") if isinstance(details.get("description"), str) else None
+    long_desc: str | None = (
+        details.get("description") if isinstance(details.get("description"), str) else None
+    )
     if display_name and long_desc:
         return f"{display_name} — {long_desc}"
     if long_desc:

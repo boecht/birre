@@ -125,12 +125,7 @@ def _invoke_tool(
         result = callable_fn(ctx, **params)
     except TypeError:
         if params:
-            try:
-                result = callable_fn(ctx, params)
-            except TypeError:
-                raise
-        else:
-            raise
+            result = callable_fn(ctx, params)
     if inspect.isawaitable(result):
         return _sync(result, run_sync)
     return result

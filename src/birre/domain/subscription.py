@@ -40,9 +40,10 @@ def _extract_guid_values(response: dict[str, Any], keys: Sequence[str]) -> list[
     return guids
 
 
-def _build_subscription_base(
-    folder_name: str | None, subscription_type: str | None
-) -> dict[str, str] | None:
+def _build_subscription_payload(
+    folder_name: str | None,
+    subscription_type: str | None,
+) -> dict[str, str | list[str]] | None:
     """Create the base payload for subscription actions when configured."""
 
     if not folder_name or not subscription_type:

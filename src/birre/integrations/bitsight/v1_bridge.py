@@ -13,7 +13,7 @@ import httpx
 from fastmcp import Context, FastMCP
 
 from birre.infrastructure.errors import (
-    TlsCertificateChainInterceptedError,
+    BirreError,
     classify_request_error,
 )
 from birre.infrastructure.logging import BoundLogger
@@ -68,7 +68,7 @@ async def _normalize_tool_result(
 
 
 def _log_tls_error(
-    mapped_error: TlsCertificateChainInterceptedError,
+    mapped_error: BirreError,
     *,
     logger: BoundLogger,
     debug_enabled: bool,
