@@ -24,7 +24,6 @@ repos:
           - --strict
           - --python-version=3.11
         additional_dependencies:
-          - types-all
           - pydantic
           - httpx
           - typer
