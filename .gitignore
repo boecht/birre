@@ -2,6 +2,7 @@ birre.log
 build/
 .cache/
 .claude/
+.coverage
 dist/
 downloads/
 *.egg-info
@@ -22,7 +23,6 @@ scripts/
 sdist/
 .serena/
 .uv?cache/
-uv.lock
 var/
 .venv/
 .vscode/

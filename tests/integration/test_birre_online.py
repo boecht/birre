@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Sequence
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence
+from typing import Any
 
 import pytest
 import pytest_asyncio
-from dataclasses import asdict, is_dataclass
 from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,19 +22,16 @@ try:
     from fastmcp.client import Client
     from fastmcp.client.client import CallToolResult
 except ImportError:
-    pytest.skip(
-        "fastmcp client not installed; skipping online tests", allow_module_level=True
-    )
+    pytest.skip("fastmcp client not installed; skipping online tests", allow_module_level=True)
 
-from src.birre import create_birre_server  # ruff: noqa: E402
-from src.settings import resolve_birre_settings  # ruff: noqa: E402
-from src.logging import get_logger  # ruff: noqa: E402
-
+from birre import create_birre_server  # noqa: E402
+from birre.config.settings import resolve_birre_settings  # noqa: E402
+from birre.infrastructure.logging import get_logger  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.online]
 
 
-def _unwrap(result: CallToolResult) -> Dict[str, Any]:
+def _unwrap(result: CallToolResult) -> dict[str, Any]:
     """Normalize a CallToolResult into a plain dictionary."""
 
     normalized = _normalize_data(result.data)
@@ -51,7 +49,7 @@ def _unwrap(result: CallToolResult) -> Dict[str, Any]:
     raise AssertionError("Unable to unwrap CallToolResult into structured data")
 
 
-def _normalize_data(data: Any) -> Optional[Dict[str, Any]]:
+def _normalize_data(data: Any) -> dict[str, Any] | None:
     if data is None:
         return None
     if is_dataclass(data):
@@ -68,7 +66,7 @@ def _normalize_data(data: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _normalize_structured(structured: Any) -> Optional[Dict[str, Any]]:
+def _normalize_structured(structured: Any) -> dict[str, Any] | None:
     if not structured or not isinstance(structured, dict):
         return None
     inner = structured.get("result")
@@ -78,8 +76,8 @@ def _normalize_structured(structured: Any) -> Optional[Dict[str, Any]]:
 
 
 def _normalize_blocks(
-    blocks: Optional[Sequence[Any]],
-) -> Optional[Dict[str, Any]]:
+    blocks: Sequence[Any] | None,
+) -> dict[str, Any] | None:
     if not blocks:
         return None
     text = getattr(blocks[0], "text", None)
@@ -110,7 +108,7 @@ async def birre_client(require_online_api_key: str):
         yield client
 
 
-async def _fetch_first_company(client: Client, query: str = "GitHub") -> Dict[str, Any]:
+async def _fetch_first_company(client: Client, query: str = "GitHub") -> dict[str, Any]:
     result = await client.call_tool("company_search", {"name": query})
     payload = _unwrap(result)
     companies = payload.get("companies", [])
@@ -118,9 +116,7 @@ async def _fetch_first_company(client: Client, query: str = "GitHub") -> Dict[st
     return companies[0]
 
 
-async def _fetch_company_by_name(
-    client: Client, query: str, target_name: str
-) -> Dict[str, Any]:
+async def _fetch_company_by_name(client: Client, query: str, target_name: str) -> dict[str, Any]:
     result = await client.call_tool("company_search", {"name": query})
     payload = _unwrap(result)
     for company in payload.get("companies", []):
@@ -138,9 +134,7 @@ async def test_company_search_returns_results(birre_client: Client) -> None:
 
 @pytest.mark.asyncio
 async def test_company_rating_contains_rating_data(birre_client: Client) -> None:
-    company = await _fetch_company_by_name(
-        birre_client, "Rheinmetall", "Rheinmetall AG"
-    )
+    company = await _fetch_company_by_name(birre_client, "Rheinmetall", "Rheinmetall AG")
     guid = company["guid"]
 
     result = await birre_client.call_tool("get_company_rating", {"guid": guid})

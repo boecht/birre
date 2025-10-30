@@ -3,9 +3,9 @@ from functools import partial
 
 import pytest
 
-from src import birre
-from src.logging import BoundLogger, get_logger
-from src.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from birre.application import server as birre_server
+from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
+from birre.infrastructure.logging import BoundLogger, get_logger
 
 
 class DummyFastMCP:
@@ -16,6 +16,11 @@ class DummyFastMCP:
         self.instructions = instructions
         # Mirror FastMCP allowing optional kwargs while tracking unexpected input.
         self.extra_kwargs = kwargs
+        self.registered_tools: dict[str, object] = {}
+
+    def tool(self, name: str, handler, **kwargs):
+        self.registered_tools[name] = (handler, kwargs)
+        return handler
 
 
 class AsyncCallRecorder:
@@ -49,6 +54,7 @@ EXPECTED_V1_KEEP = {
     "companySearch",
     "manageSubscriptionsBulk",
     "getCompany",
+    "getCompaniesTree",
     "getCompaniesFindings",
     "getFolders",
     "getCompanySubscriptions",
@@ -75,9 +81,9 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     recorded_calls = {}
     scheduled = []
 
-    monkeypatch.setattr(birre, "FastMCP", DummyFastMCP)
+    monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
     monkeypatch.setattr(
-        birre,
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
@@ -85,16 +91,16 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     def fail_create_v2(*_args, **_kwargs):
         pytest.fail("create_v2_api_server should not be invoked for the standard context")
 
-    monkeypatch.setattr(birre, "create_v2_api_server", fail_create_v2)
+    monkeypatch.setattr(birre_server, "create_v2_api_server", fail_create_v2)
 
     def capture_schedule(server, keep):
         scheduled.append((server, set(keep)))
 
-    monkeypatch.setattr(birre, "_schedule_tool_disablement", capture_schedule)
+    monkeypatch.setattr(birre_server, "_schedule_tool_disablement", capture_schedule)
 
     v1_recorder = AsyncCallRecorder("v1")
 
-    monkeypatch.setattr(birre, "call_v1_openapi_tool", v1_recorder)
+    monkeypatch.setattr(birre_server, "call_v1_openapi_tool", v1_recorder)
 
     def capture_rating(
         server,
@@ -118,7 +124,7 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
             "debug_enabled": debug_enabled,
         }
 
-    monkeypatch.setattr(birre, "register_company_rating_tool", capture_rating)
+    monkeypatch.setattr(birre_server, "register_company_rating_tool", capture_rating)
 
     def capture_search(server, call_v1_tool, *, logger):
         recorded_calls["search"] = {
@@ -127,7 +133,7 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
             "logger": logger,
         }
 
-    monkeypatch.setattr(birre, "register_company_search_tool", capture_search)
+    monkeypatch.setattr(birre_server, "register_company_search_tool", capture_search)
 
     settings = {
         "api_key": "api-key",
@@ -135,12 +141,12 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
         "subscription_type": "managed",
     }
 
-    server = birre.create_birre_server(settings, logger)
+    server = birre_server.create_birre_server(settings, logger)
 
     assert isinstance(server, DummyFastMCP)
     assert server.extra_kwargs == {}
     assert server.name == "io.github.boecht.birre"
-    assert server.instructions == birre.INSTRUCTIONS_MAP["standard"]
+    assert server.instructions == birre_server.INSTRUCTIONS_MAP["standard"]
     assert hasattr(server, "call_v1_tool")
     assert isinstance(server.call_v1_tool, partial)
     assert server.call_v1_tool.func is v1_recorder
@@ -204,7 +210,7 @@ def test_schedule_tool_disablement_private_registry(monkeypatch):
             self._tool_manager = DummyManager()
 
     server = DummyServer()
-    birre._schedule_tool_disablement(server, {"keep"})
+    birre_server._schedule_tool_disablement(server, {"keep"})
 
     assert server._tool_manager._tools["keep"].disabled is False
     assert server._tool_manager._tools["drop"].disabled is True
@@ -216,7 +222,7 @@ def test_schedule_tool_disablement_missing_manager_logs(caplog):
         pass
 
     caplog.set_level("DEBUG")
-    birre._schedule_tool_disablement(DummyServer(), {"keep"})
+    birre_server._schedule_tool_disablement(DummyServer(), {"keep"})
     assert any("tool_manager.missing" in record.message for record in caplog.records)
 
 
@@ -227,14 +233,14 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     scheduled = []
     captures = {}
 
-    monkeypatch.setattr(birre, "FastMCP", DummyFastMCP)
+    monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
     monkeypatch.setattr(
-        birre,
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
     monkeypatch.setattr(
-        birre,
+        birre_server,
         "create_v2_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v2_server),
     )
@@ -242,13 +248,13 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     def capture_schedule(server, keep):
         scheduled.append((server, set(keep)))
 
-    monkeypatch.setattr(birre, "_schedule_tool_disablement", capture_schedule)
+    monkeypatch.setattr(birre_server, "_schedule_tool_disablement", capture_schedule)
 
     v1_recorder = AsyncCallRecorder("v1")
     v2_recorder = AsyncCallRecorder("v2")
 
-    monkeypatch.setattr(birre, "call_v1_openapi_tool", v1_recorder)
-    monkeypatch.setattr(birre, "call_v2_openapi_tool", v2_recorder)
+    monkeypatch.setattr(birre_server, "call_v1_openapi_tool", v1_recorder)
+    monkeypatch.setattr(birre_server, "call_v2_openapi_tool", v2_recorder)
 
     def capture_rating(
         server,
@@ -272,25 +278,31 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
             )
         )
 
-    monkeypatch.setattr(birre, "register_company_rating_tool", capture_rating)
+    monkeypatch.setattr(birre_server, "register_company_rating_tool", capture_rating)
 
     def capture_search(server, call_v1_tool, *, logger):
         captures.setdefault("search", []).append(server)
 
-    monkeypatch.setattr(birre, "register_company_search_tool", capture_search)
+    monkeypatch.setattr(birre_server, "register_company_search_tool", capture_search)
 
-    import src.business.risk_manager as risk_manager
+    import birre.domain.risk_manager as risk_manager
 
-    def capture_interactive(server, call_v1_tool, *, logger, default_folder, default_type, max_findings):
+    def capture_interactive(
+        server, call_v1_tool, *, logger, default_folder, default_type, max_findings
+    ):
         captures.setdefault("interactive", []).append((default_folder, default_type, max_findings))
 
     def capture_manage(server, call_v1_tool, *, logger, default_folder, default_type):
         captures.setdefault("manage", []).append((default_folder, default_type))
 
-    def capture_request(server, call_v1_tool, call_v2_tool, *, logger, default_folder, default_type):
+    def capture_request(
+        server, call_v1_tool, call_v2_tool, *, logger, default_folder, default_type
+    ):
         captures.setdefault("request", []).append((default_folder, default_type))
 
-    monkeypatch.setattr(risk_manager, "register_company_search_interactive_tool", capture_interactive)
+    monkeypatch.setattr(
+        risk_manager, "register_company_search_interactive_tool", capture_interactive
+    )
     monkeypatch.setattr(risk_manager, "register_manage_subscriptions_tool", capture_manage)
     monkeypatch.setattr(risk_manager, "register_request_company_tool", capture_request)
 
@@ -303,12 +315,12 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         "risk_vector_filter": "compromised_hosts",
     }
 
-    server = birre.create_birre_server(settings, logger)
+    server = birre_server.create_birre_server(settings, logger)
 
     assert isinstance(server, DummyFastMCP)
     assert server.extra_kwargs == {}
     assert server.name == "io.github.boecht.birre"
-    assert server.instructions == birre.INSTRUCTIONS_MAP["risk_manager"]
+    assert server.instructions == birre_server.INSTRUCTIONS_MAP["risk_manager"]
     assert hasattr(server, "call_v1_tool")
     assert hasattr(server, "call_v2_tool")
     assert server.call_v1_tool.func is v1_recorder
@@ -343,9 +355,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         }
     ]
 
-    assert captures["rating"] == [
-        (server, "compromised_hosts", 7, "folder", "type", False)
-    ]
+    assert captures["rating"] == [(server, "compromised_hosts", 7, "folder", "type", False)]
     assert captures["search"] == [server]
     assert captures["interactive"] == [("folder", "type", 7)]
     assert captures["manage"] == [("folder", "type")]
@@ -363,9 +373,9 @@ async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     v2_server = object()
     scheduled = []
 
-    monkeypatch.setattr(birre, "FastMCP", DummyFastMCP)
+    monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
     monkeypatch.setattr(
-        birre,
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
@@ -373,22 +383,22 @@ async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     def fake_create_v2(api_key, *, verify, base_url=None):
         return api_key, verify, v2_server
 
-    monkeypatch.setattr(birre, "create_v2_api_server", fake_create_v2)
+    monkeypatch.setattr(birre_server, "create_v2_api_server", fake_create_v2)
 
     def capture_schedule(server, keep):
         scheduled.append((server, set(keep)))
 
-    monkeypatch.setattr(birre, "_schedule_tool_disablement", capture_schedule)
+    monkeypatch.setattr(birre_server, "_schedule_tool_disablement", capture_schedule)
 
     v1_recorder = AsyncCallRecorder("v1")
     v2_recorder = AsyncCallRecorder("v2")
 
-    monkeypatch.setattr(birre, "call_v1_openapi_tool", v1_recorder)
-    monkeypatch.setattr(birre, "call_v2_openapi_tool", v2_recorder)
-    monkeypatch.setattr(birre, "register_company_rating_tool", lambda *args, **kwargs: None)
-    monkeypatch.setattr(birre, "register_company_search_tool", lambda *args, **kwargs: None)
+    monkeypatch.setattr(birre_server, "call_v1_openapi_tool", v1_recorder)
+    monkeypatch.setattr(birre_server, "call_v2_openapi_tool", v2_recorder)
+    monkeypatch.setattr(birre_server, "register_company_rating_tool", lambda *args, **kwargs: None)
+    monkeypatch.setattr(birre_server, "register_company_search_tool", lambda *args, **kwargs: None)
 
-    server = birre.create_birre_server({"api_key": "key", "enable_v2": True}, logger)
+    server = birre_server.create_birre_server({"api_key": "key", "enable_v2": True}, logger)
 
     assert not hasattr(server, "call_v2_tool")
     assert server.name == "io.github.boecht.birre"

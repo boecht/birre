@@ -1,14 +1,14 @@
 import asyncio
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 import pytest
 
-from src.apis.v1_bridge import call_openapi_tool
-from src.errors import ErrorCode, TlsCertificateChainInterceptedError
-from src.logging import configure_logging, get_logger
-from src.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.infrastructure.errors import ErrorCode, TlsCertificateChainInterceptedError
+from birre.infrastructure.logging import configure_logging, get_logger
+from birre.integrations.bitsight.v1_bridge import call_openapi_tool
 
 
 class _StubContext:
@@ -27,7 +27,7 @@ class _StubContext:
 
 
 class _FailingServer:
-    async def _call_tool(self, tool_name: str, params: Dict[str, Any]):
+    async def _call_tool_middleware(self, tool_name: str, params: dict[str, Any]):
         await asyncio.sleep(0)
         request = httpx.Request(
             "GET",
@@ -75,9 +75,7 @@ async def test_tls_error_maps_to_domain_error(capfd: "pytest.CaptureFixture[str]
     assert "TLS verification failed for api.bitsighttech.com" in summary_line
     assert "tool=companySearch" in summary_line
     assert "op=GET /v1/companySearch" in summary_line
-    assert (
-        f"code={ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value}" in summary_line
-    )
+    assert f"code={ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value}" in summary_line
     assert "Hint: set BIRRE_CA_BUNDLE=/path/to/corp-root.pem" in log_output[1]
     assert "Traceback" not in "\n".join(log_output)
 

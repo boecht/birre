@@ -3,7 +3,7 @@ import warnings
 
 import pytest
 
-import server
+from birre.cli import sync_bridge
 
 
 async def _simple_coroutine(value: int) -> int:
@@ -22,8 +22,8 @@ async def _spawn_background_task() -> None:
 def test_await_sync_reuse_no_resource_warning(recwarn: pytest.WarningsRecorder) -> None:
     warnings.simplefilter("always", ResourceWarning)
 
-    assert server._await_sync(_simple_coroutine(1)) == 1
-    assert server._await_sync(_simple_coroutine(2)) == 2
+    assert sync_bridge.await_sync(_simple_coroutine(1)) == 1
+    assert sync_bridge.await_sync(_simple_coroutine(2)) == 2
 
     resource_warnings = [w for w in recwarn if w.category is ResourceWarning]
     assert not resource_warnings
@@ -31,5 +31,5 @@ def test_await_sync_reuse_no_resource_warning(recwarn: pytest.WarningsRecorder) 
 
 def test_await_sync_cancels_background_tasks() -> None:
     # If background tasks leaked between invocations, the second call would raise.
-    server._await_sync(_spawn_background_task())
-    server._await_sync(_simple_coroutine(3))
+    sync_bridge.await_sync(_spawn_background_task())
+    sync_bridge.await_sync(_simple_coroutine(3))

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from src import startup_checks
-from src.logging import configure_logging, get_logger
-from src.settings import LOG_FORMAT_TEXT, LoggingSettings
-from src.startup_checks import run_offline_startup_checks
+from birre.application import startup as startup_checks
+from birre.application.startup import run_offline_startup_checks
+from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
+from birre.infrastructure.logging import configure_logging, get_logger
 
 
 @pytest.fixture(autouse=True)
@@ -51,8 +51,7 @@ def test_offline_checks_fail_without_api_key(caplog: pytest.LogCaptureFixture) -
 
     assert result is False
     assert any(
-        record.levelno == logging.CRITICAL
-        and "offline.config.api_key.missing" in record.message
+        record.levelno == logging.CRITICAL and "offline.config.api_key.missing" in record.message
         for record in caplog.records
     )
 
@@ -60,12 +59,14 @@ def test_offline_checks_fail_without_api_key(caplog: pytest.LogCaptureFixture) -
 def test_offline_checks_success_logs_debug_and_warnings(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    schema_one = tmp_path / "bitsight.v1.schema.json"
-    schema_two = tmp_path / "bitsight.v2.schema.json"
+    schema_dir = tmp_path / "apis"
+    schema_dir.mkdir()
+    schema_one = schema_dir / "bitsight.v1.schema.json"
+    schema_two = schema_dir / "bitsight.v2.schema.json"
     schema_one.write_text(json.dumps({"title": "schema1"}), encoding="utf-8")
     schema_two.write_text(json.dumps({"title": "schema2"}), encoding="utf-8")
 
-    monkeypatch.setattr(startup_checks, "SCHEMA_PATHS", (schema_one, schema_two))
+    monkeypatch.setattr(startup_checks.resources, "files", lambda _: tmp_path)
 
     logger = get_logger("birre.startup.test_success")
     caplog.set_level(logging.DEBUG)
@@ -82,8 +83,7 @@ def test_offline_checks_success_logs_debug_and_warnings(
     debug_messages = [
         record.message
         for record in caplog.records
-        if record.levelno == logging.DEBUG
-        and "offline.config.schema.parsed" in record.message
+        if record.levelno == logging.DEBUG and "offline.config.schema.parsed" in record.message
     ]
     assert len(debug_messages) == 2
 
@@ -91,12 +91,10 @@ def test_offline_checks_success_logs_debug_and_warnings(
         record.message for record in caplog.records if record.levelno == logging.WARNING
     ]
     assert any(
-        "offline.config.subscription_folder.missing" in message
-        for message in warning_messages
+        "offline.config.subscription_folder.missing" in message for message in warning_messages
     )
     assert any(
-        "offline.config.subscription_type.missing" in message
-        for message in warning_messages
+        "offline.config.subscription_type.missing" in message for message in warning_messages
     )
 
 
@@ -115,8 +113,7 @@ async def test_online_checks_skipped(caplog: pytest.LogCaptureFixture) -> None:
 
     assert result is True
     assert any(
-        record.levelno == logging.WARNING
-        and "online.startup_checks.skipped" in record.message
+        record.levelno == logging.WARNING and "online.startup_checks.skipped" in record.message
         for record in caplog.records
     )
 
@@ -203,9 +200,7 @@ async def test_online_checks_quota_failure(caplog: pytest.LogCaptureFixture) -> 
         {
             "companySearch": {"results": []},
             "getFolders": [{"name": "Target"}],
-            "getCompanySubscriptions": {
-                "continuous_monitoring": {"remaining": 0}
-            },
+            "getCompanySubscriptions": {"continuous_monitoring": {"remaining": 0}},
         }
     )
 
@@ -235,9 +230,7 @@ async def test_online_checks_success(caplog: pytest.LogCaptureFixture) -> None:
         {
             "companySearch": {"results": []},
             "getFolders": [{"name": "Target"}],
-            "getCompanySubscriptions": {
-                "continuous_monitoring": {"remaining": 2}
-            },
+            "getCompanySubscriptions": {"continuous_monitoring": {"remaining": 2}},
         }
     )
 

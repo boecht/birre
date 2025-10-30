@@ -1,22 +1,22 @@
 import asyncio
 from types import SimpleNamespace
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from fastmcp import Context, FastMCP
 
-from src.business.company_search import register_company_search_tool
-from src.business.company_rating import (
-    register_company_rating_tool,
+from birre.domain.company_rating.service import (
     _normalize_finding_entry,
+    register_company_rating_tool,
 )
-from src.business.risk_manager import register_company_search_interactive_tool
-from src.logging import BoundLogger, get_logger
+from birre.domain.company_search import register_company_search_tool
+from birre.domain.risk_manager import register_company_search_interactive_tool
+from birre.infrastructure.logging import BoundLogger, get_logger
 
 
 class StubContext(Context):
     def __init__(self) -> None:
-        self.messages: Dict[str, list[str]] = {"info": [], "warning": [], "error": []}
+        self.messages: dict[str, list[str]] = {"info": [], "warning": [], "error": []}
         self.metadata = {}
         self.tool = "standard"
         self._request_id = "standard-test"
@@ -52,7 +52,7 @@ def make_server() -> tuple[FastMCP, BoundLogger]:
 async def test_company_search_requires_query() -> None:
     server, logger = make_server()
 
-    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+    async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         raise AssertionError("call_v1_tool should not be invoked without params")
 
@@ -70,7 +70,7 @@ async def test_company_search_requires_query() -> None:
 async def test_company_search_returns_normalized_payload() -> None:
     server, logger = make_server()
 
-    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+    async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         assert name == "companySearch"
         assert params == {"name": "Example", "domain": None}
@@ -99,10 +99,13 @@ async def test_company_search_returns_normalized_payload() -> None:
 async def test_company_search_interactive_empty_result_contract() -> None:
     server, logger = make_server()
 
-    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+    async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         assert name == "companySearch"
-        assert params == {"expand": "details.employee_count", "name": "Example"}
+        assert params == {
+            "expand": "details.employee_count,details.in_portfolio",
+            "name": "Example",
+        }
         return {"results": []}
 
     tool = register_company_search_interactive_tool(
@@ -121,8 +124,12 @@ async def test_company_search_interactive_empty_result_contract() -> None:
         "results": [],
         "search_term": "Example",
         "guidance": {
-            "selection": "No matches were returned. Confirm the organization name or domain with the operator.",
-            "if_missing": "Invoke `request_company` to submit an onboarding request when the entity is absent.",
+            "selection": "No matches were returned. "
+            "Confirm the organization name or domain with the operator.",
+            "if_missing": (
+                "Invoke `request_company` to submit an onboarding request "
+                "when the entity is absent."
+            ),
             "default_folder": "Default",
             "default_subscription_type": "continuous",
         },
@@ -132,10 +139,12 @@ async def test_company_search_interactive_empty_result_contract() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_company_rating_success_cleanup_subscription(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     server, logger = make_server()
 
-    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+    async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         raise AssertionError(f"Unexpected call_v1_tool invocation: {name}")
 
@@ -152,13 +161,14 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         return True
 
     monkeypatch.setattr(
-        "src.business.company_rating.create_ephemeral_subscription",
+        "birre.domain.company_rating.service.create_ephemeral_subscription",
         fake_create,
     )
     monkeypatch.setattr(
-        "src.business.company_rating.cleanup_ephemeral_subscription",
+        "birre.domain.company_rating.service.cleanup_ephemeral_subscription",
         fake_cleanup,
     )
+
     async def fake_fetch_company(*args, **kwargs):
         await asyncio.sleep(0)
         return {
@@ -194,11 +204,11 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
         }
 
     monkeypatch.setattr(
-        "src.business.company_rating._fetch_company_profile_dict",
+        "birre.domain.company_rating.service._fetch_company_profile_dict",
         fake_fetch_company,
     )
     monkeypatch.setattr(
-        "src.business.company_rating._assemble_top_findings_section",
+        "birre.domain.company_rating.service._assemble_top_findings_section",
         fake_top_findings,
     )
 
@@ -216,7 +226,7 @@ async def test_get_company_rating_success_cleanup_subscription(monkeypatch: pyte
 async def test_get_company_rating_subscription_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     server, logger = make_server()
 
-    async def call_v1_tool(name: str, ctx: Context, params: Dict[str, Any]):
+    async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         raise AssertionError("call_v1_tool should not run when subscription fails")
 
@@ -230,7 +240,7 @@ async def test_get_company_rating_subscription_failure(monkeypatch: pytest.Monke
         )
 
     monkeypatch.setattr(
-        "src.business.company_rating.create_ephemeral_subscription",
+        "birre.domain.company_rating.service.create_ephemeral_subscription",
         fake_create_fail,
     )
 

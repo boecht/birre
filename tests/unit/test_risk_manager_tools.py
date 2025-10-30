@@ -1,14 +1,15 @@
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from fastmcp import Context, FastMCP
 
-from src.business.risk_manager import (
+from birre.domain.risk_manager import (
     register_company_search_interactive_tool,
     register_manage_subscriptions_tool,
     register_request_company_tool,
 )
-from src.logging import get_logger
+from birre.infrastructure.logging import get_logger
 
 
 class FakeContext(Context):
@@ -39,13 +40,11 @@ class FakeContext(Context):
 
 
 class BridgeStub:
-    def __init__(self, handlers: Dict[str, Callable[[Dict[str, Any]], Any]]):
+    def __init__(self, handlers: dict[str, Callable[[dict[str, Any]], Any]]):
         self.handlers = handlers
         self.calls = []
 
-    async def __call__(
-        self, tool_name: str, ctx: Context, params: Dict[str, Any]
-    ) -> Any:
+    async def __call__(self, tool_name: str, ctx: Context, params: dict[str, Any]) -> Any:
         self.calls.append((tool_name, params))
         handler = self.handlers.get(tool_name)
         if handler is None:
@@ -58,7 +57,7 @@ async def test_company_search_interactive_enriches_results() -> None:
     logger = get_logger("test.company_search_interactive")
     server = FastMCP(name="TestServer")
 
-    def company_search_handler(params: Dict[str, Any]) -> Dict[str, Any]:
+    def company_search_handler(params: dict[str, Any]) -> dict[str, Any]:
         return {
             "results": [
                 {
@@ -70,7 +69,7 @@ async def test_company_search_interactive_enriches_results() -> None:
             ]
         }
 
-    def get_company_handler(params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_company_handler(params: dict[str, Any]) -> dict[str, Any]:
         return {
             "guid": params["guid"],
             "name": "Acme Holdings",
@@ -82,7 +81,7 @@ async def test_company_search_interactive_enriches_results() -> None:
             "in_spm_portfolio": True,
         }
 
-    def get_folders_handler(_: Dict[str, Any]) -> Any:
+    def get_folders_handler(_: dict[str, Any]) -> Any:
         return [
             {
                 "name": "API",
@@ -122,7 +121,7 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
     logger = get_logger("test.manage_subscriptions")
     server = FastMCP(name="TestServer")
 
-    def manage_handler(params: Dict[str, Any]) -> Dict[str, Any]:
+    def manage_handler(params: dict[str, Any]) -> dict[str, Any]:
         return {
             "added": [guid["guid"] for guid in params.get("add", [])],
             "deleted": [guid["guid"] for guid in params.get("delete", [])],
@@ -166,7 +165,7 @@ async def test_request_company_falls_back_to_single_endpoint() -> None:
         }
     )
 
-    def bulk_fail(_: Dict[str, Any]) -> Any:
+    def bulk_fail(_: dict[str, Any]) -> Any:
         raise RuntimeError("bulk endpoint unavailable")
 
     call_v2 = BridgeStub(
