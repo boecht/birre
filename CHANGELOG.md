@@ -9,65 +9,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [4.0.0-alpha.1] - 2025-10-30
 
-### Breaking Changes
+### ⚠️ BREAKING CHANGES
 
-- **Python 3.11+ Required**: Minimum Python version upgraded from 3.10 to 3.11
-  - Native `tomllib` support (removed `tomli` dependency)
-  - Improved type system features
-  - Better async/await support
+- **Python 3.11+ required** (upgraded from 3.10+)
+  - Native `tomllib` support (no more tomli dependency)
+  - Improved type system capabilities
 
 ### Added
 
-- **Type Safety Infrastructure** (TD-001)
-  - Enabled mypy strict mode across entire codebase
-  - 100% type checking compliance (0 errors in 47 source files)
-  - Added mypy to pre-commit hooks for continuous enforcement
-  - CI/CD integration with PR validation workflow
+- **Comprehensive type safety infrastructure**
+  - 100% strict mypy compliance across entire codebase (47 source files)
+  - Type annotations for 28+ previously untyped functions
+  - Pre-commit hooks for type checking enforcement
+  - mypy configuration with strict mode enabled
 
-- **Test Coverage Infrastructure** (QA-001)
-  - CodeCov integration with enhanced features
-  - Coverage badge in README (current: 72%)
-  - `codecov.yml` configuration:
-    - Project coverage status checks (auto target, 1% threshold)
-    - Patch coverage requirement (70% minimum for new code)
-    - PR comments with diff, flags, and file coverage
-    - GitHub Checks annotations for line-by-line coverage
-  - Coverage enforcement in CI/CD (70%+ minimum)
+- **Test coverage and quality assurance**
+  - CodeCov integration with 72% baseline coverage
+  - Coverage enforcement in CI/CD pipeline
+  - Project and patch coverage thresholds
+  - Automated coverage reporting on pull requests
 
-- **Community Documentation** (COM-001)
-  - Added CODE_OF_CONDUCT.md (Contributor Covenant 3.0)
-  - Created issue templates (bug_report.md, feature_request.md)
-  - Created pull request template
-  - Updated CONTRIBUTING.md with Python 3.11 requirement
-  - Added Contributing section to README
+- **Community documentation**
+  - CODE_OF_CONDUCT.md (Contributor Covenant 3.0)
+  - Issue templates for bugs and feature requests
+  - Pull request template with quality checklists
+  - Enhanced CONTRIBUTING.md with development workflow
 
-- **PR Validation Workflow**
-  - Automated linting (ruff)
-  - Type checking (mypy --strict)
-  - Format validation (ruff format)
-  - Offline test suite with coverage
-  - CodeCov upload and reporting
+- **CI/CD automation**
+  - PR validation workflow (linting, type checking, tests, coverage)
+  - Automated release workflow with PyPI publishing support
+  - Dependency review for security scanning
+  - OpenSSF Scorecard for security best practices
 
 ### Changed
 
-- Updated all type hints for strict mode compatibility
-- Improved error handling with explicit type narrowing
-- Enhanced Pydantic models with proper field defaults
-- CONTRIBUTING.md: Fixed repository clone URL, updated prerequisites
+- **Massive CLI restructuring** (#78)
+  - Modular command structure with dedicated subcommands
+  - Removed 3,247 lines of duplicate code from monolithic app.py
+  - Split into focused modules: commands, formatting, helpers, models, options
+  - Enhanced selftest command with structured models and rendering
+  - Improved error handling and configuration management
+  - 87% reduction in main app.py file (3,513 → 266 lines)
 
-### Fixed
+- **Clean architecture reorganization**
+  - All source code now under `src/birre/` package
+  - Organized into layers: `application/`, `domain/`, `infrastructure/`, `integrations/`
+  - API schemas moved to `resources/` directory
+  - API documentation moved to `docs/apis/`
 
-- Fixed mypy strict mode errors across 17 files (71 errors → 0)
-- Resolved type inference issues in service layers
-- Fixed tuple return types for error handling
-- Corrected dict type annotations for dynamic payloads
-- Pre-commit hook: Removed problematic types-all dependency
+- **Code quality improvements**
+  - Addressed all SonarCloud reliability and maintainability findings
+  - Reduced cognitive complexity across multiple modules
+  - Fixed unused parameters and variables
+  - Improved error handling patterns
 
-### Development
+### Improved
 
-- Added pre-commit hooks: trailing-whitespace, end-of-file-fixer, yaml/json/toml checks
-- Enhanced development workflow with automated quality checks
-- Improved CI/CD reliability with consistent environments
+- Development experience with pre-commit hooks (ruff, mypy, markdownlint)
+- CLI test coverage and architecture
+- Configuration management and validation
+- Markdown linting with standardized formatting rules
+
+### Technical
+
+- FastMCP: 2.13.0+ (with type parameter support)
+- Development Status: Beta (alpha release for testing)
+- 153 files changed, 18,694 insertions(+), 5,786 deletions(-)
 
 ## [3.2.0] - 2025-10-27
 
@@ -273,7 +280,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Python 3.10+ requirement
 - Dependencies: fastmcp, python-dotenv, httpx
 
-[Unreleased]: https://github.com/boecht/birre/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/boecht/birre/compare/v4.0.0-alpha.1...HEAD
+[4.0.0-alpha.1]: https://github.com/boecht/birre/compare/v3.2.0...v4.0.0-alpha.1
 [3.2.0]: https://github.com/boecht/birre/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/boecht/birre/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/boecht/birre/compare/v2.3.0...v3.0.0
