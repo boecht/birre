@@ -17,6 +17,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import DEFAULT_MAX_FINDINGS
 from birre.domain.common import CallV1Tool, CallV2Tool
+from birre.domain.subscription import (
+    create_ephemeral_subscription,
+    cleanup_ephemeral_subscription,
+)
 from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
 
@@ -207,8 +211,14 @@ async def _fetch_company_details(
     *,
     logger: BoundLogger,
     limit: int,
+    default_folder: str | None,
+    subscription_type: str | None,
+    debug_enabled: bool = False,
 ) -> dict[str, dict[str, Any]]:
-    """Retrieve detailed company records for the provided GUIDs."""
+    """Retrieve detailed company records for the provided GUIDs.
+    
+    Creates ephemeral subscriptions if needed to access company details.
+    """
 
     effective_limit = (
         limit if isinstance(limit, int) and limit > 0 else DEFAULT_MAX_FINDINGS
@@ -221,6 +231,30 @@ async def _fetch_company_details(
         guid_str = str(guid).strip()
         if not guid_str:
             continue
+        
+        # Create ephemeral subscription to ensure access to company details
+        attempt = await create_ephemeral_subscription(
+            call_v1_tool,
+            ctx,
+            guid_str,
+            logger=logger,
+            default_folder=default_folder,
+            subscription_type=subscription_type,
+            debug_enabled=debug_enabled,
+        )
+        
+        if not attempt.success:
+            await ctx.warning(
+                f"Cannot fetch details for {guid_str}: subscription unavailable"
+            )
+            logger.warning(
+                "company_detail.subscription_failed",
+                company_guid=guid_str,
+            )
+            continue
+        
+        auto_subscribed = attempt.created
+        
         params = {
             "guid": guid_str,
             "fields": (
@@ -238,6 +272,16 @@ async def _fetch_company_details(
                 "company_detail.fetch_failed",
                 company_guid=guid_str,
             )
+        finally:
+            # Clean up ephemeral subscription if we created it
+            if auto_subscribed:
+                await cleanup_ephemeral_subscription(
+                    call_v1_tool,
+                    ctx,
+                    guid_str,
+                    debug_enabled=debug_enabled,
+                )
+    
     return details
 
 
@@ -535,6 +579,8 @@ async def _build_company_search_response(
         guid_order,
         logger=logger,
         limit=defaults.limit,
+        default_folder=defaults.folder,
+        subscription_type=defaults.subscription_type,
     )
     memberships = await _fetch_folder_memberships(
         call_v1_tool,
