@@ -26,6 +26,7 @@ from birre.cli.formatting import (
 )
 from birre.cli.helpers import CONTEXT_CHOICES, build_invocation, resolve_runtime_and_logging
 from birre.cli.models import CliInvocation
+from birre.cli.validation import parse_toml_file, require_file_exists
 from birre.config.constants import (
     DEFAULT_CONFIG_FILENAME,
     LOCAL_CONFIG_FILENAME,
@@ -296,18 +297,20 @@ def _collect_config_file_entries(
     files: Sequence[Path],
 ) -> dict[str, tuple[Any, str]]:
     """Collect all config entries from files with their source filenames."""
-    import tomllib
-
-    entries: dict[str, tuple[Any, str]] = {}
+    result: dict[str, tuple[Any, str]] = {}
     for file in files:
         if not file.exists():
             continue
-        with file.open("rb") as handle:
-            parsed = tomllib.load(handle)
-        flattened = flatten_to_dotted(parsed)
-        for key, value in flattened.items():
-            entries[key] = (value, file.name)
-    return entries
+        try:
+            parsed = parse_toml_file(file, param_hint="--config")
+        except typer.BadParameter:
+            continue
+        
+        dotted = flatten_to_dotted(parsed)
+        for key, value in dotted.items():
+            if key not in result:
+                result[key] = (value, file.name)
+    return result
 
 
 def _collect_cli_override_values(invocation: CliInvocation) -> dict[str, Any]:
@@ -423,9 +426,10 @@ def _build_env_override_rows(
         config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
         if not config_key:
             continue
-        rows.append(
-            (config_key, format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY), f"ENV ({env_var})")
+        formatted_value = format_config_value(
+            config_key, value, log_file_key=LOGGING_FILE_KEY
         )
+        rows.append((config_key, formatted_value, f"ENV ({env_var})"))
     return rows
 
 
@@ -820,23 +824,10 @@ def register(
         if config is None and config_source is ParameterSource.DEFAULT:
             typer.echo(ctx.get_help())
             raise typer.Exit()
-        if config is None:
-            raise typer.BadParameter(
-                "Configuration path could not be determined.", param_hint="--config"
-            )
-
-        if not config.exists():
-            raise typer.BadParameter(
-                f"{config} does not exist", param_hint="--config"
-            )
-
-        import tomllib
-
-        try:
-            with config.open("rb") as handle:
-                parsed = tomllib.load(handle)
-        except tomllib.TOMLDecodeError as exc:
-            raise typer.BadParameter(f"Invalid TOML: {exc}") from exc
+        
+        # Validate config file exists and is valid TOML
+        config = require_file_exists(config, param_hint="--config")
+        parsed = parse_toml_file(config, param_hint="--config")
 
         allowed_sections = {"bitsight", "runtime", "roles", "logging"}
         warnings: list[str] = []

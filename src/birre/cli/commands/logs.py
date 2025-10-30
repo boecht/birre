@@ -11,6 +11,7 @@ from rich.console import Console
 from birre.cli import options as cli_options
 from birre.cli.helpers import build_invocation, resolve_runtime_and_logging
 from birre.cli.models import CliInvocation, LogViewLine
+from birre.cli.validation import validate_path_exists
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 
 
@@ -23,10 +24,10 @@ def _rotate_logs(base_path: Path, backup_count: int) -> None:
     for index in range(backup_count, 0, -1):
         source = base_path.with_name(f"{base_path.name}.{index}")
         target = base_path.with_name(f"{base_path.name}.{index + 1}")
-        if source.exists():
+        if validate_path_exists(source):
             source.replace(target)
 
-    if base_path.exists():
+    if validate_path_exists(base_path):
         base_path.replace(base_path.with_name(f"{base_path.name}.1"))
     base_path.touch()
 
@@ -443,7 +444,7 @@ def register(
             return
 
         path = Path(file_path)
-        if not path.exists():
+        if not validate_path_exists(path):
             stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
             return
 
