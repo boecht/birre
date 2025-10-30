@@ -95,7 +95,11 @@ select = [
     "F",   # pyflakes
     "I",   # isort
     "UP",  # pyupgrade
+    "C90", # mccabe complexity
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.setuptools.package-data]
 "birre.resources" = ["apis/**/*.json"]
