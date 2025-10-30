@@ -13,7 +13,6 @@ from typer.testing import CliRunner
 import birre.application.diagnostics as diagnostics_module
 import birre.cli.invocation as cli_invocation
 import birre.cli.runtime as cli_runtime
-import birre.cli.sync_bridge as cli_sync_bridge
 from birre.cli.commands import logs as logs_command
 from birre.config.settings import LoggingSettings, RuntimeSettings
 
@@ -83,12 +82,8 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
             "birre.cli.commands.run.resolve_runtime_and_logging",
             return_value=(runtime_settings, logging_settings, object()),
         ) as resolve_mock,
-        patch(
-            "birre.cli.commands.run.initialize_logging", return_value=root_logger
-        ) as init_mock,
-        patch(
-            "birre.cli.commands.run.run_offline_checks", return_value=False
-        ) as offline_mock,
+        patch("birre.cli.commands.run.initialize_logging", return_value=root_logger) as init_mock,
+        patch("birre.cli.commands.run.run_offline_checks", return_value=False) as offline_mock,
         patch("birre.cli.commands.run.run_online_checks") as online_mock,
         patch("birre.cli.commands.run.prepare_server") as prepare_server,
     ):
@@ -121,16 +116,10 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
             "birre.cli.commands.run.resolve_runtime_and_logging",
             return_value=(runtime_settings, logging_settings, object()),
         ) as resolve_mock,
-        patch(
-            "birre.cli.commands.run.initialize_logging", return_value=root_logger
-        ) as init_mock,
-        patch(
-            "birre.cli.commands.run.run_offline_checks", return_value=True
-        ) as offline_mock,
+        patch("birre.cli.commands.run.initialize_logging", return_value=root_logger) as init_mock,
+        patch("birre.cli.commands.run.run_offline_checks", return_value=True) as offline_mock,
         patch("birre.cli.commands.run.run_online_checks", async_online) as online_mock,
-        patch(
-            "birre.cli.commands.run.prepare_server", return_value=fake_server
-        ) as prepare_server,
+        patch("birre.cli.commands.run.prepare_server", return_value=fake_server) as prepare_server,
     ):
         result = runner.invoke(server.app, ["run"], env={"BITSIGHT_API_KEY": "dummy"}, color=False)
 
@@ -259,22 +248,26 @@ def test_config_validate_without_config_flag_shows_help() -> None:
     )
 
     assert result.exit_code == 0
-    assert "Usage: root config validate" in result.stdout
+    # Rich may still include formatting codes, so check for key content
+    assert "config validate" in result.stdout
     assert "--config" in result.stdout
 
 
 def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "config.local.toml"
-    input_data = "\n".join(
-        [
-            "supersecretvalue",
-            "subscriptions",
-            "continuous_monitoring",
-            "standard",
-            "n",
-        ]
-    ) + "\n"
+    input_data = (
+        "\n".join(
+            [
+                "supersecretvalue",
+                "subscriptions",
+                "continuous_monitoring",
+                "standard",
+                "n",
+            ]
+        )
+        + "\n"
+    )
 
     result = runner.invoke(
         server.app,
@@ -297,14 +290,19 @@ def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
 def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "config.local.toml"
-    input_data = "\n".join([
-        "",
-        "final-secret",
-        "",
-        "",
-        "",
-        "n",
-    ]) + "\n"
+    input_data = (
+        "\n".join(
+            [
+                "",
+                "final-secret",
+                "",
+                "",
+                "",
+                "n",
+            ]
+        )
+        + "\n"
+    )
 
     result = runner.invoke(
         server.app,
@@ -323,13 +321,16 @@ def test_local_conf_create_reprompts_for_required_api_key(tmp_path: Path) -> Non
 def test_local_conf_create_respects_cli_overrides(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "config.local.toml"
-    input_data = "\n".join(
-        [
-            "anothersecret",
-            "client-subscriptions",
-            "risk_manager",
-        ]
-    ) + "\n"
+    input_data = (
+        "\n".join(
+            [
+                "anothersecret",
+                "client-subscriptions",
+                "risk_manager",
+            ]
+        )
+        + "\n"
+    )
 
     result = runner.invoke(
         server.app,
@@ -373,15 +374,18 @@ def test_local_conf_create_requires_confirmation_to_overwrite(tmp_path: Path) ->
 def test_config_init_respects_config_flag(tmp_path: Path) -> None:
     runner = CliRunner()
     destination = tmp_path / "custom.local.toml"
-    input_data = "\n".join(
-        [
-            "secretkey",
-            "subscriptions",
-            "continuous",
-            "standard",
-            "n",
-        ]
-    ) + "\n"
+    input_data = (
+        "\n".join(
+            [
+                "secretkey",
+                "subscriptions",
+                "continuous",
+                "standard",
+                "n",
+            ]
+        )
+        + "\n"
+    )
 
     result = runner.invoke(
         server.app,
@@ -421,7 +425,7 @@ def test_selftest_defaults_to_online_checks(
             assert self.offline is False
             # Verify testing base URL is used
             assert self.target_base_url == server.HEALTHCHECK_TESTING_V1_BASE_URL
-            
+
             contexts = sorted(self.expected_tools_by_context.keys())
             summary = {
                 "environment": "testing",
@@ -431,9 +435,9 @@ def test_selftest_defaults_to_online_checks(
                         "offline_mode": False,
                         "online": {"status": "pass"},
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -460,7 +464,7 @@ def test_selftest_defaults_to_online_checks(
 
     assert result.exit_code == 0, result.stdout
     assert len(runner_init_args) == 1
-    
+
     # Verify the runner was initialized with correct parameters
     init_args = runner_init_args[0]
     assert init_args["offline"] is False
@@ -485,9 +489,9 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
                         "offline_mode": False,
                         "online": {"status": "pass"},
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -515,21 +519,21 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
     # Extract JSON portion that appears after "Machine-readable summary:" line
     # and before the "Healthcheck Summary" table
     output = result.stdout
-    
+
     # Find the marker line
     marker = "Machine-readable summary:"
     marker_pos = output.find(marker)
     assert marker_pos != -1, "Machine-readable summary marker not found"
-    
+
     # Skip past the marker and any whitespace/newlines to find JSON start
     search_start = marker_pos + len(marker)
     remaining = output[search_start:]
-    
+
     # Find first '{' after the marker (should be on next line)
     json_start_offset = remaining.find("{")
     assert json_start_offset != -1, "JSON opening brace not found after marker"
     json_start = search_start + json_start_offset
-    
+
     # Find the end of JSON by matching braces
     brace_count = 0
     json_end = json_start
@@ -541,10 +545,10 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
             if brace_count == 0:
                 json_end = i + 1
                 break
-    
+
     json_payload = output[json_start:json_end]
     # Strip ANSI escape codes that Rich console may add even with color=False
-    json_payload = re.sub(r'\x1b\[[0-9;]*m', '', json_payload)
+    json_payload = re.sub(r"\x1b\[[0-9;]*m", "", json_payload)
     summary = json.loads(json_payload)
 
     assert summary["offline_check"]["status"] == "pass"
@@ -571,7 +575,7 @@ def test_selftest_offline_flag_skips_network_checks(
             assert self.offline is True
             # Verify skip_startup_checks is also True when using --offline
             assert self.runtime_settings.skip_startup_checks is True
-            
+
             contexts = sorted(self.expected_tools_by_context.keys())
             summary = {
                 "environment": "testing",
@@ -580,9 +584,9 @@ def test_selftest_offline_flag_skips_network_checks(
                     context: {
                         "offline_mode": True,
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -618,7 +622,7 @@ def test_selftest_passes_shared_options_to_build_invocation(
 
     # Import the selftest command module to patch the right location
     from birre.cli.commands.selftest import command as selftest_command
-    
+
     original_build = cli_invocation.build_invocation
 
     def record_build_invocation(**kwargs):
@@ -643,9 +647,9 @@ def test_selftest_passes_shared_options_to_build_invocation(
                         "offline_mode": False,
                         "online": {"status": "pass"},
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -725,7 +729,7 @@ def test_selftest_uses_environment_config_path(
 
     # Import the selftest command module to patch the right location
     from birre.cli.commands.selftest import command as selftest_command
-    
+
     original_build = cli_invocation.build_invocation
 
     def record_build_invocation(**kwargs):
@@ -750,9 +754,9 @@ def test_selftest_uses_environment_config_path(
                         "offline_mode": False,
                         "online": {"status": "pass"},
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -794,7 +798,9 @@ def test_selftest_fails_when_context_tools_missing(
 
     monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
-    monkeypatch.setattr(cli_runtime, "initialize_logging",
+    monkeypatch.setattr(
+        cli_runtime,
+        "initialize_logging",
         lambda runtime, logging_settings, *, show_banner=False: logger,
     )
 
@@ -818,9 +824,12 @@ def test_selftest_fails_when_context_tools_missing(
         )
 
     monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
-    monkeypatch.setattr(cli_runtime, "run_online_checks",
+    monkeypatch.setattr(
+        cli_runtime,
+        "run_online_checks",
         lambda runtime, log, *, v1_base_url=None: True,
     )
+
     def fake_diagnostics(
         *,
         context,
@@ -854,7 +863,9 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
     runner = CliRunner()
     monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
     logger = MagicMock(name="logger")
-    monkeypatch.setattr(cli_runtime, "initialize_logging",
+    monkeypatch.setattr(
+        cli_runtime,
+        "initialize_logging",
         lambda runtime, logging_settings, *, show_banner=False: logger,
     )
 
@@ -876,7 +887,9 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
         )
 
     monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
-    monkeypatch.setattr(cli_runtime, "run_online_checks",
+    monkeypatch.setattr(
+        cli_runtime,
+        "run_online_checks",
         lambda runtime, log, *, v1_base_url=None: True,
     )
 
@@ -914,7 +927,7 @@ def test_selftest_production_flag_uses_production_base(
 ) -> None:
     """Test that --production flag passes correct base URL to SelfTestRunner."""
     from birre.cli.commands.selftest import command as selftest_command
-    
+
     runner = CliRunner()
     captured_args: list[dict] = []
 
@@ -924,10 +937,11 @@ def test_selftest_production_flag_uses_production_base(
             captured_args.append(kwargs)
             self.target_base_url = kwargs.get("target_base_url")
             self.environment_label = kwargs.get("environment_label")
-        
+
         def run(self):
             # Return a successful self-test result
             from birre.application.diagnostics import SelfTestResult
+
             return SelfTestResult(
                 success=True,
                 degraded=False,
@@ -935,23 +949,19 @@ def test_selftest_production_flag_uses_production_base(
                     "environment": self.environment_label,
                     "offline_check": {"status": "pass"},
                     "contexts": {
-                        "standard": {
-                            "success": True,
-                            "online": {"status": "pass"},
-                            "tools": {}
-                        },
+                        "standard": {"success": True, "online": {"status": "pass"}, "tools": {}},
                         "risk_manager": {
                             "success": True,
                             "online": {"status": "pass"},
-                            "tools": {}
-                        }
+                            "tools": {},
+                        },
                     },
-                    "overall_success": True
+                    "overall_success": True,
                 },
                 contexts=("standard", "risk_manager"),
-                alerts=()
+                alerts=(),
             )
-    
+
     # Patch where SelfTestRunner is actually used (in the command module)
     monkeypatch.setattr(selftest_command, "SelfTestRunner", FakeSelfTestRunner)
 
@@ -985,16 +995,15 @@ def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> 
                     context: {
                         "offline_mode": False,
                         "online": {"status": "pass"},
-                        "attempts": [
-                            {"status": "fail", "error": "TLS error"},
-                            {"status": "pass"}
-                        ] if context == "standard" else [{"status": "pass"}],
+                        "attempts": [{"status": "fail", "error": "TLS error"}, {"status": "pass"}]
+                        if context == "standard"
+                        else [{"status": "pass"}],
                         "fallback_attempted": context == "standard",
                         "fallback_success": context == "standard",
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -1003,6 +1012,7 @@ def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> 
             # TLS interception alert triggers exit code 2
             # Use the correct error code value
             from birre.infrastructure.errors import ErrorCode
+
             return diagnostics_module.SelfTestResult(
                 success=True,
                 degraded=False,
@@ -1045,9 +1055,9 @@ def test_selftest_missing_ca_bundle_falls_back_to_defaults(
                         "online": {"status": "pass"},
                         "notes": ["ca-bundle-defaulted"],  # Note that fallback occurred
                         "tools": {
-                            tool: {"status": "pass"} 
+                            tool: {"status": "pass"}
                             for tool in self.expected_tools_by_context[context]
-                        }
+                        },
                     }
                     for context in contexts
                 },
@@ -1070,7 +1080,7 @@ def test_selftest_missing_ca_bundle_falls_back_to_defaults(
         runtime = replace(_runtime_settings(), ca_bundle_path="/nonexistent/ca.pem")
         logging_settings = _logging_settings()
         resolve_mock.return_value = (runtime, logging_settings, {})
-        
+
         result = runner.invoke(
             server.app,
             ["selftest"],

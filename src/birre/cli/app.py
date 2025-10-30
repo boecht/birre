@@ -9,7 +9,6 @@ import typer
 from rich.console import Console
 from rich.text import Text
 
-
 # FastMCP checks this flag during import time, so ensure it is enabled before
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
@@ -38,12 +37,12 @@ HEALTHCHECK_TESTING_V1_BASE_URL = "https://service.bitsighttech.com/customer-api
 HEALTHCHECK_PRODUCTION_V1_BASE_URL = DEFAULT_V1_API_BASE_URL
 
 _EXPECTED_TOOLS_BY_CONTEXT: dict[str, frozenset[str]] = {
-    context: frozenset(tools)
-    for context, tools in _DIAGNOSTIC_EXPECTED_TOOLS.items()
+    context: frozenset(tools) for context, tools in _DIAGNOSTIC_EXPECTED_TOOLS.items()
 }
 
 
 # Banner functions for server startup -----------------------------------------
+
 
 def _banner() -> Text:
     return Text.from_markup(
@@ -75,7 +74,6 @@ def _keyboard_interrupt_banner() -> Text:
         "│[red]  Keyboard interrupt received  [/red]│\n"
         "│[red]         BiRRe stopping        [/red]│\n"
         "╰───────────────────────────────╯\n"
-
     )
 
 

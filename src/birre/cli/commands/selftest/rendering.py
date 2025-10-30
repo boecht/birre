@@ -13,6 +13,7 @@ from rich.table import Table
 
 class _RichStyles:
     """Rich console style constants."""
+
     ACCENT = "bold cyan"
     SECONDARY = "magenta"
     SUCCESS = "green"
@@ -81,7 +82,7 @@ def _process_tool_attempt_entry(
 ) -> str:
     """Process a single tool attempt entry and return its status label."""
     attempt_status = _healthcheck_status_label(entry.get("status"))
-    
+
     modes = entry.get("modes")
     if isinstance(modes, Mapping) and modes:
         mode_parts = [
@@ -90,11 +91,11 @@ def _process_tool_attempt_entry(
         ]
         if mode_parts:
             parts.append(f"{label} modes=" + ", ".join(mode_parts))
-    
+
     detail = entry.get("details")
     if detail:
         parts.append(f"{label} detail=" + _stringify_healthcheck_detail(detail))
-    
+
     return f"{label}:{attempt_status}"
 
 
@@ -109,11 +110,11 @@ def _format_healthcheck_tool_detail(tool_summary: Mapping[str, Any]) -> str:
             attempt_parts.append(attempt_label)
         if attempt_parts:
             parts.insert(0, "attempts=" + ", ".join(attempt_parts))
-    
+
     details = tool_summary.get("details")
     if details:
         parts.append(_stringify_healthcheck_detail(details))
-    
+
     return "; ".join(parts) if parts else "-"
 
 
@@ -179,16 +180,14 @@ def _collect_healthcheck_critical_failures(
     failures: list[str] = []
     context_status = _determine_context_status(context_data)
     context_status_label = _healthcheck_status_label(context_status)
-    
+
     if context_status_label == "FAIL":
         failures.append(f"{context_name}: context failure")
-    
+
     unrecoverable = context_data.get("unrecoverable_categories") or []
     if unrecoverable:
-        failures.append(
-            f"{context_name}: unrecoverable={','.join(sorted(unrecoverable))}"
-        )
-    
+        failures.append(f"{context_name}: unrecoverable={','.join(sorted(unrecoverable))}")
+
     return failures
 
 
@@ -200,9 +199,7 @@ def render_healthcheck_summary(report: dict[str, Any], stdout_console: Console) 
     critical_failures: list[str] = []
     for context_name, context_data in sorted(report.get("contexts", {}).items()):
         _add_healthcheck_context_rows(table, context_name, context_data)
-        critical_failures.extend(
-            _collect_healthcheck_critical_failures(context_name, context_data)
-        )
+        critical_failures.extend(_collect_healthcheck_critical_failures(context_name, context_data))
 
     if critical_failures:
         table.add_row(
@@ -215,6 +212,6 @@ def render_healthcheck_summary(report: dict[str, Any], stdout_console: Console) 
 
     stdout_console.print()
     stdout_console.print("Machine-readable summary:")
-    stdout_console.print(json.dumps(report, indent=2, separators=(',', ': '), sort_keys=True))
+    stdout_console.print(json.dumps(report, indent=2, separators=(",", ": "), sort_keys=True))
     stdout_console.print()
     stdout_console.print(table)

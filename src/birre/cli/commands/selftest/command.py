@@ -25,7 +25,7 @@ def register(
     healthcheck_production_v1_base_url: str,
 ) -> None:
     """Register the selftest command with the given Typer app."""
-    
+
     @app.command(help="Run BiRRe self tests without starting the FastMCP server.")
     def selftest(
         config: cli_options.ConfigPathOption = Path(DEFAULT_CONFIG_FILENAME),
@@ -76,9 +76,7 @@ def register(
         )
 
         target_base_url = (
-            healthcheck_production_v1_base_url
-            if production
-            else healthcheck_testing_v1_base_url
+            healthcheck_production_v1_base_url if production else healthcheck_testing_v1_base_url
         )
         environment_label = "production" if production else "testing"
         logger.info(
@@ -89,7 +87,8 @@ def register(
         if environment_label == "testing" and not offline:
             stdout_console.print(
                 "[yellow]Note:[/yellow] BitSight's testing environment often returns "
-                "[bold]HTTP 403[/bold] for subscription management tools even with valid credentials. "
+                "[bold]HTTP 403[/bold] for subscription management tools even with "
+                "valid credentials. "
                 "This is expected for accounts without sandbox write access. "
                 "Re-run with [green]--production[/green] to validate against the live API."
             )

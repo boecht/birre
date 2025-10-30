@@ -264,9 +264,7 @@ def test_birre_config_env_overrides_default_config(
     assert runtime.debug is True
 
 
-def test_logging_env_disable_sentinel(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_logging_env_disable_sentinel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 

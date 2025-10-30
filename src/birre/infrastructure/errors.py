@@ -114,9 +114,7 @@ def _coerce_operation_from_request(request: httpx.Request | None) -> tuple[str, 
         return "UNKNOWN", "unknown"
     method = request.method or "UNKNOWN"
     path = (
-        request.url.raw_path.decode("utf-8", "ignore")
-        if request.url.raw_path
-        else request.url.path
+        request.url.raw_path.decode("utf-8", "ignore") if request.url.raw_path else request.url.path
     )
     if not path:
         path = "/"

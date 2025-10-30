@@ -177,8 +177,7 @@ async def _check_subscription_quota(
     remaining = details.get("remaining")
     if not isinstance(remaining, int):
         return (
-            f"Subscription '{subscription_type}' returned unexpected "
-            f"remaining value: {remaining!r}"
+            f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
         )
     if remaining <= 0:
         return f"Subscription '{subscription_type}' has no remaining licenses"
@@ -198,9 +197,7 @@ async def _validate_subscription_folder(
         )
         return True
 
-    folder_issue = await _check_subscription_folder(
-        call_v1_tool, ctx, subscription_folder
-    )
+    folder_issue = await _check_subscription_folder(call_v1_tool, ctx, subscription_folder)
     if folder_issue is not None:
         logger.critical(
             "online.subscription_folder_exists.failed",
@@ -228,9 +225,7 @@ async def _validate_subscription_quota(
         )
         return True
 
-    quota_issue = await _check_subscription_quota(
-        call_v1_tool, ctx, subscription_type
-    )
+    quota_issue = await _check_subscription_quota(call_v1_tool, ctx, subscription_type)
     if quota_issue is not None:
         logger.critical(
             "online.subscription_quota.failed",
@@ -276,14 +271,10 @@ async def run_online_startup_checks(
 
     logger.info("online.api_connectivity.success")
 
-    if not await _validate_subscription_folder(
-        call_v1_tool, ctx, subscription_folder, logger
-    ):
+    if not await _validate_subscription_folder(call_v1_tool, ctx, subscription_folder, logger):
         return False
 
-    if not await _validate_subscription_quota(
-        call_v1_tool, ctx, subscription_type, logger
-    ):
+    if not await _validate_subscription_quota(call_v1_tool, ctx, subscription_type, logger):
         return False
 
     return True

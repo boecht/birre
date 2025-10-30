@@ -2,7 +2,7 @@
 
 This module hosts the shared business logic for:
 - Tool discovery and invocation
-- Payload validation  
+- Payload validation
 - Diagnostic test execution
 
 CLI orchestration (SelfTestRunner) lives in cli.commands.selftest.runner.
@@ -121,7 +121,7 @@ def _invoke_tool(
         raise TypeError(f"Tool object {tool!r} is not callable")
     try:
         result = callable_fn(ctx, **params)
-    except TypeError as exc:
+    except TypeError:
         if params:
             try:
                 result = callable_fn(ctx, params)
@@ -350,9 +350,7 @@ def check_optional_tool(
             {
                 "status": "pass" if ok else "warning",
                 "details": {
-                    "reason": "diagnostic succeeded"
-                    if ok
-                    else "diagnostic reported warnings",
+                    "reason": "diagnostic succeeded" if ok else "diagnostic reported warnings",
                 },
             }
         )
@@ -715,7 +713,9 @@ def run_manage_subscriptions_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="manage_subscriptions")
-    ctx = _MockSelfTestContext(context=context, tool_name="manage_subscriptions", logger=tool_logger)
+    ctx = _MockSelfTestContext(
+        context=context, tool_name="manage_subscriptions", logger=tool_logger
+    )
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -802,7 +802,7 @@ def run_request_company_diagnostics(
                     "note": "This confirms the API endpoint works correctly",
                 }
             return True
-        
+
         # Other errors are real failures
         tool_logger.warning("healthcheck.request_company.call_failed", error=error_str)
         record_failure(
@@ -1081,8 +1081,11 @@ def _validate_request_company_payload(
     if status == "dry_run":
         domain = payload.get("domain")
         if not domain or domain.lower() != expected_domain.lower():
-            logger.critical("healthcheck.request_company.domain_mismatch",
-                          domain=domain, expected=expected_domain)
+            logger.critical(
+                "healthcheck.request_company.domain_mismatch",
+                domain=domain,
+                expected=expected_domain,
+            )
             return False
         return True
 

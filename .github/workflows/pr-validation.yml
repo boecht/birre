@@ -1,0 +1,73 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+      - "dev/*"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Code Quality & Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Lint with ruff
+        run: |
+          uv run ruff check src tests
+
+      - name: Format check with ruff
+        run: |
+          uv run ruff format --check src tests
+
+      - name: Type check with mypy
+        run: |
+          uv run mypy src
+        continue-on-error: true  # Allow failures initially until type issues are fixed
+
+      - name: Run offline tests with coverage
+        run: |
+          uv run pytest -m offline \
+            --cov=src/birre \
+            --cov-report=term \
+            --cov-report=xml \
+            --cov-fail-under=80
+        continue-on-error: true  # Allow failures initially until coverage threshold is met
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: pr-validation
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: validate
+    if: always()
+    
+    steps:
+      - name: Check validation status
+        run: |
+          echo "PR validation completed"
+          echo "Review the validation results above"

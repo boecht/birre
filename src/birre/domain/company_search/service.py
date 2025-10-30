@@ -190,9 +190,7 @@ def register_company_search_tool(
                 return response_payload
 
             result_count = response_payload.get("count", 0)
-            await ctx.info(
-                f"Found {result_count} companies using FastMCP companySearch"
-            )
+            await ctx.info(f"Found {result_count} companies using FastMCP companySearch")
             log_search_event(
                 logger,
                 "success",
@@ -219,9 +217,7 @@ def register_company_search_tool(
         except Exception as exc:
             error_msg = f"FastMCP company search failed: {exc}"
             await ctx.error(error_msg)
-            exc_info = (
-                exc if logging.getLogger().isEnabledFor(logging.DEBUG) else False
-            )
+            exc_info = exc if logging.getLogger().isEnabledFor(logging.DEBUG) else False
             logger.error(
                 "company_search.error",
                 error=str(exc),

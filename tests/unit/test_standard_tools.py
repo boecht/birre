@@ -102,7 +102,10 @@ async def test_company_search_interactive_empty_result_contract() -> None:
     async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
         await asyncio.sleep(0)
         assert name == "companySearch"
-        assert params == {"expand": "details.employee_count,details.in_portfolio", "name": "Example"}
+        assert params == {
+            "expand": "details.employee_count,details.in_portfolio",
+            "name": "Example",
+        }
         return {"results": []}
 
     tool = register_company_search_interactive_tool(

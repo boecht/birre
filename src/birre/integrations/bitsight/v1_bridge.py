@@ -30,15 +30,11 @@ def filter_none(params: Mapping[str, Any]) -> dict[str, Any]:
     return filtered
 
 
-async def _parse_text_content(
-    text: str, tool_name: str, ctx: Context, logger: BoundLogger
-) -> Any:
+async def _parse_text_content(text: str, tool_name: str, ctx: Context, logger: BoundLogger) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        await ctx.warning(
-            f"Failed to parse text content for '{tool_name}' as JSON"
-        )
+        await ctx.warning(f"Failed to parse text content for '{tool_name}' as JSON")
         logger.debug(
             "Unable to deserialize JSON payload from FastMCP tool response",
             tool=tool_name,
@@ -63,9 +59,7 @@ async def _normalize_tool_result(
         if text is not None:
             return await _parse_text_content(text, tool_name, ctx, logger)
 
-    await ctx.warning(
-        f"FastMCP tool '{tool_name}' returned no structured data; passing raw result"
-    )
+    await ctx.warning(f"FastMCP tool '{tool_name}' returned no structured data; passing raw result")
     logger.warning(
         "FastMCP tool returned unstructured payload; returning raw result",
         tool=tool_name,
@@ -83,9 +77,7 @@ def _log_tls_error(
     log_fields = mapped_error.log_fields()
     logger.error(mapped_error.summary, **log_fields)
     if debug_enabled:
-        trace_text = "".join(
-            traceback.format_exception(type(exc), exc, exc.__traceback__)
-        )
+        trace_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         logger.debug(
             "TLS handshake traceback",
             trace=trace_text,
@@ -124,9 +116,7 @@ async def call_openapi_tool(
                 filtered_params,
             )
 
-        return await _normalize_tool_result(
-            tool_result, resolved_tool_name, ctx, logger
-        )
+        return await _normalize_tool_result(tool_result, resolved_tool_name, ctx, logger)
     except httpx.HTTPStatusError as exc:
         await ctx.error(
             f"FastMCP tool '{resolved_tool_name}' returned HTTP {exc.response.status_code}: {exc}"
@@ -152,9 +142,7 @@ async def call_openapi_tool(
         await ctx.error(mapped.user_message)
         raise mapped from exc
     except Exception as exc:  # pragma: no cover - diagnostic fallback
-        await ctx.error(
-            f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}"
-        )
+        await ctx.error(f"FastMCP tool '{resolved_tool_name}' execution failed: {exc}")
         logger.error(
             "FastMCP tool execution failed",
             tool=resolved_tool_name,

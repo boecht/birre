@@ -63,13 +63,9 @@ def _prompt_bool(prompt: str, default: bool) -> bool:
     return typer.confirm(prompt, default=default)
 
 
-def _prompt_str(
-    prompt: str, default: str | None, secret: bool = False
-) -> str | None:
+def _prompt_str(prompt: str, default: str | None, secret: bool = False) -> str | None:
     """Prompt for a string value."""
-    value = typer.prompt(
-        prompt, default=default or "", hide_input=secret
-    ).strip()
+    value = typer.prompt(prompt, default=default or "", hide_input=secret).strip()
     return value or None
 
 
@@ -80,6 +76,7 @@ def _validate_and_apply_normalizer(
     normalizer: Callable[[str, str | None], str | None] | None,
 ) -> str | None:
     """Apply normalizer and validate the result."""
+
     def _apply(value: str | None) -> str | None:
         cleaned = cli_options.clean_string(value)
         if cleaned is None:
@@ -109,6 +106,7 @@ def _collect_or_prompt_string(
     normalizer: Callable[[str, str | None], str | None] | None = None,
 ) -> str | None:
     """Return a CLI-provided string or interactively prompt for one."""
+
     def _apply(value: str | None) -> str | None:
         cleaned = cli_options.clean_string(value)
         if cleaned is None:
@@ -147,13 +145,11 @@ def _format_config_value(value: Any) -> str:
     return f'"{value}"'
 
 
-def _format_config_section(
-    section: str, section_values: dict[str, Any]
-) -> list[str]:
+def _format_config_section(section: str, section_values: dict[str, Any]) -> list[str]:
     """Format a single config section."""
     if not isinstance(section_values, dict) or not section_values:
         return []
-    
+
     lines = ["", f"[{section}]"]
     for key, entry in sorted(section_values.items()):
         if entry is None:
@@ -164,9 +160,7 @@ def _format_config_section(
     return lines
 
 
-def _generate_local_config_content(
-    values: dict[str, Any], *, include_header: bool = True
-) -> str:
+def _generate_local_config_content(values: dict[str, Any], *, include_header: bool = True) -> str:
     """Generate TOML content from config values."""
     lines: list[str] = []
     if include_header:
@@ -174,7 +168,7 @@ def _generate_local_config_content(
 
     for section, section_values in sorted(values.items()):
         lines.extend(_format_config_section(section, section_values))
-    
+
     lines.append("")
     return "\n".join(lines)
 
@@ -183,16 +177,14 @@ def _determine_value_source(value, default_value, normalizer):
     """Determine the source of a prompted value (Default vs User Input)."""
     if default_value and value == default_value:
         return "Default"
-    
+
     if normalizer:
-        normalized_default = (
-            normalizer(default_value, None) if default_value else None
-        )
+        normalized_default = normalizer(default_value, None) if default_value else None
         normalized_value = normalizer(value, None)
     else:
         normalized_default = default_value
         normalized_value = value
-    
+
     if normalized_default and normalized_value == normalized_default:
         return "Default"
     return SOURCE_USER_INPUT
@@ -227,7 +219,7 @@ def _prompt_and_record_string(
             source = _determine_value_source(value, default_value, normalizer)
         else:
             return None
-    
+
     if value and value not in (None, ""):
         display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
         summary_rows.append((config_key, display_value, source))
@@ -248,19 +240,17 @@ def _prompt_and_record_bool(
     else:
         value = _prompt_bool(prompt_text, default=default_value)
         source = "Default" if value == default_value else SOURCE_USER_INPUT
-    
+
     display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
     summary_rows.append((config_key, display_value, source))
     return value
 
 
-def _check_overwrite_destination(
-    destination: Path, overwrite: bool, stdout_console: Console
-):
+def _check_overwrite_destination(destination: Path, overwrite: bool, stdout_console: Console):
     """Check if destination exists and handle overwrite logic."""
     if not destination.exists():
         return
-    
+
     if overwrite:
         stdout_console.print(
             f"[yellow]Overwriting existing configuration at[/yellow] {destination}"
@@ -268,19 +258,15 @@ def _check_overwrite_destination(
     else:
         stdout_console.print(f"[yellow]{destination} already exists.[/yellow]")
         if not typer.confirm("Overwrite this file?", default=False):
-            stdout_console.print(
-                "[red]Aborted without changing the existing configuration.[/red]"
-            )
+            stdout_console.print("[red]Aborted without changing the existing configuration.[/red]")
             raise typer.Exit(code=1)
 
 
-def _display_config_preview(
-    summary_rows: list[tuple[str, str, str]], stdout_console: Console
-):
+def _display_config_preview(summary_rows: list[tuple[str, str, str]], stdout_console: Console):
     """Display configuration preview table."""
     if not summary_rows:
         return
-    
+
     summary_rows.sort(key=lambda entry: entry[0])
     preview = Table(title="Local configuration preview")
     preview.add_column("Config Key", style=RichStyles.ACCENT)
@@ -290,7 +276,6 @@ def _display_config_preview(
         preview.add_row(dotted_key, display_value, source)
     stdout_console.print()
     stdout_console.print(preview)
-
 
 
 def _collect_config_file_entries(
@@ -305,7 +290,7 @@ def _collect_config_file_entries(
             parsed = parse_toml_file(file, param_hint="--config")
         except typer.BadParameter:
             continue
-        
+
         dotted = flatten_to_dotted(parsed)
         for key, value in dotted.items():
             if key not in result:
@@ -319,29 +304,21 @@ def _collect_cli_override_values(invocation: CliInvocation) -> dict[str, Any]:
     if invocation.auth.api_key:
         details[BITSIGHT_API_KEY_KEY] = invocation.auth.api_key
     if invocation.subscription.folder:
-        details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = (
-            invocation.subscription.folder
-        )
+        details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = invocation.subscription.folder
     if invocation.subscription.type:
         details[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = invocation.subscription.type
     if invocation.runtime.context:
         details[ROLE_CONTEXT_KEY] = invocation.runtime.context
     if invocation.runtime.risk_vector_filter:
-        details[ROLE_RISK_VECTOR_FILTER_KEY] = (
-            invocation.runtime.risk_vector_filter
-        )
+        details[ROLE_RISK_VECTOR_FILTER_KEY] = invocation.runtime.risk_vector_filter
     if invocation.runtime.max_findings is not None:
         details[ROLE_MAX_FINDINGS_KEY] = invocation.runtime.max_findings
     if invocation.runtime.debug is not None:
         details[RUNTIME_DEBUG_KEY] = invocation.runtime.debug
     if invocation.runtime.skip_startup_checks is not None:
-        details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = (
-            invocation.runtime.skip_startup_checks
-        )
+        details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = invocation.runtime.skip_startup_checks
     if invocation.tls.allow_insecure is not None:
-        details[RUNTIME_ALLOW_INSECURE_TLS_KEY] = (
-            invocation.tls.allow_insecure
-        )
+        details[RUNTIME_ALLOW_INSECURE_TLS_KEY] = invocation.tls.allow_insecure
     if invocation.tls.ca_bundle_path:
         details[RUNTIME_CA_BUNDLE_PATH_KEY] = invocation.tls.ca_bundle_path
     if invocation.logging.level:
@@ -426,9 +403,7 @@ def _build_env_override_rows(
         config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
         if not config_key:
             continue
-        formatted_value = format_config_value(
-            config_key, value, log_file_key=LOGGING_FILE_KEY
-        )
+        formatted_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
         rows.append((config_key, formatted_value, f"ENV ({env_var})"))
     return rows
 
@@ -452,42 +427,24 @@ _EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(
-    runtime_settings, logging_settings
-) -> dict[str, Any]:
+def _effective_configuration_values(runtime_settings, logging_settings) -> dict[str, Any]:
     """Extract effective configuration values from resolved settings."""
     values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
-        BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(
-            runtime_settings, "subscription_folder", None
-        ),
-        BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(
-            runtime_settings, "subscription_type", None
-        ),
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(runtime_settings, "subscription_folder", None),
+        BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(runtime_settings, "subscription_type", None),
         ROLE_CONTEXT_KEY: getattr(runtime_settings, "context", None),
-        ROLE_RISK_VECTOR_FILTER_KEY: getattr(
-            runtime_settings, "risk_vector_filter", None
-        ),
+        ROLE_RISK_VECTOR_FILTER_KEY: getattr(runtime_settings, "risk_vector_filter", None),
         ROLE_MAX_FINDINGS_KEY: getattr(runtime_settings, "max_findings", None),
         RUNTIME_DEBUG_KEY: getattr(runtime_settings, "debug", None),
-        RUNTIME_SKIP_STARTUP_CHECKS_KEY: getattr(
-            runtime_settings, "skip_startup_checks", None
-        ),
-        RUNTIME_ALLOW_INSECURE_TLS_KEY: getattr(
-            runtime_settings, "allow_insecure_tls", None
-        ),
-        RUNTIME_CA_BUNDLE_PATH_KEY: getattr(
-            runtime_settings, "ca_bundle_path", None
-        ),
-        LOGGING_LEVEL_KEY: logging.getLevelName(
-            getattr(logging_settings, "level", logging.INFO)
-        ),
+        RUNTIME_SKIP_STARTUP_CHECKS_KEY: getattr(runtime_settings, "skip_startup_checks", None),
+        RUNTIME_ALLOW_INSECURE_TLS_KEY: getattr(runtime_settings, "allow_insecure_tls", None),
+        RUNTIME_CA_BUNDLE_PATH_KEY: getattr(runtime_settings, "ca_bundle_path", None),
+        LOGGING_LEVEL_KEY: logging.getLevelName(getattr(logging_settings, "level", logging.INFO)),
         LOGGING_FORMAT_KEY: getattr(logging_settings, "format", None),
         LOGGING_FILE_KEY: getattr(logging_settings, "file_path", None),
         LOGGING_MAX_BYTES_KEY: getattr(logging_settings, "max_bytes", None),
-        LOGGING_BACKUP_COUNT_KEY: getattr(
-            logging_settings, "backup_count", None
-        ),
+        LOGGING_BACKUP_COUNT_KEY: getattr(logging_settings, "backup_count", None),
     }
     return values
 
@@ -558,25 +515,15 @@ def register(
 
         ctx = click.get_current_context()
         config_source = ctx.get_parameter_source("config_path")
-        destination = Path(
-            config_path
-            if config_source is ParameterSource.COMMANDLINE
-            else output
-        )
+        destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
 
         _check_overwrite_destination(destination, overwrite, stdout_console)
 
         defaults_settings = load_settings(
-            str(config_path)
-            if config_source is ParameterSource.COMMANDLINE
-            else None
+            str(config_path) if config_source is ParameterSource.COMMANDLINE else None
         )
-        default_subscription_folder = defaults_settings.get(
-            BITSIGHT_SUBSCRIPTION_FOLDER_KEY
-        )
-        default_subscription_type = defaults_settings.get(
-            BITSIGHT_SUBSCRIPTION_TYPE_KEY
-        )
+        default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+        default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
         default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
         default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
 
@@ -595,18 +542,12 @@ def register(
             display_value = format_config_value(
                 BITSIGHT_API_KEY_KEY, api_key, log_file_key=LOGGING_FILE_KEY
             )
-            summary_rows.append(
-                (BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT)
-            )
+            summary_rows.append((BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT))
 
         subscription_folder = _prompt_and_record_string(
             None,
             "Default subscription folder",
-            (
-                str(default_subscription_folder)
-                if default_subscription_folder
-                else ""
-            ),
+            (str(default_subscription_folder) if default_subscription_folder else ""),
             summary_rows,
             BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
         )
@@ -671,14 +612,10 @@ def register(
         try:
             destination.write_text(content, encoding="utf-8")
         except OSError as error:
-            stdout_console.print(
-                f"[red]Failed to write configuration:[/red] {error}"
-            )
+            stdout_console.print(f"[red]Failed to write configuration:[/red] {error}")
             raise typer.Exit(code=1) from error
 
-        stdout_console.print(
-            f"[green]Local configuration saved to[/green] {destination}"
-        )
+        stdout_console.print(f"[green]Local configuration saved to[/green] {destination}")
 
     @config_app.command(
         "show",
@@ -725,9 +662,7 @@ def register(
             log_backup_count=log_backup_count,
         )
 
-        runtime_settings, logging_settings, _ = resolve_runtime_and_logging(
-            invocation
-        )
+        runtime_settings, logging_settings, _ = resolve_runtime_and_logging(invocation)
         files = resolve_config_file_candidates(invocation.config_path)
 
         config_entries = _collect_config_file_entries(files)
@@ -773,26 +708,18 @@ def register(
             for key, label in _build_cli_source_labels(invocation).items()
             if key not in env_labels
         }
-        cli_rows = [
-            row
-            for row in _build_cli_override_rows(invocation)
-            if row[0] not in env_labels
-        ]
+        cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
         if cli_rows:
             stdout_console.print()
             _print_config_table("CLI overrides", cli_rows, stdout_console)
 
-        effective_values = _effective_configuration_values(
-            runtime_settings, logging_settings
-        )
+        effective_values = _effective_configuration_values(runtime_settings, logging_settings)
         effective_rows: list[tuple[str, str, str]] = []
         for key in _EFFECTIVE_CONFIG_KEY_ORDER:
             display_value = format_config_value(
                 key, effective_values.get(key), log_file_key=LOGGING_FILE_KEY
             )
-            source_label = _determine_source_label(
-                key, cli_labels, env_labels, config_entries
-            )
+            source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
             effective_rows.append((key, display_value, source_label))
 
         stdout_console.print()
@@ -825,7 +752,7 @@ def register(
         if config is None and config_source is ParameterSource.DEFAULT:
             typer.echo(ctx.get_help())
             raise typer.Exit()
-        
+
         # Validate config file exists and is valid TOML
         config = require_file_exists(config, param_hint="--config")
         parsed = parse_toml_file(config, param_hint="--config")
@@ -834,9 +761,7 @@ def register(
         warnings: list[str] = []
         for section in parsed:
             if section not in allowed_sections:
-                warnings.append(
-                    f"Unknown section '{section}' will be ignored by BiRRe"
-                )
+                warnings.append(f"Unknown section '{section}' will be ignored by BiRRe")
 
         stdout_console.print(f"[green]TOML parsing succeeded[/green] for {config}")
         if warnings:

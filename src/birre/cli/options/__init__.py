@@ -40,8 +40,8 @@ from birre.cli.options.logging import (
     MinimizeOption,
     OfflineFlagOption,
     OverwriteOption,
-    ProfilePathOption,
     ProductionFlagOption,
+    ProfilePathOption,
 )
 
 __all__ = [

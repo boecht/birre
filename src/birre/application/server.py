@@ -25,7 +25,7 @@ from birre.integrations.bitsight.v1_bridge import (
 
 def register_company_rating_tool(*args, **kwargs):
     """Register the company rating tool with a FastMCP server.
-    
+
     Forwards to domain.company_rating.register_company_rating_tool.
     """
     return company_rating.register_company_rating_tool(*args, **kwargs)
@@ -33,7 +33,7 @@ def register_company_rating_tool(*args, **kwargs):
 
 def register_company_search_tool(*args, **kwargs):
     """Register the company search tool with a FastMCP server.
-    
+
     Forwards to domain.company_search.register_company_search_tool.
     """
     return company_search.register_company_search_tool(*args, **kwargs)
@@ -41,7 +41,7 @@ def register_company_search_tool(*args, **kwargs):
 
 def register_company_search_interactive_tool(*args, **kwargs):
     """Register the interactive company search tool with a FastMCP server.
-    
+
     Forwards to domain.risk_manager.register_company_search_interactive_tool.
     """
     return risk_manager.register_company_search_interactive_tool(*args, **kwargs)
@@ -49,7 +49,7 @@ def register_company_search_interactive_tool(*args, **kwargs):
 
 def register_manage_subscriptions_tool(*args, **kwargs):
     """Register the subscription management tool with a FastMCP server.
-    
+
     Forwards to domain.risk_manager.register_manage_subscriptions_tool.
     """
     return risk_manager.register_manage_subscriptions_tool(*args, **kwargs)
@@ -57,10 +57,11 @@ def register_manage_subscriptions_tool(*args, **kwargs):
 
 def register_request_company_tool(*args, **kwargs):
     """Register the company request tool with a FastMCP server.
-    
+
     Forwards to domain.risk_manager.register_request_company_tool.
     """
     return risk_manager.register_request_company_tool(*args, **kwargs)
+
 
 _tool_logger = logging.getLogger("birre.tools")
 
@@ -84,6 +85,7 @@ def _require_api_key(settings: RuntimeSettings) -> str:
         raise ValueError("Resolved settings must include a non-empty 'api_key'")
     return str(resolved_api_key)
 
+
 def _resolve_active_context(settings: RuntimeSettings) -> str:
     return str(settings.context or "standard")
 
@@ -99,9 +101,7 @@ def _resolve_max_findings(settings: RuntimeSettings) -> int:
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(
-    settings: RuntimeSettings, logger: BoundLogger
-) -> bool | str:
+def _resolve_tls_verification(settings: RuntimeSettings, logger: BoundLogger) -> bool | str:
     allow_insecure_tls = bool(settings.allow_insecure_tls)
     ca_bundle_path = settings.ca_bundle_path
     verify_option: bool | str = True
@@ -234,9 +234,7 @@ def _configure_standard_tools(
     )
 
 
-def _coerce_runtime_settings(
-    settings: RuntimeSettings | Mapping[str, Any]
-) -> RuntimeSettings:
+def _coerce_runtime_settings(settings: RuntimeSettings | Mapping[str, Any]) -> RuntimeSettings:
     if isinstance(settings, RuntimeSettings):
         return settings
 

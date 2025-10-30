@@ -13,7 +13,7 @@ from birre.infrastructure.logging import BoundLogger
 @dataclass
 class DiagnosticFailure:
     """Record of a diagnostic test failure."""
-    
+
     tool: str
     stage: str
     message: str
@@ -25,7 +25,7 @@ class DiagnosticFailure:
 @dataclass
 class AttemptReport:
     """Report of a single diagnostic attempt (e.g., with/without TLS fallback)."""
-    
+
     label: str
     success: bool
     failures: list[DiagnosticFailure]
@@ -41,7 +41,7 @@ class AttemptReport:
 @dataclass
 class ContextDiagnosticsResult:
     """Result of diagnostic tests for a specific context (e.g., 'standard', 'risk_manager')."""
-    
+
     name: str
     success: bool
     degraded: bool
@@ -51,7 +51,7 @@ class ContextDiagnosticsResult:
 @dataclass
 class SelfTestResult:
     """Result of running BiRRe self-tests/diagnostics."""
-    
+
     success: bool
     degraded: bool
     summary: dict[str, Any]
@@ -60,7 +60,7 @@ class SelfTestResult:
 
     def exit_code(self) -> int:
         """Determine exit code based on test results.
-        
+
         Returns:
             0: All tests passed
             1: Tests failed
@@ -81,11 +81,11 @@ HealthcheckResult = SelfTestResult
 
 class _MockSelfTestContext:
     """Mock context object for diagnostic tool invocations.
-    
+
     Simulates the MCP Context interface for selftest tool execution.
     Provides logging methods and metadata for diagnostic tool invocations.
     """
-    
+
     def __init__(self, *, context: str, tool_name: str, logger: BoundLogger) -> None:
         self._context = context
         self._tool_name = tool_name

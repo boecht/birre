@@ -280,16 +280,12 @@ class SelfTestRunner:
             notes=report.get("notes", ()),
         )
         attempt_reports.append(primary_report)
-        self._update_failure_categories(
-            primary_report, encountered_categories, failure_categories
-        )
+        self._update_failure_categories(primary_report, encountered_categories, failure_categories)
         context_success = primary_report.success
 
         if not context_success:
             tls_failures = [
-                failure
-                for failure in primary_report.failures
-                if failure.category == "tls"
+                failure for failure in primary_report.failures if failure.category == "tls"
             ]
             if tls_failures and not effective_settings.allow_insecure_tls:
                 fallback_report = self._attempt_tls_fallback(
@@ -341,9 +337,7 @@ class SelfTestRunner:
         )
 
         tls_failure_present = any(
-            failure.category == "tls"
-            for attempt in attempt_reports
-            for failure in attempt.failures
+            failure.category == "tls" for attempt in attempt_reports for failure in attempt.failures
         )
         if tls_failure_present:
             report.setdefault("notes", []).append("tls-cert-chain-intercepted")
@@ -601,9 +595,7 @@ class SelfTestRunner:
             for attempt in attempt_reports
         ]
 
-    def _calculate_online_status(
-        self, attempt_summaries: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _calculate_online_status(self, attempt_summaries: list[dict[str, Any]]) -> dict[str, Any]:
         online_attempts: dict[str, str] = {}
         for attempt in attempt_summaries:
             result = attempt.get("online_success")
@@ -634,9 +626,7 @@ class SelfTestRunner:
             if category:
                 encountered_categories.add(category)
         failure_categories.update(
-            failure.category
-            for failure in attempt_report.failures
-            if failure.category
+            failure.category for failure in attempt_report.failures if failure.category
         )
 
     def _categorize_failures(
@@ -664,8 +654,7 @@ class SelfTestRunner:
             logger.error(
                 "Context diagnostics failed",
                 attempts=[
-                    {"label": report.label, "success": report.success}
-                    for report in attempt_reports
+                    {"label": report.label, "success": report.success} for report in attempt_reports
                 ],
                 recoverable_categories=recoverable or None,
                 unrecoverable_categories=unrecoverable or None,
@@ -674,8 +663,7 @@ class SelfTestRunner:
             logger.info(
                 "Context diagnostics completed with recoveries",
                 attempts=[
-                    {"label": report.label, "success": report.success}
-                    for report in attempt_reports
+                    {"label": report.label, "success": report.success} for report in attempt_reports
                 ],
             )
         else:

@@ -82,7 +82,8 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     scheduled = []
 
     monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
-    monkeypatch.setattr(birre_server,
+    monkeypatch.setattr(
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
@@ -233,11 +234,13 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     captures = {}
 
     monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
-    monkeypatch.setattr(birre_server,
+    monkeypatch.setattr(
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )
-    monkeypatch.setattr(birre_server,
+    monkeypatch.setattr(
+        birre_server,
         "create_v2_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v2_server),
     )
@@ -298,9 +301,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         captures.setdefault("request", []).append((default_folder, default_type))
 
     monkeypatch.setattr(
-        risk_manager,
-        "register_company_search_interactive_tool",
-        capture_interactive
+        risk_manager, "register_company_search_interactive_tool", capture_interactive
     )
     monkeypatch.setattr(risk_manager, "register_manage_subscriptions_tool", capture_manage)
     monkeypatch.setattr(risk_manager, "register_request_company_tool", capture_request)
@@ -354,9 +355,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         }
     ]
 
-    assert captures["rating"] == [
-        (server, "compromised_hosts", 7, "folder", "type", False)
-    ]
+    assert captures["rating"] == [(server, "compromised_hosts", 7, "folder", "type", False)]
     assert captures["search"] == [server]
     assert captures["interactive"] == [("folder", "type", 7)]
     assert captures["manage"] == [("folder", "type")]
@@ -375,7 +374,8 @@ async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
     scheduled = []
 
     monkeypatch.setattr(birre_server, "FastMCP", DummyFastMCP)
-    monkeypatch.setattr(birre_server,
+    monkeypatch.setattr(
+        birre_server,
         "create_v1_api_server",
         lambda api_key, *, verify, base_url=None: (api_key, verify, v1_server),
     )

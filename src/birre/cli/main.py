@@ -9,7 +9,6 @@ from typer.main import get_command
 
 from birre.cli.app import app
 
-
 _CLI_PROG_NAME = "birre"
 
 
@@ -24,7 +23,7 @@ def main(argv: Sequence[str | None] = None) -> None:
     """
     args = list(sys.argv[1:] if argv is None else argv)
     command = get_command(app)
-    
+
     # Default to 'run' command if no arguments provided
     if not args:
         command.main(args=["run"], prog_name=_CLI_PROG_NAME)

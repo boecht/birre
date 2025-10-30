@@ -104,12 +104,9 @@ async def test_create_ephemeral_subscription_missing_config(
         debug_enabled=False,
     )
     assert not attempt.success
-    assert (
-        attempt.message
-        == (
-            "Subscription settings are missing. "
-            "Configure subscription_folder and subscription_type via CLI or configuration."
-        )
+    assert attempt.message == (
+        "Subscription settings are missing. "
+        "Configure subscription_folder and subscription_type via CLI or configuration."
     )
     assert ctx.messages["error"]
 

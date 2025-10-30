@@ -89,7 +89,7 @@ def _parse_iso_timestamp_to_epoch(value: str) -> float | None:
 def _parse_relative_duration(value: str) -> timedelta | None:
     """Parse relative duration string like '30m', '1h', '2d' to timedelta."""
     import re
-    
+
     if value is None:
         return None
     pattern = re.compile(r"^\s*(\d+)([smhd])\s*$", re.IGNORECASE)
@@ -112,7 +112,7 @@ def _parse_relative_duration(value: str) -> timedelta | None:
 def _parse_json_log_line(stripped: str) -> LogViewLine:
     """Parse a JSON-formatted log line."""
     import json
-    
+
     try:
         data = json.loads(stripped)
     except json.JSONDecodeError:
@@ -142,7 +142,7 @@ def _parse_text_log_line(stripped: str) -> LogViewLine:
     timestamp = None
     level = None
     tokens = stripped.split()
-    
+
     if tokens:
         timestamp = _parse_iso_timestamp_to_epoch(tokens[0].strip("[]"))
         for token in tokens[:3]:
@@ -150,7 +150,7 @@ def _parse_text_log_line(stripped: str) -> LogViewLine:
             if candidate is not None:
                 level = candidate
                 break
-    
+
     return LogViewLine(raw=stripped, level=level, timestamp=timestamp, json_data=None)
 
 
@@ -170,14 +170,12 @@ def _validate_logs_show_params(
 ) -> str | None:
     """Validate logs_show parameters. Returns normalized format or None."""
     if tail < 0:
-        raise typer.BadParameter(
-            "Tail must be greater than or equal to zero.", param_hint="--tail"
-        )
+        raise typer.BadParameter("Tail must be greater than or equal to zero.", param_hint="--tail")
     if since and last:
         raise typer.BadParameter(
             "Only one of --since or --last can be provided.", param_hint="--since"
         )
-    
+
     if format_override is not None:
         normalized = format_override.strip().lower()
         if normalized not in cli_options.LOG_FORMAT_CHOICES:
@@ -193,11 +191,9 @@ def _resolve_start_timestamp(since: str | None, last: str | None) -> float | Non
     if since:
         timestamp = _parse_iso_timestamp_to_epoch(since)
         if timestamp is None:
-            raise typer.BadParameter(
-                "Invalid ISO 8601 timestamp.", param_hint="--since"
-            )
+            raise typer.BadParameter("Invalid ISO 8601 timestamp.", param_hint="--since")
         return timestamp
-    
+
     if last:
         duration = _parse_relative_duration(last)
         if duration is None:
@@ -206,7 +202,7 @@ def _resolve_start_timestamp(since: str | None, last: str | None) -> float | Non
                 param_hint="--last",
             )
         return (datetime.now(timezone.utc) - duration).timestamp()
-    
+
     return None
 
 
@@ -224,11 +220,11 @@ def _should_include_log_entry(
         else:
             if normalized_level not in parsed.raw.upper():
                 return False
-    
+
     if start_timestamp is not None:
         if parsed.timestamp is None or parsed.timestamp < start_timestamp:
             return False
-    
+
     return True
 
 
@@ -239,11 +235,9 @@ def _display_log_entries(
 ) -> None:
     """Display filtered log entries to stdout."""
     if not matched:
-        stdout_console.print(
-            "[yellow]No log entries matched the supplied filters[/yellow]"
-        )
+        stdout_console.print("[yellow]No log entries matched the supplied filters[/yellow]")
         return
-    
+
     for entry in matched:
         if resolved_format == "json" and entry.json_data is not None:
             stdout_console.print_json(data=entry.json_data)
@@ -292,9 +286,7 @@ def register(
         )
         file_path = getattr(logging_settings, "file_path", None)
         if not file_path:
-            stdout_console.print(
-                "[yellow]File logging is disabled; nothing to clear[/yellow]"
-            )
+            stdout_console.print("[yellow]File logging is disabled; nothing to clear[/yellow]")
             return
 
         path = Path(file_path)
@@ -325,9 +317,7 @@ def register(
         )
         file_path = getattr(logging_settings, "file_path", None)
         if not file_path:
-            stdout_console.print(
-                "[yellow]File logging is disabled; nothing to rotate[/yellow]"
-            )
+            stdout_console.print("[yellow]File logging is disabled; nothing to rotate[/yellow]")
             return
 
         path = Path(file_path)
@@ -411,17 +401,11 @@ def register(
         ),
     ) -> None:
         """Render log entries to stdout."""
-        normalized_format = _validate_logs_show_params(
-            tail, since, last, format_override
-        )
-        
-        normalized_level = (
-            cli_options.normalize_log_level(level) if level is not None else None
-        )
+        normalized_format = _validate_logs_show_params(tail, since, last, format_override)
+
+        normalized_level = cli_options.normalize_log_level(level) if level is not None else None
         level_threshold = (
-            cli_options.LOG_LEVEL_MAP.get(normalized_level)
-            if normalized_level
-            else None
+            cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
         )
 
         _, logging_settings = _resolve_logging_settings_from_cli(
@@ -433,16 +417,10 @@ def register(
             log_backup_count=None,
         )
         file_path = getattr(logging_settings, "file_path", None)
-        resolved_format = (
-            normalized_format
-            or getattr(logging_settings, "format", None)
-            or "text"
-        )
+        resolved_format = normalized_format or getattr(logging_settings, "format", None) or "text"
 
         if not file_path:
-            stdout_console.print(
-                "[yellow]File logging is disabled; nothing to show[/yellow]"
-            )
+            stdout_console.print("[yellow]File logging is disabled; nothing to show[/yellow]")
             return
 
         path = Path(file_path)
