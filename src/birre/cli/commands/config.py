@@ -303,75 +303,53 @@ def _collect_config_file_entries(
     return result
 
 
+# Mapping of (invocation_path, settings_key) for extracting CLI overrides
+_CLI_OVERRIDE_MAPPINGS: Final[list[tuple[tuple[str, ...], str]]] = [
+    (("auth", "api_key"), BITSIGHT_API_KEY_KEY),
+    (("subscription", "folder"), BITSIGHT_SUBSCRIPTION_FOLDER_KEY),
+    (("subscription", "type"), BITSIGHT_SUBSCRIPTION_TYPE_KEY),
+    (("runtime", "context"), ROLE_CONTEXT_KEY),
+    (("runtime", "risk_vector_filter"), ROLE_RISK_VECTOR_FILTER_KEY),
+    (("runtime", "max_findings"), ROLE_MAX_FINDINGS_KEY),
+    (("runtime", "debug"), RUNTIME_DEBUG_KEY),
+    (("runtime", "skip_startup_checks"), RUNTIME_SKIP_STARTUP_CHECKS_KEY),
+    (("tls", "allow_insecure"), RUNTIME_ALLOW_INSECURE_TLS_KEY),
+    (("tls", "ca_bundle_path"), RUNTIME_CA_BUNDLE_PATH_KEY),
+    (("logging", "level"), LOGGING_LEVEL_KEY),
+    (("logging", "format"), LOGGING_FORMAT_KEY),
+    (("logging", "file_path"), LOGGING_FILE_KEY),
+    (("logging", "max_bytes"), LOGGING_MAX_BYTES_KEY),
+    (("logging", "backup_count"), LOGGING_BACKUP_COUNT_KEY),
+]
+
+
+def _get_invocation_value(invocation: CliInvocation, path: tuple[str, ...]) -> Any:
+    """Extract a value from invocation using a dotted path."""
+    obj: Any = invocation
+    for key in path:
+        obj = getattr(obj, key, None)
+        if obj is None:
+            return None
+    return obj
+
+
 def _collect_cli_override_values(invocation: CliInvocation) -> dict[str, Any]:
     """Extract all CLI override values from invocation."""
     details: dict[str, Any] = {}
-    if invocation.auth.api_key:
-        details[BITSIGHT_API_KEY_KEY] = invocation.auth.api_key
-    if invocation.subscription.folder:
-        details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = invocation.subscription.folder
-    if invocation.subscription.type:
-        details[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = invocation.subscription.type
-    if invocation.runtime.context:
-        details[ROLE_CONTEXT_KEY] = invocation.runtime.context
-    if invocation.runtime.risk_vector_filter:
-        details[ROLE_RISK_VECTOR_FILTER_KEY] = invocation.runtime.risk_vector_filter
-    if invocation.runtime.max_findings is not None:
-        details[ROLE_MAX_FINDINGS_KEY] = invocation.runtime.max_findings
-    if invocation.runtime.debug is not None:
-        details[RUNTIME_DEBUG_KEY] = invocation.runtime.debug
-    if invocation.runtime.skip_startup_checks is not None:
-        details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = invocation.runtime.skip_startup_checks
-    if invocation.tls.allow_insecure is not None:
-        details[RUNTIME_ALLOW_INSECURE_TLS_KEY] = invocation.tls.allow_insecure
-    if invocation.tls.ca_bundle_path:
-        details[RUNTIME_CA_BUNDLE_PATH_KEY] = invocation.tls.ca_bundle_path
-    if invocation.logging.level:
-        details[LOGGING_LEVEL_KEY] = invocation.logging.level
-    if invocation.logging.format:
-        details[LOGGING_FORMAT_KEY] = invocation.logging.format
-    if invocation.logging.file_path is not None:
-        details[LOGGING_FILE_KEY] = invocation.logging.file_path
-    if invocation.logging.max_bytes is not None:
-        details[LOGGING_MAX_BYTES_KEY] = invocation.logging.max_bytes
-    if invocation.logging.backup_count is not None:
-        details[LOGGING_BACKUP_COUNT_KEY] = invocation.logging.backup_count
+    for path, settings_key in _CLI_OVERRIDE_MAPPINGS:
+        value = _get_invocation_value(invocation, path)
+        if value is not None:
+            details[settings_key] = value
     return details
 
 
 def _build_cli_source_labels(invocation: CliInvocation) -> dict[str, str]:
     """Build source labels for CLI overrides."""
     labels: dict[str, str] = {}
-    if invocation.auth.api_key:
-        labels[BITSIGHT_API_KEY_KEY] = "CLI"
-    if invocation.subscription.folder:
-        labels[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = "CLI"
-    if invocation.subscription.type:
-        labels[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = "CLI"
-    if invocation.runtime.context:
-        labels[ROLE_CONTEXT_KEY] = "CLI"
-    if invocation.runtime.risk_vector_filter:
-        labels[ROLE_RISK_VECTOR_FILTER_KEY] = "CLI"
-    if invocation.runtime.max_findings is not None:
-        labels[ROLE_MAX_FINDINGS_KEY] = "CLI"
-    if invocation.runtime.debug is not None:
-        labels[RUNTIME_DEBUG_KEY] = "CLI"
-    if invocation.runtime.skip_startup_checks is not None:
-        labels[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = "CLI"
-    if invocation.tls.allow_insecure is not None:
-        labels[RUNTIME_ALLOW_INSECURE_TLS_KEY] = "CLI"
-    if invocation.tls.ca_bundle_path:
-        labels[RUNTIME_CA_BUNDLE_PATH_KEY] = "CLI"
-    if invocation.logging.level:
-        labels[LOGGING_LEVEL_KEY] = "CLI"
-    if invocation.logging.format:
-        labels[LOGGING_FORMAT_KEY] = "CLI"
-    if invocation.logging.file_path is not None:
-        labels[LOGGING_FILE_KEY] = "CLI"
-    if invocation.logging.max_bytes is not None:
-        labels[LOGGING_MAX_BYTES_KEY] = "CLI"
-    if invocation.logging.backup_count is not None:
-        labels[LOGGING_BACKUP_COUNT_KEY] = "CLI"
+    for path, settings_key in _CLI_OVERRIDE_MAPPINGS:
+        value = _get_invocation_value(invocation, path)
+        if value is not None:
+            labels[settings_key] = "CLI"
     return labels
 
 
