@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -41,7 +42,7 @@ def _resolve_logging_settings_from_cli(
     log_file: str | None,
     log_max_bytes: int | None,
     log_backup_count: int | None,
-) -> tuple[CliInvocation, any]:
+) -> tuple[CliInvocation, Any]:
     """Resolve logging settings from CLI parameters."""
     invocation = build_invocation(
         config_path=str(config_path) if config_path is not None else None,
@@ -217,7 +218,7 @@ def _should_include_log_entry(
         if parsed.level is not None:
             if parsed.level < level_threshold:
                 return False
-        else:
+        elif normalized_level is not None:
             if normalized_level not in parsed.raw.upper():
                 return False
 
