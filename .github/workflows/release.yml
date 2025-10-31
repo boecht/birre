@@ -22,15 +22,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python
         with:
           python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv
 
       - name: Install dependencies
         run: |
@@ -58,15 +58,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python
         with:
           python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv
 
       - name: Install SBOM generator
         run: |
@@ -91,7 +91,7 @@ jobs:
           unzip -l dist/*.whl | head -30
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact
         with:
           name: dist
           path: dist/
@@ -104,18 +104,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout
         with:
           fetch-depth: 0  # Fetch all history for changelog
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact
         with:
           name: dist
           path: dist/
 
       - name: Sign release artifacts with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3.0.0
+        uses: sigstore/gh-action-sigstore-python
         with:
           inputs: ./dist/*.tar.gz ./dist/*.whl
           upload-signing-artifacts: true
@@ -151,7 +151,7 @@ jobs:
           echo "$CHANGELOG_SECTION" > changelog.txt
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.version }}
@@ -174,13 +174,13 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact
         with:
           name: dist
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish
         with:
           print-hash: true
           verbose: true
