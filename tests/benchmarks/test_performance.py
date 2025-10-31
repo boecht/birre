@@ -14,6 +14,7 @@ Compare: pytest tests/benchmarks/ --benchmark-compare
 from typing import Any
 
 import pytest
+
 from birre.domain.company_rating.service import (
     _build_finding_score_tuple,
     _build_finding_sort_key,

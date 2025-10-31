@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import pytest
+
 from birre.application import startup as startup_checks
 from birre.application.startup import run_offline_startup_checks
 from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings

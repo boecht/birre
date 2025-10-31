@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 import pytest
+
 from birre.config.settings import LOG_FORMAT_TEXT, LoggingSettings
 from birre.infrastructure.errors import ErrorCode, TlsCertificateChainInterceptedError
 from birre.infrastructure.logging import configure_logging, get_logger

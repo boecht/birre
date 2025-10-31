@@ -7,13 +7,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from typer.testing import CliRunner
+
 import birre.application.diagnostics as diagnostics_module
 import birre.cli.invocation as cli_invocation
 import birre.cli.runtime as cli_runtime
-import pytest
 from birre.cli.commands import logs as logs_command
 from birre.config.settings import LoggingSettings, RuntimeSettings
-from typer.testing import CliRunner
 
 server = importlib.import_module("birre.cli.app")
 
@@ -703,9 +704,9 @@ def test_selftest_passes_shared_options_to_build_invocation(
     # The command might fail due to missing config file, but we only care that
     # build_invocation was called with the right parameters
     assert result.exit_code in (0, 1), result.stdout
-    assert (
-        "config_path" in captured
-    ), f"build_invocation not called or not captured. Keys: {list(captured.keys())}"
+    assert "config_path" in captured, (
+        f"build_invocation not called or not captured. Keys: {list(captured.keys())}"
+    )
     assert captured["config_path"] == "custom.toml"
     assert captured["api_key"] == "abc"
     assert captured["subscription_folder"] == "folder"

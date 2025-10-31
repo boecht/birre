@@ -159,9 +159,9 @@ class ManageSubscriptionsResponse(BaseModel):
         return data
 
 
-COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[
-    str, Any
-] = CompanySearchInteractiveResponse.model_json_schema()
+COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[str, Any] = (
+    CompanySearchInteractiveResponse.model_json_schema()
+)
 
 REQUEST_COMPANY_OUTPUT_SCHEMA: dict[str, Any] = RequestCompanyResponse.model_json_schema()
 

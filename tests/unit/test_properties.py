@@ -9,13 +9,14 @@ all possible inputs. This helps discover edge cases that manual test writing mig
 from typing import Any
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
 from birre.domain.company_rating.service import (
     _derive_numeric_severity_score,
     _normalize_finding_entry,
     _rank_severity_category_value,
 )
-from hypothesis import given
-from hypothesis import strategies as st
 
 # =============================================================================
 # Property Tests for Severity Scoring

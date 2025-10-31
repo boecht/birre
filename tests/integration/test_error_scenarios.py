@@ -6,6 +6,7 @@ import os
 
 import httpx
 import pytest
+
 from birre import create_birre_server
 from birre.config.settings import resolve_birre_settings
 from birre.infrastructure.logging import get_logger

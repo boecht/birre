@@ -2,6 +2,7 @@ import os
 from functools import partial
 
 import pytest
+
 from birre.application import server as birre_server
 from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 from birre.infrastructure.logging import BoundLogger, get_logger

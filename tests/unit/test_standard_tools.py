@@ -3,6 +3,8 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from fastmcp import Context, FastMCP
+
 from birre.domain.company_rating.service import (
     _normalize_finding_entry,
     register_company_rating_tool,
@@ -10,7 +12,6 @@ from birre.domain.company_rating.service import (
 from birre.domain.company_search import register_company_search_tool
 from birre.domain.risk_manager import register_company_search_interactive_tool
 from birre.infrastructure.logging import BoundLogger, get_logger
-from fastmcp import Context, FastMCP
 
 
 class StubContext(Context):

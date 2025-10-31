@@ -4,6 +4,7 @@ import json
 import logging
 
 import pytest
+
 from birre.config.settings import LOG_FORMAT_JSON, LOG_FORMAT_TEXT, LoggingSettings
 from birre.infrastructure.logging import (
     attach_request_context,

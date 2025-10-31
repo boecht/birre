@@ -1,6 +1,7 @@
 import os
 
 import pytest
+
 from birre import create_birre_server
 from birre.application.startup import run_online_startup_checks
 from birre.config.settings import RuntimeSettings, resolve_birre_settings

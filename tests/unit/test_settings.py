@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import pytest
+
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import (
     DEFAULT_LOG_FORMAT,
