@@ -106,12 +106,12 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           uv run python -c "
-          from birre.config import load_config
+          from birre.config import load_settings
           from pathlib import Path
           # Test that config loading works with platform paths
           config_path = Path.cwd() / 'config.toml'
           print(f'Config path: {config_path}')
-          config = load_config()
+          config = load_settings()
           print('Config loaded successfully')
           "
 
@@ -120,11 +120,11 @@ jobs:
         shell: pwsh
         run: |
           uv run python -c "
-          from birre.config import load_config
+          from birre.config import load_settings
           from pathlib import Path
           # Test that config loading works with Windows paths
           config_path = Path.cwd() / 'config.toml'
           print(f'Config path: {config_path}')
-          config = load_config()
+          config = load_settings()
           print('Config loaded successfully')
           "
