@@ -1190,8 +1190,8 @@ def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_pat
     )
 
     assert result.exit_code == 0, result.stdout
-    # Rich Console may wrap long paths on Windows, so normalize whitespace
-    normalized_output = " ".join(result.stdout.split())
+    # Rich Console may wrap long paths, so remove newlines but preserve other characters
+    normalized_output = result.stdout.replace("\n", "")
     assert str(log_path) in normalized_output
 
 
