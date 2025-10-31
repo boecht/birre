@@ -1190,7 +1190,9 @@ def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_pat
     )
 
     assert result.exit_code == 0, result.stdout
-    assert str(log_path) in result.stdout
+    # Rich Console may wrap long paths on Windows, so normalize whitespace
+    normalized_output = " ".join(result.stdout.split())
+    assert str(log_path) in normalized_output
 
 
 def test_logs_show_filters_by_level_and_since(
