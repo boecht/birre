@@ -8,20 +8,23 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-and-upload:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python
         with:
           python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv
 
       - name: Run offline test suite with coverage
         run: |
@@ -29,7 +32,7 @@ jobs:
             --cov=src/birre --cov-report=xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action
         with:
           files: ./coverage.xml
           flags: offline-tests
