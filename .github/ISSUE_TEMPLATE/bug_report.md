@@ -27,7 +27,7 @@ What actually happened.
 ## Environment
 
 - OS: [e.g., Ubuntu 22.04, macOS 14.0, Windows 11]
-- Python version: [e.g., 3.11.5]
+- Python version: [e.g., 3.13.7]
 - BiRRe version/commit: [e.g., v0.1.0 or commit hash]
 - uv version: [e.g., 0.1.9]
 

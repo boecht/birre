@@ -12,7 +12,7 @@ By participating, you are expected to uphold this code.
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.13 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 - A BitSight API key for integration testing (optional)

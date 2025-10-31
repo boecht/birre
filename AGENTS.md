@@ -1,8 +1,11 @@
-# AGENTS.md
+# Agent Operations Guide
 
-This file provides guidance to LLM agents when working with code in this repository.
+This guide aligns LLM agents with BiRRe workflows. Skim section 2 for philosophy,
+section 3 for day-to-day execution, and section 5 for the commands you will run most often
 
-## Project overview & Documentation
+## 1. Orientation & Reference Docs
+
+### Quick Links
 
 - Project Overview: @README.md
 - Changelog: @CHANGELOG.md
@@ -12,140 +15,188 @@ This file provides guidance to LLM agents when working with code in this reposit
 - BitSight API v2 Reference: @docs/apis/bitsight.v2.overview.md
 - FastMCP framework: <https://gofastmcp.com/servers/server>
 
-## Project Principles
+## 2. Core Principles
 
-1. **When anything is unclear, seems inconsistent, or is unsuitable to reach design goals: Stop
-   and ask the user — never guess, assume, or silently default.**
-    - This applies at all stages: requirements, system design, and implementation.
-    - Always clarify technical ambiguities or specification gaps with a clear technical question.
-    - Pay attention to user uncertainty signals: "I think", "probably", "maybe", rough estimates
-      - investigate or ask to investigate.
+### Project Principles
 
-2. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if
-   requested.**
-    - Prioritize functionality and stability over broad compatibility
-    - Avoid premature optimization for universal use cases
+1. **When anything is unclear, seems inconsistent, or is unsuitable to reach design goals:
+   Stop and ask the user — never guess, assume, or silently default.**
+   - Applies at all stages: requirements, system design, implementation
+   - Always clarify technical ambiguities or specification gaps with a clear technical question
+   - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate
 
-3. **Quality and architecture trump backwards compatibility**
-    - Breaking changes are acceptable and encouraged if they improve the codebase
-    - No legacy code - refactor or remove outdated patterns immediately
-    - Do it once, do it right - no shortcuts or temporary workarounds
-    - Clean, maintainable architecture is more important than preserving old APIs
+2. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
+   - Prioritize functionality and stability over broad compatibility
+   - Avoid premature optimization for universal use cases
 
-4. **Documentation focuses on user value, not internal implementation**
-    - CHANGELOG describes user benefits using established standards (see @docs/CHANGELOG_STANDARDS.md)
-    - Emphasize impact: reliability improvements, performance gains, better user experience
-    - Avoid internal codes (TD-XXX, QA-XXX), implementation details, function names
-    - Technical details belong in commit messages and internal tracking
-    - Example transformation:
-      - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
-      - ✅ "Enhanced reliability through simplified error handling"
+3. **Quality and architecture trump backwards compatibility.**
+   - Breaking changes are acceptable if they improve the codebase
+   - Remove outdated patterns immediately; do not preserve legacy code
+   - Avoid shortcuts; build the right solution once
+   - Clean, maintainable architecture outranks legacy API stability
 
-## Documentation Guidelines
+4. **Documentation focuses on user value, not internal implementation.**
+   - CHANGELOG entries describe user benefits using @docs/CHANGELOG_STANDARDS.md
+   - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
+   - Keep technical specifics in commits and internal tracking
+   - Example:
+     - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
+     - ✅ "Enhanced reliability through simplified error handling"
 
-### Commit Messages (Developer-Facing)
+5. **If you are Claude: Check section 6 "Claude-Specific Requirements" BEFORE starting any task.**
+   - This includes mandatory CRASH tool usage requirements
+   - Failure to check section 6 violates this core principle
+   - Non-negotiable: read section 6 first, then proceed with the task
 
-- **Audience**: Developers, maintainers
-- **Focus**: What changed, why it changed, technical details
-- **Include**: File names, function names, implementation approach
-- **Examples**:
-  - ✅ Good: "Simplify sync_bridge.py by replacing reusable loop with asyncio.run()"
-  - ❌ Bad: "Improved reliability" (too vague for commits)
+### Documentation Principles
 
-### Code Comments (Implementation-Facing)
+- **Commit Messages (developer-facing)**
+  - Audience: developers and maintainers
+  - Focus: what changed, why it changed, and technical detail
+  - Include: file names, function names, implementation approach
+  - Example contrast: ✅ "Simplify sync_bridge.py by replacing reusable loop with asyncio.run()" vs. ❌ "Improved reliability"
 
-- **Focus**: Why code does something non-obvious, not what it does
-- **Include**: Edge cases, workarounds, framework-specific patterns
-- **Avoid**: Obvious descriptions, commented-out code
+- **Code Comments (implementation-facing)**
+  - Capture the "why" for non-obvious behaviour
+  - Document edge cases, workarounds, or framework patterns
+  - Avoid obvious narrations or commented-out code
 
-## Workflow
-
-You systematically develop following established project patterns, FastMCP framework compliance,
-and the hybrid architecture.
+## 3. Standard Workflow
 
 ### Development Approach
 
-1. **Requirements Analysis**: Break down tasks into clear requirements, success criteria,
-   and constraints. Critically evaluate feasibility in terms of framework capabilities,
-   architectural fit, and objective alignment. When in doubt, ask using structured questions.
-2. **System Design**: Identify required modules, interfaces, integrations, and
-   resources before coding. Follow the FastMCP hybrid architecture and determine which components
-   changes affect.
-3. **Implementation Strategy**: Choose between TDD (when tests exist or explicitly
-   requested) or direct development. Implement component by component, leveraging FastMCP
-   auto-generation.
-4. **Quality Assurance**: Verify against modular design principles, FastMCP
-   compliance, and framework guidelines. Prefer running single tests, and not the whole test
-   suite, for performance
-
-Always think step-by-step through the development process, considering the project's goals,
-existing architecture, and framework limitations.
+- **Requirements Analysis**
+  - Break down tasks into clear requirements, success criteria, and constraints
+  - Evaluate feasibility with respect to FastMCP capabilities and project architecture
+  - When uncertain, ask using the structured format
+- **System Design**
+  - Identify required modules, interfaces, integrations, and resources before coding
+  - Map changes to FastMCP hybrid architecture components
+- **Implementation Strategy**
+  - Choose TDD when tests exist or are requested
+  - Otherwise implement directly, component by component, leveraging FastMCP auto-generation
+- **Quality Assurance**
+  - Check against modular design principles, FastMCP compliance, and framework guidelines
+  - Prefer targeted tests over full suite runs for speed
 
 ### Development Best Practices
 
-- **Think step-by-step**: Consider project goals, existing architecture, and framework limitations
-- **Prefer editing over creating**: Modify existing files rather than creating new ones
-- **Verify, don't assume**: Collect verifiable data instead of making assumptions
-- **Run targeted tests**: Use single test files/functions for faster feedback during development
-- **Test after changes**: Always run relevant tests after editing to catch regressions early
+- Think step-by-step about goals, architecture, and limitations
+- Prefer editing existing files over creating new ones
+- Verify assumptions with data; never guess
+- Run the smallest relevant tests for rapid feedback
+- Execute pertinent tests after every change to catch regressions early
 
-## Communication Guideline
+### Quality Assurance Checklist
 
-- Be direct and technical. No fluff - facts over feelings
-- Assume the user understands common programming concepts without over-explaining
-- Point out potential bugs, performance issues, or maintainability concerns
-- Don't hedge criticism - tell the user if something is objectively bad and why
-- Don't treat subjective preferences as objective improvements
+- Validate outputs against the original task description before finalizing
+- Confirm tests were run (or explain why they were skipped) and record outcomes
+- Ensure documentation and comments reflect any significant behaviour changes
+- Cross-check that FastMCP integration points remain consistent
 
-### Asking Questions
+## 4. Communication Protocol
 
-When asking the user for clarification, use structured format:
+### Messaging Guidelines
 
+- Be direct and technical; prioritize facts over tone
+- Assume core programming literacy; skip over-explaining basics
+- Flag bugs, performance issues, or maintainability risks immediately
+- State opinions as such; do not present subjective preferences as facts
+
+### Structured Clarification Requests
+
+When asking the user for clarification, follow this template:
+
+```text
 **Question #X**: {Clear, specific question}
-
 **Options**:
-
 - A) {Option with trade-offs}
 - B) {Option with trade-offs}
 - C) {Additional options as needed}
-
 **Context**: {Relevant best practices or constraints}
-
 **Recommendation**: {Your recommendation with reasoning}
-
-## Essential Testing and Development Commands
-
-**Note**: All commands should be run from the project root directory.
-
-### Running Tests (Essential)
-
-**Note for agents**: The `BITSIGHT_API_KEY` environment variable is set in the user's shell
-environment. You cannot see it in command outputs for security reasons, but it is available
-for running online tests.
-
-```bash
-# Run offline unit tests only
-uv run pytest -m offline
-
-# Run online MCP smoke tests (requires BITSIGHT_API_KEY)
-uv run pytest -m online
 ```
 
-### Running the Server (Essential)
+## 5. Tooling & Runtime
 
-```bash
-# Run BiRRe with uv (easiest way - automatically installs dependencies)
-uv run birre run
-```
+### Environment Requirements
 
-### FastMCP Implementation Testing (Essential)
+- BiRRe requires **Python 3.13** or later. Install via uv if unavailable:
 
-```bash
-# Test server startup (with timeout to avoid hanging)
-timeout 15s uv run birre run || echo "✅ Server test completed"
-```
+  ```bash
+  uv python install 3.13
+  ```
 
-### Key Environment Variables
+### Testing Commands
 
-- `BITSIGHT_API_KEY` (required): Real BitSight API key of the user - should be exported in shell
-- `DEBUG` (optional): Set to "true" for debug logging
+- Offline tests:
+
+  ```bash
+  uv run pytest -m offline
+  ```
+
+- Online smoke tests (requires `BITSIGHT_API_KEY`, assume it is exported in the user's shell):
+
+  ```bash
+  uv run pytest -m online
+  ```
+
+### Server Operations
+
+- Run BiRRe locally (auto-installs dependencies):
+
+  ```bash
+  uv run birre
+  ```
+
+- FastMCP smoke test with timeout:
+
+  ```bash
+  timeout 15s uv run birre || echo "✅ Server test completed"
+  ```
+
+## 6. Model-Specific Addenda
+
+### Claude-Specific Requirements
+
+**If you are powered by Anthropic's Claude model, follow these mandatory requirements:**
+
+#### CRASH Tool Usage
+
+Use the CRASH tool (structured reasoning) for all multi-step tasks, including:
+
+- Tasks requiring clarifying questions to the user
+- Multi-step analysis, review, or planning tasks
+- Code refactoring or architectural changes
+- Bug investigation and fixes (beyond trivial typos)
+- Feature implementation requiring multiple components
+- Documentation updates (even single files with multiple sections)
+- Version migrations or dependency updates
+
+**Workflow**: Plan (step 1-2) → Execute one step at a time (step 3-N) → Final QA (last step)
+
+**CRASH Features to Leverage**:
+
+- Use `revises_step` to correct mistakes in earlier reasoning
+- Use `branch_from` to explore alternative approaches
+- Track `confidence` and `uncertainty_notes` when facing ambiguous situations
+
+**If CRASH tool is unavailable**: Refuse to proceed on multi-step tasks.
+Ask the user to install the CRASH MCP server from <https://github.com/nikkoxgonzales/crash-mcp>.
+
+#### Mandatory QA Step
+
+Every task must end with a QA review that compares all work to the initial task:
+
+1. **Restate original task**: What did the user ask for?
+2. **List file changes**: For each modified file, explain how the change serves the original task
+3. **Identify misalignment**: Call out any changes that don't directly serve the task objective
+4. **Reflect on alignment**: Does the complete set of changes accomplish what was requested?
+   Are there gaps or overreach?
+5. **Verify changes**: Read back edited content to confirm correctness
+
+## 7. Appendix
+
+### FastMCP Resources
+
+- FastMCP framework documentation: <https://gofastmcp.com/servers/server>

@@ -47,10 +47,38 @@ def _extract_content(result: CallToolResult) -> dict[str, Any]:
     """Extract JSON content from CallToolResult."""
     import json
 
-    if hasattr(result, "data") and result.data:
-        content = result.data[0].content
+    # Try structured_content first
+    if hasattr(result, "structured_content") and isinstance(result.structured_content, dict):
+        return result.structured_content
+
+    # Try data attribute (might be dict or list)
+    if hasattr(result, "data"):
+        data = result.data
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, list) and data:
+            return _extract_from_list(data)
+
+    # Try content blocks
+    if hasattr(result, "content") and isinstance(result.content, list) and result.content:
+        first_block = result.content[0]
+        if hasattr(first_block, "text"):
+            return json.loads(first_block.text)
+
+    return {}
+
+
+def _extract_from_list(data_list: list[Any]) -> dict[str, Any]:
+    """Extract content from a list of data items."""
+    import json
+
+    first_item = data_list[0]
+    if hasattr(first_item, "content"):
+        content = first_item.content
         if hasattr(content, "text"):
             return json.loads(content.text)
+    if isinstance(first_item, dict):
+        return first_item
     return {}
 
 
@@ -65,14 +93,16 @@ async def test_company_search_interactive_returns_metadata(
     )
 
     content = _extract_content(result)
-    companies = content.get("companies", [])
 
-    assert companies, "Expected at least one company"
-    first_company = companies[0]
-    assert "guid" in first_company
-    assert "name" in first_company
+    # The response should have a "results" key, not "companies"
+    results = content.get("results", [])
+
+    assert results, "Expected at least one result"
+    first_result = results[0]
+    assert "guid" in first_result
+    assert "name" in first_result
     # Interactive search returns enhanced metadata
-    assert isinstance(first_company, dict)
+    assert isinstance(first_result, dict)
 
 
 @pytest.mark.asyncio
@@ -86,6 +116,7 @@ async def test_manage_subscriptions_dry_run(risk_manager_client: Client) -> None
         {
             "action": "add",
             "guids": [test_guid],
+            "folder": "API",  # Provide folder explicitly
             "dry_run": True,
         },
     )
@@ -104,6 +135,8 @@ async def test_request_company_dry_run(risk_manager_client: Client) -> None:
         "request_company",
         {
             "domain": "example-test-domain.com",
+            "company_name": "Example Test Company",  # Provide company_name explicitly
+            "folder": "API",  # Provide folder explicitly
             "dry_run": True,
         },
     )

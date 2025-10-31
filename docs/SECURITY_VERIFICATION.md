@@ -179,11 +179,6 @@ rekor-cli get --uuid <UUID_FROM_SEARCH>
 - [Rekor Transparency Log](https://rekor.sigstore.dev/)
 - [Security Policy](../SECURITY.md)
 
-## Reporting Security Issues
+### Security Issues
 
-If you discover a security vulnerability in BiRRe or issues with release signatures:
-
-1. **Do NOT open a public issue**
-2. Report via [GitHub Security Advisories](https://github.com/boecht/birre/security/advisories)
-
-We take security seriously and will respond within 48 hours.
+See [SECURITY.md](SECURITY.md) for responsible disclosure.

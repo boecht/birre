@@ -22,11 +22,7 @@ jobs:
       fail-fast: false  # Continue testing other platforms even if one fails
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
-        # Exclude combinations to reduce CI time if needed
-        # exclude:
-        #   - os: macos-latest
-        #     python-version: "3.11"
+        python-version: ["3.13"]
 
     steps:
       - name: Checkout repository
@@ -54,17 +50,17 @@ jobs:
           uv run birre --help
 
   minimum-python:
-    name: Test minimum Python version (3.11)
+    name: Test minimum Python version (3.13)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -93,7 +89,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7

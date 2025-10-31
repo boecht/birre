@@ -25,7 +25,7 @@ repos:
       - id: mypy
         args:
           - --strict
-          - --python-version=3.11
+          - --python-version=3.13
         files: ^src/
         additional_dependencies:
           - pydantic

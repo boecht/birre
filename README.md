@@ -1,6 +1,6 @@
 # BiRRe
 
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
 [![codecov](https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg)](https://codecov.io/gh/boecht/birre)
