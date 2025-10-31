@@ -237,15 +237,18 @@ Don't describe HOW, describe WHAT:
 ## [4.0.0] - 2024-01-15
 
 ### Changed
+
 - Completed TD-003: Async/sync bridge simplification
 - Refactored sync_bridge.py from ~100 to ~50 lines
-- Replaced complex reusable event loop with Python 3.11+ asyncio.run()
+- Improved event loop management for Python 3.13+ compatibility
 - Achieved zero radon complexity violations
 
 ### Added
+
 - Implemented health check (see issue #45)
 
 ### Removed
+
 - Dropped old Python versions per deprecation policy
 ```
 

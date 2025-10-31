@@ -4,7 +4,18 @@
 
 ## Released Versions
 
-### 3.0.0 — Context-Aware Toolsets (current)
+### 4.0.0-alpha.2 — Quality & Security Infrastructure (current pre-release)
+
+- Strict type checking with mypy catches errors before runtime
+- Property-based testing with Hypothesis for edge case discovery
+- Performance benchmarks establish regression tracking baselines
+- Cross-platform CI validates Windows, macOS, and Linux compatibility
+- Sigstore release signing for cryptographic verification
+- SBOM generation for supply chain transparency
+- Comprehensive branch protection and security scanning
+- **Breaking:** Python 3.13+ required (modern async, type inference)
+
+### 3.0.0 — Context-Aware Toolsets (latest stable)
 
 - Ships two personas: `standard` (rating + search) and `risk_manager` (adds interactive search,
   subscription management, and company requests).

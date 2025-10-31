@@ -18,6 +18,7 @@ adapted for BiRRe's quality-first approach.
 
 ### Changed
 
+- **Breaking:** Require Python 3.13+ (upgraded from 3.11+ in alpha.1)
 - Enhance code reliability and maintainability through simplified error handling
 - Improve diagnostic clarity with better error messages
 - Reduce memory footprint and improve performance through code optimization
@@ -46,7 +47,7 @@ adapted for BiRRe's quality-first approach.
 - Enforce conversation resolution before merging
 - Block force pushes and direct commits to main branch
 - Validate code on Windows, macOS, and Linux before merging
-- Test with Python 3.11 and 3.12 for broad compatibility
+- Test with Python 3.13 across all major platforms
 
 ## [4.0.0-alpha.1] - 2025-10-30
 
