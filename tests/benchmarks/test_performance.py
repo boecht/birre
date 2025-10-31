@@ -58,7 +58,7 @@ def sample_findings_data() -> list[dict[str, Any]]:
             "severity": ["severe", "material", "moderate", "low"][i % 4],
             "details": {
                 "text": (
-                    f"Finding description {i} with detailed information " "about the security issue"
+                    f"Finding description {i} with detailed information about the security issue"
                 ),
                 "cvss": {"base": 7.5 + (i % 3) * 0.5} if i % 2 == 0 else {},
                 "grade": i % 10,
