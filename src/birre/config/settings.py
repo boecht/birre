@@ -8,7 +8,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any
 
 from dynaconf import Dynaconf
 
@@ -199,7 +199,7 @@ class LoggingSettings:
     @property
     def level_name(self) -> str:
         level: int = self.level
-        return cast(str, logging.getLevelName(level))
+        return logging.getLevelName(level)
 
 
 def _default_settings_files(config_path: str | None) -> tuple[Sequence[str], str | None]:
