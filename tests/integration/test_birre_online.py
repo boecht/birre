@@ -143,7 +143,7 @@ async def test_company_rating_contains_rating_data(birre_client: Client) -> None
     current = rating_payload["current_rating"]
     assert isinstance(current, dict)
     assert set(current.keys()) == {"value", "color"}
-    assert current["value"] is None or isinstance(current["value"], (int, float))
+    assert current["value"] is None or isinstance(current["value"], int | float)
 
     trend = rating_payload.get("trend_8_weeks")
     assert isinstance(trend, dict)

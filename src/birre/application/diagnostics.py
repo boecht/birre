@@ -455,7 +455,7 @@ def run_company_search_diagnostics(
     """Run diagnostics for company_search tool with both name and domain modes."""
     tool_logger = logger.bind(tool="company_search")
     ctx = _MockSelfTestContext(context=context, tool_name="company_search", logger=tool_logger)
-    
+
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -1321,9 +1321,7 @@ def run_online_checks(
                 try:
                     await close()
                 except Exception as exc:  # pragma: no cover - defensive logging
-                    _LOOP_LOGGER.warning(
-                        "online_checks.client_close_failed: %s", str(exc)
-                    )
+                    _LOOP_LOGGER.warning("online_checks.client_close_failed: %s", str(exc))
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):
                 with suppress(Exception):

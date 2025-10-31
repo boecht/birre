@@ -15,11 +15,14 @@ from birre.infrastructure.logging import BoundLogger
 class ToolLoggingContext(Protocol):
     """Subset of the FastMCP context API used by the startup checks."""
 
-    async def info(self, message: str) -> None: ...  # pragma: no cover - protocol
+    async def info(self, message: str) -> None:
+        ...  # pragma: no cover - protocol
 
-    async def warning(self, message: str) -> None: ...  # pragma: no cover - protocol
+    async def warning(self, message: str) -> None:
+        ...  # pragma: no cover - protocol
 
-    async def error(self, message: str) -> None: ...  # pragma: no cover - protocol
+    async def error(self, message: str) -> None:
+        ...  # pragma: no cover - protocol
 
 
 CallV1ToolFn = Callable[[str, ToolLoggingContext, dict[str, Any]], Awaitable[Any]]

@@ -26,9 +26,7 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "Intended Audience :: Financial and Insurance Industry",
     "Topic :: Security",
-    "Topic :: Security :: Monitoring",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Framework :: FastMCP",
     "Environment :: Console",
     "Natural Language :: English",
     "Operating System :: OS Independent",
@@ -59,9 +57,12 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0.0",
     "pytest-mock>=3.12.0",
+    "pytest-benchmark>=5.1.0",
+    "hypothesis>=6.100.0",
     "mypy>=1.8.0",
     "types-pyyaml>=6.0.12",
     "ruff>=0.8.0",
+    "cyclonedx-bom>=7.2.1",
 ]
 
 [project.optional-dependencies]
@@ -84,6 +85,7 @@ repository = "https://github.com/boecht/birre"
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+extend-exclude = ["scripts/"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -136,3 +138,8 @@ module = [
     "prance.*",
 ]
 ignore_missing_imports = true
+
+# FastMCP generic type parameters - framework limitation
+[[tool.mypy.overrides]]
+module = "birre.*"
+disable_error_code = ["type-arg"]

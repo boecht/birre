@@ -65,6 +65,7 @@ git push origin v3.0.1
 ```
 
 The release workflow will automatically:
+
 1. Run validation (lint, type check, tests)
 2. Build source distribution and wheel
 3. Create GitHub release with changelog
@@ -73,6 +74,7 @@ The release workflow will automatically:
 ### 5. Verify Release
 
 Check:
+
 - GitHub Releases: <https://github.com/boecht/birre/releases>
 - PyPI: <https://pypi.org/project/birre/>
 - Installation: `pip install birre==3.0.1`
@@ -130,6 +132,7 @@ git push origin v3.0.1
 ### PyPI publishing fails
 
 Check:
+
 1. Trusted publishing is configured correctly on PyPI
 2. Environment name is `pypi` in workflow and PyPI settings
 3. Repository and owner match exactly

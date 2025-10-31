@@ -1,0 +1,127 @@
+name: Cross-Platform Testing
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-matrix:
+    name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false  # Continue testing other platforms even if one fails
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+        # Exclude combinations to reduce CI time if needed
+        # exclude:
+        #   - os: macos-latest
+        #     python-version: "3.11"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Run offline tests
+        run: |
+          uv run pytest -m offline --verbose
+
+      - name: Test CLI entrypoint
+        shell: bash
+        run: |
+          uv run birre --help
+
+  minimum-python:
+    name: Test minimum Python version (3.11)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Verify minimum version compatibility
+        run: |
+          uv run python --version
+          uv run pytest -m offline --verbose
+
+  path-separators:
+    name: Test path handling (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Test config file discovery (Unix-style paths)
+        if: runner.os != 'Windows'
+        run: |
+          uv run python -c "
+          from birre.config import load_config
+          from pathlib import Path
+          # Test that config loading works with platform paths
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_config()
+          print('Config loaded successfully')
+          "
+
+      - name: Test config file discovery (Windows-style paths)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv run python -c "
+          from birre.config import load_config
+          from pathlib import Path
+          # Test that config loading works with Windows paths
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_config()
+          print('Config loaded successfully')
+          "

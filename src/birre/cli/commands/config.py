@@ -139,7 +139,7 @@ def _format_config_value(value: Any) -> str:
         return '""'
     if isinstance(value, bool):
         return "true" if value else "false"
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         formatted = ", ".join(_format_config_value(item) for item in value)
         return f"[{formatted}]"
     return f'"{value}"'
@@ -410,9 +410,7 @@ _EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(
-    runtime_settings: Any, logging_settings: Any
-) -> dict[str, Any]:
+def _effective_configuration_values(runtime_settings: Any, logging_settings: Any) -> dict[str, Any]:
     """Extract effective configuration values from resolved settings."""
     values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),

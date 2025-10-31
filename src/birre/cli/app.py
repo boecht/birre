@@ -13,14 +13,14 @@ from rich.text import Text
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
-from birre.application.diagnostics import (
+from birre.application.diagnostics import (  # noqa: E402
     EXPECTED_TOOLS_BY_CONTEXT as _DIAGNOSTIC_EXPECTED_TOOLS,
 )
-from birre.cli.commands import config as config_command
-from birre.cli.commands import logs as logs_command
-from birre.cli.commands import run as run_command
-from birre.cli.commands import selftest as selftest_command
-from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL
+from birre.cli.commands import config as config_command  # noqa: E402
+from birre.cli.commands import logs as logs_command  # noqa: E402
+from birre.cli.commands import run as run_command  # noqa: E402
+from birre.cli.commands import selftest as selftest_command  # noqa: E402
+from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 

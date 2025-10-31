@@ -2,7 +2,6 @@ import asyncio
 import warnings
 
 import pytest
-
 from birre.cli import sync_bridge
 
 

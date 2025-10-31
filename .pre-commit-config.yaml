@@ -3,9 +3,12 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: '^docs/apis/'
       - id: end-of-file-fixer
+        exclude: '^docs/apis/'
       - id: check-yaml
       - id: check-json
+        exclude: '^docs/apis/'
       - id: check-toml
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -39,3 +42,4 @@ repos:
       - id: markdownlint
         args:
           - "--config=.markdownlint.json"
+        exclude: '^(\.project-notes/|docs/apis/)'

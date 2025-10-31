@@ -2,14 +2,13 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from fastmcp import Context, FastMCP
-
 from birre.domain.risk_manager import (
     register_company_search_interactive_tool,
     register_manage_subscriptions_tool,
     register_request_company_tool,
 )
 from birre.infrastructure.logging import get_logger
+from fastmcp import Context, FastMCP
 
 
 class FakeContext(Context):

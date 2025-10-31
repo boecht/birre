@@ -15,6 +15,7 @@ from birre.cli.models import CliInvocation, LogViewLine
 from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import validate_path_exists
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
+from birre.domain.company_rating.constants import DEFAULT_LOG_TAIL_LINES
 
 
 def _rotate_logs(base_path: Path, backup_count: int) -> None:
@@ -347,9 +348,7 @@ def _cmd_logs_show(
     """Implementation of logs show command."""
     normalized_format = _validate_logs_show_params(tail, since, last, format_override)
     normalized_level = cli_options.normalize_log_level(level) if level is not None else None
-    level_threshold = (
-        cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
-    )
+    level_threshold = cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
 
     _, logging_settings = _resolve_logging_settings_from_cli(
         config_path=config,
@@ -460,7 +459,7 @@ def register(
             rich_help_panel="Filtering",
         ),
         tail: int = typer.Option(
-            100,
+            DEFAULT_LOG_TAIL_LINES,
             "--tail",
             help="Number of lines from the end of the log to display (0 to show all).",
             rich_help_panel="Filtering",

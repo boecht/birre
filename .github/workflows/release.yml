@@ -68,9 +68,22 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v2
 
+      - name: Install SBOM generator
+        run: |
+          uv add --group dev cyclonedx-bom
+
       - name: Build package
         run: |
           uv build
+
+      - name: Generate SBOM
+        run: |
+          uv run cyclonedx-py environment \
+            --pyproject pyproject.toml \
+            --output-reproducible \
+            --of JSON \
+            -o dist/birre-sbom.json \
+            "$(uv python find)"
 
       - name: Verify package contents
         run: |
@@ -100,6 +113,13 @@ jobs:
         with:
           name: dist
           path: dist/
+
+      - name: Sign release artifacts with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
+        with:
+          inputs: ./dist/*.tar.gz ./dist/*.whl
+          upload-signing-artifacts: true
+          release-signing-artifacts: true
 
       - name: Extract version from tag
         id: version
@@ -139,6 +159,8 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.whl
+            dist/*.sigstore.json
+            dist/birre-sbom.json
           draft: false
           prerelease: false
 

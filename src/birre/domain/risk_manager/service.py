@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.config.settings import DEFAULT_MAX_FINDINGS
 from birre.domain.common import CallV1Tool, CallV2Tool
+from birre.domain.company_rating.constants import DEFAULT_FINDINGS_LIMIT
 from birre.domain.company_rating.service import _rating_color
 from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
 
@@ -158,9 +159,9 @@ class ManageSubscriptionsResponse(BaseModel):
         return data
 
 
-COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[str, Any] = (
-    CompanySearchInteractiveResponse.model_json_schema()
-)
+COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[
+    str, Any
+] = CompanySearchInteractiveResponse.model_json_schema()
 
 REQUEST_COMPANY_OUTPUT_SCHEMA: dict[str, Any] = RequestCompanyResponse.model_json_schema()
 
@@ -855,11 +856,11 @@ async def _process_parent_companies(
     details: dict[str, dict[str, Any]],
     logger: BoundLogger,
     defaults: CompanySearchDefaults,
-) -> tuple[dict[str, dict[str, Any]], dict[str, list[str]], dict[str, str]]:
+) -> tuple[dict[str, dict[str, Any]], dict[str, list[str]], set[str]]:
     """Process parent companies from trees: subscribe, fetch details, track relationships."""
     parent_details: dict[str, dict[str, Any]] = {}
     parent_to_children: dict[str, list[str]] = {}
-    ephemeral_subscriptions: dict[str, str] = {}
+    ephemeral_subscriptions: set[str] = set()
 
     for company_guid, tree_data in trees.items():
         parent_guids = _extract_parent_guids(tree_data, company_guid)
@@ -898,9 +899,9 @@ async def _subscribe_and_fetch_parent(
     tree_data: dict[str, Any],
     logger: BoundLogger,
     defaults: CompanySearchDefaults,
-) -> tuple[dict[str, str], dict[str, Any] | None]:
+) -> tuple[set[str], dict[str, Any] | None]:
     """Subscribe to parent company if needed and fetch its details."""
-    ephemeral: dict[str, str] = {}
+    ephemeral: set[str] = set()
 
     # Check if parent is already subscribed
     parent_node = _find_node_in_tree(tree_data, parent_guid)
@@ -923,7 +924,7 @@ async def _subscribe_and_fetch_parent(
         ctx,
         [parent_guid],
         logger=logger,
-        limit=1,
+        limit=DEFAULT_FINDINGS_LIMIT,
     )
     parent_data = parent_data_map.get(parent_guid)
     return ephemeral, parent_data
@@ -1306,10 +1307,10 @@ def register_request_company_tool(
         if error:
             # Pydantic models accept **kwargs, but mypy can't verify field names
             return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
-        
+
         # After error check, domain_value is guaranteed to be non-None
         assert domain_value is not None
-        
+
         selected_folder = folder or default_folder
         folder_guid = None
         log_event(

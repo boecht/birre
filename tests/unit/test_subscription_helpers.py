@@ -2,13 +2,12 @@ import asyncio
 from typing import Any
 
 import pytest
-from fastmcp import Context
-
 from birre.domain.subscription import (
     SubscriptionAttempt,
     cleanup_ephemeral_subscription,
     create_ephemeral_subscription,
 )
+from fastmcp import Context
 
 
 class StubContext(Context):

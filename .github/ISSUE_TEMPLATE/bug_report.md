@@ -33,7 +33,7 @@ What actually happened.
 
 ## Error Messages/Logs
 
-```
+```text
 Paste any error messages or relevant logs here
 ```
 

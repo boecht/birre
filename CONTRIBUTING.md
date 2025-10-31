@@ -72,13 +72,13 @@ By participating, you are expected to uphold this code.
    ```bash
    # Lint
    uv run ruff check src tests
-   
+
    # Format
    uv run ruff format src tests
-   
+
    # Type check
    uv run mypy src
-   
+
    # Test
    uv run pytest -m offline --cov=src/birre
    ```
