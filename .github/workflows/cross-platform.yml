@@ -1,5 +1,8 @@
 name: Cross-Platform Testing
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     branches:
