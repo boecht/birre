@@ -112,6 +112,10 @@ BiRRe follows these coding standards:
 - **Line length**: Maximum 100 characters
 - **Import sorting**: Managed by ruff/isort
 
+Authoring note: LLMs creating or editing Python files in `src/` should also consult the
+[Python Style Instructions](.github/instructions/edit-python.instructions.md) for
+file-scoped guidance during code changes.
+
 ### Code Quality Tools
 
 - **Ruff**: Linting and formatting (replaces black, isort, flake8)

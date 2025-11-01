@@ -4,6 +4,7 @@ All notable changes to BiRRe (BitSight Rating Retriever) will be documented in t
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 adapted for BiRRe's quality-first approach.
+(.github/instructions/edit-changelog.instructions.md).
 
 ## [4.0.0-alpha.2] - 2025-10-31
 
