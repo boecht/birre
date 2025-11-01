@@ -128,13 +128,30 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
           GITHUB_REF: ${{ github.ref }}
         run: |
-          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            VERSION="$INPUT_VERSION"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RAW_VERSION="$INPUT_VERSION"
+            # Allow only digits and dots to prevent command injection
+            case "$RAW_VERSION" in
+              (*[!0-9.]*|"")
+                echo "Invalid version input: only digits and dots allowed (e.g., 3.0.1)." >&2
+                exit 1
+                ;;
+              (*)
+                VERSION="$RAW_VERSION"
+                ;;
+            esac
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
+            # Validate extracted tag as a safety net
+            case "$VERSION" in
+              (*[!0-9.]*|"")
+                echo "Invalid tag version: '$VERSION'. Expected digits and dots (e.g., 3.0.1)." >&2
+                exit 1
+                ;;
+            esac
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
         id: changelog
