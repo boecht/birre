@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import tomllib
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-import tomllib
 import typer
 
 # File and path validation
