@@ -16,6 +16,20 @@ from pydantic import BaseModel, Field, model_validator
 
 from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
 from birre.domain.common import CallV1Tool
+from birre.domain.company_rating.constants import (
+    DEFAULT_SEVERITY_FLOOR,
+    SEVERITY_LOW,
+    SEVERITY_MATERIAL,
+    SEVERITY_MODERATE,
+    SEVERITY_RANK_LOW,
+    SEVERITY_RANK_MATERIAL,
+    SEVERITY_RANK_MODERATE,
+    SEVERITY_RANK_SEVERE,
+    SEVERITY_RANK_UNKNOWN,
+    SEVERITY_SCORE_UNKNOWN,
+    SEVERITY_SEVERE,
+    TIMESTAMP_INVALID,
+)
 from birre.domain.subscription import (
     SubscriptionAttempt,
     cleanup_ephemeral_subscription,
@@ -198,23 +212,23 @@ def _compute_trend(series: list[tuple[datetime, float]]) -> dict[str, object]:
 def _rank_severity_category_value(val: Any) -> int:
     if isinstance(val, str):
         v = val.lower()
-        if v == "severe":
-            return 3
-        if v == "material":
-            return 2
-        if v == "moderate":
-            return 1
-        if v == "low":
-            return 0
-    return -1
+        if v == SEVERITY_SEVERE:
+            return SEVERITY_RANK_SEVERE
+        if v == SEVERITY_MATERIAL:
+            return SEVERITY_RANK_MATERIAL
+        if v == SEVERITY_MODERATE:
+            return SEVERITY_RANK_MODERATE
+        if v == SEVERITY_LOW:
+            return SEVERITY_RANK_LOW
+    return SEVERITY_RANK_UNKNOWN
 
 
 def _derive_numeric_severity_score(item: Any) -> float:
     def _extract_numeric(value: Any) -> float | None:
-        return float(value) if isinstance(value, (int, float)) else None
+        return float(value) if isinstance(value, int | float) else None
 
     if not isinstance(item, dict):
-        return -1.0
+        return SEVERITY_SCORE_UNKNOWN
 
     direct = _extract_numeric(item.get("severity"))
     if direct is not None:
@@ -222,7 +236,7 @@ def _derive_numeric_severity_score(item: Any) -> float:
 
     details = item.get("details")
     if not isinstance(details, dict):
-        return -1.0
+        return SEVERITY_SCORE_UNKNOWN
 
     for key in ("severity", "grade"):
         candidate = _extract_numeric(details.get(key))
@@ -235,7 +249,7 @@ def _derive_numeric_severity_score(item: Any) -> float:
         if base_score is not None:
             return base_score
 
-    return -1.0
+    return SEVERITY_SCORE_UNKNOWN
 
 
 def _parse_timestamp_seconds(val: Any) -> int:
@@ -250,7 +264,7 @@ def _parse_timestamp_seconds(val: Any) -> int:
                 return int(datetime.strptime(val, fmt).timestamp())
             except Exception:
                 continue
-    return 0
+    return TIMESTAMP_INVALID
 
 
 def _derive_asset_importance_score(obj: Any) -> float:
@@ -259,7 +273,7 @@ def _derive_asset_importance_score(obj: Any) -> float:
         if isinstance(assets, dict):
             for key in ("combined_importance", "importance"):
                 val = assets.get(key)
-                if isinstance(val, (int, float)):
+                if isinstance(val, int | float):
                     return float(val)
     return 0.0
 
@@ -626,7 +640,7 @@ async def _build_top_findings_selection(
         return selection
 
     selection.profile = "relaxed"
-    selection.severity_floor = "moderate"
+    selection.severity_floor = DEFAULT_SEVERITY_FLOOR
     relaxed_params = dict(base_params)
     relaxed_params["severity_category"] = "severe,material,moderate"
     relaxed_findings = await _request_top_findings(

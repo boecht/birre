@@ -248,9 +248,12 @@ def test_config_validate_without_config_flag_shows_help() -> None:
     )
 
     assert result.exit_code == 0
-    # Rich may still include formatting codes, so check for key content
-    assert "config validate" in result.stdout
-    assert "--config" in result.stdout
+    # Rich may still include formatting codes in CI, so strip ANSI codes
+    # ANSI escape sequences start with \x1b[ and end with a letter
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    clean_output = ansi_escape.sub("", result.stdout)
+    assert "config validate" in clean_output
+    assert "--config" in clean_output
 
 
 def test_local_conf_create_generates_preview_and_file(tmp_path: Path) -> None:
@@ -1187,7 +1190,9 @@ def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_pat
     )
 
     assert result.exit_code == 0, result.stdout
-    assert str(log_path) in result.stdout
+    # Rich Console may wrap long paths, so remove newlines but preserve other characters
+    normalized_output = result.stdout.replace("\n", "")
+    assert str(log_path) in normalized_output
 
 
 def test_logs_show_filters_by_level_and_since(

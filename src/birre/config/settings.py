@@ -198,7 +198,8 @@ class LoggingSettings:
 
     @property
     def level_name(self) -> str:
-        return logging.getLevelName(self.level)
+        level: int = self.level
+        return logging.getLevelName(level)
 
 
 def _default_settings_files(config_path: str | None) -> tuple[Sequence[str], str | None]:
@@ -255,7 +256,7 @@ def _coerce_bool(value: Any | None) -> bool | None:
         if normalized in _FALSY:
             return False
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return bool(value)
     return None
 

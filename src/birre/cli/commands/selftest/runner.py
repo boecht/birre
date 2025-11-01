@@ -678,34 +678,53 @@ class SelfTestRunner:
         report: Mapping[str, Any],
         attempts: Sequence[AttemptReport],
     ) -> bool:
-        if report.get("offline_mode"):
-            return True
-        if report.get("notes"):
-            return True
-        if report.get("encountered_categories"):
-            return True
-        if report.get("recoverable_categories"):
-            return True
-        if report.get("fallback_attempted"):
-            return True
-        if any(not attempt.success for attempt in attempts):
-            return True
+        """Check if selftest report contains degraded outcomes or warnings."""
+        return (
+            self._has_degraded_mode_flags(report)
+            or self._has_failed_attempts(attempts)
+            or self._has_online_warnings(report)
+            or self._has_tool_warnings(report)
+        )
+
+    def _has_degraded_mode_flags(self, report: Mapping[str, Any]) -> bool:
+        """Check for degraded mode flags in report."""
+        degraded_flags = (
+            "offline_mode",
+            "notes",
+            "encountered_categories",
+            "recoverable_categories",
+            "fallback_attempted",
+        )
+        return any(report.get(flag) for flag in degraded_flags)
+
+    def _has_failed_attempts(self, attempts: Sequence[AttemptReport]) -> bool:
+        """Check if any attempts failed."""
+        return any(not attempt.success for attempt in attempts)
+
+    def _has_online_warnings(self, report: Mapping[str, Any]) -> bool:
+        """Check for warnings in online section."""
         online_section = report.get("online")
-        if isinstance(online_section, Mapping) and online_section.get("status") == "warning":
-            return True
+        if not isinstance(online_section, Mapping):
+            return False
+        return online_section.get("status") == "warning"
+
+    def _has_tool_warnings(self, report: Mapping[str, Any]) -> bool:
+        """Check for warnings in tools section."""
         tools_section = report.get("tools")
-        if isinstance(tools_section, Mapping):
-            for entry in tools_section.values():
-                if not isinstance(entry, Mapping):
-                    continue
-                if entry.get("status") == "warning":
-                    return True
-                attempts_map = entry.get("attempts")
-                if isinstance(attempts_map, Mapping) and any(
-                    value == "warning" for value in attempts_map.values()
-                ):
-                    return True
-        return False
+        if not isinstance(tools_section, Mapping):
+            return False
+        return any(self._tool_has_warning(entry) for entry in tools_section.values())
+
+    def _tool_has_warning(self, entry: Any) -> bool:
+        """Check if a tool entry has warnings."""
+        if not isinstance(entry, Mapping):
+            return False
+        if entry.get("status") == "warning":
+            return True
+        attempts_map = entry.get("attempts")
+        if not isinstance(attempts_map, Mapping):
+            return False
+        return any(value == "warning" for value in attempts_map.values())
 
 
 __all__ = ["SelfTestRunner"]

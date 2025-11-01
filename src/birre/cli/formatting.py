@@ -191,7 +191,7 @@ def stringify_value(value: Any) -> str:
     if isinstance(value, Mapping):
         items = [f"{key}={value[key]}" for key in sorted(value)]
         return ", ".join(items) if items else "-"
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         items = [stringify_value(item) for item in value]
         return ", ".join(item for item in items if item and item != "-") or "-"
     return str(value)

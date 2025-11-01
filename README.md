@@ -1,6 +1,6 @@
 # BiRRe
 
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
 [![codecov](https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg)](https://codecov.io/gh/boecht/birre)
@@ -11,7 +11,7 @@
 
 **BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server
 that provides access to BitSight security rating data through an existing subscription.
-It utilizes [FastMCP](https://gofastmcp.com/) for API integration  
+It utilizes [FastMCP](https://gofastmcp.com/) for API integration
 and can be run easily without installation in a temporary, isolated Python environment with uv.
 
 ## Installation
@@ -99,7 +99,7 @@ For the latest API changes and updates, refer to the [BitSight API Change Log](h
 1. Log into BitSight web interface
 2. Download schemas from:
    - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
-   - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>  
+   - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>
 3. Save as `src/birre/resources/apis/bitsight.v1.schema.json` and `src/birre/resources/apis/bitsight.v2.schema.json`
 
 ## Version History and Outlook

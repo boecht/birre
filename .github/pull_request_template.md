@@ -24,9 +24,9 @@ Fixes #
 
 <!-- List the specific changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 
@@ -35,10 +35,10 @@ Fixes #
 - [ ] All existing tests pass (`uv run pytest -m offline`)
 - [ ] Added new tests for new functionality
 - [ ] Tested manually with the following scenarios:
-  - 
-  - 
+  - Scenario 1
+  - Scenario 2
 
-## Code Quality Checklist
+### Code Quality Checklist
 
 - [ ] Code follows project style guidelines (ruff check/format)
 - [ ] Type hints added/updated (mypy --strict passes)

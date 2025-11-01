@@ -1,15 +1,18 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: '^docs/apis/'
       - id: end-of-file-fixer
+        exclude: '^docs/apis/'
       - id: check-yaml
       - id: check-json
+        exclude: '^docs/apis/'
       - id: check-toml
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
+    rev: v0.14.3
     hooks:
       - id: ruff
         args:
@@ -17,12 +20,13 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.18.2
     hooks:
       - id: mypy
         args:
           - --strict
-          - --python-version=3.11
+          - --python-version=3.13
+        files: ^src/
         additional_dependencies:
           - pydantic
           - httpx
@@ -33,8 +37,9 @@ repos:
           - fastmcp
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.38.0
+    rev: v0.45.0
     hooks:
       - id: markdownlint
         args:
           - "--config=.markdownlint.json"
+        exclude: '^(docs/apis/|\.github/|\.project-notes/)'

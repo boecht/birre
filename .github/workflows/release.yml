@@ -19,18 +19,18 @@ jobs:
   validate:
     name: Pre-release Validation
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: |
@@ -55,22 +55,35 @@ jobs:
     name: Build Distribution
     needs: validate
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install SBOM generator
+        run: |
+          uv add --group dev cyclonedx-bom
 
       - name: Build package
         run: |
           uv build
+
+      - name: Generate SBOM
+        run: |
+          uv run cyclonedx-py environment \
+            --pyproject pyproject.toml \
+            --output-reproducible \
+            --of JSON \
+            -o dist/birre-sbom.json \
+            "$(uv python find)"
 
       - name: Verify package contents
         run: |
@@ -78,7 +91,7 @@ jobs:
           unzip -l dist/*.whl | head -30
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dist
           path: dist/
@@ -88,24 +101,35 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Fetch all history for changelog
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: dist
           path: dist/
 
+      - name: Sign release artifacts with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.1.0
+        with:
+          inputs: ./dist/*.tar.gz ./dist/*.whl
+          upload-signing-artifacts: true
+          release-signing-artifacts: true
+
       - name: Extract version from tag
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
@@ -117,15 +141,15 @@ jobs:
         run: |
           # Extract relevant section from CHANGELOG.md
           CHANGELOG_SECTION=$(awk '/^## \['"${{ steps.version.outputs.version }}"'\]/,/^## \[/' CHANGELOG.md | sed '$d')
-          
+
           # If no section found, create a simple one
           if [ -z "$CHANGELOG_SECTION" ]; then
             CHANGELOG_SECTION="Release ${{ steps.version.outputs.version }}"
           fi
-          
+
           # Save to file for multiline output
           echo "$CHANGELOG_SECTION" > changelog.txt
-          
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -135,6 +159,8 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.whl
+            dist/*.sigstore.json
+            dist/birre-sbom.json
           draft: false
           prerelease: false
 
@@ -145,10 +171,10 @@ jobs:
     environment:
       name: release
       url: https://pypi.org/project/birre/
-    
+
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: dist
           path: dist/

@@ -1,7 +1,6 @@
 """Async/sync bridge utilities for CLI commands.
 
-Provides utilities to execute async code from synchronous CLI contexts
-using a reusable event loop.
+Provides a simple utility to execute async code from synchronous CLI contexts.
 """
 
 from __future__ import annotations
@@ -15,29 +14,18 @@ from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import Any
 
+_loop_logger = logging.getLogger("birre.loop")
 _SYNC_BRIDGE_LOOP: asyncio.AbstractEventLoop | None = None
 _SYNC_BRIDGE_LOCK = threading.Lock()
-_loop_logger = logging.getLogger("birre.loop")
 
 
-def close_sync_bridge_loop() -> None:
-    """Dispose of the shared event loop used by :func:`await_sync`."""
-
+def _close_sync_bridge_loop() -> None:
+    """Best-effort shutdown for the shared synchronous event loop."""
     global _SYNC_BRIDGE_LOOP
     loop = _SYNC_BRIDGE_LOOP
-    if loop is None:
+    if loop is None or loop.is_closed():
         return
-    if loop.is_closed():
-        _SYNC_BRIDGE_LOOP = None
-        return
-
-    for handler in _loop_logger.handlers:
-        stream = getattr(handler, "stream", None)
-        if stream is not None and getattr(stream, "closed", False):
-            continue
-        _loop_logger.debug("sync_bridge.loop_close")
-        break
-
+    # Note: Don't log here as logging may already be shutdown at atexit time
     pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
     for task in pending:
         task.cancel()
@@ -47,13 +35,20 @@ def close_sync_bridge_loop() -> None:
     _SYNC_BRIDGE_LOOP = None
 
 
-atexit.register(close_sync_bridge_loop)
+atexit.register(_close_sync_bridge_loop)
 
 
-def await_sync(coro: Awaitable[Any]) -> Any:
-    """Execute an awaitable from synchronous code on a reusable loop."""
+def await_sync[T](coro: Awaitable[T]) -> T:
+    """Execute an awaitable from sync code using a reusable event loop.
 
+    The loop lives for the process lifetime, is guarded by a lock to prevent
+    concurrent access, and cleans up any pending tasks before returning.
+
+    Raises:
+        RuntimeError: If called from within an already-running event loop.
+    """
     global _SYNC_BRIDGE_LOOP
+
     with _SYNC_BRIDGE_LOCK:
         try:
             running_loop = asyncio.get_running_loop()
@@ -65,26 +60,26 @@ def await_sync(coro: Awaitable[Any]) -> Any:
 
         if _SYNC_BRIDGE_LOOP is None or _SYNC_BRIDGE_LOOP.is_closed():
             _SYNC_BRIDGE_LOOP = asyncio.new_event_loop()
-            _loop_logger.debug("sync_bridge.loop_created")
+            asyncio.set_event_loop(_SYNC_BRIDGE_LOOP)
 
-        loop = _SYNC_BRIDGE_LOOP
-        asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(coro)
+            result = _SYNC_BRIDGE_LOOP.run_until_complete(coro)
         finally:
-            pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
+            # Clean up pending tasks but keep the loop alive for reuse
+            pending = [task for task in asyncio.all_tasks(_SYNC_BRIDGE_LOOP) if not task.done()]
             if pending:
                 for task in pending:
                     task.cancel()
                 with suppress(Exception):
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            asyncio.set_event_loop(None)
+                    _SYNC_BRIDGE_LOOP.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+
         return result
 
 
 def invoke_with_optional_run_sync(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """Invoke *func*, binding :func:`await_sync` when it declares ``run_sync``."""
-
     kwargs = dict(kwargs)
     kwargs.pop("run_sync", None)
     try:
@@ -98,6 +93,5 @@ def invoke_with_optional_run_sync(func: Callable[..., Any], *args: Any, **kwargs
 
 __all__ = [
     "await_sync",
-    "close_sync_bridge_loop",
     "invoke_with_optional_run_sync",
 ]

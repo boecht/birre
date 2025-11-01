@@ -12,7 +12,7 @@ By participating, you are expected to uphold this code.
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.13 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 - A BitSight API key for integration testing (optional)
@@ -72,13 +72,13 @@ By participating, you are expected to uphold this code.
    ```bash
    # Lint
    uv run ruff check src tests
-   
+
    # Format
    uv run ruff format src tests
-   
+
    # Type check
    uv run mypy src
-   
+
    # Test
    uv run pytest -m offline --cov=src/birre
    ```
@@ -111,6 +111,10 @@ BiRRe follows these coding standards:
 - **Docstrings** for all public APIs (Google style)
 - **Line length**: Maximum 100 characters
 - **Import sorting**: Managed by ruff/isort
+
+Authoring note: LLMs creating or editing Python files in `src/` should also consult the
+[Python Style Instructions](.github/instructions/edit-python.instructions.md) for
+file-scoped guidance during code changes.
 
 ### Code Quality Tools
 
@@ -150,6 +154,23 @@ More detailed explanation if needed (wrap at 72 chars).
 - Use present tense ("Add feature" not "Added feature")
 - Reference issues: "Fixes #123" or "Relates to #456"
 ```
+
+### Commit Scope
+
+**One topic per commit** - Group related changes together, but don't mix unrelated topics:
+
+- ✅ **Good**: "Fix Python 3.13 compatibility across all workflows"
+  - Multiple files, one coherent topic (Python 3.13 migration)
+- ✅ **Good**: "Refactor config module to reduce complexity (TD-002)"
+  - Focused refactoring with clear purpose
+- ❌ **Bad**: "Fix tests, update docs, refactor config, add caching"
+  - Multiple unrelated topics that should be separate commits
+
+**Guideline**: Changes should be cohesive enough to describe in a single commit message,
+but comprehensive enough to be meaningful. Avoid both:
+
+- Over-atomization (100 tiny commits for one feature)
+- Kitchen-sink commits (unrelated changes bundled together)
 
 ## Pull Request Process
 
