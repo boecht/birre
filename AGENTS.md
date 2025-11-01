@@ -87,6 +87,16 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 - Run the smallest relevant tests for rapid feedback
 - Execute pertinent tests after every change to catch regressions early
 
+### Commit Practices
+
+- **One topic per commit**: Group related changes cohesively, but separate unrelated topics
+  - ✅ Good: "Fix Python 3.13 compatibility across all workflows" (one topic, multiple files)
+  - ❌ Bad: "Fix tests, update docs, add feature, refactor config" (mixing unrelated changes)
+- **Safety boundary**: NEVER commit directly to `main` branch or approve pull requests
+  - Only humans may manually merge PRs or commit to protected branches
+  - If a task requires this, stop and ask the user to perform the action
+  - This enforces branch protection and human oversight of production changes
+
 ### Quality Assurance Checklist
 
 - Validate outputs against the original task description before finalizing
