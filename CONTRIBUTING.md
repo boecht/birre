@@ -32,13 +32,24 @@ By participating, you are expected to uphold this code.
    uv sync --all-extras
    ```
 
-3. **Set up environment variables** (optional, for online tests)
+   This will automatically download Python 3.13 if not already installed.
+
+3. **Install pre-commit hooks** (after `uv sync`)
+
+   ```bash
+   pre-commit install
+   ```
+
+   The hooks use `uv run` to ensure they execute with the correct Python version
+   and project dependencies.
+
+4. **Set up environment variables** (optional, for online tests)
 
    ```bash
    export BITSIGHT_API_KEY="your-api-key"
    ```
 
-4. **Run tests to verify setup**
+5. **Run tests to verify setup**
 
    ```bash
    uv run pytest -m offline
