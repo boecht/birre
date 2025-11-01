@@ -7,7 +7,7 @@ import heapq
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastmcp import Context, FastMCP
@@ -129,7 +129,7 @@ def _aggregate_ratings(
     horizon_days: int,
     mode: str,
 ) -> list[tuple[datetime, float]]:
-    cutoff = datetime.now(timezone.utc).date() - timedelta(days=horizon_days)
+    cutoff = datetime.now(UTC).date() - timedelta(days=horizon_days)
     buckets: dict[tuple[int, int], list[float]] = defaultdict(list)
     anchors: dict[tuple[int, int], datetime] = {}
 

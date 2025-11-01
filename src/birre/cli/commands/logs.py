@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -82,9 +82,9 @@ def _parse_iso_timestamp_to_epoch(value: str) -> float | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     else:
-        parsed = parsed.astimezone(timezone.utc)
+        parsed = parsed.astimezone(UTC)
     return parsed.timestamp()
 
 
@@ -203,7 +203,7 @@ def _resolve_start_timestamp(since: str | None, last: str | None) -> float | Non
                 "Invalid relative duration; use values like 30m, 1h, or 2d.",
                 param_hint="--last",
             )
-        return (datetime.now(timezone.utc) - duration).timestamp()
+        return (datetime.now(UTC) - duration).timestamp()
 
     return None
 
