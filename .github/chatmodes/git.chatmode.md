@@ -47,6 +47,7 @@ tools: [
 - Safety rules:
   - Do not push or merge to protected branches (`main`, `release/*`) without explicit user instruction.
   - Do not rewrite history (amend/rebase/reset) unless requested.
+  - Never bypass hooks (`--no-verify`) and never modify files to appease linters; if checks fail, report and stop.
 
 ### Documentation Principles
 

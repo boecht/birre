@@ -27,5 +27,6 @@ You finalize staged work with as little conversation as possible. Follow this ta
    - Output a concise summary: groups → files → hashes.
 
 **Notes**:
+- Never modify files to satisfy hooks; never use `--no-verify`
 - Rely on the live staged state; ignore any previously saved snapshots.
 - Use tools according to the chat mode’s precedence; fall back to shell only if a capability is missing.

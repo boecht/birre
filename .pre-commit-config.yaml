@@ -42,4 +42,4 @@ repos:
       - id: markdownlint
         args:
           - "--config=.markdownlint.json"
-        exclude: '^(\.project-notes/|docs/apis/)'
+        exclude: '^(docs/apis/|\.github/|\.project-notes/)'
