@@ -9,7 +9,7 @@ from birre.cli import sync_bridge
 def test_close_loop_cancels_pending_and_resets() -> None:
     async def _leak_task() -> None:
         # background task that would remain pending until cancelled
-        asyncio.create_task(asyncio.sleep(60))
+        _task = asyncio.create_task(asyncio.sleep(60))
         await asyncio.sleep(0)
 
     # Create loop and leak a task
