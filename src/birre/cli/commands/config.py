@@ -660,7 +660,7 @@ def _cmd_config_validate(
     """Implementation of config validate command."""
     ctx = click.get_current_context()
     config_source = ctx.get_parameter_source("config")
-    if config is None and config_source is ParameterSource.DEFAULT:
+    if config is None and config_source == ParameterSource.DEFAULT:
         typer.echo(ctx.get_help())
         raise typer.Exit()
 

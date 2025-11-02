@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
@@ -98,8 +99,9 @@ class _MockSelfTestContext:
         }
         self.tool = tool_name
 
-    async def info(self, message: str) -> None:  # noqa: RUF029
+    async def info(self, message: str) -> None:
         """Log an info message."""
+        await asyncio.sleep(0)
         self._logger.info(
             "healthcheck.ctx.info",
             message=message,
@@ -107,8 +109,9 @@ class _MockSelfTestContext:
             tool=self._tool_name,
         )
 
-    async def warning(self, message: str) -> None:  # noqa: RUF029
+    async def warning(self, message: str) -> None:
         """Log a warning message."""
+        await asyncio.sleep(0)
         self._logger.warning(
             "healthcheck.ctx.warning",
             message=message,
@@ -116,8 +119,9 @@ class _MockSelfTestContext:
             tool=self._tool_name,
         )
 
-    async def error(self, message: str) -> None:  # noqa: RUF029
+    async def error(self, message: str) -> None:
         """Log an error message."""
+        await asyncio.sleep(0)
         self._logger.error(
             "healthcheck.ctx.error",
             message=message,
