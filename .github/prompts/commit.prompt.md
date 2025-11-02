@@ -26,7 +26,7 @@ Follow this playbook in order; do every step during this run, even if it feels r
    - Treat unstaged files as out of scope.
 3. **Draft commit messages**
    - Subject format: `<scope>: <imperative summary>` (≤ 50 chars, no trailing period).
-   - Scope can be a module/package or `docs(<area>)` for documentation-only commits.
+   - Scope can be a module/package name or `docs(<area>)` for documentation-only commits.
    - Leave one blank line between subject and body; wrap body text at ~72 chars.
    - Skip ticket/issue IDs in the subject; reference them in the body if needed.
    - Write in imperative, present tense, focusing on user or maintainer impact.
@@ -34,8 +34,8 @@ Follow this playbook in order; do every step during this run, even if it feels r
    - Create the planned commits; never push.
    - Afterwards run `git status --short` via `runCommands`. If anything remains staged, loop back to Step 2 to regroup.
 5. **Report results**
-   - For each commit, present commit id + scope, subject, optional body, and a concise file list with stats.
-   - Follow the output template below for readability.
+   - Output one block per commit using the template below.
+   - Do not add introductions, validation summaries, next-step offers, or any other commentary unless a previous step failed. When a failure occurs, report the failure instead of commit details.
 
 ### Output format
 
@@ -69,7 +69,7 @@ availability.
 
 **Tips**:
 - Use the first seven characters of each commit SHA reported by `git commit`.
-- Show files as `<status> <path> +N -M`, pulling stats from the staged diff.
+- Show files as `<status>  <path>  +N -M`, pulling stats from the staged diff.
 
 **Notes**:
 - Prefer GitHub MCP tools; fall back to shell only if a capability is missing.
