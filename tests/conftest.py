@@ -19,22 +19,35 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    run_offline_only = bool(config.getoption("birre_offline"))
-    run_online_only = bool(config.getoption("birre_online_only"))
+def _is_integration_path(s: str) -> bool:
+    s = s.replace("\\", "/")
+    return s.startswith("tests/integration/") or "/tests/integration/" in s
 
-    if run_offline_only and run_online_only:
-        # Command line misuse; prefer explicit error
+
+def _mark_by_path(items: list[pytest.Item]) -> None:
+    for item in items:
+        node_str = str(getattr(item, "fspath", item.nodeid))
+        marker = pytest.mark.online if _is_integration_path(node_str) else pytest.mark.offline
+        item.add_marker(marker)
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    _mark_by_path(items)
+
+    offline_only = bool(config.getoption("birre_offline"))
+    online_only = bool(config.getoption("birre_online_only"))
+
+    if offline_only and online_only:
         raise pytest.UsageError("--offline and --online-only are mutually exclusive")
 
-    if run_online_only:
-        deselect = [item for item in items if "online" not in item.keywords]
-    elif run_offline_only:
-        deselect = [item for item in items if "online" in item.keywords]
-    else:
-        # Default: run all collected tests; online tests will self-skip if API key/dep missing
-        deselect = []
+    deselect: list[pytest.Item] = []
+    if online_only:
+        deselect = [i for i in items if "online" not in i.keywords]
+    elif offline_only:
+        deselect = [i for i in items if "online" in i.keywords]
 
-    if deselect:
-        config.hook.pytest_deselected(items=deselect)
-        items[:] = [item for item in items if item not in deselect]
+    if not deselect:
+        return
+
+    config.hook.pytest_deselected(items=deselect)
+    items[:] = [i for i in items if i not in deselect]
