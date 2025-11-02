@@ -35,7 +35,7 @@ You finalize staged work with minimal back‑and‑forth. Follow this checklist 
 Use this structure in your final message so humans can skim quickly:
 
 ```
-Commit <N> [<scope>]
+### Commit <short commit SHA> [<scope>]
 
 <subject line>
 
@@ -47,7 +47,7 @@ Commit <N> [<scope>]
 Example:
 
 ```
-Commit bebfde6 [docs(commit-prompt)]
+### Commit bebfde6 [docs(commit-prompt)]
 
 update instructions and checklist
 
@@ -62,8 +62,8 @@ availability.
 
 **Tips**:
 - Omit the Body section if the subject alone is sufficient.
-- If multiple commits are created, number them in order (Commit 1, Commit 2, …).
-- For Files, show a single‑letter status (A/M/D/R), path, and line changes (+N -M); source is `git diff…` in step 1.
+- For short commit SHA, use the first 7 characters of the full SHA; source is `git commit` in step 4.
+- For file list, show a single‑letter status (A/M/D/R), path, and line changes (+N -M); source is `git diff` in step 1.
 
 **Notes**:
 - Prefer GitHub MCP tools for Git operations; fall back to shell only if a capability is missing.
