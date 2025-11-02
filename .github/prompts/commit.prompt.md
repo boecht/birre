@@ -9,8 +9,8 @@ tools: [
    'runCommands'
 ]
 ---
-You finalize staged work with minimal back‑and‑forth. Follow this checklist each time:
-
+You finalize staged work with minimal back‑and‑forth.
+Follow this checklist each time, ignore previous runs:
 
 1. **Check for staged changes**
    - Run `git diff --cached --numstat --shortstat && git diff --cached --name-status`.

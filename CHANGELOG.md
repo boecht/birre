@@ -21,6 +21,9 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Streamline release workflow with validated version inputs and safer tag extraction for consistent releases
 - Improve Windows/macOS/Linux parity with cross-platform test matrix running under Python 3.13
 - Consolidate formatting and validation utilities for consistent, cleaner CLI tables and messages
+- Improve company rating workflow reliability by handling both sync and async tool results seamlessly
+- Improve contributor experience with clearer prompt and agent operation documentation
+- Stabilize CI by re-adding pinned action versions after evaluating removal impacts
 
 ### Added
 
@@ -56,34 +59,32 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Add OpenSSF Scorecard supply-chain security analysis for continuous security posture monitoring
 - Maintain reproducible and verifiable CI by pinning critical GitHub actions versions for stability
 - Expand automated code scanning (CodeQL, SonarCloud) coverage for earlier vulnerability and quality issue detection
+- Fix residual security-related CI findings from alpha.1 release to strengthen baseline
 
 ## [4.0.0-alpha.1] - 2025-10-30
 
 ### Changed
 
 - **Breaking:** Require Python 3.11+ for modern features and better performance
-- Remove over 3,200 lines of duplicate code for faster response times
+- Remove over 3,200 lines of duplicate code to improve response times
 - Improve CLI modularity and organization for easier troubleshooting
 - Enhance selftest diagnostics with clearer output
 - Strengthen error handling throughout for better user experience
 
 ### Added
 
-- Catch potential errors before runtime with strict type checking
-- Provide better IDE support with improved autocompletion
-- Track test coverage automatically with CodeCov integration
-- Include coverage reports on pull requests for transparency
-- Establish clear contribution guidelines and code of conduct
-- Automate testing and security scanning on every pull request
-- Support PyPI publishing in release pipeline
+- Add strict type checking to catch potential errors before runtime
+- Add better IDE support with improved autocompletion
+- Add automatic test coverage tracking with CodeCov integration
+- Add coverage reports on pull requests for transparency
+- Add clear contribution guidelines and a code of conduct
+- Add release pipeline support for PyPI publishing
+
+### Security
+
+- Add automated security scanning on every pull request
 
 ## [3.2.0] - 2025-10-27
-
-### Added
-
-- Support custom configuration file paths via `BIRRE_CONFIG_FILE` environment variable
-- Provide clear error messages for TLS certificate issues with corporate proxies
-- Include helpful guidance for resolving certificate problems
 
 ### Changed
 
@@ -91,19 +92,25 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Enhance background task cleanup for more predictable behavior
 - Strengthen configuration file path resolution and validation
 
+### Added
+
+- Add support for custom configuration file paths via `BIRRE_CONFIG_FILE` environment variable
+- Add clear error messages for TLS certificate issues with corporate proxies
+- Add guidance for resolving certificate problems
+
 ### Fixed
 
-- Resolve event loop errors that could prevent server startup
+- Fix event loop closed errors during server startup
 
 ## [3.1.0] - 2025-10-24
 
 ### Added
 
-- Provide comprehensive health check command with `birre selftest`
-- Include detailed offline and online diagnostic reporting
-- Test against production API with `--production` flag
-- Support machine-readable JSON output for automation
-- Detect TLS errors automatically with retry logic
+- Add comprehensive health check command with `birre selftest`
+- Add detailed offline and online diagnostic reporting
+- Add production API testing with `--production` flag
+- Add machine-readable JSON output for automation
+- Add automatic TLS error detection with retry logic
 
 ## [3.0.0] - 2025-10-23
 
@@ -118,8 +125,8 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Fixed
 
-- Resolve banner display issues with special characters
-- Correct API response normalization edge cases
+- Fix banner display issues with special characters
+- Fix API response normalization edge cases
 
 ## [2.3.0] - 2025-10-19
 
@@ -139,11 +146,6 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ## [2.1.0] - 2025-10-14
 
-### Added
-
-- Support multiple OpenAPI parser libraries for better compatibility
-- Provide graceful shutdown on Ctrl+C with clean background task termination
-
 ### Changed
 
 - Reduce code complexity throughout the codebase
@@ -151,38 +153,43 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Enhance tool output schemas for better clarity
 - Strengthen startup validation with thorough connectivity checks
 
-## [2.0.0] - 2025-10-07
-
 ### Added
 
-- Add risk manager context mode with specialized subscription management
-- Provide `company_search_interactive` with folder membership and metadata
-- Include `manage_subscriptions` with bulk operations and dry-run support
-- Integrate `request_company` workflow with BitSight API v2
-- Support context selection via CLI flag, environment variable, or configuration
-- Establish comprehensive offline unit test suite
-- Include online smoke tests for core workflows
-- Provide startup diagnostics with structured JSON output
+- Add support for multiple OpenAPI parser libraries for better compatibility
+- Add graceful shutdown on Ctrl+C with clean background task termination
+
+## [2.0.0] - 2025-10-07
 
 ### Changed
 
 - Filter tools to expose only required BitSight API v1 endpoints
 - Migrate subscription management to bulk API endpoints
 
+### Added
+
+- Add risk manager context mode with specialized subscription management
+- Add interactive company search tool `company_search_interactive` with folder membership and metadata
+- Add bulk subscription management tool `manage_subscriptions` with dry-run support
+- Add `request_company` workflow using BitSight API v2
+- Add context selection via CLI flag, environment variable, or configuration
+- Add comprehensive offline unit test suite
+- Add online smoke tests for core workflows
+- Add startup diagnostics with structured JSON output
+
 ### Fixed
 
-- Resolve pytest dependency installation issues
+- Fix pytest dependency installation issues
 
 ## [1.0.0] - 2025-10-05
 
 ### Added
 
-- Implement BiRRe MCP server for BitSight integration
-- Provide company search via BitSight API
-- Include company rating with trend analytics and top findings
-- Support ephemeral subscription management with automatic cleanup
-- Establish basic startup diagnostics
-- Enable configuration via environment variables and config files
+- Add BiRRe MCP server for BitSight integration
+- Add company search via BitSight API
+- Add company rating with trend analytics and top findings
+- Add ephemeral subscription management with automatic cleanup
+- Add basic startup diagnostics
+- Add configuration via environment variables and config files
 
 [4.0.0-alpha.2]: https://github.com/boecht/birre/compare/v4.0.0-alpha.1...v4.0.0-alpha.2
 [4.0.0-alpha.1]: https://github.com/boecht/birre/compare/v3.2.0...v4.0.0-alpha.1
