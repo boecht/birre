@@ -135,6 +135,10 @@ file-scoped guidance during code changes.
 
 ### Testing
 
+Project setup (`uv sync`) takes care of dependencies, such as the correct python version, and fastmcp.
+A BitSight API key is expected via either `BITSIGHT_API_KEY` or `config.local.toml` under `[bitsight].api_key`.
+With either configured, it is safe to run online tests.
+
 - **Write tests** for all new features and bug fixes
 - **Offline tests** (pytest marker: `@pytest.mark.offline`) for unit tests
 - **Online tests** (pytest marker: `@pytest.mark.online`) for integration tests requiring API access
@@ -151,6 +155,9 @@ uv run pytest tests/unit/test_your_feature.py
 
 # With coverage
 uv run pytest -m offline --cov=src/birre --cov-report=term
+
+# All online tests (network; assumes API key available)
+uv run pytest -m online
 ```
 
 ## Commit Message Guidelines
