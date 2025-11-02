@@ -27,8 +27,8 @@ def test_primary_port_and_asset() -> None:
     assert s._determine_primary_asset(item, {}) == "host"
     details = {"assets": [{"asset": "example.com"}], "dest_port": 443}
     assert s._determine_primary_asset({}, details) == "example.com:443"
-    details2 = {"observed_ips": ["1.2.3.4"]}
-    assert s._determine_primary_asset({}, details2) == "1.2.3.4"
+    details2 = {"observed_ips": ["192.0.2.2"]}  # RFC 5737: 192.0.2.0/24 (TEST-NET-1)
+    assert s._determine_primary_asset({}, details2) == "192.0.2.2"
 
 
 @pytest.mark.asyncio
