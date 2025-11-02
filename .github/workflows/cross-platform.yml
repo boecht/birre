@@ -40,9 +40,15 @@ jobs:
         run: |
           uv sync --all-extras
 
-      - name: Run offline tests
+      - name: Run tests (full if API key present, else offline)
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          uv run pytest -m offline --verbose
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest --verbose
+          else
+            uv run pytest --offline --verbose
+          fi
 
       - name: Test CLI entrypoint
         shell: bash
@@ -70,9 +76,15 @@ jobs:
           uv sync --all-extras
 
       - name: Verify minimum version compatibility
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
           uv run python --version
-          uv run pytest -m offline --verbose
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest --verbose
+          else
+            uv run pytest --offline --verbose
+          fi
 
   path-separators:
     name: Test path handling (${{ matrix.os }})

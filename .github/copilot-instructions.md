@@ -134,18 +134,24 @@ When asking the user for clarification, follow this template:
 
 uv automatically installs the correct Python version, and dependencies such as FastMCP.
 If BiRRe runs, FastMCP is present. Assume a BitSight API key is available via `BITSIGHT_API_KEY`
-or local config, even if not visible. With either configured, it is safe to run online tests.
+or local config. With either configured, it is safe—and recommended—to run online tests.
 
-- Offline tests:
+- Full suite (preferred):
 
   ```bash
-  uv run pytest -m offline
+  uv run pytest
   ```
 
-- Online tests (assumed safe when API key configured):
+- Offline only:
 
   ```bash
-  uv run pytest -m online
+  uv run pytest --offline
+  ```
+
+- Online only:
+
+  ```bash
+  uv run pytest --online-only
   ```
 
 ### Server Operations

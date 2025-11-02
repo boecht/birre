@@ -24,8 +24,8 @@ Checklist
 
 3. Run tests
 
-- Offline: `uv run pytest -m offline`.
-- Online: `uv run pytest -m online` (assumes `BITSIGHT_API_KEY` exported).
+- Offline: `uv run pytest --offline`.
+- Online: `uv run pytest --online-only` (assume `BITSIGHT_API_KEY` exported).
 - Online selftest: `uv run birre selftest --production`.
 - If failures occur, report and stop.
 

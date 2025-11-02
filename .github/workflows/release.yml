@@ -44,12 +44,21 @@ jobs:
         run: |
           uv run mypy src
 
-      - name: Run offline tests with coverage
+      - name: Run tests with coverage (full if API key present, else offline)
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          uv run pytest -m offline \
-            --cov=src/birre \
-            --cov-report=term \
-            --cov-fail-under=70
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-fail-under=70
+          else
+            uv run pytest --offline \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-fail-under=70
+          fi
 
   build:
     name: Build Distribution
@@ -130,25 +139,21 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             RAW_VERSION="$INPUT_VERSION"
-            # Allow only digits and dots to prevent command injection
-            case "$RAW_VERSION" in
-              (*[!0-9.]*|"")
-                echo "Invalid version input: only digits and dots allowed (e.g., 3.0.1)." >&2
-                exit 1
-                ;;
-              (*)
-                VERSION="$RAW_VERSION"
-                ;;
-            esac
+            # Validate SemVer core with optional pre-release/build metadata.
+            # Accept examples: 3.0.1, 4.0.0-alpha.2, 4.0.0-rc.1+build.5
+            if [[ "$RAW_VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z][0-9A-Za-z\.-]*)?(\+[0-9A-Za-z\.-]+)?$ ]]; then
+              VERSION="$RAW_VERSION"
+            else
+              echo "Invalid version input: must match SemVer (e.g., 3.0.1 or 4.0.0-alpha.2)." >&2
+              exit 1
+            fi
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
-            # Validate extracted tag as a safety net
-            case "$VERSION" in
-              (*[!0-9.]*|"")
-                echo "Invalid tag version: '$VERSION'. Expected digits and dots (e.g., 3.0.1)." >&2
-                exit 1
-                ;;
-            esac
+            # Validate extracted tag using SemVer pattern (allows pre-release/build metadata)
+            if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z][0-9A-Za-z\.-]*)?(\+[0-9A-Za-z\.-]+)?$ ]]; then
+              echo "Invalid tag version: '$VERSION'. Expected SemVer (e.g., 3.0.1 or 4.0.0-alpha.2)." >&2
+              exit 1
+            fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"

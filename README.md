@@ -192,28 +192,26 @@ warnings (for example, optional tooling gaps in offline mode) return `2`.
 Expect occasional `403 Access Denied` responses when using BitSight’s testing
 environment.
 
-### Pytest
+### Testing with pytest
 
-BiRRe ships with both offline unit tests and opt-in online integration checks.
-The offline suite exercises configuration layering, logging formatters, startup
-checks, subscription helpers, and both standard and risk-manager tools without
-touching the BitSight API. The online tests drive the FastMCP client end-to-end
-against BitSight’s production API and require valid credentials.
+BiRRe ships with both offline unit tests and online integration checks.
+
+- Recommended: run the full suite; online tests will be skipped automatically if the API key/config is missing.
 
 ```bash
-# Run the offline suite
-uv run --extra pytest-dependencies pytest -m offline
-
-# Run the online smoke tests against the BitSight production API.
-uv run --extra pytest-dependencies pytest -m online
+uv run --group dev pytest
 ```
 
-If you prefer a plain virtual environment, install the same extras explicitly
-before invoking pytest:
+- Only offline (no network):
 
 ```bash
-pip install '.[pytest-dependencies]'
-pytest -m offline
+uv run --group dev pytest --offline
+```
+
+- Only online (requires `BITSIGHT_API_KEY` or local config):
+
+```bash
+uv run --group dev pytest --online-only
 ```
 
 ## Further Documentation

@@ -44,13 +44,23 @@ jobs:
         run: |
           uv run mypy src
 
-      - name: Run offline tests with coverage
+      - name: Run tests with coverage (full if API key present, else offline)
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          uv run pytest -m offline \
-            --cov=src/birre \
-            --cov-report=term \
-            --cov-report=xml \
-            --cov-fail-under=70
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-report=xml \
+              --cov-fail-under=70
+          else
+            uv run pytest --offline \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-report=xml \
+              --cov-fail-under=70
+          fi
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v5

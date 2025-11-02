@@ -393,10 +393,10 @@ See [docs/CLI.md](CLI.md) for complete command reference.
 
 The project maintains both offline and online suites:
 
-- **Offline (`uv run pytest -m offline`)** – Runs quickly without network access. It covers
+- **Offline (`uv run pytest --offline`)** – Runs quickly without network access. It covers
   configuration layering, logging formatters, startup checks, and the risk-manager tools
   (interactive search, subscription management, company requests) using lightweight stubs.
-- **Online (`uv run pytest -m online`)** – Executes the FastMCP client end-to-end against
+- **Online (`uv run pytest --online-only`)** – Executes the FastMCP client end-to-end against
   BitSight, verifying the company search/rating workflow and the online startup checks. Requires
   a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
 

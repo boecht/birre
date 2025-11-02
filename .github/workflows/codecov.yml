@@ -26,10 +26,19 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Run offline test suite with coverage
+      - name: Run test suite with coverage (full if API key present, else offline)
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          uv run --group dev pytest -m offline \
-            --cov=src/birre --cov-report=xml
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            echo "Running full suite (online+offline) with coverage"
+            uv run --group dev pytest \
+              --cov=src/birre --cov-report=xml
+          else
+            echo "BITSIGHT_API_KEY not set; running offline suite only"
+            uv run --group dev pytest --offline \
+              --cov=src/birre --cov-report=xml
+          fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

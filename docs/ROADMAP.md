@@ -25,7 +25,7 @@
   the repository.
 - Offline and online startup checks produce structured diagnostics, including JSON summaries for
   automation.
-- Offline (`pytest -m offline`) and online (`pytest -m online`) suites pass; selftest defaults to
+- Offline (`pytest --offline`) and online (`pytest --online-only`) suites pass; selftest defaults to
   BitSight's staging environment with an opt-in production flag.
 
 ### 2.0.0 — Top Findings Insights

@@ -32,7 +32,8 @@ Fixes #
 
 <!-- Describe the testing you've done -->
 
-- [ ] All existing tests pass (`uv run pytest -m offline`)
+- [ ] All existing offline tests pass (`uv run pytest --offline`)
+- [ ] All existing online tests pass (`uv run pytest --online-only`)
 - [ ] Added new tests for new functionality
 - [ ] Tested manually with the following scenarios:
   - Scenario 1

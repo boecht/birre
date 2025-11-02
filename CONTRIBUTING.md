@@ -52,7 +52,7 @@ By participating, you are expected to uphold this code.
 5. **Run tests to verify setup**
 
    ```bash
-   uv run pytest -m offline
+   uv run pytest --offline
    ```
 
 ## Development Workflow
@@ -91,7 +91,7 @@ By participating, you are expected to uphold this code.
    uv run mypy src
 
    # Test
-   uv run pytest -m offline --cov=src/birre
+   uv run pytest --offline --cov=src/birre
    ```
 
 4. **Commit your changes**
@@ -147,17 +147,21 @@ With either configured, it is safe to run online tests.
 Run tests:
 
 ```bash
-# All offline tests
-uv run pytest -m offline
+# Full suite (recommended; online tests skip automatically if no API key)
+uv run pytest
 
 # Specific test file
 uv run pytest tests/unit/test_your_feature.py
 
-# With coverage
-uv run pytest -m offline --cov=src/birre --cov-report=term
+# Offline only / online only convenience flags
+uv run pytest --offline
+uv run pytest --online-only
+
+# With coverage (full suite)
+uv run pytest --cov=src/birre --cov-branch --cov-report=term
 
 # All online tests (network; assumes API key available)
-uv run pytest -m online
+uv run pytest --online-only
 ```
 
 ## Commit Message Guidelines
