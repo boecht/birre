@@ -27,17 +27,29 @@ You finalize staged work with minimal back‑and‑forth. Follow this checklist 
 4. **Create and verify commits**
    - Record commits for each planned group. Do not push.
 5. **Report results (readable output)**
-   - For each commit, print: scope + summary, body (if any), and a short file list with stats.
+   - For each commit, print: commit id + scope, summary, body (if any), and a short file list with stats.
    - Use the example format below; keep it terse and scannable.
 
-### Output format (example)
+### Output format
 
 Use this structure in your final message so humans can skim quickly:
 
 ```
-Commit 1
-Scope: docs(commit-prompt)
-Summary: update instructions and checklist
+Commit <N> [<scope>]
+
+<subject line>
+
+<body (if any)>
+
+<file list with stats>
+```
+
+Example:
+
+```
+Commit bebfde6 [docs(commit-prompt)]
+
+update instructions and checklist
 
 Revise description to emphasize logical grouping and output clarity,
 remove 'changes' tool reference, restructure checklist into 5 steps,
@@ -45,7 +57,6 @@ and add preference for GitHub MCP tools over shell commands. This
 clarifies the commit workflow and aligns with current tooling
 availability.
 
-Files:
 - (M)  .github/prompts/commit.prompt.md  +35 -9
 ```
 
