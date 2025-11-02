@@ -79,7 +79,7 @@ jobs:
 
       - name: Install SBOM generator
         run: |
-          uv add --group dev cyclonedx-bom
+          uv tool install cyclonedx-bom
 
       - name: Build package
         run: |
@@ -87,7 +87,7 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          uv run cyclonedx-py environment \
+          uv tool run cyclonedx-py environment \
             --pyproject pyproject.toml \
             --output-reproducible \
             --of JSON \
