@@ -52,12 +52,12 @@ jobs:
             uv run pytest \
               --cov=src/birre \
               --cov-report=term \
-              --cov-fail-under=70
+              --cov-fail-under=80
           else
             uv run pytest --offline \
               --cov=src/birre \
               --cov-report=term \
-              --cov-fail-under=70
+              --cov-fail-under=80
           fi
 
   build:
