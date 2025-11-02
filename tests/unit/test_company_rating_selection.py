@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,14 +11,14 @@ import birre.domain.company_rating.service as svc
 
 def _ctx():
     class _C:
-        def info(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
-            return None
+        async def info(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
+            await asyncio.sleep(0)
 
-        def warning(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
-            return None
+        async def warning(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
+            await asyncio.sleep(0)
 
-        def error(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
-            return None
+        async def error(self, *_: Any, **__: Any) -> None:  # noqa: ANN001
+            await asyncio.sleep(0)
 
     return _C()
 
@@ -51,7 +52,8 @@ async def test_build_top_findings_selection_strict_relaxed_and_webappsec(
         {"severity": "low", "details": {}, "risk_vector": "web_appsec", "last_seen": "2025-10-03"}
     ]
 
-    def _req(tool, ctx, params, limit, label, *, debug_enabled):  # noqa: ANN001
+    async def _req(tool, ctx, params, limit, label, *, debug_enabled):  # noqa: ANN001
+        await asyncio.sleep(0)
         if label == "strict":
             return strict
         if label == "relaxed":
@@ -76,7 +78,8 @@ async def test_build_top_findings_selection_strict_relaxed_and_webappsec(
 async def test_build_top_findings_selection_appends_webappsec(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def _req(tool, ctx, params, limit, label, *, debug_enabled):  # noqa: ANN001
+    async def _req(tool, ctx, params, limit, label, *, debug_enabled):  # noqa: ANN001
+        await asyncio.sleep(0)
         if label == "strict":
             return []
         if label == "relaxed":
@@ -119,7 +122,8 @@ async def test_assemble_top_findings_section_indexes_and_policy(
         {"severity": "moderate", "details": {}, "risk_vector": "z", "last_seen": "2025-10-03"},
     ]
 
-    def _build(call, ctx, base_params, limit, *, debug_enabled):  # noqa: ANN001
+    async def _build(call, ctx, base_params, limit, *, debug_enabled):  # noqa: ANN001
+        await asyncio.sleep(0)
         return svc._TopFindingsSelection(findings=list(findings), max_items=limit)
 
     monkeypatch.setattr(svc, "_build_top_findings_selection", _build)

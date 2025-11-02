@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ssl
 from types import SimpleNamespace
 from typing import Any
@@ -20,14 +21,17 @@ def _ctx_spy():
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        def info(self, msg: str) -> None:
+        async def info(self, msg: str) -> None:
             calls.append(("info", msg))
+            await asyncio.sleep(0)
 
-        def warning(self, msg: str) -> None:
+        async def warning(self, msg: str) -> None:
             calls.append(("warning", msg))
+            await asyncio.sleep(0)
 
-        def error(self, msg: str) -> None:
+        async def error(self, msg: str) -> None:
             calls.append(("error", msg))
+            await asyncio.sleep(0)
 
     return _Ctx(), calls
 
@@ -38,7 +42,8 @@ async def test_call_openapi_tool_normalizes_structured_and_json_text(
 ) -> None:
     # Fake api_server middleware returning various payload shapes
     class _API:
-        def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             assert name == "companies"
             assert "q" in params
             # First return structured, then text JSON
@@ -94,7 +99,8 @@ async def test_call_openapi_tool_unstructured_returns_raw_with_warnings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _API:
-        def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             return SimpleNamespace(structured_content=None, content=None)
 
     api = _API()
@@ -131,7 +137,8 @@ async def test_parse_text_content_invalid_json_logs_warning(
 ) -> None:
     # Exercise JSONDecodeError branch in _parse_text_content via call flow
     class _API:
-        def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             return SimpleNamespace(structured_content=None, content=[SimpleNamespace(text="{bad}")])
 
     api = _API()
@@ -199,7 +206,8 @@ async def test_call_openapi_tool_http_status_error_propagates(
     http_exc = httpx.HTTPStatusError("unauthorized", request=req, response=resp)
 
     class _API:
-        def _call_tool_middleware(self, *args, **kwargs):  # noqa: ANN001
+        async def _call_tool_middleware(self, *args, **kwargs):  # noqa: ANN001
+            await asyncio.sleep(0)
             raise http_exc
 
     # Status errors propagate
@@ -245,7 +253,8 @@ async def test_call_openapi_tool_request_error_maps_to_domain(
     monkeypatch.setattr(v1, "classify_request_error", _classifier)
 
     class _ReqAPI:
-        def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             raise httpx.RequestError("boom", request=req)
 
     with pytest.raises(_BirreErr):
@@ -269,7 +278,8 @@ def test_filter_none() -> None:
 async def test_delegate_v1_and_v2_to_common(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, dict[str, Any]]] = []
 
-    def _fake_common(api, tool, ctx, params, *, logger):  # noqa: ANN001
+    async def _fake_common(api, tool, ctx, params, *, logger):  # noqa: ANN001
+        await asyncio.sleep(0)
         calls.append((tool, params))
         return {"ok": True}
 
@@ -286,7 +296,8 @@ async def test_delegate_v1_and_v2_to_common(monkeypatch: pytest.MonkeyPatch) -> 
 @pytest.mark.asyncio
 async def test_request_error_without_mapping_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
     class _API:
-        def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             raise httpx.RequestError("boom", request=httpx.Request("GET", "https://e/x"))
 
     api = _API()
@@ -312,7 +323,8 @@ async def test_request_error_without_mapping_propagates(monkeypatch: pytest.Monk
 @pytest.mark.asyncio
 async def test_content_without_text_returns_raw_and_warns(monkeypatch: pytest.MonkeyPatch) -> None:
     class _API:
-        def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             return SimpleNamespace(structured_content=None, content=[SimpleNamespace(not_text="x")])
 
     api = _API()
@@ -349,7 +361,8 @@ async def test_params_filtering_is_applied(monkeypatch: pytest.MonkeyPatch) -> N
     seen: dict[str, Any] = {}
 
     class _API:
-        def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+            await asyncio.sleep(0)
             seen.update(params)
             assert "none_value" not in params
             return SimpleNamespace(structured_content={"result": {"ok": True}})

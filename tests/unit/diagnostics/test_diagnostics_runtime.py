@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from birre.application import diagnostics as dx
 from birre.config.settings import RuntimeSettings
 
@@ -58,7 +60,8 @@ def test_run_online_checks_success_and_cleanup(monkeypatch) -> None:  # noqa: AN
     monkeypatch.setattr(dx, "_resolve_tls_verification", lambda *a, **k: True)
 
     class FakeClient:
-        def aclose(self):  # noqa: D401
+        async def aclose(self):  # noqa: D401
+            await asyncio.sleep(0)
             return None
 
     class FakeApi:
@@ -70,15 +73,21 @@ def test_run_online_checks_success_and_cleanup(monkeypatch) -> None:  # noqa: AN
 
     monkeypatch.setattr(dx, "create_v1_api_server", lambda *a, **k: FakeApi())
 
-    def fake_checks(**k):  # type: ignore[no-untyped-def]
+    async def fake_checks(**k):  # type: ignore[no-untyped-def]
+        await asyncio.sleep(0)
         return True
 
     monkeypatch.setattr(dx, "run_online_startup_checks", fake_checks)
+
+    # Use asyncio.run for the sync runner (creates new loop)
+    def run_sync(coro):  # noqa: ANN001
+        return asyncio.run(coro)
+
     assert (
         dx.run_online_checks(
             _rs(),
             DummyLogger(),
-            run_sync=lambda c: __import__("asyncio").get_event_loop().run_until_complete(c),
+            run_sync=run_sync,
         )
         is True
     )
@@ -88,15 +97,21 @@ def test_run_online_checks_failure(monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(dx, "_resolve_tls_verification", lambda *a, **k: False)
     monkeypatch.setattr(dx, "create_v1_api_server", lambda *a, **k: object())
 
-    def fake_checks(**k):  # type: ignore[no-untyped-def]
+    async def fake_checks(**k):  # type: ignore[no-untyped-def]
+        await asyncio.sleep(0)
         return False
 
     monkeypatch.setattr(dx, "run_online_startup_checks", fake_checks)
+
+    # Use asyncio.run for the sync runner (creates new loop)
+    def run_sync(coro):  # noqa: ANN001
+        return asyncio.run(coro)
+
     assert (
         dx.run_online_checks(
             _rs(),
             DummyLogger(),
-            run_sync=lambda c: __import__("asyncio").get_event_loop().run_until_complete(c),
+            run_sync=run_sync,
         )
         is False
     )

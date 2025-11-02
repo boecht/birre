@@ -1,25 +1,28 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 import birre.domain.company_rating.service as svc
 
 
 class _Ctx:
-    def info(self, *_, **__):  # noqa: ANN001
-        return None
+    async def info(self, *_, **__):  # noqa: ANN001
+        await asyncio.sleep(0)
 
-    def warning(self, *_, **__):  # noqa: ANN001
-        return None
+    async def warning(self, *_, **__):  # noqa: ANN001
+        await asyncio.sleep(0)
 
-    def error(self, *_, **__):  # noqa: ANN001
-        return None
+    async def error(self, *_, **__):  # noqa: ANN001
+        await asyncio.sleep(0)
 
 
 @pytest.mark.asyncio
 async def test_fetch_company_profile_dict_validates_shape() -> None:
     # Non-dict result should raise
-    def _call(tool: str, ctx, params):  # noqa: ANN001
+    async def _call(tool: str, ctx, params):  # noqa: ANN001
+        await asyncio.sleep(0)
         return 123
 
     with pytest.raises(ValueError):
@@ -48,7 +51,8 @@ async def test_retrieve_top_findings_payload_handles_exception(
 @pytest.mark.asyncio
 async def test_build_rating_payload_success(monkeypatch: pytest.MonkeyPatch) -> None:
     # Stub company profile and findings
-    def _company(tool: str, ctx, params):  # noqa: ANN001
+    async def _company(tool: str, ctx, params):  # noqa: ANN001
+        await asyncio.sleep(0)
         return {
             "name": "Example Corp",
             "primary_domain": "example.com",
@@ -59,7 +63,8 @@ async def test_build_rating_payload_success(monkeypatch: pytest.MonkeyPatch) -> 
             ],
         }
 
-    def _findings(*args, **kwargs):  # noqa: ANN001
+    async def _findings(*args, **kwargs):  # noqa: ANN001
+        await asyncio.sleep(0)
         return svc.TopFindings.model_validate(
             {
                 "policy": {

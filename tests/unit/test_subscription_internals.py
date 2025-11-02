@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 import birre.domain.subscription as sub
@@ -22,7 +24,8 @@ async def test_log_bulk_response_debug_toggle(monkeypatch) -> None:
     calls = []
 
     class _Ctx:
-        def info(self, msg: str) -> None:
+        async def info(self, msg: str) -> None:
+            await asyncio.sleep(0)
             calls.append(msg)
 
     ctx = _Ctx()
