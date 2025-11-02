@@ -44,11 +44,7 @@ jobs:
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          if [ -n "${BITSIGHT_API_KEY}" ]; then
-            uv run pytest --verbose
-          else
-            uv run pytest --offline --verbose
-          fi
+          uv run python -c "import os, sys; sys.exit(0 if os.getenv('BITSIGHT_API_KEY') else 1)" && uv run pytest --verbose || uv run pytest --offline --verbose
 
       - name: Test CLI entrypoint
         shell: bash
@@ -80,11 +76,7 @@ jobs:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
           uv run python --version
-          if [ -n "${BITSIGHT_API_KEY}" ]; then
-            uv run pytest --verbose
-          else
-            uv run pytest --offline --verbose
-          fi
+          uv run python -c "import os, sys; sys.exit(0 if os.getenv('BITSIGHT_API_KEY') else 1)" && uv run pytest --verbose || uv run pytest --offline --verbose
 
   path-separators:
     name: Test path handling (${{ matrix.os }})
