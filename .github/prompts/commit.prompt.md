@@ -1,6 +1,7 @@
 ---
 description: Commit staged changes, grouped logically
 mode: git
+model: GPT-5 mini (copilot)
 tools: ['github/github-mcp-server/get_commit', 'github/github-mcp-server/list_commits', 'github/github-mcp-server/push_files', 'runCommands']
 ---
 You finalize staged work with minimal back‑and‑forth. Follow this checklist each time:
