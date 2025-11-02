@@ -1,31 +1,40 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
 
-_SRC_ROOT = _REPO_ROOT / "src"
-if _SRC_ROOT.exists() and str(_SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SRC_ROOT))
-
-import pytest  # noqa: E402
-
-_TESTS_ROOT = Path(__file__).parent.resolve()
-_UNIT_ROOT = _TESTS_ROOT / "unit"
-_INTEGRATION_ROOT = _TESTS_ROOT / "integration"
+def pytest_addoption(parser: pytest.Parser) -> None:
+    group = parser.getgroup("birre")
+    group.addoption(
+        "--offline",
+        action="store_true",
+        dest="birre_offline",
+        help="Run offline tests only (deselect tests marked 'online').",
+    )
+    group.addoption(
+        "--online-only",
+        action="store_true",
+        dest="birre_online_only",
+        help="Run only tests marked 'online' (deselect offline).",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Auto-tag tests from the unit and integration trees with the right markers."""
+    run_offline_only = bool(config.getoption("birre_offline"))
+    run_online_only = bool(config.getoption("birre_online_only"))
 
-    for item in items:
-        path = Path(item.fspath).resolve()
-        if _UNIT_ROOT in path.parents:
-            item.add_marker("unit")
-            item.add_marker("offline")
-        elif _INTEGRATION_ROOT in path.parents:
-            item.add_marker("integration")
-            item.add_marker("online")
+    if run_offline_only and run_online_only:
+        # Command line misuse; prefer explicit error
+        raise pytest.UsageError("--offline and --online-only are mutually exclusive")
+
+    if run_online_only:
+        deselect = [item for item in items if "online" not in item.keywords]
+    elif run_offline_only:
+        deselect = [item for item in items if "online" in item.keywords]
+    else:
+        # Default: run all collected tests; online tests will self-skip if API key/dep missing
+        deselect = []
+
+    if deselect:
+        config.hook.pytest_deselected(items=deselect)
+        items[:] = [item for item in items if item not in deselect]
