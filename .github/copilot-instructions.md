@@ -50,7 +50,7 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 ### Documentation Principles
 
 - **Code Comments (implementation-facing)**
-  - See [Python Style Instructions](instructions/python-style.instructions.md) for editing-time guidance.
+  - See [Python Style Instructions](instructions/edit-python.instructions.md) for editing-time guidance.
 
 ## 3. Standard Workflow
 
@@ -111,7 +111,7 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 When asking the user for clarification, follow this template:
 
 ```text
-**Question #X**: {Clear, specific question}
+**Question X**: {Clear, specific question}
 **Options**:
 - A) {Option with trade-offs}
 - B) {Option with trade-offs}
