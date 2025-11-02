@@ -73,6 +73,9 @@ class Utf8StreamHandler(logging.StreamHandler[Any]):
                     buffer.write(data)
                 else:
                     stream.write(data.decode("utf-8", "replace"))
+            except (ValueError, OSError):
+                # Stream was closed during test teardown or other scenarios
+                pass
             self.flush()
         except Exception:  # pragma: no cover - defensive
             self.handleError(record)
