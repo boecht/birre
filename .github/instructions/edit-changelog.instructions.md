@@ -3,7 +3,32 @@ applyTo: 'CHANGELOG.md'
 ---
 # CHANGELOG Standards for BiRRe (Authoring Instructions)
 
-This is the authoritative guidance for creating or editing `CHANGELOG.md`. It consolidates the standards previously documented in `docs/CHANGELOG_STANDARDS.md`.
+This is the authoritative guidance for creating or editing `CHANGELOG.md`.
+
+## ⚠️ Critical Rules (Most Commonly Violated)
+
+**These rules are NON-NEGOTIABLE. Entries violating these will be rejected:**
+
+1. **Comprehensive Coverage**: The changelog entry MUST cover ALL commits on the current branch since the last release/merge to main, not just the most recent commit.
+   - ✅ Correct: Analyze all 51 commits and extract user-facing changes from each
+   - ❌ Wrong: Only look at the last commit and write 5 lines
+
+2. **Category Order**: Use categories in this EXACT order (omit empty ones):
+   1. Changed
+   2. Added
+   3. Deprecated
+   4. Removed
+   5. Fixed
+   6. Security
+
+3. **Imperative Mood**: ALL bullets must use imperative verbs:
+   - ✅ Correct: "Add feature", "Fix bug", "Remove deprecated API", "Enhance performance"
+   - ❌ Wrong: "Added feature", "Fixed bug", "New feature", "Performance enhanced"
+   - ❌ Wrong: "Feature addition", "Bug fix", "Deprecated API removal"
+
+4. **User Benefits Over Implementation**: Describe WHAT users get, not HOW you built it:
+   - ✅ Correct: "Improve startup time by 50%"
+   - ❌ Wrong: "Refactor config loader to use lazy loading"
 
 ## Core Principles
 
@@ -19,9 +44,8 @@ This is the authoritative guidance for creating or editing `CHANGELOG.md`. It co
 ```markdown
 # Changelog
 
-All notable changes to BiRRe will be documented in this file.
-
-The format is based on Keep a Changelog, adapted for BiRRe’s quality-first approach.
+All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
+See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
 ## [X.Y.Z] - YYYY-MM-DD
 
@@ -77,8 +101,28 @@ The format is based on Keep a Changelog, adapted for BiRRe’s quality-first app
 
 ### Imperative Mood (Required)
 
-- Correct: “Add health check endpoint” / “Remove deprecated sync mode” / “Fix memory leak in API client”
-- Wrong: “Added …”, “Removed …”, “Fixed …”
+**Every single bullet point MUST start with an imperative verb. No exceptions.**
+
+Examples of imperative verbs to use:
+- Add, Remove, Fix, Update, Change, Improve, Enhance, Reduce, Increase
+- Support, Enable, Disable, Provide, Include, Exclude
+- Resolve, Correct, Prevent, Detect, Monitor, Track
+
+✅ **Correct Examples**:
+- "Add health check endpoint"
+- "Remove deprecated sync mode"
+- "Fix memory leak in API client"
+- "Improve startup time by 50%"
+- "Enhance error messages for authentication failures"
+
+❌ **Wrong Examples** (and why):
+- "Added health check endpoint" — past tense verb
+- "Removed deprecated sync mode" — past tense verb
+- "New health check endpoint" — noun phrase, not imperative
+- "Health check endpoint added" — passive voice
+- "Comprehensive property-based testing" — noun phrase only
+
+**Test**: If the bullet doesn't start with a command verb, it's wrong.
 
 ### User Benefits (Required)
 
@@ -92,7 +136,7 @@ The format is based on Keep a Changelog, adapted for BiRRe’s quality-first app
 
 ### Breaking Changes (Required Format)
 
-Prefix with `**Breaking:**` and place under Changed or Removed.
+Prefix with `**Breaking:**` and place first under Changed or Removed.
 
 ## Examples
 

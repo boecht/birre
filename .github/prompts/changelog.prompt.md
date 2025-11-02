@@ -1,26 +1,56 @@
 ---
 description: Draft and insert a CHANGELOG entry from recent changes
 mode: git
-tools: ['runCommands', 'crash/*', 'github/github-mcp-server/get_commit', 'github/github-mcp-server/get_latest_release', 'github/github-mcp-server/list_branches', 'github/github-mcp-server/list_commits', 'github/github-mcp-server/list_pull_requests', 'github/github-mcp-server/list_releases', 'github/github-mcp-server/list_tags', 'github/github-mcp-server/pull_request_read', 'github/github-mcp-server/search_pull_requests', 'think', 'changes']
+tools: [
+  'edit/editFiles',
+  'runCommands',
+  'search',
+  'crash/*',
+  'github/github-mcp-server/get_commit',
+  'github/github-mcp-server/get_file_contents',
+  'github/github-mcp-server/get_label',
+  'github/github-mcp-server/get_latest_release',
+  'github/github-mcp-server/get_release_by_tag',
+  'github/github-mcp-server/get_tag',
+  'github/github-mcp-server/list_branches',
+  'github/github-mcp-server/list_commits',
+  'github/github-mcp-server/list_pull_requests',
+  'github/github-mcp-server/list_releases',
+  'github/github-mcp-server/list_tags',
+  'github/github-mcp-server/pull_request_read',
+  'github/github-mcp-server/search_pull_requests',
+  'think',
+  'changes',
+  'todos',
+]
 ---
-You will create a new `CHANGELOG.md` entry that follows BiRRe standards.
+You will update or create a [`CHANGELOG.md`](../../CHANGELOG.md) entry that follows BiRRe standards.
+
+**CRITICAL**: You MUST strictly follow the rules in [edit-changelog.instructions.md](../instructions/edit-changelog.instructions.md).
+Non-compliance will result in rejected entries. Pay special attention to:
+1. **Comprehensive coverage**: Analyze ALL commits on the branch (not just the latest one!)
+2. **Category order**: Changed, Added, Deprecated, Removed, Fixed, Security (EXACT order, no exceptions)
+3. **Imperative mood**: "Add feature" NOT "Added feature" or "New feature added"
+4. **User benefits**: Describe impact, not implementation details
 
 Inputs (from user):
 
-- version (e.g., 4.0.0-alpha.3)
-- date (YYYY-MM-DD) if different from today
+- version (e.g., 4.0.0-alpha.3) — if omitted: use version from branch name if present, otherwise bump the released patch version
+- date (YYYY-MM-DD) — if omitted: use today
 
 Checklist
 
 1. Gather context
 
-- Enumerate commits on the current branch (= all commits since the last merge into main).
+- **REQUIRED**: Enumerate ALL commits on the current branch (= all commits since the last merge into main).
+- **REQUIRED**: Review EACH commit to identify user-facing changes (don't stop at the most recent commit!).
 - Skim the commit messages and, if required, diffs to understand user-facing effects.
 
 2. Categorize
 
-- Place items under the six categories in order: Changed, Added, Deprecated, Removed, Fixed, Security.
-- Use imperative mood and describe user impact (not implementation).
+- **REQUIRED**: Use the six categories in this EXACT order: Changed, Added, Deprecated, Removed, Fixed, Security.
+- **REQUIRED**: Use imperative mood for ALL bullets (e.g., "Add X", "Fix Y", "Remove Z" — NOT "Added", "Fixed", "Removed").
+- Describe user impact (not implementation): "Improve startup time" not "Refactor config loader".
 - Mark breaking changes with `**Breaking:**` under Changed/Removed.
 
 3. Write the entry
@@ -32,8 +62,8 @@ Checklist
 
 4. Save
 
-- Update `CHANGELOG.md` in place.
+- Update [`CHANGELOG.md`](../../CHANGELOG.md) in place.
 - Provide the diff of the inserted section.
 
 Reference
-- See full rules at .github/instructions/edit-changelog.instructions.md
+- See full rules at [edit-changelog.instructions.md](../instructions/edit-changelog.instructions.md)

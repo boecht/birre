@@ -203,9 +203,9 @@ but comprehensive enough to be meaningful. Avoid both:
    - Coverage (70%+ minimum)
 
 2. **Update documentation**
-   - README.md if user-facing changes
+   - [README.md](README.md) if user-facing changes
+   - [CHANGELOG.md](CHANGELOG.md) with your changes
    - Docstrings for new APIs
-   - CHANGELOG.md with your changes
 
 3. **Fill out the PR template**
    - Describe what changed and why

@@ -1,54 +1,61 @@
 # Changelog
 
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
+See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-adapted for BiRRe's quality-first approach.
-(.github/instructions/edit-changelog.instructions.md).
-
-## [4.0.0-alpha.2] - 2025-10-31
-
-### Security
-
-- Sign all releases cryptographically with Sigstore transparency log
-- Verify release authenticity through keyless signature verification
-- Ensure supply chain integrity with non-repudiable transparency entries
-- Generate Software Bill of Materials (SBOM) for all releases
-- Enforce code scanning on all pull requests (CodeQL, SonarCloud)
-- Require security reviews before merging (High or higher alerts)
+## [4.0.0-alpha.2] - 2025-11-02
 
 ### Changed
 
-- **Breaking:** Require Python 3.13+ (upgraded from 3.11+ in alpha.1)
-- Enhance code reliability and maintainability through simplified error handling
-- Improve diagnostic clarity with better error messages
-- Reduce memory footprint and improve performance through code optimization
-- Strengthen async operation handling during server startup
-- Eliminate potential race conditions in event loop management
-- Improve test coverage with property-based testing for edge cases
-- Establish performance baselines for regression tracking
-- Enforce strict quality gates on all code changes
-- Verify compatibility across all major platforms (Windows, macOS, Linux)
-- Replace magic numbers with named constants for better code clarity
-
-### Fixed
-
-- Correct type annotation for ephemeral subscription tracking (was dict, should be set)
+- **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability and error clarity
+- Improve startup reliability and remove event loop race conditions by simplifying async/sync bridge (lower memory)
+- Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
+- Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker automation parsing
+- Reduce CLI and diagnostics complexity through extensive refactors for more predictable behavior and lower maintenance risk
+- Improve logging robustness by guarding against writes to closed streams to prevent noisy teardown errors
+- Accept expected 400 "already requested" responses as successful diagnostics connectivity checks
+- Standardize test selection flags (`--offline`, `--online-only`) across CLI, docs, and workflows for clearer usage
+- Prefer local `pyproject.toml` version when displaying CLI version to give accurate development context
+- Establish performance baselines with benchmark suite to enable future regression detection
+- Increase code clarity and reliability by replacing magic numbers with named constants and enforcing low complexity thresholds
+- Streamline release workflow with validated version inputs and safer tag extraction for consistent releases
+- Improve Windows/macOS/Linux parity with cross-platform test matrix running under Python 3.13
+- Consolidate formatting and validation utilities for consistent, cleaner CLI tables and messages
 
 ### Added
 
-- Provide release signature verification guide for users and developers
-- Include comprehensive dependency inventory in all release artifacts
-- Test data processing logic automatically with thousands of random inputs
-- Detect edge cases in severity scoring and finding normalization
-- Track performance metrics for critical code paths
-- Monitor for performance regressions in search and findings processing
-- Require all changes via pull requests with automated validation
-- Integrate AI-assisted code review with GitHub Copilot
-- Enforce conversation resolution before merging
-- Block force pushes and direct commits to main branch
-- Validate code on Windows, macOS, and Linux before merging
-- Test with Python 3.13 across all major platforms
+- Add property-based testing (Hypothesis) to detect edge cases automatically in rating and findings logic
+- Add performance benchmarks (pytest-benchmark) for critical paths to track regressions over time
+- Add complexity checking (mccabe) to enforce a maximum function complexity threshold and surface refactor candidates
+- Add parent company enrichment and rating color details to interactive search results for richer risk context
+- Add dependency review, Scorecard, and Codecov workflows for safer dependencies and coverage transparency
+- Add agent operations and prompt documentation to standardize automated contribution workflows
+
+### Removed
+
+- Remove dry-run shortcuts from diagnostics so production selftests execute real API calls for authentic validation
+- Remove thousands of lines of duplicate and obsolete CLI/diagnostic helper code to lower memory usage and improve performance
+
+### Fixed
+
+- Fix configuration validation to compare enum values with equality instead of identity for reliable parameter source detection
+- Fix selftest failures by correcting tool parameter names and making mock context methods async
+- Fix interactive search 403 errors by creating required ephemeral subscriptions before fetching company details
+- Fix logging handler errors during teardown by safely ignoring closed stream writes
+- Fix background task handling to keep tasks alive during sync bridge tests preventing premature cancellation issues
+- Fix Windows path and whitespace normalization in CLI tests to avoid spurious failures across platforms
+- Fix version display fallback logic to show meaningful messages when local version metadata is unavailable
+- Fix release workflow to sanitize version inputs and prevent command injection via workflow dispatch values
+- Fix subscription tracking type (use set instead of dict) to correct ephemeral subscription handling
+
+### Security
+
+- Harden release workflow with strict version validation and sanitized tag extraction
+- Enforce least-privilege GitHub Actions permissions (contents: read) across workflows to reduce token scope
+- Add Dependency Review Action to block introduction of known vulnerable packages before merge
+- Add OpenSSF Scorecard supply-chain security analysis for continuous security posture monitoring
+- Maintain reproducible and verifiable CI by pinning critical GitHub actions versions for stability
+- Expand automated code scanning (CodeQL, SonarCloud) coverage for earlier vulnerability and quality issue detection
 
 ## [4.0.0-alpha.1] - 2025-10-30
 

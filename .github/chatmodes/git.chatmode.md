@@ -1,6 +1,7 @@
 ---
 description: 'Interact with Git'
 tools: [
+  'edit/editFiles',
   'runCommands',
   'search',
   'crash/*',

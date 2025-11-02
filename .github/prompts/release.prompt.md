@@ -1,7 +1,13 @@
 ---
 description: Prep a release from a dev branch with an active PR
 mode: git
-tools: ['changes', 'github/github-mcp-server/push_files', 'github/github-mcp-server/list_commits', 'github/github-mcp-server/get_commit', 'runCommands']
+tools: [
+  'changes',
+  'github/github-mcp-server/push_files',
+  'github/github-mcp-server/list_commits',
+  'github/github-mcp-server/get_commit',
+  'runCommands'
+]
 ---
 Given context: you’re on a dev branch with multiple existing changes and an active PR.
 Prepare the branch for release with minimal interaction.
@@ -13,8 +19,8 @@ Checklist
 
 1. Changelog up to date
 
-- Check `CHANGELOG.md` contains a section for `<next_version>` in the six-category format.
-- If missing or style violations are obvious, state what’s needed and stop.
+- Check [`CHANGELOG.md`](../../CHANGELOG.md) contains a section for `<next_version>` in the six-category format.
+- If missing or style violations are obvious, state what's needed and stop.
 
 2. Versions bumped
 

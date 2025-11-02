@@ -181,4 +181,4 @@ rekor-cli get --uuid <UUID_FROM_SEARCH>
 
 ### Security Issues
 
-See [SECURITY.md](SECURITY.md) for responsible disclosure.
+See [SECURITY.md](../SECURITY.md) for responsible disclosure.

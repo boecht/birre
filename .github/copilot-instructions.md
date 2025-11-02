@@ -1,6 +1,6 @@
 # CoPilot Instructions
 
-This document supersedes AGENTS.md and contains the full Agent Operations Guide for BiRRe.
+This document contains the full Agent Operations Guide for BiRRe.
 
 ## Agent Operations Guide
 
@@ -11,12 +11,12 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 
 ### Quick Links
 
-- Project Overview: @README.md
-- Changelog: @CHANGELOG.md
-- Changelog Standards: @docs/CHANGELOG_STANDARDS.md
-- Project Architecture: @docs/ARCHITECTURE.md
-- BitSight API v1 Reference: @docs/apis/bitsight.v1.overview.md
-- BitSight API v2 Reference: @docs/apis/bitsight.v2.overview.md
+- Project Overview: [README.md](../README.md)
+- Changelog: [CHANGELOG.md](../CHANGELOG.md)
+- Changelog Standards: [edit-changelog.instructions.md](instructions/edit-changelog.instructions.md)
+- Project Architecture: [ARCHITECTURE.md](../docs/ARCHITECTURE.md)
+- BitSight API v1 Reference: [bitsight.v1.overview.md](../docs/apis/bitsight.v1.overview.md)
+- BitSight API v2 Reference: [bitsight.v2.overview.md](../docs/apis/bitsight.v2.overview.md)
 - FastMCP framework: <https://gofastmcp.com/servers/server>
 
 ## 2. Core Principles
@@ -40,7 +40,7 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
    - Clean, maintainable architecture outranks legacy API stability
 
 4. **Documentation focuses on user value, not internal implementation.**
-   - CHANGELOG entries describe user benefits using @docs/CHANGELOG_STANDARDS.md
+   - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
    - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
    - Keep technical specifics in commits and internal tracking
    - Example:
