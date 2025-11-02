@@ -84,7 +84,7 @@ async def test_nonexistent_company_guid(v1_client: Client) -> None:
     try:
         await v1_client.call_tool(
             "getCompany",
-            {"company_guid": fake_guid},
+            {"guid": fake_guid},
         )
         # If we get a result, that's okay - the API might return empty data
     except Exception as e:

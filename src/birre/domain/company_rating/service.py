@@ -553,7 +553,9 @@ async def _fetch_and_normalize_findings(
     *,
     debug_enabled: bool,
 ) -> tuple[list[dict[str, Any]], bool]:
-    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
+    # Allow test doubles that return either an awaitable or a plain value
+    result = call_v1_tool("getCompaniesFindings", ctx, params)
+    raw = await result if hasattr(result, "__await") else result
     if not isinstance(raw, dict):
         return [], False
     _debug(

@@ -918,16 +918,27 @@ async def _subscribe_and_fetch_parent(
             subscription_type=defaults.subscription_type,
         )
 
-    # Fetch parent details
-    parent_data_map = await _fetch_company_details(
-        call_v1_tool,
-        ctx,
-        [parent_guid],
-        logger=logger,
-        limit=DEFAULT_FINDINGS_LIMIT,
-    )
-    parent_data = parent_data_map.get(parent_guid)
-    return ephemeral, parent_data
+    # Fetch parent details. Ensure we still return the ephemeral set even if
+    # detail fetching fails so callers can clean up subscriptions.
+    try:
+        parent_data_map = await _fetch_company_details(
+            call_v1_tool,
+            ctx,
+            [parent_guid],
+            logger=logger,
+            limit=DEFAULT_FINDINGS_LIMIT,
+        )
+        parent_data = parent_data_map.get(parent_guid)
+        return ephemeral, parent_data
+    except Exception as exc:  # pragma: no cover - defensive safety
+        await ctx.warning(f"Failed to fetch parent company details for {parent_guid}: {exc}")
+        logger.warning(
+            "parent_detail.fetch_failed",
+            company_guid=parent_guid,
+            error=str(exc),
+        )
+        # Return any ephemeral subscriptions so outer cleanup can proceed
+        return ephemeral, None
 
 
 def _build_parent_entries(
