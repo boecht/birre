@@ -99,21 +99,29 @@ selftest_command.register(
 
 @app.command(help="Show the installed BiRRe package version.")
 def version() -> None:
-    """Print the BiRRe version discovered from the package metadata."""
-    from importlib import metadata
+    """Print the BiRRe version discovered from project metadata.
 
-    try:
-        resolved_version = metadata.version("BiRRe")
-    except metadata.PackageNotFoundError:
-        pyproject = PROJECT_ROOT / "pyproject.toml"
-        if not pyproject.exists():
-            stdout_console.print("Version information unavailable")
-            return
+    Resolution order:
+    1) If a local pyproject.toml exists, prefer its `[project].version` value.
+       If the file exists but lacks a version, print "unknown".
+    2) Otherwise fall back to the installed package version via importlib.metadata.
+       If the package is not installed, emit a generic unavailability message.
+    """
+    pyproject = PROJECT_ROOT / "pyproject.toml"
+    if pyproject.exists():
         import tomllib
 
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        resolved_version = data.get("project", {}).get("version", "unknown")
-    stdout_console.print(resolved_version)
+        resolved_version = data.get("project", {}).get("version")
+        stdout_console.print(resolved_version or "unknown")
+        return
+
+    from importlib import metadata
+
+    try:
+        stdout_console.print(metadata.version("BiRRe"))
+    except metadata.PackageNotFoundError:
+        stdout_console.print("Version information unavailable")
 
 
 @app.command(help="Print the BiRRe README to standard output.")
