@@ -45,15 +45,18 @@
 
 ## Upcoming Roadmap
 
-### 4.0.0 — Caching Layer (planned)
+### 4.0.0 — Structural Hardening & Developer Ergonomics (planned)
+
+- Lock in strict typing, property-based tests, and benchmark suites as release criteria.
+- Expand cross-platform CI coverage and surface performance telemetry from new benchmarks.
+- Harden release/security workflows (Sigstore signing, SBOMs, dependency review, branch protection).
+- Finish CLI/diagnostics refactors, logging safeguards, and prompt documentation for contributors.
+
+### 5.0.0 — Caching & Company Reports (planned)
 
 - Persist recent rating payloads and BitSight report artefacts to reduce redundant API calls.
-- Respect expiry windows and surface cache hits/misses in telemetry.
-
-### 5.0.0 — Company Reports Delivery (planned)
-
+- Respect expiry windows, surface cache hits/misses, and reuse cached assets when exporting reports.
 - Provide transport options for BitSight PDF reports (direct response, email, or configured file share).
-- Integrate with the caching layer to avoid repeated downloads.
 
 ### 6.0.0 — Multi-Tenant Service (planned)
 
