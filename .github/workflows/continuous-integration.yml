@@ -1,0 +1,321 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+      - "dev/*"
+  push:
+    branches:
+      - main
+      - "release/*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          comment-summary-in-pr: never
+          fail-on-severity: moderate
+          retry-on-snapshot-warnings: true
+
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.static-analysis.outputs.status }}
+      snippet: ${{ steps.static-analysis.outputs.snippet }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Cache uv environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --frozen
+
+      - name: Run static analysis suite
+        id: static-analysis
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+
+          mkdir -p "$HOME/.local/bin"
+          echo "## actionlint install" >> lint-output.txt
+          if curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+            | bash -s -- -b "$HOME/.local/bin" >> lint-output.txt 2>&1; then
+            echo "actionlint install: OK" >> lint-status.txt
+          else
+            echo "actionlint install: FAIL" >> lint-status.txt
+            status=1
+          fi
+          export PATH="$HOME/.local/bin:$PATH"
+
+          run_check() {
+            local name="$1"
+            shift
+            echo "## $name" >> lint-output.txt
+            if "$@" >> lint-output.txt 2>&1; then
+              echo "$name: OK" >> lint-status.txt
+            else
+              rc=$?
+              echo "$name: FAIL (exit $rc)" >> lint-status.txt
+              status=1
+            fi
+            echo "" >> lint-output.txt
+          }
+
+          run_check "actionlint" actionlint
+          run_check "Ruff check" uv run ruff check src tests
+          run_check "Ruff format" uv run ruff format --check src tests
+          run_check "Mypy" uv run mypy src
+          run_check "pip-audit" uv tool run pip-audit --strict
+
+          tail -n 200 lint-output.txt > lint-snippet.txt || true
+          printf 'snippet<<EOF\n%s\nEOF\n' "$(cat lint-snippet.txt)" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit $status
+
+  tests:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    outputs:
+      status: ${{ steps.pytest.outputs.status }}
+      snippet: ${{ steps.pytest.outputs.snippet }}
+      mode: ${{ steps.pytest.outputs.mode }}
+      coverage: ${{ steps.coverage.outputs.line_rate }}
+      lowfiles: ${{ steps.coverage.outputs.low_files }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Cache uv environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --frozen
+
+      - name: Run test suite
+        id: pytest
+        shell: bash
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+        run: |
+          set -o pipefail
+          status=0
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            MODE="online+offline"
+            CMD="uv run pytest --cov=src/birre --cov-report=term --cov-report=xml --cov-fail-under=70"
+          else
+            MODE="offline"
+            CMD="uv run pytest --offline --cov=src/birre --cov-report=term --cov-report=xml --cov-fail-under=70"
+          fi
+          echo "Running tests in $MODE mode" > pytest-output.txt
+          if ! eval "$CMD" >> pytest-output.txt 2>&1; then
+            status=$?
+          fi
+          tail -n 200 pytest-output.txt > pytest-snippet.txt || true
+          printf 'snippet<<EOF\n%s\nEOF\n' "$(cat pytest-snippet.txt)" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          exit $status
+
+      - name: Extract coverage summary
+        id: coverage
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f coverage.xml ]; then
+            echo "line_rate=" >> "$GITHUB_OUTPUT"
+            echo "low_files=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+
+          line_rate = float(root.get('line-rate', 0.0)) * 100
+
+          files = []
+          for cls in root.findall('.//class'):
+              filename = cls.get('filename')
+              if not filename:
+                  continue
+              rate = float(cls.get('line-rate', 0.0)) * 100
+              files.append((rate, filename))
+
+          files.sort()
+          low_lines = '\n'.join(f"- {fname}: {rate:.1f}%" for rate, fname in files[:3])
+
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as fh:
+              fh.write(f"line_rate={line_rate:.2f}\n")
+              fh.write("low_files<<EOF\n")
+              if low_lines:
+                  fh.write(low_lines + "\n")
+              fh.write("EOF\n")
+          PY
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        if: success()
+        with:
+          files: ./coverage.xml
+          flags: pr-validation
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [lint, tests]
+    if: always()
+
+    steps:
+      - name: Find existing summary comment
+        id: find-comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## CI Quality Gate'
+
+      - name: Prepare failure body
+        id: failure-body
+        if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          LINT_SNIPPET: ${{ needs.lint.outputs.snippet }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          TEST_SNIPPET: ${{ needs.tests.outputs.snippet }}
+          COVERAGE: ${{ needs.tests.outputs.coverage }}
+          LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
+        run: |
+          body="## CI Quality Gate\n"
+
+          if [ "$LINT_RESULT" != "success" ]; then
+            body+="\n### Lint & Static Analysis issues\n"
+            if [ -n "$LINT_SNIPPET" ]; then
+              body+=$(printf '\n```\n%s\n```\n' "$LINT_SNIPPET")
+            else
+              body+="\nSee workflow logs for details.\n"
+            fi
+          fi
+
+          if [ "$TEST_RESULT" != "success" ]; then
+            if [ "$TEST_RESULT" = "skipped" ]; then
+              body+="\n### Tests skipped\nTests did not run because earlier checks failed.\n"
+            else
+              body+="\n### Tests & Coverage issues\n"
+              if [ -n "$TEST_SNIPPET" ]; then
+                body+=$(printf '\n```\n%s\n```\n' "$TEST_SNIPPET")
+              else
+                body+="\nSee workflow logs for details.\n"
+              fi
+              if [ -n "$COVERAGE" ]; then
+                body+="\nCoverage: ${COVERAGE}%\n"
+              fi
+              if [ -n "$LOW_FILES" ]; then
+                body+="\nLowest coverage files:\n$LOW_FILES\n"
+              fi
+            fi
+          fi
+
+          printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update summary comment
+        if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          body: ${{ steps.failure-body.outputs.body }}
+          edit-mode: replace
+
+      - name: Delete summary comment
+        if: ${{ github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id != '' && needs.lint.result == 'success' && needs.tests.result == 'success' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.find-comment.outputs.comment-id }}
+            })
+
+      - name: Emit job summary
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          COVERAGE: ${{ needs.tests.outputs.coverage }}
+          LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
+        run: |
+          {
+            echo "## CI Quality Gate"
+            echo "Lint status: $LINT_RESULT"
+            echo "Test status: $TEST_RESULT"
+            if [ -n "$COVERAGE" ]; then
+              echo "Coverage: ${COVERAGE}%"
+            fi
+            if [ -n "$LOW_FILES" ]; then
+              echo "Lowest coverage files:"
+              echo "$LOW_FILES"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
