@@ -257,8 +257,8 @@ jobs:
 
           if [ "$LINT_RESULT" != "success" ]; then
             body+="\n### Lint & Static Analysis issues\n"
-            if [ -n "$LINT_SNIPPET" ]; then
-              body+=$(printf "\n```\n%s\n```\n" "$LINT_SNIPPET")
+          if [ -n "$LINT_SNIPPET" ]; then
+              body+=$(printf '\n```\n%s\n```\n' "$LINT_SNIPPET")
             else
               body+="\nSee workflow logs for details.\n"
             fi
@@ -270,7 +270,7 @@ jobs:
             else
               body+="\n### Tests & Coverage issues\n"
               if [ -n "$TEST_SNIPPET" ]; then
-                body+=$(printf "\n```\n%s\n```\n" "$TEST_SNIPPET")
+                body+=$(printf '\n```\n%s\n```\n' "$TEST_SNIPPET")
               else
                 body+="\nSee workflow logs for details.\n"
               fi
