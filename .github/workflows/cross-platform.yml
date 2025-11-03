@@ -192,9 +192,14 @@ jobs:
 
       - name: Delete summary comment
         if: ${{ github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id != '' && needs.workflow-lint.result == 'success' && needs.test-matrix.result == 'success' }}
-        uses: peter-evans/delete-comment@v2
+        uses: actions/github-script@v7
         with:
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.find-comment.outputs.comment-id }}
+            })
 
       - name: Emit job summary
         shell: bash
