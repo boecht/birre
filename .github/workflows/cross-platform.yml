@@ -64,6 +64,8 @@ jobs:
           uv sync --all-extras
 
       - name: Run tests (full if API key present, else offline)
+        if: runner.os != 'Windows'
+        shell: bash
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
@@ -72,6 +74,19 @@ jobs:
           else
             uv run pytest --offline --verbose
           fi
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+        run: |
+          if ($Env:BITSIGHT_API_KEY) {
+            uv run pytest --verbose
+          }
+          else {
+            uv run pytest --offline --verbose
+          }
 
       - name: Test config file discovery (Unix-style paths)
         if: runner.os != 'Windows'
