@@ -161,12 +161,14 @@ jobs:
             MODE="offline"
             CMD="uv run pytest --offline --cov=src/birre --cov-report=term --cov-report=xml --cov-fail-under=70"
           fi
-          echo "Running tests in $MODE mode" > pytest-output.txt
+          {
+            echo "Running tests in $MODE mode"
+          } > pytest-output.txt
           if ! eval "$CMD" >> pytest-output.txt 2>&1; then
             status=$?
           fi
           tail -n 200 pytest-output.txt > pytest-snippet.txt || true
-          printf 'snippet<<EOF\n%s\nEOF\n' "$(cat pytest-snippet.txt)" >> "$GITHUB_OUTPUT"
+          printf "snippet<<EOF\n%s\nEOF\n" "$(cat pytest-snippet.txt)" >> "$GITHUB_OUTPUT"
           echo "status=$status" >> "$GITHUB_OUTPUT"
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           exit $status
