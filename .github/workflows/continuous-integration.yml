@@ -253,38 +253,54 @@ jobs:
           COVERAGE: ${{ needs.tests.outputs.coverage }}
           LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
         run: |
-          body=$(printf '## CI Quality Gate\n')
+          comment_file=$(mktemp)
 
-          if [ "$LINT_RESULT" != "success" ]; then
-            body+=$(printf '\n### Lint & Static Analysis issues\n')
-            if [ -n "$LINT_SNIPPET" ]; then
-              body+=$(printf '\n```\n%s\n```\n' "$LINT_SNIPPET")
-            else
-              body+="\nSee workflow logs for details.\n"
-            fi
-          fi
+          {
+            echo '## CI Quality Gate'
 
-          if [ "$TEST_RESULT" != "success" ]; then
-            if [ "$TEST_RESULT" = "skipped" ]; then
-              body+=$(printf '\n### Tests skipped\nTests did not run because earlier checks failed.\n')
-            else
-              body+=$(printf '\n### Tests & Coverage issues\n')
-              if [ -n "$TEST_SNIPPET" ]; then
-                body+=$(printf '\n```\n%s\n```\n' "$TEST_SNIPPET")
+            if [ "$LINT_RESULT" != 'success' ]; then
+              echo
+              echo '### Lint & Static Analysis issues'
+              if [ -n "$LINT_SNIPPET" ]; then
+                printf '%s\n' '```'
+                printf '%s\n' "$LINT_SNIPPET"
+                printf '%s\n' '```'
               else
-                body+=$(printf '\nSee workflow logs for details.\n')
-              fi
-              if [ -n "$COVERAGE" ]; then
-                body+=$(printf '\nCoverage: %s%%%\n' "$COVERAGE")
-              fi
-              if [ -n "$LOW_FILES" ]; then
-                body+=$(printf '\nLowest coverage files:\n%s\n' "$LOW_FILES")
+                echo 'See workflow logs for details.'
               fi
             fi
+
+            if [ "$TEST_RESULT" != 'success' ]; then
+              if [ "$TEST_RESULT" = 'skipped' ]; then
+                echo
+                echo '### Tests skipped'
+                echo 'Tests did not run because earlier checks failed.'
+              else
+                echo
+                echo '### Tests & Coverage issues'
+                if [ -n "$TEST_SNIPPET" ]; then
+                  printf '%s\n' '```'
+                  printf '%s\n' "$TEST_SNIPPET"
+                  printf '%s\n' '```'
+                else
+                  echo 'See workflow logs for details.'
+                fi
+                if [ -n "$COVERAGE" ]; then
+                  printf 'Coverage: %s%%\n' "$COVERAGE"
+                fi
+                if [ -n "$LOW_FILES" ]; then
+                  echo 'Lowest coverage files:'
+                  printf '%s\n' "$LOW_FILES"
+                fi
+              fi
+            fi
+          } > "$comment_file"
+
+          if [ -s "$comment_file" ]; then
+            printf 'body<<EOF\n%s\nEOF\n' "$(cat "$comment_file")" >> "$GITHUB_OUTPUT"
           fi
 
-          printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
-
+          rm -f "$comment_file"
       - name: Create or update summary comment
         if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
         uses: peter-evans/create-or-update-comment@v5
