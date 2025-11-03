@@ -169,8 +169,10 @@ jobs:
           fi
           tail -n 200 pytest-output.txt > pytest-snippet.txt || true
           printf "snippet<<EOF\n%s\nEOF\n" "$(cat pytest-snippet.txt)" >> "$GITHUB_OUTPUT"
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          {
+            echo "status=$status"
+            echo "mode=$MODE"
+          } >> "$GITHUB_OUTPUT"
           exit $status
 
       - name: Extract coverage summary
@@ -256,7 +258,7 @@ jobs:
           if [ "$LINT_RESULT" != "success" ]; then
             body+="\n### Lint & Static Analysis issues\n"
             if [ -n "$LINT_SNIPPET" ]; then
-              body+=$(printf '\n```\n%s\n```\n' "$LINT_SNIPPET")
+              body+=$(printf "\n```\n%s\n```\n" "$LINT_SNIPPET")
             else
               body+="\nSee workflow logs for details.\n"
             fi
@@ -268,7 +270,7 @@ jobs:
             else
               body+="\n### Tests & Coverage issues\n"
               if [ -n "$TEST_SNIPPET" ]; then
-                body+=$(printf '\n```\n%s\n```\n' "$TEST_SNIPPET")
+                body+=$(printf "\n```\n%s\n```\n" "$TEST_SNIPPET")
               else
                 body+="\nSee workflow logs for details.\n"
               fi
