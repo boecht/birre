@@ -253,11 +253,11 @@ jobs:
           COVERAGE: ${{ needs.tests.outputs.coverage }}
           LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
         run: |
-          body="## CI Quality Gate\n"
+          body=$(printf '## CI Quality Gate\n')
 
           if [ "$LINT_RESULT" != "success" ]; then
-            body+="\n### Lint & Static Analysis issues\n"
-          if [ -n "$LINT_SNIPPET" ]; then
+            body+=$(printf '\n### Lint & Static Analysis issues\n')
+            if [ -n "$LINT_SNIPPET" ]; then
               body+=$(printf '\n```\n%s\n```\n' "$LINT_SNIPPET")
             else
               body+="\nSee workflow logs for details.\n"
@@ -266,24 +266,24 @@ jobs:
 
           if [ "$TEST_RESULT" != "success" ]; then
             if [ "$TEST_RESULT" = "skipped" ]; then
-              body+="\n### Tests skipped\nTests did not run because earlier checks failed.\n"
+              body+=$(printf '\n### Tests skipped\nTests did not run because earlier checks failed.\n')
             else
-              body+="\n### Tests & Coverage issues\n"
+              body+=$(printf '\n### Tests & Coverage issues\n')
               if [ -n "$TEST_SNIPPET" ]; then
                 body+=$(printf '\n```\n%s\n```\n' "$TEST_SNIPPET")
               else
-                body+="\nSee workflow logs for details.\n"
+                body+=$(printf '\nSee workflow logs for details.\n')
               fi
               if [ -n "$COVERAGE" ]; then
-                body+="\nCoverage: ${COVERAGE}%\n"
+                body+=$(printf '\nCoverage: %s%%%\n' "$COVERAGE")
               fi
               if [ -n "$LOW_FILES" ]; then
-                body+="\nLowest coverage files:\n$LOW_FILES\n"
+                body+=$(printf '\nLowest coverage files:\n%s\n' "$LOW_FILES")
               fi
             fi
           fi
 
-          printf "body<<EOF\n%s\nEOF\n" "$body" >> "$GITHUB_OUTPUT"
+          printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
 
       - name: Create or update summary comment
         if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
