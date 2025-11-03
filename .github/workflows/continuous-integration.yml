@@ -76,7 +76,7 @@ jobs:
           mkdir -p "$HOME/.local/bin"
           echo "## actionlint install" >> lint-output.txt
           if curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
-            | bash -s -- -b "$HOME/.local/bin" >> lint-output.txt 2>&1; then
+            | bash -s -- latest "$HOME/.local/bin" >> lint-output.txt 2>&1; then
             echo "actionlint install: OK" >> lint-status.txt
           else
             echo "actionlint install: FAIL" >> lint-status.txt
@@ -177,8 +177,10 @@ jobs:
         shell: bash
         run: |
           if [ ! -f coverage.xml ]; then
-            echo "line_rate=" >> "$GITHUB_OUTPUT"
-            echo "low_files=" >> "$GITHUB_OUTPUT"
+            {
+              echo "line_rate="
+              echo "low_files="
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python - <<'PY'
@@ -277,7 +279,7 @@ jobs:
             fi
           fi
 
-          printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
+          printf "body<<EOF\n%s\nEOF\n" "$body" >> "$GITHUB_OUTPUT"
 
       - name: Create or update summary comment
         if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
