@@ -2,6 +2,7 @@ name: Cross-Platform Testing
 
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   pull_request:
@@ -14,9 +15,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  workflow-lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
+
   test-matrix:
     name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    needs: workflow-lint
 
     strategy:
       fail-fast: false  # Continue testing other platforms even if one fails
@@ -36,6 +49,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: Cache uv environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install dependencies
         run: |
           uv sync --all-extras
@@ -44,63 +67,11 @@ jobs:
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
         run: |
-          uv run python -c "import os, sys; sys.exit(0 if os.getenv('BITSIGHT_API_KEY') else 1)" && uv run pytest --verbose || uv run pytest --offline --verbose
-
-      - name: Test CLI entrypoint
-        shell: bash
-        run: |
-          uv run birre --help
-
-  minimum-python:
-    name: Test minimum Python version (3.13)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-
-      - name: Verify minimum version compatibility
-        env:
-          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
-        run: |
-          uv run python --version
-          uv run python -c "import os, sys; sys.exit(0 if os.getenv('BITSIGHT_API_KEY') else 1)" && uv run pytest --verbose || uv run pytest --offline --verbose
-
-  path-separators:
-    name: Test path handling (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest --verbose
+          else
+            uv run pytest --offline --verbose
+          fi
 
       - name: Test config file discovery (Unix-style paths)
         if: runner.os != 'Windows'
@@ -108,7 +79,6 @@ jobs:
           uv run python -c "
           from birre.config import load_settings
           from pathlib import Path
-          # Test that config loading works with platform paths
           config_path = Path.cwd() / 'config.toml'
           print(f'Config path: {config_path}')
           config = load_settings()
@@ -122,9 +92,128 @@ jobs:
           uv run python -c "
           from birre.config import load_settings
           from pathlib import Path
-          # Test that config loading works with Windows paths
           config_path = Path.cwd() / 'config.toml'
           print(f'Config path: {config_path}')
           config = load_settings()
           print('Config loaded successfully')
           "
+
+      - name: Test CLI entrypoint (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          uv run birre --help
+
+      - name: Test CLI entrypoint (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv run birre --help
+
+  summary:
+    name: Matrix Summary
+    runs-on: ubuntu-latest
+    needs: [workflow-lint, test-matrix]
+    if: always()
+
+    steps:
+      - name: Find existing summary comment
+        id: find-comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## Cross-Platform Testing'
+
+      - name: Gather job results
+        id: gather
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run_id = context.runId;
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner,
+              repo,
+              run_id,
+              per_page: 100,
+            });
+
+            const relevant = jobs
+              .filter(job => job.name && (job.name === 'Workflow Lint' || job.name.startsWith('Test on ')))
+              .map(job => ({
+                name: job.name,
+                conclusion: job.conclusion ?? job.status ?? 'unknown',
+                url: job.html_url,
+              }));
+
+            const failed = relevant.filter(job => job.conclusion.toLowerCase() !== 'success');
+
+            core.setOutput('all', JSON.stringify(relevant));
+            core.setOutput('failed', JSON.stringify(failed));
+
+      - name: Prepare failure body
+        id: failure-body
+        if: ${{ github.event_name == 'pull_request' && (needs.workflow-lint.result != 'success' || needs.test-matrix.result != 'success') }}
+        shell: bash
+        env:
+          FAILED_JOBS: ${{ steps.gather.outputs.failed }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          failed = json.loads(os.environ.get('FAILED_JOBS') or '[]')
+          lines = ['## Cross-Platform Testing Issues']
+
+          if not failed:
+              lines.append('Detected a failure but no job details were captured. See workflow logs.')
+          else:
+              lines.append('\n'.join(f"- [{job['name']}]({job['url']}) — {job['conclusion'].upper()}" for job in failed))
+
+          body = '\n\n'.join(lines)
+
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as fh:
+              fh.write('body<<EOF\n')
+              fh.write(body)
+              fh.write('\nEOF\n')
+          PY
+
+      - name: Create or update summary comment
+        if: ${{ github.event_name == 'pull_request' && (needs.workflow-lint.result != 'success' || needs.test-matrix.result != 'success') }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          body: ${{ steps.failure-body.outputs.body }}
+          edit-mode: replace
+
+      - name: Delete summary comment
+        if: ${{ github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id != '' && needs.workflow-lint.result == 'success' && needs.test-matrix.result == 'success' }}
+        uses: peter-evans/delete-comment@v2
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+
+      - name: Emit job summary
+        shell: bash
+        env:
+          ALL_JOBS: ${{ steps.gather.outputs.all }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          jobs = json.loads(os.environ.get('ALL_JOBS') or '[]')
+          lines = ['## Cross-Platform Testing']
+
+          if not jobs:
+              lines.append('No job details available.')
+          else:
+              for job in jobs:
+                  lines.append(f"- {job['name']}: {job['conclusion'].upper()}")
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as fh:
+              fh.write('\n'.join(lines) + '\n')
+          PY
