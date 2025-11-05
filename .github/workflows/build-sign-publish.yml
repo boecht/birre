@@ -118,6 +118,8 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
 
     steps:
       - name: Checkout repository
@@ -211,6 +213,7 @@ jobs:
     name: Publish to PyPI
     needs: github-release
     runs-on: ubuntu-latest
+    if: ${{ needs.github-release.outputs.prerelease == 'false' }}
     environment:
       name: release
       url: https://pypi.org/project/birre/
