@@ -37,8 +37,6 @@ jobs:
       - name: Prepare Python environment
         uses: ./.github/actions/uv-env
         with:
-          python-version: "3.13"
-          uv-sync-flags: "--all-extras"
           cache-key-prefix: release-validate
 
       - name: Audit dependencies
@@ -81,8 +79,6 @@ jobs:
       - name: Prepare Python environment
         uses: ./.github/actions/uv-env
         with:
-          python-version: "3.13"
-          uv-sync-flags: "--all-extras"
           cache-key-prefix: release-build
 
       - name: Install SBOM generator

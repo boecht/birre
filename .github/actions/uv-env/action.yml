@@ -8,7 +8,7 @@ inputs:
   uv-sync-flags:
     description: Flags passed to `uv sync`
     required: false
-    default: "--all-extras --frozen"
+    default: "--all-extras"
   cache-key-prefix:
     description: Prefix used for caching uv environments
     required: false

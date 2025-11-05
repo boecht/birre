@@ -33,7 +33,6 @@ jobs:
         uses: ./.github/actions/uv-env
         with:
           python-version: ${{ matrix.python-version }}
-          uv-sync-flags: "--all-extras"
           cache-key-prefix: matrix
 
       - name: Run tests (full if API key present, else offline)
@@ -97,4 +96,3 @@ jobs:
         shell: pwsh
         run: |
           uv run birre --help
-

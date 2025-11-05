@@ -175,7 +175,6 @@ jobs:
       - name: Prepare Python environment
         uses: ./.github/actions/uv-env
         with:
-          python-version: "3.13"
           uv-sync-flags: "--all-extras --frozen"
           cache-key-prefix: quality
 
