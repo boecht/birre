@@ -109,7 +109,7 @@ REPOSITORY_SYFT_ARGUMENTS: >-
   -o cyclonedx-json=artifacts/sbom-cyclonedx.json
   -o spdx-json=artifacts/sbom-spdx.json
 REPOSITORY_SYFT_FILTER_REGEX_EXCLUDE: >-
-  (^\.venv/|^dist/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^BiRRe\.egg-info/|^artifacts/)
+  (^\.venv/|^dist/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^BiRRe\.egg-info/)
 
 # Auto-fix policy: only pure formatters (Ruff Format, Markdownlint) to avoid semantic changes.
 AUTO_FIX_POLICY: "formatters-only"
