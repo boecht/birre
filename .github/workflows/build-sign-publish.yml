@@ -172,14 +172,26 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          CHANGELOG_SECTION=$(awk '/^## \['"${{ steps.version.outputs.version }}"'\]/,/^## \[/' \
-            CHANGELOG.md | sed '$d')
-          if [ -z "$CHANGELOG_SECTION" ]; then
-            echo "Missing changelog entry for version ${{ steps.version.outputs.version }}." >&2
-            echo "Add '## [${{ steps.version.outputs.version }}]' before tagging." >&2
-            exit 1
-          fi
-          echo "$CHANGELOG_SECTION" > changelog.txt
+          python - <<'PY'
+          import sys
+          version = "${{ steps.version.outputs.version }}"
+          capture = False
+          lines = []
+          with open("CHANGELOG.md", encoding="utf-8") as fh:
+              for line in fh:
+                  if line.startswith("## "):
+                      if capture:
+                          break
+                      capture = line.startswith(f"## [{version}]")
+                  if capture:
+                      lines.append(line.rstrip("\n"))
+          if not lines:
+              sys.stderr.write(f"Missing changelog entry for version {version}.\n")
+              sys.stderr.write(f"Add '## [{version}]' before tagging.\n")
+              sys.exit(1)
+          with open("changelog.txt", "w", encoding="utf-8") as out:
+              out.write("\n".join(lines) + "\n")
+          PY
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
