@@ -55,6 +55,9 @@ FILTER_REGEX_EXCLUDE: >-
 # Include only tracked source + config by default
 FILTER_REGEX_INCLUDE: "" # empty → all (after excludes)
 
+# Always lint the full repository (diff-only mode disabled)
+VALIDATE_ALL_CODEBASE: true
+
 ############################################
 # Descriptor-specific configuration overrides
 ############################################

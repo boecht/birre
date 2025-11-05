@@ -94,7 +94,6 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
 
       - name: Upload MegaLinter reports
         if: always()
