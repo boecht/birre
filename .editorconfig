@@ -9,21 +9,14 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 indent_style = space
-indent_size = 4
+indent_size = 2
 max_line_length = 100
 trim_trailing_whitespace = true
 
-# JSON: enforce 2 space indent for consistency with common tooling
-[*.json]
-indent_size = 2
+# Python files use 4 space indents
+[*.py]
+indent_size = 4
 
 # Markdown retains long tables occasionally
 [*.md]
 max_line_length = 120
-trim_trailing_whitespace = true
-
-# YAML may have nested indentation
-[*.yml]
-indent_size = 2
-[*.yaml]
-indent_size = 2
