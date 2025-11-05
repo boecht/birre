@@ -14,6 +14,8 @@ import birre.application.diagnostics as diagnostics_module
 import birre.cli.invocation as cli_invocation
 import birre.cli.runtime as cli_runtime
 from birre.cli.commands import logs as logs_command
+from birre.cli.commands.selftest import command as selftest_command
+from birre.cli.commands.selftest import runner as selftest_runner
 from birre.config.settings import LoggingSettings, RuntimeSettings
 
 server = importlib.import_module("birre.cli.app")
@@ -799,12 +801,12 @@ def test_selftest_fails_when_context_tools_missing(
 ) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(selftest_runner, "run_offline_checks", lambda runtime, logger: True)
     logger = MagicMock(name="logger")
     monkeypatch.setattr(
-        cli_runtime,
+        selftest_command,
         "initialize_logging",
-        lambda runtime, logging_settings, *, show_banner=False: logger,
+        lambda runtime, logging_settings, *, show_banner=False, banner_printer=None: logger,
     )
 
     expected = {
@@ -812,9 +814,9 @@ def test_selftest_fails_when_context_tools_missing(
         for context in cli_runtime.CONTEXT_CHOICES
     }
 
-    def fake_prepare(runtime, log, **kwargs):
-        names = list(expected[runtime.context])
-        if runtime.context == "risk_manager":
+    def fake_prepare(settings, log, **kwargs):
+        names = list(expected[settings.context])
+        if settings.context == "risk_manager":
             names = [name for name in names if name != "request_company"]
 
         def get_tools():
@@ -826,11 +828,11 @@ def test_selftest_fails_when_context_tools_missing(
             call_v1_tool=object(),
         )
 
-    monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
+    monkeypatch.setattr(selftest_runner, "prepare_server", fake_prepare)
     monkeypatch.setattr(
-        cli_runtime,
+        selftest_runner,
         "run_online_checks",
-        lambda runtime, log, *, v1_base_url=None: True,
+        lambda runtime, logger, *, run_sync=None, v1_base_url=None: True,
     )
 
     def fake_diagnostics(
@@ -848,7 +850,7 @@ def test_selftest_fails_when_context_tools_missing(
                 summary[tool_name] = {"status": "pass"}
         return True
 
-    monkeypatch.setattr(diagnostics_module, "run_context_tool_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(selftest_runner, "run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
@@ -864,12 +866,12 @@ def test_selftest_fails_when_context_tools_missing(
 
 def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
-    monkeypatch.setattr(cli_runtime, "run_offline_checks", lambda runtime, log: True)
+    monkeypatch.setattr(selftest_runner, "run_offline_checks", lambda runtime, logger: True)
     logger = MagicMock(name="logger")
     monkeypatch.setattr(
-        cli_runtime,
+        selftest_command,
         "initialize_logging",
-        lambda runtime, logging_settings, *, show_banner=False: logger,
+        lambda runtime, logging_settings, *, show_banner=False, banner_printer=None: logger,
     )
 
     expected = {
@@ -877,8 +879,8 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
         for context in cli_runtime.CONTEXT_CHOICES
     }
 
-    def fake_prepare(runtime, log, **kwargs):
-        names = list(expected[runtime.context])
+    def fake_prepare(settings, log, **kwargs):
+        names = list(expected[settings.context])
 
         def get_tools():
             return {name: object() for name in names}
@@ -889,11 +891,11 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
             call_v1_tool=object(),
         )
 
-    monkeypatch.setattr(cli_runtime, "prepare_server", fake_prepare)
+    monkeypatch.setattr(selftest_runner, "prepare_server", fake_prepare)
     monkeypatch.setattr(
-        cli_runtime,
+        selftest_runner,
         "run_online_checks",
-        lambda runtime, log, *, v1_base_url=None: True,
+        lambda runtime, logger, *, run_sync=None, v1_base_url=None: True,
     )
 
     def fake_diagnostics(
@@ -911,7 +913,7 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
                 summary[tool_name] = {"status": "pass"}
         return context != "risk_manager"
 
-    monkeypatch.setattr(diagnostics_module, "run_context_tool_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(selftest_runner, "run_context_tool_diagnostics", fake_diagnostics)
 
     result = runner.invoke(
         server.app,
