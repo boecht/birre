@@ -17,6 +17,7 @@ permissions:
   id-token: write # Required for PyPI trusted publishing
   pull-requests: write # Reusable lint workflow posts summaries
   statuses: write # Allow MegaLinter to update commit statuses
+  security-events: write # Allow SARIF uploads from reusable workflow
 
 jobs:
   quality-lint:
