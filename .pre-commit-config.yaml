@@ -3,12 +3,12 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: '^docs/apis/'
+        exclude: "^docs/apis/"
       - id: end-of-file-fixer
-        exclude: '^docs/apis/'
+        exclude: "^docs/apis/"
       - id: check-yaml
       - id: check-json
-        exclude: '^docs/apis/'
+        exclude: "^docs/apis/"
       - id: check-toml
 
   # Use local hooks with uv to ensure project Python version and dependencies

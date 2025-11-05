@@ -132,12 +132,7 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = [
-    "dynaconf",
-    "dynaconf.*",
-    "prance",
-    "prance.*",
-]
+module = ["dynaconf", "dynaconf.*", "prance", "prance.*"]
 ignore_missing_imports = true
 
 # FastMCP generic type parameters - framework limitation

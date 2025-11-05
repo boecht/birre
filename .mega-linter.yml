@@ -53,7 +53,7 @@ FILTER_REGEX_EXCLUDE: >-
   (^dist/|^\.venv/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^\.hypothesis/|^docs/apis/|^scripts/|^birre\.log$|^\.benchmarks/|^BiRRe\.egg-info/|^artifacts/)
 
 # Include only tracked source + config by default
-FILTER_REGEX_INCLUDE: ''  # empty → all (after excludes)
+FILTER_REGEX_INCLUDE: "" # empty → all (after excludes)
 
 ############################################
 # Descriptor-specific configuration overrides
@@ -63,19 +63,19 @@ FILTER_REGEX_INCLUDE: ''  # empty → all (after excludes)
 PYTHON_DEFAULT_STYLE: ruff
 PYTHON_RUFF_CONFIG_FILE: pyproject.toml
 # Additional args (empty for now; ruff picks config from pyproject)
-PYTHON_RUFF_ARGUMENTS: ''
+PYTHON_RUFF_ARGUMENTS: ""
 PYTHON_RUFF_CLI_LINT_MODE: project
 PYTHON_RUFF_FILTER_REGEX_EXCLUDE: >-
   (^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
 
 # Python Ruff Format (formatter) shares config; no errors (format-only)
-PYTHON_RUFF_FORMAT_ARGUMENTS: ''
+PYTHON_RUFF_FORMAT_ARGUMENTS: ""
 PYTHON_RUFF_FORMAT_FILTER_REGEX_EXCLUDE: >-
   (^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
 
 # Mypy strict typing config via pyproject
 PYTHON_MYPY_CONFIG_FILE: pyproject.toml
-PYTHON_MYPY_ARGUMENTS: '--strict'
+PYTHON_MYPY_ARGUMENTS: "--strict"
 PYTHON_MYPY_CLI_LINT_MODE: project
 PYTHON_MYPY_FILTER_REGEX_EXCLUDE: >-
   (^scripts/|^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/)
@@ -84,22 +84,22 @@ PYTHON_MYPY_FILTER_REGEX_EXCLUDE: >-
 MARKDOWN_MARKDOWNLINT_CONFIG_FILE: .markdownlint.json
 # Enforce errors (override default disable)
 MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
-MARKDOWN_MARKDOWNLINT_ARGUMENTS: '--fix'
+MARKDOWN_MARKDOWNLINT_ARGUMENTS: "--fix"
 MARKDOWN_MARKDOWNLINT_FILTER_REGEX_EXCLUDE: >-
   (^docs/apis/|^dist/|^\.venv/|^\.project-notes/|^BiRRe\.egg-info/)
 
 # YAML Yamllint (optional config file forthcoming if needed)
-YAML_YAMLLINT_ARGUMENTS: '--strict'
+YAML_YAMLLINT_ARGUMENTS: "--strict"
 YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: >-
   (^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/)
 
 # JSON Jsonlint; syntax only; exclude large generated or SBOM artifacts
-JSON_JSONLINT_ARGUMENTS: '--quiet'
+JSON_JSONLINT_ARGUMENTS: "--quiet"
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: >-
   (^dist/|^artifacts/|^\.venv/|^docs/apis/|^src/birre/resources/apis/)
 
 # EditorConfig Checker (requires .editorconfig file at repo root)
-EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: '-f github-actions'
+EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: "-f github-actions"
 EDITORCONFIG_EDITORCONFIG_CHECKER_FILTER_REGEX_EXCLUDE: >-
   (^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/|^artifacts/)
 
@@ -112,7 +112,7 @@ REPOSITORY_SYFT_FILTER_REGEX_EXCLUDE: >-
   (^\.venv/|^dist/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^BiRRe\.egg-info/|^artifacts/)
 
 # Auto-fix policy: only pure formatters (Ruff Format, Markdownlint) to avoid semantic changes.
-AUTO_FIX_POLICY: 'formatters-only'
+AUTO_FIX_POLICY: "formatters-only"
 
 # SBOM validation expectations (referenced by CI docs): CycloneDX + SPDX JSON must exist and be >0 bytes.
 SBOM_REQUIRED: true
@@ -124,8 +124,7 @@ SBOM_PATHS: ["artifacts/sbom-cyclonedx.json", "artifacts/sbom-spdx.json"]
 ############################################
 # Performance & Misc
 ############################################
-PARALLEL: true  # Allow parallel execution where safe
-IGNORE_GITIGNORED_FILES: true  # Skip files already ignored
+PARALLEL: true # Allow parallel execution where safe
+IGNORE_GITIGNORED_FILES: true # Skip files already ignored
 SHOW_ELAPSED_TIME: true
-
 # End of MegaLinter configuration
