@@ -1,3 +1,4 @@
+---
 name: Lint, Type, Test & SBOM Gate
 
 on:
