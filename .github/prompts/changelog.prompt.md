@@ -44,27 +44,20 @@ Inputs (from user):
 Checklist
 
 1. Gather context
-
   - Enumerate ALL commits on the current branch (= all commits since the last merge into main)
   - Review EACH commit to identify user-facing changes (don't stop at the most recent commit!)
   - Skim the commit messages and, if required, diffs to understand user-facing effects
-
 2. Categorize
-
   - Use the six categories in this EXACT order: Changed, Added, Deprecated, Removed, Fixed, Security
   - Use imperative mood for ALL bullets (e.g., "Add X", "Fix Y", "Remove Z" — NOT "Added", "Fixed", "Removed")
   - Describe user impact (not implementation): "Improve startup time" not "Refactor config loader"
   - Mark breaking changes with `**Breaking:**` under Changed/Removed
-
 3. Write the entry
-
   - Insert (or update) a section:
     - `## [<version>] - <date>`
     - Categories only if they have items; omit empty categories
   - Keep it self-contained; avoid internal codes and commit dumps
-
 4. Save
-
   - Update [`CHANGELOG.md`](../../CHANGELOG.md) in place
   - Provide the diff of the inserted section
 

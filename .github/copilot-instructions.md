@@ -28,17 +28,14 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
   - Applies at all stages: requirements, system design, implementation
   - Always clarify technical ambiguities or specification gaps with a clear technical question
   - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate
-
 2. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
   - Prioritize functionality and stability over broad compatibility
   - Avoid premature optimization for universal use cases
-
 3. **Quality and architecture trump backwards compatibility.**
   - Breaking changes are acceptable if they improve the codebase
   - Remove outdated patterns immediately; do not preserve legacy code
   - Avoid shortcuts; build the right solution once
   - Clean, maintainable architecture outranks legacy API stability
-
 4. **Documentation focuses on user value, not internal implementation.**
   - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
   - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)

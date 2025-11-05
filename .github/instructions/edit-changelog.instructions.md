@@ -10,26 +10,26 @@ This is the authoritative guidance for creating or editing `CHANGELOG.md`.
 **These rules are NON-NEGOTIABLE. Entries violating these will be rejected:**
 
 1. **Comprehensive Coverage**: The changelog entry MUST cover ALL commits on the current branch since
-   the lastrelease/merge to main, not just the most recent commit.
-   - ✅ Correct: Analyze all 51 commits and extract user-facing changes from each
-   - ❌ Wrong: Only look at the last commit and write 5 lines
+    the lastrelease/merge to main, not just the most recent commit.
+    - ✅ Correct: Analyze all 51 commits and extract user-facing changes from each
+    - ❌ Wrong: Only look at the last commit and write 5 lines
 
 2. **Category Order**: Use categories in this EXACT order (omit empty ones):
-   1. Changed
-   2. Added
-   3. Deprecated
-   4. Removed
-   5. Fixed
-   6. Security
+    1. Changed
+    2. Added
+    3. Deprecated
+    4. Removed
+    5. Fixed
+    6. Security
 
 3. **Imperative Mood**: ALL bullets must use imperative verbs:
-   - ✅ Correct: "Add feature", "Fix bug", "Remove deprecated API", "Enhance performance"
-   - ❌ Wrong: "Added feature", "Fixed bug", "New feature", "Performance enhanced"
-   - ❌ Wrong: "Feature addition", "Bug fix", "Deprecated API removal"
+    - ✅ Correct: "Add feature", "Fix bug", "Remove deprecated API", "Enhance performance"
+    - ❌ Wrong: "Added feature", "Fixed bug", "New feature", "Performance enhanced"
+    - ❌ Wrong: "Feature addition", "Bug fix", "Deprecated API removal"
 
 4. **User Benefits Over Implementation**: Describe WHAT users get, not HOW you built it:
-   - ✅ Correct: "Improve startup time by 50%"
-   - ❌ Wrong: "Refactor config loader to use lazy loading"
+    - ✅ Correct: "Improve startup time by 50%"
+    - ❌ Wrong: "Refactor config loader to use lazy loading"
 
 ## Core Principles
 
