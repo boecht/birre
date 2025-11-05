@@ -22,7 +22,8 @@ jobs:
     with:
       enable-dependency-review: false
       enable-tests: false
-    secrets: inherit
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   validate:
     name: Pre-release Validation

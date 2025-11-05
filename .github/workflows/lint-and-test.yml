@@ -80,6 +80,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Ensure artifacts directory exists
+        run: |
+          mkdir -p artifacts
+
       - name: MegaLinter
         id: megalinter
         uses: oxsecurity/megalinter@v8.2.0

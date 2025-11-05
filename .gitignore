@@ -21,6 +21,7 @@ parts/
 downloads/
 .installed.cfg
 MANIFEST
+artifacts/
 
 # Testing and coverage
 .*cache
