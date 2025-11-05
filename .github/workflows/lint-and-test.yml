@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: Lint, Type, Test & SBOM Gate
 
 on:
   pull_request:
@@ -11,6 +11,36 @@ on:
       - main
       - "release/*"
   workflow_dispatch:
+    inputs:
+      enable-dependency-review:
+        description: Run dependency review step
+        type: boolean
+        default: true
+      enable-lint:
+        description: Run MegaLinter
+        type: boolean
+        default: true
+      enable-tests:
+        description: Run tests & coverage
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      enable-dependency-review:
+        description: Run dependency review step
+        required: false
+        default: true
+        type: boolean
+      enable-lint:
+        description: Run MegaLinter
+        required: false
+        default: true
+        type: boolean
+      enable-tests:
+        description: Run tests & coverage
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -19,8 +49,8 @@ permissions:
 jobs:
   dependency-review:
     name: Dependency Review
+    if: ${{ inputs.enable-dependency-review != 'false' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - name: Checkout repository
@@ -35,82 +65,106 @@ jobs:
 
   lint:
     name: Lint & Static Analysis
+    if: ${{ inputs.enable-lint != 'false' }}
     runs-on: ubuntu-latest
     outputs:
-      status: ${{ steps.static-analysis.outputs.status }}
-      snippet: ${{ steps.static-analysis.outputs.snippet }}
+      status: ${{ steps.prepare-outputs.outputs.status }}
+      snippet: ${{ steps.prepare-outputs.outputs.snippet }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
+      - name: MegaLinter
+        id: megalinter
+        uses: oxsecurity/megalinter@v8.2.0
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_LINTERS: >-
+            ACTION_ACTIONLINT,
+            PYTHON_RUFF,
+            PYTHON_RUFF_FORMAT,
+            PYTHON_MYPY,
+            MARKDOWN_MARKDOWNLINT,
+            YAML_YAMLLINT,
+            JSON_JSONLINT,
+            EDITORCONFIG_EDITORCONFIG_CHECKER,
+            REPOSITORY_SYFT
+          APPLY_FIXES: PYTHON_RUFF_FORMAT,MARKDOWN_MARKDOWNLINT
+          APPLY_FIXES_EVENT: pull_request
+          APPLY_FIXES_MODE: pull_request
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          MEGALINTER_REPORTERS: GitHubCommentReporter,SarifReporter,MarkdownSummaryReporter
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Cache uv environments
-        uses: actions/cache@v4
+      - name: Upload MegaLinter reports
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
+          name: megalinter-reports
+          path: megalinter-reports
+
+      - name: Upload SBOM artifacts (Syft)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-artifacts
           path: |
-            ~/.cache/uv
-            .venv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+            artifacts/sbom-cyclonedx.json
+            artifacts/sbom-spdx.json
 
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras --frozen
+      - name: Upload SARIF report (if generated)
+        if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: megalinter-reports/megalinter-report.sarif
 
-      - name: Run static analysis suite
-        id: static-analysis
+      - name: Validate SBOM artifacts
+        if: always()
         shell: bash
         run: |
-          set -o pipefail
-          status=0
+          for f in artifacts/sbom-cyclonedx.json artifacts/sbom-spdx.json; do
+            if [ ! -s "$f" ]; then
+              echo "SBOM validation failed: $f missing or empty" >&2
+              exit 1
+            fi
+            echo "Validated SBOM file: $f ($(wc -c < "$f") bytes)"
+          done
 
-          mkdir -p "$HOME/.local/bin"
-          echo "## actionlint install" >> lint-output.txt
-          if curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
-            | bash -s -- latest "$HOME/.local/bin" >> lint-output.txt 2>&1; then
-            echo "actionlint install: OK" >> lint-status.txt
-          else
-            echo "actionlint install: FAIL" >> lint-status.txt
+      - name: Prepare outputs for summary job
+        id: prepare-outputs
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ "${{ steps.megalinter.outcome }}" != "success" ]; then
             status=1
           fi
-          export PATH="$HOME/.local/bin:$PATH"
 
-          run_check() {
-            local name="$1"
-            shift
-            echo "## $name" >> lint-output.txt
-            if "$@" >> lint-output.txt 2>&1; then
-              echo "$name: OK" >> lint-status.txt
-            else
-              rc=$?
-              echo "$name: FAIL (exit $rc)" >> lint-status.txt
-              status=1
-            fi
-            echo "" >> lint-output.txt
-          }
+          snippet=""
+          if [ -f "megalinter-reports/mega-linter.log" ]; then
+            snippet="$(tail -n 200 megalinter-reports/mega-linter.log || true)"
+          fi
 
-          run_check "actionlint" actionlint
-          run_check "Ruff check" uv run ruff check src tests
-          run_check "Ruff format" uv run ruff format --check src tests
-          run_check "Mypy" uv run mypy src
-          run_check "pip-audit" uv tool run pip-audit --strict
-
-          tail -n 200 lint-output.txt > lint-snippet.txt || true
-          printf 'snippet<<EOF\n%s\nEOF\n' "$(cat lint-snippet.txt)" >> "$GITHUB_OUTPUT"
+          {
+            echo 'snippet<<EOF'
+            printf '%s\n' "$snippet"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit $status
+
+      - name: Fail if lint failed
+        if: steps.megalinter.outcome != 'success'
+        run: exit 1
 
   tests:
     name: Tests & Coverage
+    if: ${{ inputs.enable-tests != 'false' }}
     runs-on: ubuntu-latest
     needs: lint
     outputs:
@@ -124,27 +178,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
         with:
           python-version: "3.13"
+          uv-sync-flags: "--all-extras --frozen"
+          cache-key-prefix: quality
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Cache uv environments
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            .venv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
-      - name: Install dependencies
+      - name: Audit dependencies
         run: |
-          uv sync --all-extras --frozen
+          uv tool run pip-audit --strict
 
       - name: Run test suite
         id: pytest
@@ -174,6 +217,21 @@ jobs:
             echo "mode=$MODE"
           } >> "$GITHUB_OUTPUT"
           exit $status
+
+      - name: Test config file discovery
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test CLI entrypoint
+        run: |
+          uv run birre --help
 
       - name: Extract coverage summary
         id: coverage
@@ -227,9 +285,11 @@ jobs:
 
   summary:
     name: Validation Summary
+    if: ${{ always() && (inputs.enable-lint != 'false' || inputs.enable-tests != 'false') }}
     runs-on: ubuntu-latest
-    needs: [lint, tests]
-    if: always()
+    needs:
+      - lint
+      - tests
 
     steps:
       - name: Find existing summary comment
@@ -274,7 +334,7 @@ jobs:
               if [ "$TEST_RESULT" = 'skipped' ]; then
                 echo
                 echo '### Tests skipped'
-                echo 'Tests did not run because earlier checks failed.'
+                echo 'Tests did not run because earlier checks failed or were disabled.'
               else
                 echo
                 echo '### Tests & Coverage issues'
@@ -301,8 +361,9 @@ jobs:
           fi
 
           rm -f "$comment_file"
+
       - name: Create or update summary comment
-        if: ${{ github.event_name == 'pull_request' && (needs.lint.result != 'success' || needs.tests.result != 'success') }}
+        if: ${{ github.event_name == 'pull_request' && steps.failure-body.outputs.body != '' }}
         uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -331,8 +392,12 @@ jobs:
         run: |
           {
             echo "## CI Quality Gate"
-            echo "Lint status: $LINT_RESULT"
-            echo "Test status: $TEST_RESULT"
+            if [ -n "$LINT_RESULT" ]; then
+              echo "Lint status: $LINT_RESULT"
+            fi
+            if [ -n "$TEST_RESULT" ]; then
+              echo "Test status: $TEST_RESULT"
+            fi
             if [ -n "$COVERAGE" ]; then
               echo "Coverage: ${COVERAGE}%"
             fi

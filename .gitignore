@@ -30,6 +30,7 @@ coverage.xml
 htmlcov/
 .hypothesis/
 .benchmarks/
+megalinter-reports/
 
 # IDE and editor
 .vscode/
