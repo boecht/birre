@@ -8,7 +8,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from fastmcp import Context, FastMCP
 from fastmcp.tools.tool import FunctionTool
@@ -1009,7 +1009,8 @@ def register_company_search_interactive_tool(
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
             # Pydantic models accept **kwargs, but mypy can't verify field names
-            response = CompanySearchInteractiveResponse(**validation_error)  # type: ignore[arg-type]
+            validation_payload = cast(dict[str, Any], validation_error)
+            response = CompanySearchInteractiveResponse(**validation_payload)
             return response.to_payload()
 
         search_params, search_term = _build_company_search_params(name, domain)
@@ -1034,7 +1035,8 @@ def register_company_search_interactive_tool(
         )
         if failure_response is not None:
             # Pydantic models accept **kwargs, but mypy can't verify field names
-            response = CompanySearchInteractiveResponse(**failure_response)  # type: ignore[arg-type]
+            failure_payload = cast(dict[str, Any], failure_response)
+            response = CompanySearchInteractiveResponse(**failure_payload)
             return response.to_payload()
 
         search = CompanySearchInputs(name=name, domain=domain, term=search_term)
