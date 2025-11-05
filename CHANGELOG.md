@@ -3,7 +3,7 @@
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
 See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
-## [4.0.0-alpha.2] - 2025-11-02
+## [4.0.0-alpha.2] - 2025-11-05
 
 ### Changed
 

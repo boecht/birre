@@ -1,6 +1,7 @@
 ---
 description: "Interact with Git"
 tools: [
+  'edit/editFiles',
   "search",
   "runCommands",
   "github/github-mcp-server/add_comment_to_pending_review",
