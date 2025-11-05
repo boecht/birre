@@ -1,4 +1,5 @@
 name: Setup UV Environment
+description: Install Python, cache uv environments, and sync dependencies for CI jobs.
 inputs:
   python-version:
     description: Python version to install

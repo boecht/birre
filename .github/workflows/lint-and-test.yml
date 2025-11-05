@@ -41,6 +41,10 @@ on:
         required: false
         default: true
         type: boolean
+    secrets:
+      GITHUB_TOKEN:
+        description: Token used for MegaLinter reporters and API calls.
+        required: true
 
 permissions:
   contents: read
@@ -90,21 +94,7 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ENABLE_LINTERS: >-
-            ACTION_ACTIONLINT,
-            PYTHON_RUFF,
-            PYTHON_RUFF_FORMAT,
-            PYTHON_MYPY,
-            MARKDOWN_MARKDOWNLINT,
-            YAML_YAMLLINT,
-            JSON_JSONLINT,
-            EDITORCONFIG_EDITORCONFIG_CHECKER,
-            REPOSITORY_SYFT
-          APPLY_FIXES: PYTHON_RUFF_FORMAT,MARKDOWN_MARKDOWNLINT
-          APPLY_FIXES_EVENT: pull_request
-          APPLY_FIXES_MODE: pull_request
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
-          MEGALINTER_REPORTERS: GitHubCommentReporter,SarifReporter,MarkdownSummaryReporter
 
       - name: Upload MegaLinter reports
         if: always()
