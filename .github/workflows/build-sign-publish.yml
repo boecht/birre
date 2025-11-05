@@ -222,6 +222,10 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Remove non-distribution artifacts
+        run: |
+          find dist -type f ! -name '*.whl' ! -name '*.tar.gz' -delete
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
