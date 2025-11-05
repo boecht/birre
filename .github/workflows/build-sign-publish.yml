@@ -154,7 +154,7 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
             if ! [[ "$VERSION" =~ $SEMVER_REGEX ]]; then
-              echo "Invalid tag version: '$VERSION'. Expected SemVer (e.g., 3.0.1 or 4.0.0-alpha.2)." >&2
+              echo "Invalid tag version '$VERSION'; expected SemVer." >&2
               exit 1
             fi
           fi
@@ -172,8 +172,8 @@ jobs:
           CHANGELOG_SECTION=$(awk '/^## \['"${{ steps.version.outputs.version }}"'\]/,/^## \[/' \
             CHANGELOG.md | sed '$d')
           if [ -z "$CHANGELOG_SECTION" ]; then
-            echo "Changelog section for ${{ steps.version.outputs.version }} not found in CHANGELOG.md." >&2
-            echo "Ensure a '## [${{ steps.version.outputs.version }}]' section exists before tagging." >&2
+            echo "Missing changelog entry for version ${{ steps.version.outputs.version }}." >&2
+            echo "Add '## [${{ steps.version.outputs.version }}]' before tagging." >&2
             exit 1
           fi
           echo "$CHANGELOG_SECTION" > changelog.txt
