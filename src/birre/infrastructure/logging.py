@@ -4,8 +4,9 @@ import io
 import logging
 import sys
 import uuid
+from collections.abc import MutableMapping
 from logging.handlers import RotatingFileHandler
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from fastmcp import Context
@@ -82,8 +83,10 @@ class Utf8StreamHandler(logging.StreamHandler[Any]):
 
 
 def _strip_exc_info(
-    logger: logging.Logger, name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    logger: logging.Logger,
+    name: str,
+    event_dict: MutableMapping[str, Any],
+) -> MutableMapping[str, Any]:
     exc_info = event_dict.pop("exc_info", None)
     if not exc_info:
         return event_dict
@@ -94,7 +97,11 @@ def _strip_exc_info(
     return event_dict
 
 
-def _single_line_renderer(logger: logging.Logger, name: str, event_dict: dict[str, Any]) -> str:
+def _single_line_renderer(
+    logger: logging.Logger,
+    name: str,
+    event_dict: MutableMapping[str, Any],
+) -> str:
     timestamp = event_dict.pop("timestamp", None)
     level = event_dict.pop("level", None)
     logger_name = event_dict.pop("logger", None)
@@ -131,11 +138,11 @@ def _build_processors(json_logs: bool, debug_enabled: bool) -> list[Processor]:
         processors.append(structlog.processors.StackInfoRenderer())
         processors.append(structlog.processors.format_exc_info)
     else:
-        processors.append(_strip_exc_info)  # type: ignore[arg-type]  # structlog processor signature
+        processors.append(cast(Processor, _strip_exc_info))
     if json_logs:
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(_single_line_renderer)  # type: ignore[arg-type]  # structlog processor signature
+        processors.append(cast(Processor, _single_line_renderer))
     return processors
 
 

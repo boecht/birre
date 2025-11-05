@@ -103,9 +103,9 @@ def version() -> None:
 
     Resolution order:
     1) If a local pyproject.toml exists, prefer its `[project].version` value.
-       If the file exists but lacks a version, print "unknown".
+        If the file exists but lacks a version, print "unknown".
     2) Otherwise fall back to the installed package version via importlib.metadata.
-       If the package is not installed, emit a generic unavailability message.
+        If the package is not installed, emit a generic unavailability message.
     """
     pyproject = PROJECT_ROOT / "pyproject.toml"
     if pyproject.exists():

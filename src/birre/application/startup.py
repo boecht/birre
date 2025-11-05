@@ -177,9 +177,7 @@ async def _check_subscription_quota(
 
     remaining = details.get("remaining")
     if not isinstance(remaining, int):
-        return (
-            f"Subscription '{subscription_type}' returned unexpected remaining value: {remaining!r}"
-        )
+        return f"Subscription '{subscription_type}' remaining value unexpected: {remaining!r}"
     if remaining <= 0:
         return f"Subscription '{subscription_type}' has no remaining licenses"
     return None

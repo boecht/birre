@@ -55,6 +55,16 @@ EXPECTED_TOOLS_BY_CONTEXT: dict[str, frozenset[str]] = {
     ),
 }
 
+
+def _ensure_mode_mapping(summary: dict[str, Any | None]) -> dict[str, Any]:
+    """Return the mutable mode map within a summary, creating it if missing."""
+    modes = summary.get("modes")
+    if not isinstance(modes, dict):
+        modes = {}
+        summary["modes"] = modes
+    return modes
+
+
 MSG_NOT_A_DICT: Final = "not a dict"
 MSG_TOOL_INVOCATION_FAILED: Final = "tool invocation failed"
 MSG_UNEXPECTED_PAYLOAD_STRUCTURE: Final = "unexpected payload structure"
@@ -531,7 +541,8 @@ def _test_company_search_mode(
 
     # Record success
     if summary is not None:
-        summary.setdefault("modes", {})[mode] = {"status": "pass"}  # type: ignore[index]  # setdefault dict access
+        modes = _ensure_mode_mapping(summary)
+        modes[mode] = {"status": "pass"}
 
     return True
 
@@ -562,10 +573,8 @@ def _handle_company_search_call_failure(
             "error": str(exc),
         }
         if mode == "domain":
-            summary.setdefault("modes", {})[mode] = {  # type: ignore[index]  # setdefault dict access
-                "status": "fail",
-                "error": str(exc),
-            }
+            modes = _ensure_mode_mapping(summary)
+            modes[mode] = {"status": "fail", "error": str(exc)}
     return False
 
 
@@ -590,10 +599,8 @@ def _handle_company_search_validation_failure(
             "mode": mode,
         }
         if mode == "domain":
-            summary.setdefault("modes", {})[mode] = {  # type: ignore[index]  # setdefault dict access
-                "status": "fail",
-                "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-            }
+            modes = _ensure_mode_mapping(summary)
+            modes[mode] = {"status": "fail", "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
     return False
 
 
