@@ -20,36 +20,36 @@ Checklist
 
 1. Changelog up to date
 
-   - Check [`CHANGELOG.md`](../../CHANGELOG.md) contains a section for `<next_version>` in the six-category format
-   - If missing or style violations are obvious, state what's needed and stop
+  - Check [`CHANGELOG.md`](../../CHANGELOG.md) contains a section for `<next_version>` in the six-category format
+  - If missing or style violations are obvious, state what's needed and stop
 
 2. Versions bumped
 
-   - Confirm `pyproject.toml [project].version` equals `<next_version>`
-   - Confirm runtime `__version__` exists in `src/birre/__init__.py` and equals `<next_version>`
-   - If any of the versions are missing or incorrect, mention which files need updating and stop
+  - Confirm `pyproject.toml [project].version` equals `<next_version>`
+  - Confirm runtime `__version__` exists in `src/birre/__init__.py` and equals `<next_version>`
+  - If any of the versions are missing or incorrect, mention which files need updating and stop
 
 3. Run tests
 
-   - Offline: `uv run pytest --offline`
-   - Online: `uv run pytest --online-only` (assume `BITSIGHT_API_KEY` exported)
-   - Online selftest: `uv run birre selftest --production`
-   - If failures occur, report and stop
+  - Offline: `uv run pytest --offline`
+  - Online: `uv run pytest --online-only` (assume `BITSIGHT_API_KEY` exported)
+  - Online selftest: `uv run birre selftest --production`
+  - If failures occur, report and stop
 
 4. Stage any updated artifacts
 
-   - If tests or tooling updated tracked files (e.g., snapshots), include them
+  - If tests or tooling updated tracked files (e.g., snapshots), include them
 
 5. Commit and push
 
-   - Create commit: `Bump version to v<next_version>` including all staged files
-   - Push the dev branch
+  - Create commit: `Bump version to v<next_version>` including all staged files
+  - Push the dev branch
 
 6. Next step for user
 
-   - Instruct: Approve/merge the open PR into `main`
-   - Provide tag command to run after the merge on the main branch:
-     - Bash: `git tag v<next_version> && git push origin v<next_version>`
+  - Instruct: Approve/merge the open PR into `main`
+  - Provide tag command to run after the merge on the main branch:
+    - Bash: `git tag v<next_version> && git push origin v<next_version>`
 
 Notes
 

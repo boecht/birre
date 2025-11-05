@@ -24,28 +24,28 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 ### Project Principles
 
 1. **When anything is unclear, seems inconsistent, or is unsuitable to reach design goals:
-   Stop and ask the user — never guess, assume, or silently default.**
-   - Applies at all stages: requirements, system design, implementation
-   - Always clarify technical ambiguities or specification gaps with a clear technical question
-   - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate
+  Stop and ask the user — never guess, assume, or silently default.**
+  - Applies at all stages: requirements, system design, implementation
+  - Always clarify technical ambiguities or specification gaps with a clear technical question
+  - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate
 
 2. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
-   - Prioritize functionality and stability over broad compatibility
-   - Avoid premature optimization for universal use cases
+  - Prioritize functionality and stability over broad compatibility
+  - Avoid premature optimization for universal use cases
 
 3. **Quality and architecture trump backwards compatibility.**
-   - Breaking changes are acceptable if they improve the codebase
-   - Remove outdated patterns immediately; do not preserve legacy code
-   - Avoid shortcuts; build the right solution once
-   - Clean, maintainable architecture outranks legacy API stability
+  - Breaking changes are acceptable if they improve the codebase
+  - Remove outdated patterns immediately; do not preserve legacy code
+  - Avoid shortcuts; build the right solution once
+  - Clean, maintainable architecture outranks legacy API stability
 
 4. **Documentation focuses on user value, not internal implementation.**
-   - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
-   - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
-   - Keep technical specifics in commits and internal tracking
-   - Example:
-     - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
-     - ✅ "Enhanced reliability through simplified error handling"
+  - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
+  - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
+  - Keep technical specifics in commits and internal tracking
+  - Example:
+    - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
+    - ✅ "Enhanced reliability through simplified error handling"
 
 ### Documentation Principles
 
@@ -88,7 +88,7 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 #### Safety and Etiquette
 
 - Never push or merge to protected branches (`main`, `release/*`) unless the user explicitly instructs you to
-- If the user’s adjustments introduce conflicts or inconsistent staging, pause and clarify how to proceed before committing
+- If user’s adjustments introduce conflicts or inconsistent staging, pause and clarify how to proceed before committing
 
 ### Quality Assurance Checklist
 
@@ -205,7 +205,7 @@ Every task must end with a QA review that compares all work to the initial task:
 2. **List file changes**: For each modified file, explain how the change serves the original task
 3. **Identify misalignment**: Call out any changes that don't directly serve the task objective
 4. **Reflect on alignment**: Does the complete set of changes accomplish what was requested?
-   Are there gaps or overreach?
+  Are there gaps or overreach?
 5. **Verify changes**: Read back edited content to confirm correctness
 
 ## 7. Appendix
