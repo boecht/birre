@@ -23,7 +23,7 @@ jobs:
       enable-dependency-review: false
       enable-tests: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REUSABLE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   validate:
     name: Pre-release Validation

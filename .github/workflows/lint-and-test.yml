@@ -42,7 +42,7 @@ on:
         default: true
         type: boolean
     secrets:
-      GITHUB_TOKEN:
+      REUSABLE_GITHUB_TOKEN:
         description: Token used for MegaLinter reporters and API calls.
         required: true
 
@@ -93,7 +93,7 @@ jobs:
         uses: oxsecurity/megalinter@v8.2.0
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
 
       - name: Upload MegaLinter reports
