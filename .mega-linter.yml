@@ -53,10 +53,13 @@ PYTHON_MYPY_ARGUMENTS: "--strict"
 PYTHON_DEFAULT_STYLE: ruff
 PYTHON_RUFF_CLI_LINT_MODE: project
 PYTHON_RUFF_CONFIG_FILE: pyproject.toml
-PYTHON_RUFF_FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/|^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
+PYTHON_RUFF_FILTER_REGEX_EXCLUDE: >-
+  (^docs/apis/|^src/birre/resources/apis/|^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
 
 # Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
-REPOSITORY_SYFT_ARGUMENTS: "-o cyclonedx-json=artifacts/sbom-cyclonedx.json -o spdx-json=artifacts/sbom-spdx.json"
+REPOSITORY_SYFT_ARGUMENTS: >-
+  -o cyclonedx-json=artifacts/sbom-cyclonedx.json
+  -o spdx-json=artifacts/sbom-spdx.json
 
 # YAML Yamllint
 YAML_YAMLLINT_ARGUMENTS: "--strict"
