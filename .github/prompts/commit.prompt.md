@@ -20,13 +20,14 @@ Treat every invocation as brand new: never reuse prior answers, cached data, or 
 
 ## Playbook
 
-Follow this playbook in order; do every step during this run, even if it feels redundant.
+Follow this playbook exactly and in order; do every step during this run, even if it feels redundant.
 
 ### Inspect the staged index
 
 - Use `runCommands` to execute the following commands in order during this invocation:
   - `git diff --cached --numstat --shortstat && git diff --cached --name-status`
   - `git diff --cached -U2 --minimal --no-color | head -n 1000`
+- Do not alter the commands or add any others, use them exactly as given
 - If the commands show nothing staged, report that no commit is needed and stop
 - Read the diff output so you understand what will be committed
 
