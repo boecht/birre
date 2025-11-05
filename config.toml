@@ -55,7 +55,17 @@ context = "standard"
 # Comma-separated risk vectors used when selecting top findings.
 # ENV: BIRRE_RISK_VECTOR_FILTER
 # CLI: --risk-vector-filter
-risk_vector_filter = "botnet_infections,spam_propagation,malware_servers,unsolicited_comm,potentially_exploited,open_ports,patching_cadence,insecure_systems,server_software"
+risk_vector_filter = """
+botnet_infections,
+spam_propagation,
+malware_servers,
+unsolicited_comm,
+potentially_exploited,
+open_ports,
+patching_cadence,
+insecure_systems,
+server_software
+"""
 
 # Maximum number of top findings returned with company rating.
 # ENV: BIRRE_MAX_FINDINGS
