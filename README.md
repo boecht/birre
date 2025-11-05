@@ -1,12 +1,24 @@
 # BiRRe
 
-[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue)](pyproject.toml)
-[![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
-[![codecov](https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg)](https://codecov.io/gh/boecht/birre)
-[![Type Checked](https://img.shields.io/badge/type--checked-yes-success)](src/birre/py.typed)
-[![OpenSSF Best Practices]
-(https://www.bestpractices.dev/projects/11405/badge)](https://www.bestpractices.dev/projects/11405)
+[![Python Version][python-badge]][python-link]
+[![License][license-badge]][license-link]
+[![Tests][tests-badge]][tests-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Type Checked][type-checked-badge]][type-checked-link]
+[![OpenSSF Best Practices][ossf-badge]][ossf-link]
+
+[python-badge]: https://img.shields.io/badge/python-3.13%2B-blue
+[python-link]: pyproject.toml
+[license-badge]: https://img.shields.io/badge/license-Unlicense-blue
+[license-link]: LICENSE
+[tests-badge]: https://img.shields.io/badge/tests-passing-success
+[tests-link]: https://github.com/boecht/birre/actions
+[codecov-badge]: https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg
+[codecov-link]: https://codecov.io/gh/boecht/birre
+[type-checked-badge]: https://img.shields.io/badge/type--checked-yes-success
+[type-checked-link]: src/birre/py.typed
+[ossf-badge]: https://www.bestpractices.dev/projects/11405/badge
+[ossf-link]: https://www.bestpractices.dev/projects/11405
 
 <div align="center"><img src="birre-logo.png" alt="BiRRe Logo" width="375"></div>
 
