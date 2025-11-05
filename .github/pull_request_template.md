@@ -24,21 +24,22 @@ Fixes #
 
 <!-- List the specific changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 
 <!-- Describe the testing you've done -->
 
-- [ ] All existing tests pass (`uv run pytest -m offline`)
+- [ ] All existing offline tests pass (`uv run pytest --offline`)
+- [ ] All existing online tests pass (`uv run pytest --online-only`)
 - [ ] Added new tests for new functionality
 - [ ] Tested manually with the following scenarios:
-  - 
-  - 
+  - Scenario 1
+  - Scenario 2
 
-## Code Quality Checklist
+### Code Quality Checklist
 
 - [ ] Code follows project style guidelines (ruff check/format)
 - [ ] Type hints added/updated (mypy --strict passes)

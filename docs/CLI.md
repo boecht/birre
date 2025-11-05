@@ -1,6 +1,7 @@
 # Command Line Reference
 
-BiRRe's Typer CLI is exposed through the `birre` console script. Use the explicit `run` subcommand to start the FastMCP server after performing startup checks:
+BiRRe's Typer CLI is exposed through the `birre` console script. Use the explicit `run` subcommand
+to start the FastMCP server after performing startup checks:
 
 ```bash
 uv run birre run
@@ -17,36 +18,40 @@ Configuration values layer in the following order (lowest → highest):
 3. Environment variables
 4. CLI flags
 
-Environment variables are mirrored by CLI options. The sections below highlight the most frequently used flags together with their corresponding environment keys.
+Environment variables are mirrored by CLI options. The sections below highlight the most frequently
+used flags together with their corresponding environment keys.
 
 ## Shared options
 
-Most commands accept the same core options for authentication, runtime behaviour, and logging. The table below lists the common flags and how they map to environment variables.
+Most commands accept the same core options for authentication, runtime behaviour, and logging.
+The table below lists the common flags and how they map to environment variables.
 
 | Option | Environment | Description |
 | --- | --- | --- |
-| `--config PATH` | `BIRRE_CONFIG` | Load settings from an alternative TOML file (defaults to `config.toml`). |
-| `--bitsight-api-key TEXT` | `BITSIGHT_API_KEY` | API key used to authenticate against BitSight. |
-| `--subscription-folder TEXT` | `BIRRE_SUBSCRIPTION_FOLDER` | Override the folder used for ephemeral subscriptions. |
-| `--subscription-type TEXT` | `BIRRE_SUBSCRIPTION_TYPE` | Override the BitSight subscription type used for temporary access. |
-| `--context [standard\|risk_manager]` | `BIRRE_CONTEXT` | Select the MCP persona exposed to clients. |
-| `--risk-vector-filter TEXT` | `BIRRE_RISK_VECTOR_FILTER` | Comma-separated BitSight risk vectors used when selecting findings. |
-| `--max-findings INTEGER` | `BIRRE_MAX_FINDINGS` | Limit the number of findings returned with each rating payload. |
-| `--skip-startup-checks / --require-startup-checks` | `BIRRE_SKIP_STARTUP_CHECKS` | Disable BitSight connectivity checks (use `--require-startup-checks` to override a configured skip). |
-| `--debug / --no-debug` | `BIRRE_DEBUG` | Emit verbose diagnostic logging and payload details. |
-| `--allow-insecure-tls / --enforce-tls` | `BIRRE_ALLOW_INSECURE_TLS` | Skip TLS verification when connecting to BitSight. |
-| `--ca-bundle PATH` | `BIRRE_CA_BUNDLE` | Provide a custom certificate authority bundle for TLS verification. |
-| `--log-level TEXT` | `BIRRE_LOG_LEVEL` | Set the logging level (e.g. `INFO`, `DEBUG`). |
-| `--log-format [text\|json]` | `BIRRE_LOG_FORMAT` | Choose between human-readable and JSON log formatting. |
-| `--log-file PATH` | `BIRRE_LOG_FILE` | Write logs to a file (set to `-`, `stderr`, `stdout`, or `none` to disable file logging). |
-| `--log-max-bytes INTEGER` | `BIRRE_LOG_MAX_BYTES` | Maximum size for log rotation when file logging is enabled. |
-| `--log-backup-count INTEGER` | `BIRRE_LOG_BACKUP_COUNT` | Number of rotated log archives to keep. |
+| `--config PATH` | `BIRRE_CONFIG` | Load settings from alternative TOML file. |
+| `--bitsight-api-key TEXT` | `BITSIGHT_API_KEY` | API key for BitSight authentication. |
+| `--subscription-folder TEXT` | `BIRRE_SUBSCRIPTION_FOLDER` | Folder for ephemeral subscriptions. |
+| `--subscription-type TEXT` | `BIRRE_SUBSCRIPTION_TYPE` | BitSight subscription type for temporary access. |
+| `--context [standard\|risk_manager]` | `BIRRE_CONTEXT` | Select the MCP persona. |
+| `--risk-vector-filter TEXT` | `BIRRE_RISK_VECTOR_FILTER` | Comma-separated risk vectors for findings. |
+| `--max-findings INTEGER` | `BIRRE_MAX_FINDINGS` | Limit findings returned per rating payload. |
+| `--skip-startup-checks` | `BIRRE_SKIP_STARTUP_CHECKS` | Disable BitSight connectivity checks. |
+| `--debug / --no-debug` | `BIRRE_DEBUG` | Enable verbose diagnostic logging. |
+| `--allow-insecure-tls` | `BIRRE_ALLOW_INSECURE_TLS` | Skip TLS verification. |
+| `--ca-bundle PATH` | `BIRRE_CA_BUNDLE` | Custom certificate authority bundle. |
+| `--log-level TEXT` | `BIRRE_LOG_LEVEL` | Set logging level (INFO, DEBUG, etc). |
+| `--log-format [text\|json]` | `BIRRE_LOG_FORMAT` | Human-readable or JSON log format. |
+| `--log-file PATH` | `BIRRE_LOG_FILE` | Write logs to file or stream. |
+| `--log-max-bytes INTEGER` | `BIRRE_LOG_MAX_BYTES` | Max size for log rotation. |
+| `--log-backup-count INTEGER` | `BIRRE_LOG_BACKUP_COUNT` | Rotated log archives to keep. |
 
 ## Commands
 
 ### `run`
 
-Starts the MCP server with the provided configuration. The command performs offline configuration validation and optional online startup checks against BitSight. Add `--profile PATH` to capture a Python cProfile output for the run.
+Starts the MCP server with the provided configuration. The command performs offline configuration
+validation and optional online startup checks against BitSight. Add `--profile PATH` to capture
+a Python cProfile output for the run.
 
 Example:
 
@@ -56,7 +61,10 @@ uv run birre run --context risk_manager --log-format json
 
 ### `selftest`
 
-Executes BiRRe's diagnostics without starting the server. It loads configuration in the same way as `run`, reports effective values, and (unless `--offline` is supplied) performs live BitSight checks against the testing API base URL by default. Use `--production` to target the production API, or `--offline` to skip network requests entirely.
+Executes BiRRe's diagnostics without starting the server. It loads configuration in the same way
+as `run`, reports effective values, and (unless `--offline` is supplied) performs live BitSight
+checks against the testing API base URL by default. Use `--production` to target the production
+API, or `--offline` to skip network requests entirely.
 
 Example:
 
@@ -74,9 +82,15 @@ Exit codes:
 
 Group of subcommands for inspecting and managing configuration files:
 
-- `config show` – Displays configuration sources, environment overrides, CLI overrides, and the fully resolved configuration using Rich tables. Helpful when troubleshooting how values from different layers combine.
-- `config validate` – Validates a TOML configuration file before use. With `--minimize`, BiRRe rewrites the file using its canonical layout while keeping a `.bak` backup. Passing `--debug` prints the parsed data structure.
-- `config init` – Interactively generates or updates a configuration file (defaults to `config.local.toml`; override with `--config`), prompting for key values and summarizing the resulting file.
+- `config show` – Displays configuration sources, environment overrides, CLI overrides, and the
+  fully resolved configuration using Rich tables. Helpful when troubleshooting how values from
+  different layers combine.
+- `config validate` – Validates a TOML configuration file before use. With `--minimize`, BiRRe
+  rewrites the file using its canonical layout while keeping a `.bak` backup. Passing `--debug`
+  prints the parsed data structure.
+- `config init` – Interactively generates or updates a configuration file (defaults to
+  `config.local.toml`; override with `--config`), prompting for key values and summarizing
+  the resulting file.
 
 Examples:
 
@@ -111,7 +125,8 @@ uv run birre logs clear
 
 ### `version`
 
-Prints the installed BiRRe package version. Falls back to reading `pyproject.toml` when BiRRe is executed from a source checkout.
+Prints the installed BiRRe package version. Falls back to reading `pyproject.toml` when BiRRe
+is executed from a source checkout.
 
 ### `readme`
 
@@ -119,4 +134,5 @@ Streams the `README.md` file to standard output for quick reference.
 
 ## Further help
 
-Every command includes its own `--help` output generated by Typer. Combine the guidance above with the inline help text for the most up-to-date descriptions.
+Every command includes its own `--help` output generated by Typer. Combine the guidance above
+with the inline help text for the most up-to-date descriptions.

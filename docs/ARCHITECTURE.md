@@ -2,7 +2,9 @@
 
 ## Overview
 
-BiRRe is a Model Context Protocol (MCP) server that provides simplified access to BitSight security rating APIs. The server uses FastMCP's tool filtering capabilities to expose only essential business logic tools while maintaining access to comprehensive API functionality.
+BiRRe is a Model Context Protocol (MCP) server that provides simplified access to BitSight security
+rating APIs. The server uses FastMCP's tool filtering capabilities to expose only essential
+business logic tools while maintaining access to comprehensive API functionality.
 
 ## Design Requirements
 
@@ -14,7 +16,8 @@ BitSight provides extensive APIs across two versions:
 - **v2 API**: 20 endpoints with enhanced features (does not replace v1)
 - **Total**: 478+ available endpoints
 
-Direct exposure of all endpoints to MCP clients would create interface complexity and poor user experience. The solution requires:
+Direct exposure of all endpoints to MCP clients would create interface complexity and poor user
+experience. The solution requires:
 
 - Complete API functionality access for business logic
 - Simplified interface with focused tools for end users
@@ -25,6 +28,7 @@ Direct exposure of all endpoints to MCP clients would create interface complexit
 The architecture uses FastMCP's tool filtering mechanism to separate API tools from business tools:
 
 1. **Auto-generation**: Generate all API tools from OpenAPI specifications
+
 2. **Tool filtering**: Hide API tools from client visibility while maintaining internal access
 3. **Business abstraction**: Expose curated business logic tools that orchestrate API calls
 
@@ -94,9 +98,11 @@ BiRRe uses a factory function to create and configure the FastMCP server instanc
 ```python
 def create_birre_server(runtime_settings: RuntimeSettings) -> FastMCP:
     """Create and configure a BiRRe MCP server instance.
-    
+
     This factory:
+
     1. Creates FastMCP server from OpenAPI specs (v1 + v2)
+
     2. Disables auto-generated API tools (hides from client)
     3. Registers context-specific business tools
     4. Returns configured server ready to serve
@@ -118,18 +124,21 @@ def create_birre_server(runtime_settings: RuntimeSettings) -> FastMCP:
 BiRRe uses two different context objects depending on execution mode:
 
 **Production: FastMCP Context** (MCP protocol):
+
 - Provided by FastMCP framework during MCP protocol communication
 - Includes logging methods: `ctx.info()`, `ctx.warning()`, `ctx.error()`
 - Has metadata about the client request
 - Used by business tools in `domain/` layer
 
 **Testing: _MockSelfTestContext** (diagnostics):
+
 - Defined in `domain/selftest_models.py`
 - Simulates MCP Context interface for selftest validation
 - Enables testing tool logic without MCP client connection
 - Used by diagnostic functions in `application/diagnostics.py`
 
 **Why the separation?**
+
 - Allows testing business logic without running MCP server
 - Diagnostic validation works offline (no client needed)
 - Mock context captures logging for test assertions
@@ -140,23 +149,31 @@ BiRRe uses two different context objects depending on execution mode:
 BiRRe uses a multi-stage tool registration process:
 
 **Stage 1: Auto-generation** (startup)
+
 1. Load OpenAPI schemas from `resources/apis/`
+
 2. FastMCP generates 478+ API tools automatically
 3. All tools get type validation from schemas
 
 **Stage 2: Filtering** (startup)
+
 1. Disable all auto-generated tools via `tool.disable()`
+
 2. Tools remain callable internally via `server.call_tool()`
 3. Hidden from MCP `list_tools` protocol response
 
 **Stage 3: Business Tool Registration** (startup)
+
 1. Register domain tools based on selected context
+
 2. Standard context: 2 tools (search, rating)
 3. Risk-manager context: 5 tools (adds interactive search, subscriptions, requests)
 4. Each tool orchestrates multiple internal API calls
 
 **Stage 4: Runtime** (per request)
+
 1. Client calls business tool via MCP protocol
+
 2. Business tool calls internal API tools via `server.call_tool()`
 3. Results aggregated and returned to client
 
@@ -190,9 +207,15 @@ BiRRe uses a multi-stage tool registration process:
 
 ### API Version Strategy
 
-- **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search, ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are disabled at startup to minimize surface area.
-- **v2 API (Complementary)**: The v2 schema ships with the package and is invoked only when it provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains v1-centric unless optional features require it.
-- **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will continue to be layered on per feature; v2 augments v1 and there is no plan for a wholesale replacement.
+- **v1 API (Primary)**: All shipping business tools rely exclusively on v1 endpoints for search,
+  ratings, findings, folder lookups, and subscription management. Non-essential v1 tools are
+  disabled at startup to minimize surface area.
+- **v2 API (Complementary)**: The v2 schema ships with the package and is invoked only when it
+  provides capabilities unavailable in v1 (e.g., bulk onboarding), so runtime behaviour remains
+  v1-centric unless optional features require it.
+- **Future Work**: Targeted v2 integrations (e.g., richer findings or financial metrics) will
+  continue to be layered on per feature; v2 augments v1 and there is no plan for a wholesale
+  replacement.
 
 ## Implementation Details
 
@@ -207,25 +230,34 @@ BiRRe uses a multi-stage tool registration process:
 BiRRe performs validation checks before starting the MCP server to ensure proper configuration and API connectivity.
 
 **Architecture**:
-- **Core Logic** (`application/startup.py`): Implements `run_offline_startup_checks()` and `run_online_startup_checks()` with no external dependencies
-- **Diagnostic Wrappers** (`application/diagnostics.py`): Provides `run_offline_checks()` and `run_online_checks()` convenience functions that add diagnostic logging and orchestration
+
+- **Core Logic** (`application/startup.py`): Implements `run_offline_startup_checks()` and
+  `run_online_startup_checks()` with no external dependencies
+- **Diagnostic Wrappers** (`application/diagnostics.py`): Provides `run_offline_checks()` and
+  `run_online_checks()` convenience functions that add diagnostic logging and orchestration
 
 **Checks Performed**:
+
 - **Offline**: API key presence, subscription folder/type configuration, OpenAPI schema validation
 - **Online**: API key validity, subscription folder access, remaining quota verification
 
 **Configuration**:
+
 - Executed automatically before the MCP server starts serving requests
-- Can be skipped via `--skip-startup-checks`, `BIRRE_SKIP_STARTUP_CHECKS`, or `[runtime].skip_startup_checks` when operators intentionally defer validation
+- Can be skipped via `--skip-startup-checks`, `BIRRE_SKIP_STARTUP_CHECKS`,
+  or `[runtime].skip_startup_checks` when operators intentionally defer validation
 - Emits structured log events (`startup_checks.run`) and aborts startup on errors
 
-**Design Rationale**: The separation between startup.py (pure logic) and diagnostics.py (diagnostic tooling) maintains clean layer boundaries while providing convenient diagnostic entry points for CLI commands.
+**Design Rationale**: The separation between startup.py (pure logic) and diagnostics.py (diagnostic
+tooling) maintains clean layer boundaries while providing convenient diagnostic entry points for
+CLI commands.
 
 ### Dependencies and Layer Architecture
 
 BiRRe follows a strict 3-layer architecture with clear dependency rules:
 
 **Layer Structure**:
+
 ```text
 cli/              (UI Layer)
   ↓ depends on
@@ -249,11 +281,13 @@ infrastructure/   (Cross-cutting Concerns)
 **Dependency Rules**:
 
 1. **No Circular Dependencies**: All imports flow downward through layers
+
 2. **Infrastructure Independence**: domain/ only depends on infrastructure/ for errors and logging
 3. **CLI Isolation**: CLI code cannot be imported by application/ or domain/
 4. **External Dependencies**: Concentrated in infrastructure/ and application/ layers
 
 **Import Patterns**:
+
 - ✅ `cli/` → `application/` → `domain/` → `infrastructure/`
 - ✅ All layers → `infrastructure/` (errors, logging)
 - ❌ `domain/` → `application/`
@@ -301,22 +335,33 @@ src/birre/cli/
 
 **Key Patterns**:
 
-- **Command Registration**: Each command module exports a `register(app, ...)` function that registers commands with the main Typer app
-- **Option Factories**: Reusable option definitions in `options.py` ensure consistent flag names and environment variable mappings
-- **Configuration Layering**: `helpers.py` provides utilities for merging config.toml → config.local.toml → environment → CLI flags
-- **Rich Console**: All CLI output uses Rich for formatted tables, styled text, and progress indicators
-- **Shared Formatting**: Common utilities (table creation, value masking, config formatting) in `formatting.py` eliminate duplication
-- **Validation Utilities**: `validation.py` provides reusable validators (file existence, TOML parsing, parameter validation) with consistent error handling
+- **Command Registration**: Each command module exports a `register(app, ...)` function that
+  registers commands with the main Typer app
+- **Option Factories**: Reusable option definitions in `options.py` ensure consistent flag names
+  and environment variable mappings
+- **Configuration Layering**: `helpers.py` provides utilities for merging config.toml →
+  config.local.toml → environment → CLI flags
+- **Rich Console**: All CLI output uses Rich for formatted tables, styled text, and progress
+  indicators
+- **Shared Formatting**: Common utilities (table creation, value masking,
+  config formatting) in `formatting.py` eliminate duplication
+- **Validation Utilities**: `validation.py` provides reusable validators (file existence, TOML parsing,
+  parameter validation) with consistent error handling
 
 **Module Sizing Philosophy**:
 
 BiRRe CLI modules follow a pragmatic sizing approach:
-- **helpers.py (382 lines)**: 16 functions organized into 6 clear categories (sync bridge, invocation building, settings conversion, runtime utilities, diagnostics)
-- **options.py (360 lines)**: 20+ Typer option declarations with normalization helpers, organized by concern (auth, runtime, logging)
+
+- **helpers.py (382 lines)**: 16 functions organized into 6 clear categories (sync bridge, invocation building,
+  settings conversion, runtime utilities, diagnostics)
+- **options.py (360 lines)**: 20+ Typer option declarations with normalization helpers, organized by concern (auth,
+  runtime, logging)
 - **validation.py (188 lines)**: 6 reusable validators for common CLI validation patterns
 
 These modules remain intentionally unified rather than split because:
+
 1. **Cohesion**: Each module has a single, clear responsibility
+
 2. **Discoverability**: Related functions are co-located for easy navigation
 3. **Simplicity**: Splitting would increase import complexity without improving maintainability
 4. **Threshold**: All modules are under the 400-line practical limit for CLI utilities
@@ -326,7 +371,8 @@ See [docs/CLI.md](CLI.md) for complete command reference.
 
 ## Benefits
 
-**Interface Simplicity**: Context-specific business toolsets (2 for standard, 5 for risk-manager) instead of 478 API endpoints
+**Interface Simplicity**: Context-specific business toolsets (2 for standard,
+  5 for risk-manager) instead of 478 API endpoints
 **Complete Coverage**: Full API functionality available through auto-generation
 **Maintainability**: Minimal custom HTTP client code, handled by FastMCP
 **Framework Compliance**: Uses standard FastMCP patterns as documented
@@ -347,7 +393,12 @@ See [docs/CLI.md](CLI.md) for complete command reference.
 
 The project maintains both offline and online suites:
 
-- **Offline (`uv run pytest -m offline`)** – Runs quickly without network access. It covers configuration layering, logging formatters, startup checks, and the risk-manager tools (interactive search, subscription management, company requests) using lightweight stubs.
-- **Online (`uv run pytest -m online`)** – Executes the FastMCP client end-to-end against BitSight, verifying the company search/rating workflow and the online startup checks. Requires a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
+- **Offline (`uv run pytest --offline`)** – Runs quickly without network access. It covers
+  configuration layering, logging formatters, startup checks, and the risk-manager tools
+  (interactive search, subscription management, company requests) using lightweight stubs.
+- **Online (`uv run pytest --online-only`)** – Executes the FastMCP client end-to-end against
+  BitSight, verifying the company search/rating workflow and the online startup checks. Requires
+  a valid `BITSIGHT_API_KEY` and installs `fastmcp` inside the uv-managed virtual environment.
 
-Future work should extend the offline suite to the standard company rating/search flows and ensure any new tooling lands with matching tests.
+Future work should extend the offline suite to the standard company rating/search flows and ensure
+any new tooling lands with matching tests.

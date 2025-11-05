@@ -1,40 +1,46 @@
+---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: "^docs/apis/"
       - id: end-of-file-fixer
+        exclude: "^docs/apis/"
       - id: check-yaml
       - id: check-json
+        exclude: "^docs/apis/"
       - id: check-toml
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
+  # Use local hooks with uv to ensure project Python version and dependencies
+  - repo: local
     hooks:
       - id: ruff
-        args:
-          - --fix
-      - id: ruff-format
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true
+
       - id: mypy
-        args:
-          - --strict
-          - --python-version=3.11
-        additional_dependencies:
-          - pydantic
-          - httpx
-          - typer
-          - rich
-          - structlog
-          - dynaconf
-          - fastmcp
+        name: mypy
+        entry: uv run mypy --strict
+        language: system
+        types: [python]
+        files: ^src/
+        require_serial: true
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.38.0
+    rev: v0.45.0
     hooks:
       - id: markdownlint
         args:
           - "--config=.markdownlint.json"
+        exclude: '^(docs/apis/|\.github/|\.project-notes/)'

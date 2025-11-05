@@ -55,6 +55,16 @@ EXPECTED_TOOLS_BY_CONTEXT: dict[str, frozenset[str]] = {
     ),
 }
 
+
+def _ensure_mode_mapping(summary: dict[str, Any | None]) -> dict[str, Any]:
+    """Return the mutable mode map within a summary, creating it if missing."""
+    modes = summary.get("modes")
+    if not isinstance(modes, dict):
+        modes = {}
+        summary["modes"] = modes
+    return modes
+
+
 MSG_NOT_A_DICT: Final = "not a dict"
 MSG_TOOL_INVOCATION_FAILED: Final = "tool invocation failed"
 MSG_UNEXPECTED_PAYLOAD_STRUCTURE: Final = "unexpected payload structure"
@@ -452,119 +462,146 @@ def run_company_search_diagnostics(
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
+    """Run diagnostics for company_search tool with both name and domain modes."""
     tool_logger = logger.bind(tool="company_search")
     ctx = _MockSelfTestContext(context=context, tool_name="company_search", logger=tool_logger)
+
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
-    try:
-        by_name = _invoke_tool(
-            tool,
-            ctx,
-            run_sync=run_sync,
-            name=HEALTHCHECK_COMPANY_NAME,
-        )
-    except Exception as exc:  # pragma: no cover - network failures
-        tool_logger.critical("healthcheck.company_search.call_failed", error=str(exc))
-        record_failure(
-            failures,
-            tool="company_search",
-            stage="call",
-            mode="name",
-            message=MSG_TOOL_INVOCATION_FAILED,
-            exception=exc,
-        )
-        if summary is not None:
-            summary["status"] = "fail"
-            summary["details"] = {
-                "reason": MSG_TOOL_INVOCATION_FAILED,
-                "mode": "name",
-                "error": str(exc),
-            }
-        return False
 
-    if not _validate_company_search_payload(
-        by_name,
-        logger=tool_logger,
+    # Test search by name
+    if not _test_company_search_mode(
+        tool=tool,
+        ctx=ctx,
+        mode="name",
+        search_params={"name": HEALTHCHECK_COMPANY_NAME},
         expected_domain=None,
+        tool_logger=tool_logger,
+        failures=failures,
+        summary=summary,
+        run_sync=run_sync,
     ):
-        record_failure(
-            failures,
-            tool="company_search",
-            stage="validation",
-            mode="name",
-            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-        )
-        if summary is not None:
-            summary["status"] = "fail"
-            summary["details"] = {
-                "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-                "mode": "name",
-            }
         return False
 
-    if summary is not None:
-        summary.setdefault("modes", {})["name"] = {"status": "pass"}  # type: ignore[index]  # setdefault dict access
-
-    try:
-        by_domain = _invoke_tool(
-            tool,
-            ctx,
-            run_sync=run_sync,
-            domain=HEALTHCHECK_COMPANY_DOMAIN,
-        )
-    except Exception as exc:  # pragma: no cover - network failures
-        tool_logger.critical("healthcheck.company_search.domain_call_failed", error=str(exc))
-        record_failure(
-            failures,
-            tool="company_search",
-            stage="call",
-            mode="domain",
-            message=MSG_TOOL_INVOCATION_FAILED,
-            exception=exc,
-        )
-        if summary is not None:
-            summary["status"] = "fail"
-            summary["details"] = {
-                "reason": MSG_TOOL_INVOCATION_FAILED,
-                "mode": "domain",
-                "error": str(exc),
-            }
-            summary.setdefault("modes", {})["domain"] = {  # type: ignore[index]  # setdefault dict access
-                "status": "fail",
-                "error": str(exc),
-            }
-        return False
-
-    if not _validate_company_search_payload(
-        by_domain,
-        logger=tool_logger,
+    # Test search by domain
+    if not _test_company_search_mode(
+        tool=tool,
+        ctx=ctx,
+        mode="domain",
+        search_params={"domain": HEALTHCHECK_COMPANY_DOMAIN},
         expected_domain=HEALTHCHECK_COMPANY_DOMAIN,
+        tool_logger=tool_logger,
+        failures=failures,
+        summary=summary,
+        run_sync=run_sync,
     ):
-        record_failure(
-            failures,
-            tool="company_search",
-            stage="validation",
-            mode="domain",
-            message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-        )
-        if summary is not None:
-            summary["status"] = "fail"
-            summary["details"] = {
-                "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-                "mode": "domain",
-            }
-            summary.setdefault("modes", {})["domain"] = {  # type: ignore[index]  # setdefault dict access
-                "status": "fail",
-                "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
-            }
         return False
-
-    if summary is not None:
-        summary.setdefault("modes", {})["domain"] = {"status": "pass"}  # type: ignore[index]  # setdefault dict access
 
     tool_logger.info("healthcheck.company_search.success")
     return True
+
+
+def _test_company_search_mode(
+    *,
+    tool: Any,
+    ctx: _MockSelfTestContext,
+    mode: str,
+    search_params: dict[str, str],
+    expected_domain: str | None,
+    tool_logger: BoundLogger,
+    failures: list[DiagnosticFailure | None] | None,
+    summary: dict[str, Any | None] | None,
+    run_sync: SyncRunner | None,
+) -> bool:
+    """Test a single search mode (name or domain) for company_search diagnostics."""
+    # Try to invoke the tool
+    try:
+        result = _invoke_tool(tool, ctx, run_sync=run_sync, **search_params)
+    except Exception as exc:  # pragma: no cover - network failures
+        return _handle_company_search_call_failure(
+            mode=mode,
+            exc=exc,
+            tool_logger=tool_logger,
+            failures=failures,
+            summary=summary,
+        )
+
+    # Validate the response
+    if not _validate_company_search_payload(
+        result,
+        logger=tool_logger,
+        expected_domain=expected_domain,
+    ):
+        return _handle_company_search_validation_failure(
+            mode=mode,
+            failures=failures,
+            summary=summary,
+        )
+
+    # Record success
+    if summary is not None:
+        modes = _ensure_mode_mapping(summary)
+        modes[mode] = {"status": "pass"}
+
+    return True
+
+
+def _handle_company_search_call_failure(
+    *,
+    mode: str,
+    exc: Exception,
+    tool_logger: BoundLogger,
+    failures: list[DiagnosticFailure | None] | None,
+    summary: dict[str, Any | None] | None,
+) -> bool:
+    """Handle failures during company_search tool invocation."""
+    tool_logger.critical(f"healthcheck.company_search.{mode}_call_failed", error=str(exc))
+    record_failure(
+        failures,
+        tool="company_search",
+        stage="call",
+        mode=mode,
+        message=MSG_TOOL_INVOCATION_FAILED,
+        exception=exc,
+    )
+    if summary is not None:
+        summary["status"] = "fail"
+        summary["details"] = {
+            "reason": MSG_TOOL_INVOCATION_FAILED,
+            "mode": mode,
+            "error": str(exc),
+        }
+        if mode == "domain":
+            modes = _ensure_mode_mapping(summary)
+            modes[mode] = {"status": "fail", "error": str(exc)}
+    return False
+
+
+def _handle_company_search_validation_failure(
+    *,
+    mode: str,
+    failures: list[DiagnosticFailure | None] | None,
+    summary: dict[str, Any | None] | None,
+) -> bool:
+    """Handle failures during company_search payload validation."""
+    record_failure(
+        failures,
+        tool="company_search",
+        stage="validation",
+        mode=mode,
+        message=MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
+    )
+    if summary is not None:
+        summary["status"] = "fail"
+        summary["details"] = {
+            "reason": MSG_UNEXPECTED_PAYLOAD_STRUCTURE,
+            "mode": mode,
+        }
+        if mode == "domain":
+            modes = _ensure_mode_mapping(summary)
+            modes[mode] = {"status": "fail", "detail": MSG_UNEXPECTED_PAYLOAD_STRUCTURE}
+    return False
 
 
 def run_rating_diagnostics(
@@ -1291,9 +1328,7 @@ def run_online_checks(
                 try:
                     await close()
                 except Exception as exc:  # pragma: no cover - defensive logging
-                    _LOOP_LOGGER.warning(
-                        "online_checks.client_close_failed: %s", str(exc)
-                    )
+                    _LOOP_LOGGER.warning("online_checks.client_close_failed: %s", str(exc))
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):
                 with suppress(Exception):

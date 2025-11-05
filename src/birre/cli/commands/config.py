@@ -139,7 +139,7 @@ def _format_config_value(value: Any) -> str:
         return '""'
     if isinstance(value, bool):
         return "true" if value else "false"
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         formatted = ", ".join(_format_config_value(item) for item in value)
         return f"[{formatted}]"
     return f'"{value}"'
@@ -303,75 +303,53 @@ def _collect_config_file_entries(
     return result
 
 
+# Mapping of (invocation_path, settings_key) for extracting CLI overrides
+_CLI_OVERRIDE_MAPPINGS: Final[list[tuple[tuple[str, ...], str]]] = [
+    (("auth", "api_key"), BITSIGHT_API_KEY_KEY),
+    (("subscription", "folder"), BITSIGHT_SUBSCRIPTION_FOLDER_KEY),
+    (("subscription", "type"), BITSIGHT_SUBSCRIPTION_TYPE_KEY),
+    (("runtime", "context"), ROLE_CONTEXT_KEY),
+    (("runtime", "risk_vector_filter"), ROLE_RISK_VECTOR_FILTER_KEY),
+    (("runtime", "max_findings"), ROLE_MAX_FINDINGS_KEY),
+    (("runtime", "debug"), RUNTIME_DEBUG_KEY),
+    (("runtime", "skip_startup_checks"), RUNTIME_SKIP_STARTUP_CHECKS_KEY),
+    (("tls", "allow_insecure"), RUNTIME_ALLOW_INSECURE_TLS_KEY),
+    (("tls", "ca_bundle_path"), RUNTIME_CA_BUNDLE_PATH_KEY),
+    (("logging", "level"), LOGGING_LEVEL_KEY),
+    (("logging", "format"), LOGGING_FORMAT_KEY),
+    (("logging", "file_path"), LOGGING_FILE_KEY),
+    (("logging", "max_bytes"), LOGGING_MAX_BYTES_KEY),
+    (("logging", "backup_count"), LOGGING_BACKUP_COUNT_KEY),
+]
+
+
+def _get_invocation_value(invocation: CliInvocation, path: tuple[str, ...]) -> Any:
+    """Extract a value from invocation using a dotted path."""
+    obj: Any = invocation
+    for key in path:
+        obj = getattr(obj, key, None)
+        if obj is None:
+            return None
+    return obj
+
+
 def _collect_cli_override_values(invocation: CliInvocation) -> dict[str, Any]:
     """Extract all CLI override values from invocation."""
     details: dict[str, Any] = {}
-    if invocation.auth.api_key:
-        details[BITSIGHT_API_KEY_KEY] = invocation.auth.api_key
-    if invocation.subscription.folder:
-        details[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = invocation.subscription.folder
-    if invocation.subscription.type:
-        details[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = invocation.subscription.type
-    if invocation.runtime.context:
-        details[ROLE_CONTEXT_KEY] = invocation.runtime.context
-    if invocation.runtime.risk_vector_filter:
-        details[ROLE_RISK_VECTOR_FILTER_KEY] = invocation.runtime.risk_vector_filter
-    if invocation.runtime.max_findings is not None:
-        details[ROLE_MAX_FINDINGS_KEY] = invocation.runtime.max_findings
-    if invocation.runtime.debug is not None:
-        details[RUNTIME_DEBUG_KEY] = invocation.runtime.debug
-    if invocation.runtime.skip_startup_checks is not None:
-        details[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = invocation.runtime.skip_startup_checks
-    if invocation.tls.allow_insecure is not None:
-        details[RUNTIME_ALLOW_INSECURE_TLS_KEY] = invocation.tls.allow_insecure
-    if invocation.tls.ca_bundle_path:
-        details[RUNTIME_CA_BUNDLE_PATH_KEY] = invocation.tls.ca_bundle_path
-    if invocation.logging.level:
-        details[LOGGING_LEVEL_KEY] = invocation.logging.level
-    if invocation.logging.format:
-        details[LOGGING_FORMAT_KEY] = invocation.logging.format
-    if invocation.logging.file_path is not None:
-        details[LOGGING_FILE_KEY] = invocation.logging.file_path
-    if invocation.logging.max_bytes is not None:
-        details[LOGGING_MAX_BYTES_KEY] = invocation.logging.max_bytes
-    if invocation.logging.backup_count is not None:
-        details[LOGGING_BACKUP_COUNT_KEY] = invocation.logging.backup_count
+    for path, settings_key in _CLI_OVERRIDE_MAPPINGS:
+        value = _get_invocation_value(invocation, path)
+        if value is not None:
+            details[settings_key] = value
     return details
 
 
 def _build_cli_source_labels(invocation: CliInvocation) -> dict[str, str]:
     """Build source labels for CLI overrides."""
     labels: dict[str, str] = {}
-    if invocation.auth.api_key:
-        labels[BITSIGHT_API_KEY_KEY] = "CLI"
-    if invocation.subscription.folder:
-        labels[BITSIGHT_SUBSCRIPTION_FOLDER_KEY] = "CLI"
-    if invocation.subscription.type:
-        labels[BITSIGHT_SUBSCRIPTION_TYPE_KEY] = "CLI"
-    if invocation.runtime.context:
-        labels[ROLE_CONTEXT_KEY] = "CLI"
-    if invocation.runtime.risk_vector_filter:
-        labels[ROLE_RISK_VECTOR_FILTER_KEY] = "CLI"
-    if invocation.runtime.max_findings is not None:
-        labels[ROLE_MAX_FINDINGS_KEY] = "CLI"
-    if invocation.runtime.debug is not None:
-        labels[RUNTIME_DEBUG_KEY] = "CLI"
-    if invocation.runtime.skip_startup_checks is not None:
-        labels[RUNTIME_SKIP_STARTUP_CHECKS_KEY] = "CLI"
-    if invocation.tls.allow_insecure is not None:
-        labels[RUNTIME_ALLOW_INSECURE_TLS_KEY] = "CLI"
-    if invocation.tls.ca_bundle_path:
-        labels[RUNTIME_CA_BUNDLE_PATH_KEY] = "CLI"
-    if invocation.logging.level:
-        labels[LOGGING_LEVEL_KEY] = "CLI"
-    if invocation.logging.format:
-        labels[LOGGING_FORMAT_KEY] = "CLI"
-    if invocation.logging.file_path is not None:
-        labels[LOGGING_FILE_KEY] = "CLI"
-    if invocation.logging.max_bytes is not None:
-        labels[LOGGING_MAX_BYTES_KEY] = "CLI"
-    if invocation.logging.backup_count is not None:
-        labels[LOGGING_BACKUP_COUNT_KEY] = "CLI"
+    for path, settings_key in _CLI_OVERRIDE_MAPPINGS:
+        value = _get_invocation_value(invocation, path)
+        if value is not None:
+            labels[settings_key] = "CLI"
     return labels
 
 
@@ -432,9 +410,7 @@ _EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(
-    runtime_settings: Any, logging_settings: Any
-) -> dict[str, Any]:
+def _effective_configuration_values(runtime_settings: Any, logging_settings: Any) -> dict[str, Any]:
     """Extract effective configuration values from resolved settings."""
     values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
@@ -485,13 +461,246 @@ def _print_config_table(
     stdout_console.print(table)
 
 
+def _cmd_config_init(
+    output: Path,
+    config_path: Path,
+    subscription_type: str | None,
+    debug: bool | None,
+    overwrite: bool,
+    stdout_console: Console,
+) -> None:
+    """Implementation of config init command."""
+    ctx = click.get_current_context()
+    config_source = ctx.get_parameter_source("config_path")
+    destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
+
+    _check_overwrite_destination(destination, overwrite, stdout_console)
+
+    defaults_settings = load_settings(
+        str(config_path) if config_source is ParameterSource.COMMANDLINE else None
+    )
+    default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+    default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
+    default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
+    default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
+
+    summary_rows: list[tuple[str, str, str]] = []
+
+    stdout_console.print("[bold]BiRRe local configuration generator[/bold]")
+
+    api_key = _collect_or_prompt_string(
+        None,
+        prompt="BitSight API key",
+        default=None,
+        secret=True,
+        required=True,
+    )
+    if api_key:
+        display_value = format_config_value(
+            BITSIGHT_API_KEY_KEY,
+            api_key,
+            log_file_key=LOGGING_FILE_KEY,
+        )
+        summary_rows.append((BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT))
+
+    subscription_folder = _prompt_and_record_string(
+        None,
+        "Default subscription folder",
+        (str(default_subscription_folder) if default_subscription_folder else ""),
+        summary_rows,
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
+    )
+
+    subscription_type_value = _prompt_and_record_string(
+        subscription_type,
+        "Default subscription type",
+        str(default_subscription_type) if default_subscription_type else "",
+        summary_rows,
+        BITSIGHT_SUBSCRIPTION_TYPE_KEY,
+    )
+
+    context_value = _prompt_and_record_string(
+        None,
+        "Default persona (standard or risk_manager)",
+        str(default_context or "standard"),
+        summary_rows,
+        ROLE_CONTEXT_KEY,
+        normalizer=lambda value, _: cli_options.normalize_context(value, choices=CONTEXT_CHOICES),
+    )
+
+    debug_value = _prompt_and_record_bool(
+        debug,
+        "Enable debug mode?",
+        default_debug,
+        summary_rows,
+        RUNTIME_DEBUG_KEY,
+    )
+
+    generated = {
+        "bitsight": {
+            "api_key": api_key,
+            "subscription_folder": subscription_folder,
+            "subscription_type": subscription_type_value,
+        },
+        "runtime": {
+            "debug": debug_value,
+        },
+        "roles": {
+            "context": context_value,
+        },
+    }
+
+    serializable: dict[str, dict[str, Any]] = {}
+    for section, section_values in generated.items():
+        filtered = {k: v for k, v in section_values.items() if v not in (None, "")}
+        if filtered:
+            serializable[section] = filtered
+
+    if not serializable:
+        stdout_console.print(
+            "[red]No values provided; aborting local configuration generation.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    _display_config_preview(summary_rows, stdout_console)
+
+    content = _generate_local_config_content(serializable)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.write_text(content, encoding="utf-8")
+    except OSError as error:
+        stdout_console.print(f"[red]Failed to write configuration:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    stdout_console.print(f"[green]Local configuration saved to[/green] {destination}")
+
+
+def _cmd_config_show(  # NOSONAR python:S107
+    config: Path,
+    invocation: CliInvocation,
+    stdout_console: Console,
+) -> None:
+    """Implementation of config show command."""
+    runtime_settings, logging_settings, _ = resolve_runtime_and_logging(invocation)
+    files = resolve_config_file_candidates(invocation.config_path)
+
+    config_entries = _collect_config_file_entries(files)
+
+    files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
+    files_table.add_column("File", style=RichStyles.ACCENT)
+    files_table.add_column("Status", style=RichStyles.SECONDARY)
+    for file in files:
+        status = "exists" if file.exists() else "missing"
+        files_table.add_row(str(file), status)
+    stdout_console.print(files_table)
+
+    env_overrides = {
+        name: os.getenv(name)
+        for name in (
+            "BIRRE_CONFIG",
+            "BITSIGHT_API_KEY",
+            "BIRRE_SUBSCRIPTION_FOLDER",
+            "BIRRE_SUBSCRIPTION_TYPE",
+            "BIRRE_CONTEXT",
+            "BIRRE_RISK_VECTOR_FILTER",
+            "BIRRE_MAX_FINDINGS",
+            "BIRRE_SKIP_STARTUP_CHECKS",
+            "BIRRE_DEBUG",
+            "BIRRE_ALLOW_INSECURE_TLS",
+            "BIRRE_CA_BUNDLE",
+            "BIRRE_LOG_LEVEL",
+            "BIRRE_LOG_FORMAT",
+            "BIRRE_LOG_FILE",
+            "BIRRE_LOG_MAX_BYTES",
+            "BIRRE_LOG_BACKUP_COUNT",
+        )
+        if os.getenv(name) is not None
+    }
+    # Filter out None values for type compatibility
+    env_overrides_filtered: dict[str, str] = {
+        k: v for k, v in env_overrides.items() if v is not None
+    }
+    env_labels = _build_env_source_labels(env_overrides_filtered)
+    env_rows = list(_build_env_override_rows(env_overrides_filtered))
+    if env_rows:
+        stdout_console.print()
+        _print_config_table("Environment overrides", env_rows, stdout_console)
+
+    cli_labels = {
+        key: label
+        for key, label in _build_cli_source_labels(invocation).items()
+        if key not in env_labels
+    }
+    cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
+    if cli_rows:
+        stdout_console.print()
+        _print_config_table("CLI overrides", cli_rows, stdout_console)
+
+    effective_values = _effective_configuration_values(runtime_settings, logging_settings)
+    effective_rows: list[tuple[str, str, str]] = []
+    for key in _EFFECTIVE_CONFIG_KEY_ORDER:
+        display_value = format_config_value(
+            key,
+            effective_values.get(key),
+            log_file_key=LOGGING_FILE_KEY,
+        )
+        source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
+        effective_rows.append((key, display_value, source_label))
+
+    stdout_console.print()
+    _print_config_table("Effective configuration", effective_rows, stdout_console)
+
+
+def _cmd_config_validate(
+    config: Path | None,
+    debug: bool | None,
+    minimize: bool,
+    stdout_console: Console,
+) -> None:
+    """Implementation of config validate command."""
+    ctx = click.get_current_context()
+    config_source = ctx.get_parameter_source("config")
+    if config is None and config_source == ParameterSource.DEFAULT:
+        typer.echo(ctx.get_help())
+        raise typer.Exit()
+
+    # Validate config file exists and is valid TOML
+    config = require_file_exists(config, param_hint="--config")
+    parsed = parse_toml_file(config, param_hint="--config")
+
+    allowed_sections = {"bitsight", "runtime", "roles", "logging"}
+    warnings: list[str] = []
+    for section in parsed:
+        if section not in allowed_sections:
+            warnings.append(f"Unknown section '{section}' will be ignored by BiRRe")
+
+    stdout_console.print(f"[green]TOML parsing succeeded[/green] for {config}")
+    if warnings:
+        stdout_console.print("[yellow]Warnings:[/yellow]")
+        for warning in warnings:
+            stdout_console.print(f"- {warning}")
+
+    if debug:
+        stdout_console.print("\n[bold]Parsed data[/bold]")
+        stdout_console.print(parsed)
+
+    if minimize:
+        minimized = _generate_local_config_content(parsed, include_header=False)
+        backup_path = config.with_suffix(f"{config.suffix}.bak")
+        shutil.copy2(config, backup_path)
+        config.write_text(minimized, encoding="utf-8")
+        stdout_console.print(
+            f"[green]Minimized configuration written to[/green] {config} "
+            f"[dim](backup: {backup_path})[/dim]"
+        )
+
+
 def register(
     app: typer.Typer,
     *,
     stdout_console: Console,
 ) -> None:
     """Register config commands with the app."""
-
     # Config subcommands group
     config_app = typer.Typer(
         help="Manage BiRRe configuration files and settings.",
@@ -519,110 +728,7 @@ def register(
         overwrite: cli_options.OverwriteOption = False,
     ) -> None:
         """Guide the user through generating a configuration file."""
-
-        ctx = click.get_current_context()
-        config_source = ctx.get_parameter_source("config_path")
-        destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
-
-        _check_overwrite_destination(destination, overwrite, stdout_console)
-
-        defaults_settings = load_settings(
-            str(config_path) if config_source is ParameterSource.COMMANDLINE else None
-        )
-        default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
-        default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
-        default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
-        default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
-
-        summary_rows: list[tuple[str, str, str]] = []
-
-        stdout_console.print("[bold]BiRRe local configuration generator[/bold]")
-
-        api_key = _collect_or_prompt_string(
-            None,
-            prompt="BitSight API key",
-            default=None,
-            secret=True,
-            required=True,
-        )
-        if api_key:
-            display_value = format_config_value(
-                BITSIGHT_API_KEY_KEY, api_key, log_file_key=LOGGING_FILE_KEY
-            )
-            summary_rows.append((BITSIGHT_API_KEY_KEY, display_value, SOURCE_USER_INPUT))
-
-        subscription_folder = _prompt_and_record_string(
-            None,
-            "Default subscription folder",
-            (str(default_subscription_folder) if default_subscription_folder else ""),
-            summary_rows,
-            BITSIGHT_SUBSCRIPTION_FOLDER_KEY,
-        )
-
-        subscription_type_value = _prompt_and_record_string(
-            subscription_type,
-            "Default subscription type",
-            str(default_subscription_type) if default_subscription_type else "",
-            summary_rows,
-            BITSIGHT_SUBSCRIPTION_TYPE_KEY,
-        )
-
-        context_value = _prompt_and_record_string(
-            None,
-            "Default persona (standard or risk_manager)",
-            str(default_context or "standard"),
-            summary_rows,
-            ROLE_CONTEXT_KEY,
-            normalizer=lambda value, _: cli_options.normalize_context(
-                value, choices=CONTEXT_CHOICES
-            ),
-        )
-
-        debug_value = _prompt_and_record_bool(
-            debug,
-            "Enable debug mode?",
-            default_debug,
-            summary_rows,
-            RUNTIME_DEBUG_KEY,
-        )
-
-        generated = {
-            "bitsight": {
-                "api_key": api_key,
-                "subscription_folder": subscription_folder,
-                "subscription_type": subscription_type_value,
-            },
-            "runtime": {
-                "debug": debug_value,
-            },
-            "roles": {
-                "context": context_value,
-            },
-        }
-
-        serializable: dict[str, dict[str, Any]] = {}
-        for section, section_values in generated.items():
-            filtered = {k: v for k, v in section_values.items() if v not in (None, "")}
-            if filtered:
-                serializable[section] = filtered
-
-        if not serializable:
-            stdout_console.print(
-                "[red]No values provided; aborting local configuration generation.[/red]"
-            )
-            raise typer.Exit(code=1)
-
-        _display_config_preview(summary_rows, stdout_console)
-
-        content = _generate_local_config_content(serializable)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            destination.write_text(content, encoding="utf-8")
-        except OSError as error:
-            stdout_console.print(f"[red]Failed to write configuration:[/red] {error}")
-            raise typer.Exit(code=1) from error
-
-        stdout_console.print(f"[green]Local configuration saved to[/green] {destination}")
+        _cmd_config_init(output, config_path, subscription_type, debug, overwrite, stdout_console)
 
     @config_app.command(
         "show",
@@ -668,73 +774,7 @@ def register(
             log_max_bytes=log_max_bytes,
             log_backup_count=log_backup_count,
         )
-
-        runtime_settings, logging_settings, _ = resolve_runtime_and_logging(invocation)
-        files = resolve_config_file_candidates(invocation.config_path)
-
-        config_entries = _collect_config_file_entries(files)
-
-        files_table = Table(title="Configuration files", box=box.SIMPLE_HEAVY)
-        files_table.add_column("File", style=RichStyles.ACCENT)
-        files_table.add_column("Status", style=RichStyles.SECONDARY)
-        for file in files:
-            status = "exists" if file.exists() else "missing"
-            files_table.add_row(str(file), status)
-        stdout_console.print(files_table)
-
-        env_overrides = {
-            name: os.getenv(name)
-            for name in (
-                "BIRRE_CONFIG",
-                "BITSIGHT_API_KEY",
-                "BIRRE_SUBSCRIPTION_FOLDER",
-                "BIRRE_SUBSCRIPTION_TYPE",
-                "BIRRE_CONTEXT",
-                "BIRRE_RISK_VECTOR_FILTER",
-                "BIRRE_MAX_FINDINGS",
-                "BIRRE_SKIP_STARTUP_CHECKS",
-                "BIRRE_DEBUG",
-                "BIRRE_ALLOW_INSECURE_TLS",
-                "BIRRE_CA_BUNDLE",
-                "BIRRE_LOG_LEVEL",
-                "BIRRE_LOG_FORMAT",
-                "BIRRE_LOG_FILE",
-                "BIRRE_LOG_MAX_BYTES",
-                "BIRRE_LOG_BACKUP_COUNT",
-            )
-            if os.getenv(name) is not None
-        }
-        # Filter out None values for type compatibility
-        env_overrides_filtered: dict[str, str] = {
-            k: v for k, v in env_overrides.items() if v is not None
-        }
-        env_labels = _build_env_source_labels(env_overrides_filtered)
-        env_rows = list(_build_env_override_rows(env_overrides_filtered))
-        if env_rows:
-            stdout_console.print()
-            _print_config_table("Environment overrides", env_rows, stdout_console)
-
-        cli_labels = {
-            key: label
-            for key, label in _build_cli_source_labels(invocation).items()
-            if key not in env_labels
-        }
-        cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
-        if cli_rows:
-            stdout_console.print()
-            _print_config_table("CLI overrides", cli_rows, stdout_console)
-
-        effective_values = _effective_configuration_values(runtime_settings, logging_settings)
-        effective_rows: list[tuple[str, str, str]] = []
-        for key in _EFFECTIVE_CONFIG_KEY_ORDER:
-            display_value = format_config_value(
-                key, effective_values.get(key), log_file_key=LOGGING_FILE_KEY
-            )
-            source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
-            effective_rows.append((key, display_value, source_label))
-
-        stdout_console.print()
-        _print_config_table("Effective configuration", effective_rows, stdout_console)
+        _cmd_config_show(config, invocation, stdout_console)
 
     @config_app.command(
         "validate",
@@ -758,38 +798,4 @@ def register(
         minimize: cli_options.MinimizeOption = False,
     ) -> None:
         """Validate configuration syntax and optionally rewrite it in minimal form."""
-        ctx = click.get_current_context()
-        config_source = ctx.get_parameter_source("config")
-        if config is None and config_source is ParameterSource.DEFAULT:
-            typer.echo(ctx.get_help())
-            raise typer.Exit()
-
-        # Validate config file exists and is valid TOML
-        config = require_file_exists(config, param_hint="--config")
-        parsed = parse_toml_file(config, param_hint="--config")
-
-        allowed_sections = {"bitsight", "runtime", "roles", "logging"}
-        warnings: list[str] = []
-        for section in parsed:
-            if section not in allowed_sections:
-                warnings.append(f"Unknown section '{section}' will be ignored by BiRRe")
-
-        stdout_console.print(f"[green]TOML parsing succeeded[/green] for {config}")
-        if warnings:
-            stdout_console.print("[yellow]Warnings:[/yellow]")
-            for warning in warnings:
-                stdout_console.print(f"- {warning}")
-
-        if debug:
-            stdout_console.print("\n[bold]Parsed data[/bold]")
-            stdout_console.print(parsed)
-
-        if minimize:
-            minimized = _generate_local_config_content(parsed, include_header=False)
-            backup_path = config.with_suffix(f"{config.suffix}.bak")
-            shutil.copy2(config, backup_path)
-            config.write_text(minimized, encoding="utf-8")
-            stdout_console.print(
-                f"[green]Minimized configuration written to[/green] {config} "
-                f"[dim](backup: {backup_path})[/dim]"
-            )
+        _cmd_config_validate(config, debug, minimize, stdout_console)

@@ -13,14 +13,14 @@ from rich.text import Text
 # importing any modules that depend on FastMCP.
 os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
-from birre.application.diagnostics import (
+from birre.application.diagnostics import (  # noqa: E402
     EXPECTED_TOOLS_BY_CONTEXT as _DIAGNOSTIC_EXPECTED_TOOLS,
 )
-from birre.cli.commands import config as config_command
-from birre.cli.commands import logs as logs_command
-from birre.cli.commands import run as run_command
-from birre.cli.commands import selftest as selftest_command
-from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL
+from birre.cli.commands import config as config_command  # noqa: E402
+from birre.cli.commands import logs as logs_command  # noqa: E402
+from birre.cli.commands import run as run_command  # noqa: E402
+from birre.cli.commands import selftest as selftest_command  # noqa: E402
+from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -99,21 +99,29 @@ selftest_command.register(
 
 @app.command(help="Show the installed BiRRe package version.")
 def version() -> None:
-    """Print the BiRRe version discovered from the package metadata."""
-    from importlib import metadata
+    """Print the BiRRe version discovered from project metadata.
 
-    try:
-        resolved_version = metadata.version("BiRRe")
-    except metadata.PackageNotFoundError:
-        pyproject = PROJECT_ROOT / "pyproject.toml"
-        if not pyproject.exists():
-            stdout_console.print("Version information unavailable")
-            return
+    Resolution order:
+    1) If a local pyproject.toml exists, prefer its `[project].version` value.
+        If the file exists but lacks a version, print "unknown".
+    2) Otherwise fall back to the installed package version via importlib.metadata.
+        If the package is not installed, emit a generic unavailability message.
+    """
+    pyproject = PROJECT_ROOT / "pyproject.toml"
+    if pyproject.exists():
         import tomllib
 
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        resolved_version = data.get("project", {}).get("version", "unknown")
-    stdout_console.print(resolved_version)
+        resolved_version = data.get("project", {}).get("version")
+        stdout_console.print(resolved_version or "unknown")
+        return
+
+    from importlib import metadata
+
+    try:
+        stdout_console.print(metadata.version("BiRRe"))
+    except metadata.PackageNotFoundError:
+        stdout_console.print("Version information unavailable")
 
 
 @app.command(help="Print the BiRRe README to standard output.")

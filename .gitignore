@@ -1,29 +1,49 @@
-birre.log
-build/
-.cache/
-.claude/
-.coverage
-dist/
-downloads/
-*.egg-info
-.installed.cfg
-lib/
-lib64/
-*.local.toml
-MANIFEST
-.mcp.json
-parts/
-*.pyc
+# Python bytecode and cache
 __pycache__/
+*.pyc
 *.pyd
 *.pyo
-.pytest_cache
-.Python
-scripts/
-sdist/
-.serena/
-.uv?cache/
-var/
+*.egg-info
+
+# Virtual environments
 .venv/
-.vscode/
+.Python
+lib/
+lib64/
+var/
+
+# Build artifacts
+build/
+dist/
+sdist/
 wheels/
+parts/
+downloads/
+.installed.cfg
+MANIFEST
+artifacts/
+
+# Testing and coverage
+.*cache
+.coverage
+coverage.json
+coverage.xml
+htmlcov/
+.hypothesis/
+.benchmarks/
+megalinter-reports/
+
+# IDE and editor
+.vscode/
+.claude/
+.serena/
+
+# Local configuration (private/personal)
+*.local.toml
+
+# Logs
+*.log
+
+# Project planning and tracking (temporary, not for commit)
+.project-notes/
+scripts/

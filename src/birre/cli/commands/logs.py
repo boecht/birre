@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ from birre.cli.models import CliInvocation, LogViewLine
 from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import validate_path_exists
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
+from birre.domain.company_rating.constants import DEFAULT_LOG_TAIL_LINES
 
 
 def _rotate_logs(base_path: Path, backup_count: int) -> None:
@@ -81,9 +82,9 @@ def _parse_iso_timestamp_to_epoch(value: str) -> float | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     else:
-        parsed = parsed.astimezone(timezone.utc)
+        parsed = parsed.astimezone(UTC)
     return parsed.timestamp()
 
 
@@ -202,7 +203,7 @@ def _resolve_start_timestamp(since: str | None, last: str | None) -> float | Non
                 "Invalid relative duration; use values like 30m, 1h, or 2d.",
                 param_hint="--last",
             )
-        return (datetime.now(timezone.utc) - duration).timestamp()
+        return (datetime.now(UTC) - duration).timestamp()
 
     return None
 
@@ -246,13 +247,155 @@ def _display_log_entries(
             stdout_console.print(entry.raw, markup=False, highlight=False)
 
 
+def _cmd_logs_clear(
+    config: Path,
+    log_file: str | None,
+    stdout_console: Console,
+) -> None:
+    """Implementation of logs clear command."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=None,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled; nothing to clear[/yellow]")
+        return
+
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text("", encoding="utf-8")
+    except OSError as exc:
+        raise typer.BadParameter(f"Failed to clear log file: {exc}") from exc
+    stdout_console.print(f"[green]Log file cleared at[/green] {path}")
+
+
+def _cmd_logs_rotate(
+    config: Path,
+    log_file: str | None,
+    log_backup_count: int | None,
+    stdout_console: Console,
+) -> None:
+    """Implementation of logs rotate command."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=log_backup_count,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled; nothing to rotate[/yellow]")
+        return
+
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup_count = (
+        log_backup_count
+        if log_backup_count is not None
+        else getattr(logging_settings, "backup_count", 0) or 0
+    )
+    _rotate_logs(path, backup_count)
+    stdout_console.print(f"[green]Log files rotated at[/green] {path}")
+
+
+def _cmd_logs_path(
+    config: Path,
+    log_file: str | None,
+    stdout_console: Console,
+) -> None:
+    """Implementation of logs path command."""
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=None,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled[/yellow]")
+        return
+    resolved = Path(file_path)
+    absolute = resolved.expanduser()
+    try:
+        absolute = absolute.resolve(strict=False)
+    except OSError:
+        absolute = absolute.absolute()
+
+    stdout_console.print(f"[green]Log file (relative)[/green]: {resolved}")
+    stdout_console.print(f"[green]Log file (absolute)[/green]: {absolute}")
+
+
+def _cmd_logs_show(
+    config: Path,
+    log_file: str | None,
+    level: str | None,
+    tail: int,
+    since: str | None,
+    last: str | None,
+    format_override: str | None,
+    stdout_console: Console,
+) -> None:
+    """Implementation of logs show command."""
+    normalized_format = _validate_logs_show_params(tail, since, last, format_override)
+    normalized_level = cli_options.normalize_log_level(level) if level is not None else None
+    level_threshold = cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
+
+    _, logging_settings = _resolve_logging_settings_from_cli(
+        config_path=config,
+        log_level=None,
+        log_format=None,
+        log_file=log_file,
+        log_max_bytes=None,
+        log_backup_count=None,
+    )
+    file_path = getattr(logging_settings, "file_path", None)
+    resolved_format = normalized_format or getattr(logging_settings, "format", None) or "text"
+
+    if not file_path:
+        stdout_console.print("[yellow]File logging is disabled; nothing to show[/yellow]")
+        return
+
+    path = Path(file_path)
+    if not validate_path_exists(path):
+        stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
+        return
+
+    start_timestamp = _resolve_start_timestamp(since, last)
+
+    matched: list[LogViewLine] = []
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            parsed = _parse_log_line(line, resolved_format)
+            if _should_include_log_entry(
+                parsed,
+                level_threshold,
+                normalized_level,
+                start_timestamp,
+            ):
+                matched.append(parsed)
+
+    if tail and tail > 0:
+        matched = matched[-tail:]
+
+    _display_log_entries(matched, resolved_format, stdout_console)
+
+
 def register(
     app: typer.Typer,
     *,
     stdout_console: Console,
 ) -> None:
     """Register logs commands with the app."""
-
     # Logs subcommands group
     logs_app = typer.Typer(
         help="Inspect and maintain BiRRe log files.",
@@ -277,26 +420,7 @@ def register(
         log_file: cli_options.LogFileOption = None,
     ) -> None:
         """Truncate the resolved log file."""
-        _, logging_settings = _resolve_logging_settings_from_cli(
-            config_path=config,
-            log_level=None,
-            log_format=None,
-            log_file=log_file,
-            log_max_bytes=None,
-            log_backup_count=None,
-        )
-        file_path = getattr(logging_settings, "file_path", None)
-        if not file_path:
-            stdout_console.print("[yellow]File logging is disabled; nothing to clear[/yellow]")
-            return
-
-        path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            path.write_text("", encoding="utf-8")
-        except OSError as exc:
-            raise typer.BadParameter(f"Failed to clear log file: {exc}") from exc
-        stdout_console.print(f"[green]Log file cleared at[/green] {path}")
+        _cmd_logs_clear(config, log_file, stdout_console)
 
     @logs_app.command(
         "rotate",
@@ -308,28 +432,7 @@ def register(
         log_backup_count: cli_options.LogBackupCountOption = None,
     ) -> None:
         """Rotate the active log file into numbered archives."""
-        _, logging_settings = _resolve_logging_settings_from_cli(
-            config_path=config,
-            log_level=None,
-            log_format=None,
-            log_file=log_file,
-            log_max_bytes=None,
-            log_backup_count=log_backup_count,
-        )
-        file_path = getattr(logging_settings, "file_path", None)
-        if not file_path:
-            stdout_console.print("[yellow]File logging is disabled; nothing to rotate[/yellow]")
-            return
-
-        path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        backup_count = (
-            log_backup_count
-            if log_backup_count is not None
-            else getattr(logging_settings, "backup_count", 0) or 0
-        )
-        _rotate_logs(path, backup_count)
-        stdout_console.print(f"[green]Log files rotated at[/green] {path}")
+        _cmd_logs_rotate(config, log_file, log_backup_count, stdout_console)
 
     @logs_app.command(
         "path",
@@ -340,27 +443,7 @@ def register(
         log_file: cli_options.LogFileOption = None,
     ) -> None:
         """Print the effective log file path."""
-        _, logging_settings = _resolve_logging_settings_from_cli(
-            config_path=config,
-            log_level=None,
-            log_format=None,
-            log_file=log_file,
-            log_max_bytes=None,
-            log_backup_count=None,
-        )
-        file_path = getattr(logging_settings, "file_path", None)
-        if not file_path:
-            stdout_console.print("[yellow]File logging is disabled[/yellow]")
-            return
-        resolved = Path(file_path)
-        absolute = resolved.expanduser()
-        try:
-            absolute = absolute.resolve(strict=False)
-        except OSError:
-            absolute = absolute.absolute()
-
-        stdout_console.print(f"[green]Log file (relative)[/green]: {resolved}")
-        stdout_console.print(f"[green]Log file (absolute)[/green]: {absolute}")
+        _cmd_logs_path(config, log_file, stdout_console)
 
     @logs_app.command(
         "show",
@@ -376,7 +459,7 @@ def register(
             rich_help_panel="Filtering",
         ),
         tail: int = typer.Option(
-            100,
+            DEFAULT_LOG_TAIL_LINES,
             "--tail",
             help="Number of lines from the end of the log to display (0 to show all).",
             rich_help_panel="Filtering",
@@ -402,45 +485,13 @@ def register(
         ),
     ) -> None:
         """Render log entries to stdout."""
-        normalized_format = _validate_logs_show_params(tail, since, last, format_override)
-
-        normalized_level = cli_options.normalize_log_level(level) if level is not None else None
-        level_threshold = (
-            cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
+        _cmd_logs_show(
+            config,
+            log_file,
+            level,
+            tail,
+            since,
+            last,
+            format_override,
+            stdout_console,
         )
-
-        _, logging_settings = _resolve_logging_settings_from_cli(
-            config_path=config,
-            log_level=None,
-            log_format=None,
-            log_file=log_file,
-            log_max_bytes=None,
-            log_backup_count=None,
-        )
-        file_path = getattr(logging_settings, "file_path", None)
-        resolved_format = normalized_format or getattr(logging_settings, "format", None) or "text"
-
-        if not file_path:
-            stdout_console.print("[yellow]File logging is disabled; nothing to show[/yellow]")
-            return
-
-        path = Path(file_path)
-        if not validate_path_exists(path):
-            stdout_console.print(f"[yellow]Log file not found at[/yellow] {path}")
-            return
-
-        start_timestamp = _resolve_start_timestamp(since, last)
-
-        matched: list[LogViewLine] = []
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            for line in handle:
-                parsed = _parse_log_line(line, resolved_format)
-                if _should_include_log_entry(
-                    parsed, level_threshold, normalized_level, start_timestamp
-                ):
-                    matched.append(parsed)
-
-        if tail and tail > 0:
-            matched = matched[-tail:]
-
-        _display_log_entries(matched, resolved_format, stdout_console)

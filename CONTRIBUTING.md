@@ -12,7 +12,7 @@ By participating, you are expected to uphold this code.
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.13 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 - A BitSight API key for integration testing (optional)
@@ -21,28 +21,39 @@ By participating, you are expected to uphold this code.
 
 1. **Fork and clone the repository**
 
-   ```bash
-   git clone https://github.com/boecht/birre.git
-   cd birre
-   ```
+    ```bash
+    git clone https://github.com/boecht/birre.git
+    cd birre
+    ```
 
 2. **Install dependencies**
 
-   ```bash
-   uv sync --all-extras
-   ```
+    ```bash
+    uv sync --all-extras
+    ```
 
-3. **Set up environment variables** (optional, for online tests)
+    This will automatically download Python 3.13 if not already installed.
 
-   ```bash
-   export BITSIGHT_API_KEY="your-api-key"
-   ```
+3. **Install pre-commit hooks** (after `uv sync`)
 
-4. **Run tests to verify setup**
+    ```bash
+    pre-commit install
+    ```
 
-   ```bash
-   uv run pytest -m offline
-   ```
+    The hooks use `uv run` to ensure they execute with the correct Python version
+    and project dependencies.
+
+4. **Set up environment variables** (optional, for online tests)
+
+    ```bash
+    export BITSIGHT_API_KEY="your-api-key"
+    ```
+
+5. **Run tests to verify setup**
+
+    ```bash
+    uv run pytest --offline
+    ```
 
 ## Development Workflow
 
@@ -56,49 +67,49 @@ By participating, you are expected to uphold this code.
 
 1. **Create a feature branch**
 
-   ```bash
-   git checkout -b dev/your-feature-name
-   ```
+    ```bash
+    git checkout -b dev/your-feature-name
+    ```
 
 2. **Make your changes**
 
-   - Write clear, concise code
-   - Follow existing code style
-   - Add tests for new functionality
-   - Update documentation as needed
+    - Write clear, concise code
+    - Follow existing code style
+    - Add tests for new functionality
+    - Update documentation as needed
 
 3. **Run quality checks**
 
-   ```bash
-   # Lint
-   uv run ruff check src tests
-   
-   # Format
-   uv run ruff format src tests
-   
-   # Type check
-   uv run mypy src
-   
-   # Test
-   uv run pytest -m offline --cov=src/birre
-   ```
+    ```bash
+    # Lint
+    uv run ruff check src tests
+
+    # Format
+    uv run ruff format src tests
+
+    # Type check
+    uv run mypy src
+
+    # Test
+    uv run pytest --offline --cov=src/birre
+    ```
 
 4. **Commit your changes**
 
-   ```bash
-   git add .
-   git commit -m "Brief description of changes"
-   ```
+    ```bash
+    git add .
+    git commit -m "Brief description of changes"
+    ```
 
-   Use clear, descriptive commit messages. See [Commit Message Guidelines](#commit-message-guidelines).
+    Use clear, descriptive commit messages. See [Commit Message Guidelines](#commit-message-guidelines).
 
 5. **Push and create a pull request**
 
-   ```bash
-   git push origin dev/your-feature-name
-   ```
+    ```bash
+    git push origin dev/your-feature-name
+    ```
 
-   Then create a pull request on GitHub.
+    Then create a pull request on GitHub.
 
 ## Coding Standards
 
@@ -112,6 +123,10 @@ BiRRe follows these coding standards:
 - **Line length**: Maximum 100 characters
 - **Import sorting**: Managed by ruff/isort
 
+Authoring note: LLMs creating or editing Python files in `src/` should also consult the
+[Python Style Instructions](.github/instructions/edit-python.instructions.md) for
+file-scoped guidance during code changes.
+
 ### Code Quality Tools
 
 - **Ruff**: Linting and formatting (replaces black, isort, flake8)
@@ -119,6 +134,10 @@ BiRRe follows these coding standards:
 - **pytest**: Testing framework with coverage reporting
 
 ### Testing
+
+Project setup (`uv sync`) takes care of dependencies, such as the correct python version, and fastmcp.
+A BitSight API key is expected via either `BITSIGHT_API_KEY` or `config.local.toml` under `[bitsight].api_key`.
+With either configured, it is safe to run online tests.
 
 - **Write tests** for all new features and bug fixes
 - **Offline tests** (pytest marker: `@pytest.mark.offline`) for unit tests
@@ -128,14 +147,21 @@ BiRRe follows these coding standards:
 Run tests:
 
 ```bash
-# All offline tests
-uv run pytest -m offline
+# Full suite (recommended; online tests skip automatically if no API key)
+uv run pytest
 
 # Specific test file
 uv run pytest tests/unit/test_your_feature.py
 
-# With coverage
-uv run pytest -m offline --cov=src/birre --cov-report=term
+# Offline only / online only convenience flags
+uv run pytest --offline
+uv run pytest --online-only
+
+# With coverage (full suite)
+uv run pytest --cov=src/birre --cov-branch --cov-report=term
+
+# All online tests (network; assumes API key available)
+uv run pytest --online-only
 ```
 
 ## Commit Message Guidelines
@@ -151,32 +177,49 @@ More detailed explanation if needed (wrap at 72 chars).
 - Reference issues: "Fixes #123" or "Relates to #456"
 ```
 
+### Commit Scope
+
+**One topic per commit** - Group related changes together, but don't mix unrelated topics:
+
+- ✅ **Good**: "Fix Python 3.13 compatibility across all workflows"
+  - Multiple files, one coherent topic (Python 3.13 migration)
+- ✅ **Good**: "Refactor config module to reduce complexity (TD-002)"
+  - Focused refactoring with clear purpose
+- ❌ **Bad**: "Fix tests, update docs, refactor config, add caching"
+  - Multiple unrelated topics that should be separate commits
+
+**Guideline**: Changes should be cohesive enough to describe in a single commit message,
+but comprehensive enough to be meaningful. Avoid both:
+
+- Over-atomization (100 tiny commits for one feature)
+- Kitchen-sink commits (unrelated changes bundled together)
+
 ## Pull Request Process
 
 1. **Ensure all checks pass**
-   - Linting (ruff)
-   - Type checking (mypy)
-   - Tests (pytest)
-   - Coverage (70%+ minimum)
+    - Linting (ruff)
+    - Type checking (mypy)
+    - Tests (pytest)
+    - Coverage (70%+ minimum)
 
 2. **Update documentation**
-   - README.md if user-facing changes
-   - Docstrings for new APIs
-   - CHANGELOG.md with your changes
+    - [README.md](README.md) if user-facing changes
+    - [CHANGELOG.md](CHANGELOG.md) with your changes
+    - Docstrings for new APIs
 
 3. **Fill out the PR template**
-   - Describe what changed and why
-   - Reference related issues
-   - Note any breaking changes
+    - Describe what changed and why
+    - Reference related issues
+    - Note any breaking changes
 
 4. **Request review**
-   - Wait for maintainer feedback
-   - Address review comments
-   - Keep the PR focused and atomic
+    - Wait for maintainer feedback
+    - Address review comments
+    - Keep the PR focused and atomic
 
 5. **Squash commits** (if requested)
-   - Maintainers may squash commits on merge
-   - Or you can squash locally before merging
+    - Maintainers may squash commits on merge
+    - Or you can squash locally before merging
 
 ## Project Structure
 

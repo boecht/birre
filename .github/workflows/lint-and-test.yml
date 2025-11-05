@@ -1,0 +1,420 @@
+---
+name: Lint, Type, Test & SBOM Gate
+
+"on":
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+      - "dev/*"
+  push:
+    branches:
+      - main
+      - "release/*"
+  workflow_dispatch:
+    inputs:
+      enable-dependency-review:
+        description: Run dependency review step
+        type: boolean
+        default: true
+      enable-lint:
+        description: Run MegaLinter
+        type: boolean
+        default: true
+      enable-tests:
+        description: Run tests & coverage
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      enable-dependency-review:
+        description: Run dependency review step
+        required: false
+        default: true
+        type: boolean
+      enable-lint:
+        description: Run MegaLinter
+        required: false
+        default: true
+        type: boolean
+      enable-tests:
+        description: Run tests & coverage
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      REUSABLE_GITHUB_TOKEN:
+        description: Token used for MegaLinter reporters and API calls.
+        required: true
+      BITSIGHT_API_KEY:
+        description: Optional BitSight API key forwarded from caller secrets.
+        required: false
+      CODECOV_TOKEN:
+        description: Optional Codecov token forwarded from caller secrets.
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    if: ${{ inputs.enable-dependency-review != 'false' && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          comment-summary-in-pr: never
+          fail-on-severity: moderate
+          retry-on-snapshot-warnings: true
+
+  lint:
+    name: Lint & Static Analysis
+    if: ${{ inputs.enable-lint != 'false' }}
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.prepare-outputs.outputs.status }}
+      snippet: ${{ steps.prepare-outputs.outputs.snippet }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Ensure artifacts directory exists
+        run: |
+          mkdir -p artifacts
+
+      - name: MegaLinter
+        id: megalinter
+        uses: oxsecurity/megalinter/flavors/python@v9.1.0
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Upload MegaLinter reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megalinter-reports
+          path: megalinter-reports
+
+      - name: Upload SBOM artifacts (Syft)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-artifacts
+          path: |
+            artifacts/sbom-cyclonedx.json
+            artifacts/sbom-spdx.json
+
+      - name: Upload SARIF report (if generated)
+        if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: megalinter-reports/megalinter-report.sarif
+
+      - name: Validate SBOM artifacts
+        if: always()
+        shell: bash
+        run: |
+          for f in artifacts/sbom-cyclonedx.json artifacts/sbom-spdx.json; do
+            if [ ! -s "$f" ]; then
+              echo "SBOM validation failed: $f missing or empty" >&2
+              exit 1
+            fi
+            echo "Validated SBOM file: $f ($(wc -c < "$f") bytes)"
+          done
+
+      - name: Prepare outputs for summary job
+        id: prepare-outputs
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ "${{ steps.megalinter.outcome }}" != "success" ]; then
+            status=1
+          fi
+
+          snippet=""
+          if [ -f "megalinter-reports/mega-linter.log" ]; then
+            snippet="$(tail -n 200 megalinter-reports/mega-linter.log || true)"
+          fi
+
+          {
+            echo 'snippet<<EOF'
+            printf '%s\n' "$snippet"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if lint failed
+        if: steps.megalinter.outcome != 'success'
+        run: exit 1
+
+  tests:
+    name: Tests & Coverage
+    if: ${{ inputs.enable-tests != 'false' }}
+    runs-on: ubuntu-latest
+    needs: lint
+    outputs:
+      status: ${{ steps.pytest.outputs.status }}
+      snippet: ${{ steps.pytest.outputs.snippet }}
+      mode: ${{ steps.pytest.outputs.mode }}
+      coverage: ${{ steps.coverage.outputs.line_rate }}
+      lowfiles: ${{ steps.coverage.outputs.low_files }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
+        with:
+          uv-sync-flags: "--all-extras --frozen"
+          cache-key-prefix: quality
+
+      - name: Audit dependencies
+        run: |
+          uv tool run pip-audit --strict
+
+      - name: Run test suite
+        id: pytest
+        shell: bash
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+        run: |
+          set -o pipefail
+          status=0
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            MODE="online+offline"
+            CMD="uv run pytest \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-report=xml \
+              --cov-fail-under=70"
+          else
+            MODE="offline"
+            CMD="uv run pytest \
+              --offline \
+              --cov=src/birre \
+              --cov-report=term \
+              --cov-report=xml \
+              --cov-fail-under=70"
+          fi
+          {
+            echo "Running tests in $MODE mode"
+          } > pytest-output.txt
+          if ! eval "$CMD" >> pytest-output.txt 2>&1; then
+            status=$?
+          fi
+          tail -n 200 pytest-output.txt > pytest-snippet.txt || true
+          printf "snippet<<EOF\n%s\nEOF\n" "$(cat pytest-snippet.txt)" >> "$GITHUB_OUTPUT"
+          {
+            echo "status=$status"
+            echo "mode=$MODE"
+          } >> "$GITHUB_OUTPUT"
+          exit $status
+
+      - name: Test config file discovery
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test CLI entrypoint
+        run: |
+          uv run birre --help
+
+      - name: Extract coverage summary
+        id: coverage
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f coverage.xml ]; then
+            {
+              echo "line_rate="
+              echo "low_files="
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+
+          line_rate = float(root.get('line-rate', 0.0)) * 100
+
+          files = []
+          for cls in root.findall('.//class'):
+              filename = cls.get('filename')
+              if not filename:
+                  continue
+              rate = float(cls.get('line-rate', 0.0)) * 100
+              files.append((rate, filename))
+
+          files.sort()
+          low_lines = '\n'.join(f"- {fname}: {rate:.1f}%" for rate, fname in files[:3])
+
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as fh:
+              fh.write(f"line_rate={line_rate:.2f}\n")
+              fh.write("low_files<<EOF\n")
+              if low_lines:
+                  fh.write(low_lines + "\n")
+              fh.write("EOF\n")
+          PY
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        if: success()
+        with:
+          files: ./coverage.xml
+          flags: pr-validation
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+  summary:
+    name: Validation Summary
+    if: ${{ always() && (inputs.enable-lint != 'false' || inputs.enable-tests != 'false') }}
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - tests
+
+    steps:
+      - name: Find existing summary comment
+        id: find-comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "## CI Quality Gate"
+
+      - name: Prepare failure body
+        id: failure-body
+        if: ${{ github.event_name == 'pull_request' &&
+          (needs.lint.result != 'success' || needs.tests.result != 'success') }}
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          LINT_SNIPPET: ${{ needs.lint.outputs.snippet }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          TEST_SNIPPET: ${{ needs.tests.outputs.snippet }}
+          COVERAGE: ${{ needs.tests.outputs.coverage }}
+          LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
+        run: |
+          comment_file=$(mktemp)
+
+          {
+            echo '## CI Quality Gate'
+
+            if [ "$LINT_RESULT" != 'success' ]; then
+              echo
+              echo '### Lint & Static Analysis issues'
+              if [ -n "$LINT_SNIPPET" ]; then
+                printf '%s\n' '```'
+                printf '%s\n' "$LINT_SNIPPET"
+                printf '%s\n' '```'
+              else
+                echo 'See workflow logs for details.'
+              fi
+            fi
+
+            if [ "$TEST_RESULT" != 'success' ]; then
+              if [ "$TEST_RESULT" = 'skipped' ]; then
+                echo
+                echo '### Tests skipped'
+                echo 'Tests did not run because earlier checks failed or were disabled.'
+              else
+                echo
+                echo '### Tests & Coverage issues'
+                if [ -n "$TEST_SNIPPET" ]; then
+                  printf '%s\n' '```'
+                  printf '%s\n' "$TEST_SNIPPET"
+                  printf '%s\n' '```'
+                else
+                  echo 'See workflow logs for details.'
+                fi
+                if [ -n "$COVERAGE" ]; then
+                  printf 'Coverage: %s%%\n' "$COVERAGE"
+                fi
+                if [ -n "$LOW_FILES" ]; then
+                  echo 'Lowest coverage files:'
+                  printf '%s\n' "$LOW_FILES"
+                fi
+              fi
+            fi
+          } > "$comment_file"
+
+          if [ -s "$comment_file" ]; then
+            printf 'body<<EOF\n%s\nEOF\n' "$(cat "$comment_file")" >> "$GITHUB_OUTPUT"
+          fi
+
+          rm -f "$comment_file"
+
+      - name: Create or update summary comment
+        if: ${{ github.event_name == 'pull_request' && steps.failure-body.outputs.body != '' }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          body: ${{ steps.failure-body.outputs.body }}
+          edit-mode: replace
+
+      - name: Delete summary comment
+        if: ${{ github.event_name == 'pull_request' &&
+          steps.find-comment.outputs.comment-id != '' &&
+          needs.lint.result == 'success' &&
+          needs.tests.result == 'success' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.find-comment.outputs.comment-id }}
+            })
+
+      - name: Emit job summary
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          COVERAGE: ${{ needs.tests.outputs.coverage }}
+          LOW_FILES: ${{ needs.tests.outputs.lowfiles }}
+        run: |
+          {
+            echo "## CI Quality Gate"
+            if [ -n "$LINT_RESULT" ]; then
+              echo "Lint status: $LINT_RESULT"
+            fi
+            if [ -n "$TEST_RESULT" ]; then
+              echo "Test status: $TEST_RESULT"
+            fi
+            if [ -n "$COVERAGE" ]; then
+              echo "Coverage: ${COVERAGE}%"
+            fi
+            if [ -n "$LOW_FILES" ]; then
+              echo "Lowest coverage files:"
+              echo "$LOW_FILES"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,286 +1,203 @@
 # Changelog
 
-All notable changes to BiRRe (BitSight Rating Retriever)
-will be documented in this file.
+All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
+See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-
-## [Unreleased]
-
-## [4.0.0-alpha.1] - 2025-10-30
-
-### ⚠️ BREAKING CHANGES
-
-- **Python 3.11+ required** (upgraded from 3.10+)
-  - Native `tomllib` support (no more tomli dependency)
-  - Improved type system capabilities
-
-### Added
-
-- **Comprehensive type safety infrastructure**
-  - 100% strict mypy compliance across entire codebase (47 source files)
-  - Type annotations for 28+ previously untyped functions
-  - Pre-commit hooks for type checking enforcement
-  - mypy configuration with strict mode enabled
-
-- **Test coverage and quality assurance**
-  - CodeCov integration with 72% baseline coverage
-  - Coverage enforcement in CI/CD pipeline
-  - Project and patch coverage thresholds
-  - Automated coverage reporting on pull requests
-
-- **Community documentation**
-  - CODE_OF_CONDUCT.md (Contributor Covenant 3.0)
-  - Issue templates for bugs and feature requests
-  - Pull request template with quality checklists
-  - Enhanced CONTRIBUTING.md with development workflow
-
-- **CI/CD automation**
-  - PR validation workflow (linting, type checking, tests, coverage)
-  - Automated release workflow with PyPI publishing support
-  - Dependency review for security scanning
-  - OpenSSF Scorecard for security best practices
+## [4.0.0-alpha.2] - 2025-11-05
 
 ### Changed
 
-- **Massive CLI restructuring** (#78)
-  - Modular command structure with dedicated subcommands
-  - Removed 3,247 lines of duplicate code from monolithic app.py
-  - Split into focused modules: commands, formatting, helpers, models, options
-  - Enhanced selftest command with structured models and rendering
-  - Improved error handling and configuration management
-  - 87% reduction in main app.py file (3,513 → 266 lines)
-
-- **Clean architecture reorganization**
-  - All source code now under `src/birre/` package
-  - Organized into layers: `application/`, `domain/`, `infrastructure/`, `integrations/`
-  - API schemas moved to `resources/` directory
-  - API documentation moved to `docs/apis/`
-
-- **Code quality improvements**
-  - Addressed all SonarCloud reliability and maintainability findings
-  - Reduced cognitive complexity across multiple modules
-  - Fixed unused parameters and variables
-  - Improved error handling patterns
-
-### Improved
-
-- Development experience with pre-commit hooks (ruff, mypy, markdownlint)
-- CLI test coverage and architecture
-- Configuration management and validation
-- Markdown linting with standardized formatting rules
-
-### Technical
-
-- FastMCP: 2.13.0+ (with type parameter support)
-- Development Status: Beta (alpha release for testing)
-- 153 files changed, 18,694 insertions(+), 5,786 deletions(-)
-
-## [3.2.0] - 2025-10-27
+- **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability
+  and error clarity
+- Improve startup reliability and remove event loop race conditions by simplifying async/sync bridge (lower memory)
+- Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
+- Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker
+  automation parsing
+- Reduce CLI and diagnostics complexity through extensive refactors for more predictable behavior and lower
+  maintenance risk
+- Improve logging robustness by guarding against writes to closed streams to prevent noisy teardown errors
+- Accept expected 400 "already requested" responses as successful diagnostics connectivity checks
+- Standardize test selection flags (`--offline`, `--online-only`) across CLI, docs, and workflows for clearer usage
+- Prefer local `pyproject.toml` version when displaying CLI version to give accurate development context
+- Establish performance baselines with benchmark suite to enable future regression detection
+- Increase code clarity and reliability by replacing magic numbers with named constants and
+  enforcing low complexity thresholds
+- Streamline release workflow with validated version inputs and safer tag extraction for consistent releases
+- Improve Windows/macOS/Linux parity with cross-platform test matrix running under Python 3.13
+- Consolidate formatting and validation utilities for consistent, cleaner CLI tables and messages
+- Improve company rating workflow reliability by handling both sync and async tool results seamlessly
+- Improve contributor experience with clearer prompt and agent operation documentation
+- Stabilize CI by re-adding pinned action versions after evaluating removal impacts
 
 ### Added
 
-- BIRRE_CONFIG_FILE environment variable support for specifying config file path (#73)
-- Helpful user guidance for TLS handshake errors with structured logging (#72)
-  - Detect intercepted certificate chains
-  - Provide actionable error messages
-  - Support for custom CA bundles
+- Add property-based testing (Hypothesis) to detect edge cases automatically in rating and findings logic
+- Add performance benchmarks (pytest-benchmark) for critical paths to track regressions over time
+- Add complexity checking (mccabe) to enforce a maximum function complexity threshold and surface refactor candidates
+- Add parent company enrichment and rating color details to interactive search results for richer risk context
+- Add dependency review, Scorecard, and Codecov workflows for safer dependencies and coverage transparency
+- Add agent operations and prompt documentation to standardize automated contribution workflows
 
-### Changed
+### Removed
 
-- Moved live tests to `integration/` directory with updated fixtures (#74)
-  - Better test organization and markers
-  - Separate offline and online test suites
+- Remove dry-run shortcuts from diagnostics so production selftests execute real API calls for authentic validation
+- Remove thousands of lines of duplicate and obsolete CLI/diagnostic helper code to lower memory usage and
+  improve performance
 
 ### Fixed
 
-- Event loop closed errors during server startup (#76)
-  - Introduced reusable sync bridge loop for synchronous operations
-  - Disposable API bridges for startup checks
-  - Proper cleanup with atexit handlers
+- Fix configuration validation to compare enum values with equality instead of identity for
+  reliable parameter source detection
+- Fix selftest failures by correcting tool parameter names and making mock context methods async
+- Fix interactive search 403 errors by creating required ephemeral subscriptions before fetching company details
+- Fix logging handler errors during teardown by safely ignoring closed stream writes
+- Fix background task handling to keep tasks alive during sync bridge tests preventing premature cancellation issues
+- Fix Windows path and whitespace normalization in CLI tests to avoid spurious failures across platforms
+- Fix version display fallback logic to show meaningful messages when local version metadata is unavailable
+- Fix release workflow to sanitize version inputs and prevent command injection via workflow dispatch values
+- Fix subscription tracking type (use set instead of dict) to correct ephemeral subscription handling
 
-### Improved
+### Security
 
-- Configuration file path handling and normalization (#75)
-- CLI documentation with comprehensive usage examples
-- Enhanced settings validation and tests
+- Harden release workflow with strict version validation and sanitized tag extraction
+- Enforce least-privilege GitHub Actions permissions (contents: read) across workflows to reduce token scope
+- Add Dependency Review Action to block introduction of known vulnerable packages before merge
+- Add OpenSSF Scorecard supply-chain security analysis for continuous security posture monitoring
+- Maintain reproducible and verifiable CI by pinning critical GitHub actions versions for stability
+- Expand automated code scanning (CodeQL, SonarCloud) coverage for earlier vulnerability and quality issue detection
+- Fix residual security-related CI findings from alpha.1 release to strengthen baseline
+
+## [4.0.0-alpha.1] - 2025-10-30
+
+### Changed
+
+- **Breaking:** Require Python 3.11+ for modern features and better performance
+- Remove over 3,200 lines of duplicate code to improve response times
+- Improve CLI modularity and organization for easier troubleshooting
+- Enhance selftest diagnostics with clearer output
+- Strengthen error handling throughout for better user experience
+
+### Added
+
+- Add strict type checking to catch potential errors before runtime
+- Add better IDE support with improved autocompletion
+- Add automatic test coverage tracking with CodeCov integration
+- Add coverage reports on pull requests for transparency
+- Add clear contribution guidelines and a code of conduct
+- Add release pipeline support for PyPI publishing
+
+### Security
+
+- Add automated security scanning on every pull request
+
+## [3.2.0] - 2025-10-27
+
+### Changed
+
+- Improve server startup reliability with better event loop handling
+- Enhance background task cleanup for more predictable behavior
+- Strengthen configuration file path resolution and validation
+
+### Added
+
+- Add support for custom configuration file paths via `BIRRE_CONFIG_FILE` environment variable
+- Add clear error messages for TLS certificate issues with corporate proxies
+- Add guidance for resolving certificate problems
+
+### Fixed
+
+- Fix event loop closed errors during server startup
 
 ## [3.1.0] - 2025-10-24
 
 ### Added
 
-- Consolidated `healthcheck` CLI command for comprehensive health checks (#67)
-  - Offline and online diagnostics with detailed reporting
-  - Support for `--production` flag to test against production API
-  - Structured JSON output for machine-readable results
-  - TLS error detection and fallback retry logic
-  - Enhanced diagnostics coverage for all tool contexts (#68, #69)
-
-### Changed
-
-- Refactored CLI to Typer-based subcommand structure (#65)
-  - Improved parameter grouping and help text organization
-  - Better CLI command documentation (#70)
-
-### Removed
-
-- Deprecated Typer flag parameters (#71)
-
-### Improved
-
-- Healthcheck runner with updated diagnostics tests (#69)
-- Test coverage for CLI commands and healthcheck functionality
+- Add comprehensive health check command with `birre selftest`
+- Add detailed offline and online diagnostic reporting
+- Add production API testing with `--production` flag
+- Add machine-readable JSON output for automation
+- Add automatic TLS error detection with retry logic
 
 ## [3.0.0] - 2025-10-23
 
 ### Changed
 
-- **BREAKING**: Migrated from custom config to Dynaconf (#43)
-  - Simplified configuration resolution and validation
-  - Better environment variable handling
-  - Support for roles section for runtime config values (#41)
-- **BREAKING**: Migrated from standard logging to structlog (#48)
-  - JSON and text formatters with configurable output
-  - Bound loggers with request context
-  - Improved log file rotation and configuration
-  - Support for sentinel log file disable values (#64)
-- **BREAKING**: Migrated CLI from Click to Typer (#46, #65)
-  - Rich formatting and improved help text
-  - Better parameter grouping (#52)
-  - Cleaner separation of concerns
-- Replaced custom config.py with frozen dataclasses (#61)
-  - Improved type safety and immutability
-  - Better CLI override application (#51, #62)
-- Use `prance` for loading API schemas (#42)
-  - More robust OpenAPI schema handling
-  - Better error reporting for schema issues
-- Refactored business tool schemas to Pydantic models (#44)
+- **Breaking:** Adopt industry-standard Dynaconf for simpler configuration
+- **Breaking:** Switch to structured JSON logs for easier parsing
+- **Breaking:** Modernize CLI framework with Rich formatting
+- Improve configuration validation with clearer error messages
+- Enhance environment variable support throughout
+- Strengthen type safety with immutable configuration settings
 
 ### Fixed
 
-- ANSI banners rendering using Rich markup (#66)
-- API schema response normalization (#49)
-
-### Improved
-
-- README configuration and CLI options documentation
-- Configuration file path handling (#50, #57, #60)
+- Fix banner display issues with special characters
+- Fix API response normalization edge cases
 
 ## [2.3.0] - 2025-10-19
 
 ### Changed
 
-- Normalized configuration inputs across sources (#36)
-- Centralized config literals into constants (#40)
-
-### Improved
-
-- Configuration layering and override reporting (#37)
-- Boolean and integer config coercion (#38)
-- Blank value handling in config resolution (#39)
-- Logging override handling in application settings (#29)
-- Configuration handling to avoid environment side effects (#32)
+- Normalize configuration handling across environment variables, files, and CLI flags
+- Improve boolean and integer value parsing
+- Enhance handling of blank and empty configuration values
 
 ## [2.2.0] - 2025-10-15
 
-### Improved
+### Changed
 
-- Top findings assembly to reduce complexity (#27, #28)
-- Risk manager interactive search complexity (#26)
-- Company request flow complexity (#30)
-- Severity score helper (#23)
-- Folder membership helper (#24)
-- Settings resolution for clarity (#25)
+- Simplify findings assembly and rating workflows for better reliability
+- Reduce code complexity throughout for easier maintenance
+- Strengthen error handling across all modules
 
 ## [2.1.0] - 2025-10-14
 
-### Added
-
-- New OpenAPI parser support (#19)
-- Keyboard interrupt handling during server operation (#20)
-
 ### Changed
 
-- Adopted reverse-DNS identifier for MCP server (#2)
-- Published tool output schemas (#2)
+- Reduce code complexity throughout the codebase
+- Improve FastMCP bridge reliability
+- Enhance tool output schemas for better clarity
+- Strengthen startup validation with thorough connectivity checks
 
-### Fixed
+### Added
 
-- Multiple SonarQube reliability findings (#3, #4)
-  - Reduced cognitive complexity in config and risk manager
-  - Fixed unused parameters and variables
-  - Improved error handling patterns
-- Schema-only OpenAPI responses normalization (#5)
-- FastMCP instructions type compatibility (#18)
-
-### Improved
-
-- FastMCP bridge result handling (#11)
-- Online startup checks validation (#10)
-- BiRRe server factory (#7)
-- Subscription helper complexity (#8)
-- Request ID extraction helper (#9)
-- Schema response normalization (#6)
-- Server tests with async call tracking (#17)
-- JSON formatter cognitive complexity (#21)
-- Subscription quota check (#22)
+- Add support for multiple OpenAPI parser libraries for better compatibility
+- Add graceful shutdown on Ctrl+C with clean background task termination
 
 ## [2.0.0] - 2025-10-07
 
-### Added
-
-- Risk manager context mode with specialized tooling
-  - `company_search_interactive`: Enhanced search with folder membership and subscription metadata
-  - `manage_subscriptions`: Bulk subscription management with dry-run support
-  - `request_company`: Company request workflow with v2 API integration
-- Context selection via `--context` CLI flag, `BIRRE_CONTEXT` environment variable, or config
-- BitSight API v2 integration for company requests
-- Comprehensive offline unit test suite
-  - Configuration layering tests
-  - Logging formatter tests
-  - Startup checks validation
-  - Tool behavior verification
-- Online smoke tests for company search and rating workflows
-- Startup diagnostics with structured JSON output
-  - Offline checks for schemas, configuration, and credentials
-  - Online checks for API connectivity, folders, and quotas
-  - Configurable via `--skip-startup-checks`
-
 ### Changed
 
-- Tool filtering to expose only required v1 API endpoints
-- Subscription management now uses bulk API endpoints
+- Filter tools to expose only required BitSight API v1 endpoints
+- Migrate subscription management to bulk API endpoints
+
+### Added
+
+- Add risk manager context mode with specialized subscription management
+- Add interactive company search tool `company_search_interactive` with folder membership and metadata
+- Add bulk subscription management tool `manage_subscriptions` with dry-run support
+- Add `request_company` workflow using BitSight API v2
+- Add context selection via CLI flag, environment variable, or configuration
+- Add comprehensive offline unit test suite
+- Add online smoke tests for core workflows
+- Add startup diagnostics with structured JSON output
 
 ### Fixed
 
-- pytest dependencies installation (#1)
-
-### Improved
-
-- Error handling and logging throughout
+- Fix pytest dependency installation issues
 
 ## [1.0.0] - 2025-10-05
 
 ### Added
 
-- Initial BiRRe MCP server implementation
-- Company search via BitSight `companySearch` API
-- Company rating with trend analytics and top findings
-  - Comprehensive rating details with trend information
-  - Top vulnerability insights with severity-based sorting
-  - Web application security findings
-- Ephemeral subscription management and cleanup
-- Basic startup diagnostics
-- Configuration via environment variables and config files
-- FastMCP integration for MCP server protocol
+- Add BiRRe MCP server for BitSight integration
+- Add company search via BitSight API
+- Add company rating with trend analytics and top findings
+- Add ephemeral subscription management with automatic cleanup
+- Add basic startup diagnostics
+- Add configuration via environment variables and config files
 
-### Technical
-
-- FastMCP pinned at version 2.12.4
-- Python 3.10+ requirement
-- Dependencies: fastmcp, python-dotenv, httpx
-
-[Unreleased]: https://github.com/boecht/birre/compare/v4.0.0-alpha.1...HEAD
+[4.0.0-alpha.2]: https://github.com/boecht/birre/compare/v4.0.0-alpha.1...v4.0.0-alpha.2
 [4.0.0-alpha.1]: https://github.com/boecht/birre/compare/v3.2.0...v4.0.0-alpha.1
 [3.2.0]: https://github.com/boecht/birre/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/boecht/birre/compare/v3.0.0...v3.1.0

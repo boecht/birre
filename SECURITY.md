@@ -2,15 +2,17 @@
 
 ## Supported Versions
 
-We currently support the latest release line of BiRRe. Older releases are
-considered end-of-life and will not receive security fixes.
+We currently support the latest **stable release** of BiRRe.
+Older stable releases are considered end-of-life and will not receive security fixes.
+Pre-production versions (alpha, beta, release candidates) are not covered by this policy.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please open a new issue on the
-[GitHub issue tracker](https://github.com/boecht/birre/issues) with the
-`security` label. Include as much detail as possible so we can reproduce and
-triage the problem.
+If you discover a security vulnerability, please report it privately via
+[GitHub Security Advisories](https://github.com/boecht/birre/security/advisories).
+This keeps the report confidential until a fix is available.
+
+Include as much detail as possible so we can reproduce and triage the problem.
 
 We aim to acknowledge new security reports within **five business days**. Once
 triaged, we will keep you updated on remediation progress until the fix is

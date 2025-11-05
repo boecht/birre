@@ -1,0 +1,72 @@
+---
+# Configuration file for MegaLinter
+# See all available variables at https://megalinter.io/configuration/ and in linters documentation
+
+# Explicit list of linters (descriptor names)
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - JSON_JSONLINT
+  - MARKDOWN_MARKDOWNLINT
+  - PYTHON_RUFF
+  - PYTHON_RUFF_FORMAT
+  - PYTHON_MYPY
+  - REPOSITORY_SYFT
+  - YAML_YAMLLINT
+
+# Linters allowed to apply fixes (safe formatting)
+APPLY_FIXES:
+  - MARKDOWN_MARKDOWNLINT
+  - PYTHON_RUFF_FORMAT
+
+# Reporters
+GITHUB_STATUS_REPORTER: true
+MARKDOWN_SUMMARY_REPORTER: true
+SARIF_REPORTER: true
+
+# General exclude regex (applies to all linters unless overridden)
+FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)
+
+############################################
+# Descriptor-specific configuration overrides
+############################################
+
+# Actionlint: restrict scope to GitHub workflow directory explicitly
+ACTION_ACTIONLINT_FILTER_REGEX_INCLUDE: '^(\.github/workflows/.*\.ya?ml)$'
+
+# EditorConfig Checker (requires .editorconfig file at repo root)
+EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: "-f github-actions"
+
+# JSON Jsonlint
+JSON_JSONLINT_ARGUMENTS: "--quiet"
+
+# Markdown Lint
+MARKDOWN_MARKDOWNLINT_ARGUMENTS: "--fix"
+MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
+
+# Mypy strict typing config via pyproject
+PYTHON_MYPY_CLI_LINT_MODE: project
+PYTHON_MYPY_CONFIG_FILE: pyproject.toml
+PYTHON_MYPY_ARGUMENTS: "--strict"
+
+# Python Ruff (lint) uses pyproject.toml config; ensure formatting style is ruff
+PYTHON_DEFAULT_STYLE: ruff
+PYTHON_RUFF_CLI_LINT_MODE: project
+PYTHON_RUFF_CONFIG_FILE: pyproject.toml
+PYTHON_RUFF_FILTER_REGEX_EXCLUDE: >-
+  (^docs/apis/|^src/birre/resources/apis/|^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
+
+# Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
+REPOSITORY_SYFT_ARGUMENTS: >-
+  -o cyclonedx-json=artifacts/sbom-cyclonedx.json
+  -o spdx-json=artifacts/sbom-spdx.json
+
+# YAML Yamllint
+YAML_YAMLLINT_ARGUMENTS: "--strict"
+
+############################################
+# Performance & Misc
+############################################
+
+SHOW_ELAPSED_TIME: true
+# End of MegaLinter configuration

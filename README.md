@@ -1,17 +1,30 @@
 # BiRRe
 
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
-[![License](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
-[![codecov](https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg)](https://codecov.io/gh/boecht/birre)
-[![Type Checked](https://img.shields.io/badge/type--checked-yes-success)](src/birre/py.typed)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11405/badge)](https://www.bestpractices.dev/projects/11405)
+[![Python Version][python-badge]][python-link]
+[![License][license-badge]][license-link]
+[![Tests][tests-badge]][tests-link]
+[![codecov][codecov-badge]][codecov-link]
+[![Type Checked][type-checked-badge]][type-checked-link]
+[![OpenSSF Best Practices][ossf-badge]][ossf-link]
+
+[python-badge]: https://img.shields.io/badge/python-3.13%2B-blue
+[python-link]: pyproject.toml
+[license-badge]: https://img.shields.io/badge/license-Unlicense-blue
+[license-link]: LICENSE
+[tests-badge]: https://img.shields.io/badge/tests-passing-success
+[tests-link]: https://github.com/boecht/birre/actions
+[codecov-badge]: https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg
+[codecov-link]: https://codecov.io/gh/boecht/birre
+[type-checked-badge]: https://img.shields.io/badge/type--checked-yes-success
+[type-checked-link]: src/birre/py.typed
+[ossf-badge]: https://www.bestpractices.dev/projects/11405/badge
+[ossf-link]: https://www.bestpractices.dev/projects/11405
 
 <div align="center"><img src="birre-logo.png" alt="BiRRe Logo" width="375"></div>
 
 **BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server
 that provides access to BitSight security rating data through an existing subscription.
-It utilizes [FastMCP](https://gofastmcp.com/) for API integration  
+It utilizes [FastMCP](https://gofastmcp.com/) for API integration
 and can be run easily without installation in a temporary, isolated Python environment with uv.
 
 ## Installation
@@ -87,7 +100,8 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 ## BitSight API Documentation (v1 + v2 are complementary)
 
 **API Version**: This implementation is based on BitSight APIs as of July 24th, 2025.
-For the latest API changes and updates, refer to the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
+  For the latest API changes and updates, refer to
+  the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
 
 **Interactive API Documentation** (requires BitSight account login):
 
@@ -98,9 +112,10 @@ For the latest API changes and updates, refer to the [BitSight API Change Log](h
 
 1. Log into BitSight web interface
 2. Download schemas from:
-   - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
-   - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>  
-3. Save as `src/birre/resources/apis/bitsight.v1.schema.json` and `src/birre/resources/apis/bitsight.v2.schema.json`
+    - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
+    - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>
+3. Save as `src/birre/resources/apis/bitsight.v1.schema.json`
+    and `src/birre/resources/apis/bitsight.v2.schema.json`
 
 ## Version History and Outlook
 
@@ -120,24 +135,27 @@ using relaxed severity filters (severe/material first, then moderate with web-ap
 and recency to keep the worst issues on top
 - **Narrative Improvements**: Normalise detection/remediation text for quick consumption by MCP clients
 
-### Version 3.0: Context Modes (Current)
+### Version 3.0: Context Modes (Latest Stable)
 
 - Two personas: `standard` (quick ratings) and `risk_manager` (subscription operations)
 - Context-driven tool filtering via CLI (`--context`), env (`BIRRE_CONTEXT`), or config
 - Risk manager tooling delivers enriched search data, dry-run batch subscription workflows,
 and company onboarding requests without in-tool prompts (LLMs coordinate user confirmations)
 
-### Version 4.0: Caching Layer (Not Implemented)
+### Version 4.0: Structural Hardening & Developer Ergonomics (Planned)
 
-- Daily caching of ratings and reusable storage for PDF artifacts
-- Reduce duplicate API calls and avoid re-downloading recent reports
+- Treat strict typing, property-based tests, and benchmarks as ship gates
+- Keep cross-platform CI + telemetry visible for regression detection
+- Harden release workflows (Sigstore signing, SBOMs, dependency review, branch protection)
+- Finish CLI/diagnostics refinements and contributor-focused documentation
 
-### Version 5.0: Company Reports (Not Implemented)
+### Version 5.0: Caching & Company Reports (Planned)
 
-- Download official PDF reports
-- Deliver via direct attachment, email, or configured file share (POSIX path or SharePoint)
+- Daily caching of ratings and reusable storage for BitSight artefacts
+- Stop redundant API calls and reuse cached assets when exporting reports
+- Deliver official PDF reports via direct response, email, or configured file share
 
-### Version 6.0: Multi-Tenant Service (Not Implemented)
+### Version 6.0: Multi-Tenant Service (Planned)
 
 - Remote deployment support
 - Authentication and authorization
@@ -192,28 +210,26 @@ warnings (for example, optional tooling gaps in offline mode) return `2`.
 Expect occasional `403 Access Denied` responses when using BitSight’s testing
 environment.
 
-### Pytest
+### Testing with pytest
 
-BiRRe ships with both offline unit tests and opt-in online integration checks.
-The offline suite exercises configuration layering, logging formatters, startup
-checks, subscription helpers, and both standard and risk-manager tools without
-touching the BitSight API. The online tests drive the FastMCP client end-to-end
-against BitSight’s production API and require valid credentials.
+BiRRe ships with both offline unit tests and online integration checks.
+
+- Recommended: run the full suite; online tests skip automatically if the API key/config is missing.
 
 ```bash
-# Run the offline suite
-uv run --extra pytest-dependencies pytest -m offline
-
-# Run the online smoke tests against the BitSight production API.
-uv run --extra pytest-dependencies pytest -m online
+uv run --group dev pytest
 ```
 
-If you prefer a plain virtual environment, install the same extras explicitly
-before invoking pytest:
+- Only offline (no network):
 
 ```bash
-pip install '.[pytest-dependencies]'
-pytest -m offline
+uv run --group dev pytest --offline
+```
+
+- Only online (requires `BITSIGHT_API_KEY` or local config):
+
+```bash
+uv run --group dev pytest --online-only
 ```
 
 ## Further Documentation

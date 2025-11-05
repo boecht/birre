@@ -124,15 +124,15 @@ def register_company_search_tool(
 
         Output semantics
         - companies: List of company summaries. Each item contains:
-          - guid: BitSight company GUID (string)
-          - name: Display name (string)
-          - domain: Primary domain if available; otherwise a representative
+        - guid: BitSight company GUID (string)
+        - name: Display name (string)
+        - domain: Primary domain if available; otherwise a representative
             URL (string, may be empty)
         - count: Number of companies returned (integer)
 
         Notes
         - At least one of name or domain must be provided. If both are
-          provided, domain takes precedence.
+        provided, domain takes precedence.
         - Results are limited to the BitSight API's default page size (pagination not implemented).
         - Error contract: on failure returns {"error": str}.
         - Output is normalized for downstream use by other tools.
@@ -140,7 +140,7 @@ def register_company_search_tool(
         Example
         >>> company_search(name="Github")
         {
-          "companies": [
+        "companies": [
             {
                 "guid": "e90b389b-0b7e-4722-9411-97d81c8e2bc6",
                 "name": "GitHub, Inc.", "domain": "github.com"
@@ -150,8 +150,8 @@ def register_company_search_tool(
                 "name": "GitHub Blog", "domain": "github.blog"
             },
             ...
-          ],
-          "count": 5
+        ],
+        "count": 5
         }
         Select the GUID for "GitHub, Inc." to use with get_company_rating.
         """

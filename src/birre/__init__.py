@@ -6,7 +6,7 @@ from birre.application.server import (
     create_birre_server,
 )
 
-__version__ = "4.0.0a1"
+__version__ = "4.0.0a2"
 
 __all__ = [
     "create_birre_server",

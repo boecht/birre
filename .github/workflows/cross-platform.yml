@@ -1,0 +1,99 @@
+---
+name: Cross-Platform Testing
+
+permissions:
+  contents: read
+  pull-requests: write
+
+"on":
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-matrix:
+    name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false # Continue testing other platforms even if one fails
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.13"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache-key-prefix: matrix
+
+      - name: Run tests (full if API key present, else offline)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+        run: |
+          if [ -n "${BITSIGHT_API_KEY}" ]; then
+            uv run pytest --verbose
+          else
+            uv run pytest --offline --verbose
+          fi
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+        run: |
+          if ($Env:BITSIGHT_API_KEY) {
+            uv run pytest --verbose
+          }
+          else {
+            uv run pytest --offline --verbose
+          }
+
+      - name: Test config file discovery (Unix-style paths)
+        if: runner.os != 'Windows'
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test config file discovery (Windows-style paths)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test CLI entrypoint (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          uv run birre --help
+
+      - name: Test CLI entrypoint (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv run birre --help
