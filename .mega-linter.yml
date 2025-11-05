@@ -33,7 +33,7 @@ ENABLE_LINTERS: >-
   YAML_YAMLLINT,
   JSON_JSONLINT,
   EDITORCONFIG_EDITORCONFIG_CHECKER,
-  REPOSITORY_SYFT
+  REPOSITORY_SYFT_SBOM
 
 # Linters allowed to apply fixes (safe formatting)
 APPLY_FIXES: >-
@@ -108,10 +108,10 @@ EDITORCONFIG_EDITORCONFIG_CHECKER_FILTER_REGEX_EXCLUDE: >-
 
 # Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
 REPOSITORY_SYFT_CLI_LINT_MODE: project
-REPOSITORY_SYFT_ARGUMENTS: >-
+REPOSITORY_SYFT_SBOM_ARGUMENTS: >-
   -o cyclonedx-json=artifacts/sbom-cyclonedx.json
   -o spdx-json=artifacts/sbom-spdx.json
-REPOSITORY_SYFT_FILTER_REGEX_EXCLUDE: >-
+REPOSITORY_SYFT_SBOM_FILTER_REGEX_EXCLUDE: >-
   (^\.venv/|^dist/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^BiRRe\.egg-info/)
 
 # Auto-fix policy: only pure formatters (Ruff Format, Markdownlint) to avoid semantic changes.
