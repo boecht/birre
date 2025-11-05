@@ -915,7 +915,7 @@ def register_company_rating_tool(
 
         Behavior
         - Ensures subscription: creates an ephemeral subscription if needed; if already subscribed,
-          it does not unsubscribe. Ephemeral subs are cleaned up after data retrieval.
+        it does not unsubscribe. Ephemeral subs are cleaned up after data retrieval.
 
         Returns
         - {
@@ -925,45 +925,45 @@ def register_company_rating_tool(
             "trend_8_weeks": {"direction": str, "change": float},
             "trend_1_year": {"direction": str, "change": float},
             "top_findings": {
-              "policy": {
+            "policy": {
                 "severity_floor": "material" | "moderate",
                 # minimum severity included (always includes 'severe')
                 "supplements": ["web_appsec"] | [],
                 # vectors appended after fallback (kept at the end)
                 "max_items": 5 | 10,                          # cap used for this response
                 "profile": "strict" | "relaxed" | "relaxed+web_appsec"  # human-readable summary
-              },
-              "count": int,
-              "findings": [
+            },
+            "count": int,
+            "findings": [
                 {
                     "top": int, "finding": str, "details": str,
                     "asset": str, "first_seen": str, "last_seen": str
                 }
-              ]
+            ]
             },
             "legend": {"rating": [{"color": str, "min": int, "max": int}, ...]}
-          }
+        }
 
         Output semantics
         - current_rating.value: Numeric BitSight rating on a 250–900 scale
-          (higher is better). May be null if unavailable.
+        (higher is better). May be null if unavailable.
         - current_rating.color: Traffic-light bucket derived from value:
-          red (250–629), yellow (630–739), green (740–900).
+        red (250–629), yellow (630–739), green (740–900).
         - trend_8_weeks / trend_1_year: {direction, change}
-          - direction ∈ {up, slightly up, stable, slightly down, down} or "insufficient data"
-          - change is the approximate rating delta over the window (float)
-          - if insufficient data points (<2), direction is "insufficient data" and change is 0.0
+        - direction ∈ {up, slightly up, stable, slightly down, down} or "insufficient data"
+        - change is the approximate rating delta over the window (float)
+        - if insufficient data points (<2), direction is "insufficient data" and change is 0.0
         - top_findings: The top findings impacting the rating (compact summary per finding).
-          - policy:
+        - policy:
             - severity_floor: "material" (includes severe+material) or
-              "moderate" (includes severe+material+moderate).
+            "moderate" (includes severe+material+moderate).
             - supplements: ["web_appsec"] when fallback was needed;
-              otherwise []. Appended items come last.
+            otherwise []. Appended items come last.
             - max_items: Configured `max_findings` (default 10). When
-              web-appsec padding is applied, the list remains capped at
-              this value.
+            web-appsec padding is applied, the list remains capped at
+            this value.
             - profile: quick summary: "strict" | "relaxed" | "relaxed+web_appsec".
-          - Behavior: Start strict (severe,material). If <3 items, relax to
+        - Behavior: Start strict (severe,material). If <3 items, relax to
             include 'moderate'. If still <3,
             append from Web Application Security until the configured limit
             is reached (appended findings remain last).
@@ -975,28 +975,28 @@ def register_company_rating_tool(
         Example (GitHub, Inc.)
         >>> get_company_rating(guid="e90b389b-0b7e-4722-9411-97d81c8e2bc6")
         {
-          "name": "GitHub, Inc.",
-          "domain": "github.com",
-          "current_rating": {"value": 740, "color": "green"},
-          "trend_8_weeks": {"direction": "up", "change": 52.0},
-          "trend_1_year": {"direction": "stable", "change": 14.3},
-          "top_findings": {"count": 3, "findings": [
-             {
-                 "top": 1, "finding": "Open Ports",
-                 "details": "Detected service: …", "asset": "…",
-                 "first_seen": "…", "last_seen": "…"
-             },
-             {
-                 "top": 2, "finding": "Patching Cadence",
-                 "details": "CVE-… — …", "asset": "…",
-                 "first_seen": "…", "last_seen": "…"
-             }
-          ]},
-          "legend": {"rating": [
+        "name": "GitHub, Inc.",
+        "domain": "github.com",
+        "current_rating": {"value": 740, "color": "green"},
+        "trend_8_weeks": {"direction": "up", "change": 52.0},
+        "trend_1_year": {"direction": "stable", "change": 14.3},
+        "top_findings": {"count": 3, "findings": [
+            {
+                "top": 1, "finding": "Open Ports",
+                "details": "Detected service: …", "asset": "…",
+                "first_seen": "…", "last_seen": "…"
+            },
+            {
+                "top": 2, "finding": "Patching Cadence",
+                "details": "CVE-… — …", "asset": "…",
+                "first_seen": "…", "last_seen": "…"
+            }
+        ]},
+        "legend": {"rating": [
             {"color": "red", "min": 250, "max": 629},
             {"color": "yellow", "min": 630, "max": 739},
             {"color": "green", "min": 740, "max": 900}
-          ]}
+        ]}
         }
         """
         await ctx.info(f"Getting rating analytics for company: {guid}")

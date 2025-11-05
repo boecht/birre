@@ -1009,7 +1009,8 @@ def register_company_search_interactive_tool(
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
             # Pydantic models accept **kwargs, but mypy can't verify field names
-            return CompanySearchInteractiveResponse(**validation_error).to_payload()  # type: ignore[arg-type]
+            response = CompanySearchInteractiveResponse(**validation_error)  # type: ignore[arg-type]
+            return response.to_payload()
 
         search_params, search_term = _build_company_search_params(name, domain)
 
@@ -1033,7 +1034,8 @@ def register_company_search_interactive_tool(
         )
         if failure_response is not None:
             # Pydantic models accept **kwargs, but mypy can't verify field names
-            return CompanySearchInteractiveResponse(**failure_response).to_payload()  # type: ignore[arg-type]
+            response = CompanySearchInteractiveResponse(**failure_response)  # type: ignore[arg-type]
+            return response.to_payload()
 
         search = CompanySearchInputs(name=name, domain=domain, term=search_term)
         defaults = CompanySearchDefaults(
