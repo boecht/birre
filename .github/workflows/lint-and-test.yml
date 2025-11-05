@@ -45,6 +45,12 @@ on:
       REUSABLE_GITHUB_TOKEN:
         description: Token used for MegaLinter reporters and API calls.
         required: true
+      BITSIGHT_API_KEY:
+        description: Optional BitSight API key forwarded from caller secrets.
+        required: false
+      CODECOV_TOKEN:
+        description: Optional Codecov token forwarded from caller secrets.
+        required: false
 
 permissions:
   contents: read
@@ -93,7 +99,7 @@ jobs:
         uses: oxsecurity/megalinter@v8.2.0
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Upload MegaLinter reports
         if: always()
