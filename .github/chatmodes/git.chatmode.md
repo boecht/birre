@@ -49,7 +49,7 @@ tools: [
 
 1. `changes` for staged listings/diffs
 2. GitHub MCP tools for repo history/metadata and workflows (list/get/create/update/search across commits, branches,
-   tags, releases, issues, PRs)
+  tags, releases, issues, PRs)
 3. Shell git via `runCommands` only when a capability is missing
 
 ## Communication Principles
