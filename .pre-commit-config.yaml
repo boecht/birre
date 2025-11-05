@@ -44,3 +44,11 @@ repos:
         args:
           - "--config=.markdownlint.json"
         exclude: '^(docs/apis/|\.github/|\.project-notes/)'
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.16.3
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v2.17.2
+    hooks:
+      - id: pylint
