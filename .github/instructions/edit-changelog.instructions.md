@@ -9,7 +9,8 @@ This is the authoritative guidance for creating or editing `CHANGELOG.md`.
 
 **These rules are NON-NEGOTIABLE. Entries violating these will be rejected:**
 
-1. **Comprehensive Coverage**: The changelog entry MUST cover ALL commits on the current branch since the last release/merge to main, not just the most recent commit.
+1. **Comprehensive Coverage**: The changelog entry MUST cover ALL commits on the current branch since
+   the lastrelease/merge to main, not just the most recent commit.
    - ✅ Correct: Analyze all 51 commits and extract user-facing changes from each
    - ❌ Wrong: Only look at the last commit and write 5 lines
 

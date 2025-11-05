@@ -23,4 +23,5 @@ When creating or editing Python code in `src/`:
   - One responsibility per function; prefer small, testable units.
   - Keep business logic in the appropriate layer/module.
 
-Reference: [CONTRIBUTING.md](../../CONTRIBUTING.md) (Coding Standards) and [copilot-instructions.md](../copilot-instructions.md) (Documentation Principles)
+Reference: [CONTRIBUTING.md](../../CONTRIBUTING.md) (Coding Standards)
+and [copilot-instructions.md](../copilot-instructions.md) (Documentation Principles)
