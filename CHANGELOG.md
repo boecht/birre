@@ -10,8 +10,10 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability and error clarity
 - Improve startup reliability and remove event loop race conditions by simplifying async/sync bridge (lower memory)
 - Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
-- Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker automation parsing
-- Reduce CLI and diagnostics complexity through extensive refactors for more predictable behavior and lower maintenance risk
+- Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker
+  automation parsing
+- Reduce CLI and diagnostics complexity through extensive refactors for more predictable behavior and lower
+  maintenance risk
 - Improve logging robustness by guarding against writes to closed streams to prevent noisy teardown errors
 - Accept expected 400 "already requested" responses as successful diagnostics connectivity checks
 - Standardize test selection flags (`--offline`, `--online-only`) across CLI, docs, and workflows for clearer usage
@@ -37,11 +39,13 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 ### Removed
 
 - Remove dry-run shortcuts from diagnostics so production selftests execute real API calls for authentic validation
-- Remove thousands of lines of duplicate and obsolete CLI/diagnostic helper code to lower memory usage and improve performance
+- Remove thousands of lines of duplicate and obsolete CLI/diagnostic helper code to lower memory usage and
+  improve performance
 
 ### Fixed
 
-- Fix configuration validation to compare enum values with equality instead of identity for reliable parameter source detection
+- Fix configuration validation to compare enum values with equality instead of identity for
+  reliable parameter source detection
 - Fix selftest failures by correcting tool parameter names and making mock context methods async
 - Fix interactive search 403 errors by creating required ephemeral subscriptions before fetching company details
 - Fix logging handler errors during teardown by safely ignoring closed stream writes

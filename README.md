@@ -5,7 +5,8 @@
 [![Tests](https://img.shields.io/badge/tests-passing-success)](https://github.com/boecht/birre/actions)
 [![codecov](https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg)](https://codecov.io/gh/boecht/birre)
 [![Type Checked](https://img.shields.io/badge/type--checked-yes-success)](src/birre/py.typed)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11405/badge)](https://www.bestpractices.dev/projects/11405)
+[![OpenSSF Best Practices]
+(https://www.bestpractices.dev/projects/11405/badge)](https://www.bestpractices.dev/projects/11405)
 
 <div align="center"><img src="birre-logo.png" alt="BiRRe Logo" width="375"></div>
 
@@ -87,7 +88,8 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 ## BitSight API Documentation (v1 + v2 are complementary)
 
 **API Version**: This implementation is based on BitSight APIs as of July 24th, 2025.
-For the latest API changes and updates, refer to the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
+For the latest API changes and updates, refer to
+the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
 
 **Interactive API Documentation** (requires BitSight account login):
 
@@ -100,7 +102,8 @@ For the latest API changes and updates, refer to the [BitSight API Change Log](h
 2. Download schemas from:
    - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
    - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>
-3. Save as `src/birre/resources/apis/bitsight.v1.schema.json` and `src/birre/resources/apis/bitsight.v2.schema.json`
+3. Save as `src/birre/resources/apis/bitsight.v1.schema.json`
+  and `src/birre/resources/apis/bitsight.v2.schema.json`
 
 ## Version History and Outlook
 

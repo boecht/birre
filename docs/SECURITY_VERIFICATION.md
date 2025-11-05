@@ -41,9 +41,10 @@ pipx install sigstore
 ### Verification Steps
 
 1. **Download release artifacts** from [GitHub Releases](https://github.com/boecht/birre/releases):
-   - `birre-X.Y.Z.tar.gz` (source distribution)
-   - `birre-X.Y.Z-py3-none-any.whl` (wheel)
-   - `birre-X.Y.Z.tar.gz.sigstore.json` (signature bundle)
+
+    - `birre-X.Y.Z.tar.gz` (source distribution)
+    - `birre-X.Y.Z-py3-none-any.whl` (wheel)
+    - `birre-X.Y.Z.tar.gz.sigstore.json` (signature bundle)
 
 2. **Verify the signature**:
 
@@ -60,7 +61,7 @@ sigstore verify github \
   --bundle birre-X.Y.Z-py3-none-any.whl.sigstore.json \
   --cert-identity https://github.com/boecht/birre/.github/workflows/release.yml@refs/tags/vX.Y.Z \
   --repo boecht/birre \
-   birre-X.Y.Z-py3-none-any.whl
+  birre-X.Y.Z-py3-none-any.whl
 ```
 
 **Expected output**:

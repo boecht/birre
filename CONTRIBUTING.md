@@ -21,39 +21,39 @@ By participating, you are expected to uphold this code.
 
 1. **Fork and clone the repository**
 
-   ```bash
-   git clone https://github.com/boecht/birre.git
-   cd birre
-   ```
+    ```bash
+    git clone https://github.com/boecht/birre.git
+    cd birre
+    ```
 
 2. **Install dependencies**
 
-   ```bash
-   uv sync --all-extras
-   ```
+    ```bash
+    uv sync --all-extras
+    ```
 
-   This will automatically download Python 3.13 if not already installed.
+    This will automatically download Python 3.13 if not already installed.
 
 3. **Install pre-commit hooks** (after `uv sync`)
 
-   ```bash
-   pre-commit install
-   ```
+    ```bash
+    pre-commit install
+    ```
 
-   The hooks use `uv run` to ensure they execute with the correct Python version
-   and project dependencies.
+    The hooks use `uv run` to ensure they execute with the correct Python version
+    and project dependencies.
 
 4. **Set up environment variables** (optional, for online tests)
 
-   ```bash
-   export BITSIGHT_API_KEY="your-api-key"
-   ```
+    ```bash
+    export BITSIGHT_API_KEY="your-api-key"
+    ```
 
 5. **Run tests to verify setup**
 
-   ```bash
-   uv run pytest --offline
-   ```
+    ```bash
+    uv run pytest --offline
+    ```
 
 ## Development Workflow
 
@@ -67,49 +67,49 @@ By participating, you are expected to uphold this code.
 
 1. **Create a feature branch**
 
-   ```bash
-   git checkout -b dev/your-feature-name
-   ```
+    ```bash
+    git checkout -b dev/your-feature-name
+    ```
 
 2. **Make your changes**
 
-   - Write clear, concise code
-   - Follow existing code style
-   - Add tests for new functionality
-   - Update documentation as needed
+    - Write clear, concise code
+    - Follow existing code style
+    - Add tests for new functionality
+    - Update documentation as needed
 
 3. **Run quality checks**
 
-   ```bash
-   # Lint
-   uv run ruff check src tests
+    ```bash
+    # Lint
+    uv run ruff check src tests
 
-   # Format
-   uv run ruff format src tests
+    # Format
+    uv run ruff format src tests
 
-   # Type check
-   uv run mypy src
+    # Type check
+    uv run mypy src
 
-   # Test
-   uv run pytest --offline --cov=src/birre
-   ```
+    # Test
+    uv run pytest --offline --cov=src/birre
+    ```
 
 4. **Commit your changes**
 
-   ```bash
-   git add .
-   git commit -m "Brief description of changes"
-   ```
+    ```bash
+    git add .
+    git commit -m "Brief description of changes"
+    ```
 
-   Use clear, descriptive commit messages. See [Commit Message Guidelines](#commit-message-guidelines).
+    Use clear, descriptive commit messages. See [Commit Message Guidelines](#commit-message-guidelines).
 
 5. **Push and create a pull request**
 
-   ```bash
-   git push origin dev/your-feature-name
-   ```
+    ```bash
+    git push origin dev/your-feature-name
+    ```
 
-   Then create a pull request on GitHub.
+    Then create a pull request on GitHub.
 
 ## Coding Standards
 
@@ -197,29 +197,29 @@ but comprehensive enough to be meaningful. Avoid both:
 ## Pull Request Process
 
 1. **Ensure all checks pass**
-   - Linting (ruff)
-   - Type checking (mypy)
-   - Tests (pytest)
-   - Coverage (70%+ minimum)
+    - Linting (ruff)
+    - Type checking (mypy)
+    - Tests (pytest)
+    - Coverage (70%+ minimum)
 
 2. **Update documentation**
-   - [README.md](README.md) if user-facing changes
-   - [CHANGELOG.md](CHANGELOG.md) with your changes
-   - Docstrings for new APIs
+    - [README.md](README.md) if user-facing changes
+    - [CHANGELOG.md](CHANGELOG.md) with your changes
+    - Docstrings for new APIs
 
 3. **Fill out the PR template**
-   - Describe what changed and why
-   - Reference related issues
-   - Note any breaking changes
+    - Describe what changed and why
+    - Reference related issues
+    - Note any breaking changes
 
 4. **Request review**
-   - Wait for maintainer feedback
-   - Address review comments
-   - Keep the PR focused and atomic
+    - Wait for maintainer feedback
+    - Address review comments
+    - Keep the PR focused and atomic
 
 5. **Squash commits** (if requested)
-   - Maintainers may squash commits on merge
-   - Or you can squash locally before merging
+    - Maintainers may squash commits on merge
+    - Or you can squash locally before merging
 
 ## Project Structure
 

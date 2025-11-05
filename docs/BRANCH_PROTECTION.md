@@ -73,23 +73,23 @@ Allow repositories and branches to be created even if checks would prohibit it.
 The following CI/CD checks must pass before merging:
 
 1. **Code Quality & Tests** (GitHub Actions)
-   - Source: `.github/workflows/pr-validation.yml`
-   - Validates: Linting, formatting, type checking, offline tests
+    - Source: `.github/workflows/pr-validation.yml`
+    - Validates: Linting, formatting, type checking, offline tests
 
 2. **CodeQL** (GitHub Advanced Security)
-   - Automated code scanning for security vulnerabilities
+    - Automated code scanning for security vulnerabilities
 
 3. **SonarCloud Code Analysis** (SonarQubeCloud)
-   - Code quality and security analysis
+    - Code quality and security analysis
 
 4. **dependency-review** (GitHub Actions)
-   - Dependency vulnerability scanning
+    - Dependency vulnerability scanning
 
 5. **Dependabot** (GitHub Actions)
-   - Automated dependency updates validation
+    - Automated dependency updates validation
 
 6. **codecov/patch** (Codecov)
-   - Code coverage for changed code
+    - Code coverage for changed code
 
 ## Additional Protections
 
@@ -202,7 +202,8 @@ Review and update this configuration:
 
 ## References
 
-- [GitHub Branch Protection Documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets)
+- [GitHub Branch Protection Documentation](
+  https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets)
 - [OpenSSF Best Practices Badge Criteria](https://www.bestpractices.dev/en/criteria)
 - [SLSA Framework](https://slsa.dev/)
 - CI/CD Configuration: `.github/workflows/pr-validation.yml`

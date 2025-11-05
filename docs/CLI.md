@@ -125,7 +125,8 @@ uv run birre logs clear
 
 ### `version`
 
-Prints the installed BiRRe package version. Falls back to reading `pyproject.toml` when BiRRe is executed from a source checkout.
+Prints the installed BiRRe package version. Falls back to reading `pyproject.toml` when BiRRe
+is executed from a source checkout.
 
 ### `readme`
 
