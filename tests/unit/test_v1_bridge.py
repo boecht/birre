@@ -10,6 +10,12 @@ import pytest
 
 import birre.integrations.bitsight.v1_bridge as v1
 
+NULL_LOGGER = SimpleNamespace(
+    debug=lambda *a, **k: None,
+    error=lambda *a, **k: None,
+    warning=lambda *a, **k: None,
+)
+
 
 def _ctx_spy():
     calls: list[tuple[str, str]] = []
@@ -42,7 +48,11 @@ async def test_call_openapi_tool_normalizes_structured_and_json_text(
 ) -> None:
     # Fake api_server middleware returning various payload shapes
     class _API:
-        async def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(  # noqa: ANN001
+            self,
+            name: str,
+            params: dict[str, Any],
+        ) -> Any:
             await asyncio.sleep(0)
             assert name == "companies"
             assert "q" in params
@@ -75,9 +85,7 @@ async def test_call_openapi_tool_normalizes_structured_and_json_text(
         "companies",
         ctx,
         {"q": "x", "mode": "structured"},
-        logger=SimpleNamespace(
-            debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
-        ),
+        logger=NULL_LOGGER,
     )  # type: ignore[arg-type]
     assert out1 == {"ok": 1}
 
@@ -87,9 +95,7 @@ async def test_call_openapi_tool_normalizes_structured_and_json_text(
         "companies",
         ctx,
         {"q": "y"},
-        logger=SimpleNamespace(
-            debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
-        ),
+        logger=NULL_LOGGER,
     )  # type: ignore[arg-type]
     assert out2 == {"a": 1}
 
@@ -175,11 +181,27 @@ def test_input_validation_errors() -> None:
         # empty tool name
         import anyio
 
-        anyio.run(lambda: v1.call_openapi_tool(api, " ", ctx, {}, logger=SimpleNamespace()))  # type: ignore[arg-type]
+        anyio.run(
+            lambda: v1.call_openapi_tool(
+                api,
+                " ",
+                ctx,
+                {},
+                logger=SimpleNamespace(),
+            ),
+        )  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         import anyio
 
-        anyio.run(lambda: v1.call_openapi_tool(api, "t", ctx, [], logger=SimpleNamespace()))  # type: ignore[arg-type]
+        anyio.run(
+            lambda: v1.call_openapi_tool(
+                api,
+                "t",
+                ctx,
+                [],
+                logger=SimpleNamespace(),
+            ),
+        )  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -287,8 +309,20 @@ async def test_delegate_v1_and_v2_to_common(monkeypatch: pytest.MonkeyPatch) -> 
 
     ctx, _ = _ctx_spy()
     api = object()
-    out1 = await v1.call_v1_openapi_tool(api, "t1", ctx, {"x": 1}, logger=SimpleNamespace())  # type: ignore[arg-type]
-    out2 = await v1.call_v2_openapi_tool(api, "t2", ctx, {"y": 2}, logger=SimpleNamespace())  # type: ignore[arg-type]
+    out1 = await v1.call_v1_openapi_tool(
+        api,
+        "t1",
+        ctx,
+        {"x": 1},
+        logger=NULL_LOGGER,
+    )  # type: ignore[arg-type]
+    out2 = await v1.call_v2_openapi_tool(
+        api,
+        "t2",
+        ctx,
+        {"y": 2},
+        logger=NULL_LOGGER,
+    )  # type: ignore[arg-type]
     assert out1 == out2 == {"ok": True}
     assert calls == [("t1", {"x": 1}), ("t2", {"y": 2})]
 
@@ -317,15 +351,26 @@ async def test_request_error_without_mapping_propagates(monkeypatch: pytest.Monk
     monkeypatch.setattr(v1, "classify_request_error", lambda *a, **k: None)
 
     with pytest.raises(httpx.RequestError):
-        await v1.call_openapi_tool(api, "tool", ctx, {}, logger=SimpleNamespace())  # type: ignore[arg-type]
+        await v1.call_openapi_tool(
+            api,
+            "tool",
+            ctx,
+            {},
+            logger=NULL_LOGGER,
+        )  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
-async def test_content_without_text_returns_raw_and_warns(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_content_without_text_returns_raw_and_warns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class _API:
         async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
             await asyncio.sleep(0)
-            return SimpleNamespace(structured_content=None, content=[SimpleNamespace(not_text="x")])
+            return SimpleNamespace(
+                structured_content=None,
+                content=[SimpleNamespace(not_text="x")],
+            )
 
     api = _API()
     ctx, calls = _ctx_spy()
@@ -347,9 +392,7 @@ async def test_content_without_text_returns_raw_and_warns(monkeypatch: pytest.Mo
         "tool",
         ctx,
         {},
-        logger=SimpleNamespace(
-            debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
-        ),
+        logger=NULL_LOGGER,
     )  # type: ignore[arg-type]
     assert raw is not None
     # Ensure a warning was emitted by ctx
@@ -361,7 +404,11 @@ async def test_params_filtering_is_applied(monkeypatch: pytest.MonkeyPatch) -> N
     seen: dict[str, Any] = {}
 
     class _API:
-        async def _call_tool_middleware(self, name: str, params: dict[str, Any]) -> Any:  # noqa: ANN001
+        async def _call_tool_middleware(  # noqa: ANN001
+            self,
+            name: str,
+            params: dict[str, Any],
+        ) -> Any:
             await asyncio.sleep(0)
             seen.update(params)
             assert "none_value" not in params
@@ -387,7 +434,7 @@ async def test_params_filtering_is_applied(monkeypatch: pytest.MonkeyPatch) -> N
         "tool",
         ctx,
         {"none_value": None, "keep": 1},
-        logger=SimpleNamespace(),  # type: ignore[arg-type]
+        logger=NULL_LOGGER,  # type: ignore[arg-type]
     )
     assert out == {"ok": True}
     assert "keep" in seen and "none_value" not in seen
@@ -418,12 +465,22 @@ def test_log_tls_error_debug_and_non_debug(capsys: pytest.CaptureFixture[str]) -
             logs["error"] += 1
 
     # With debug enabled → includes traceback debug and two hint errors
-    v1._log_tls_error(_Mapped(), logger=_Logger(), debug_enabled=True, exc=ssl.SSLError("x"))  # type: ignore[attr-defined]
+    v1._log_tls_error(  # type: ignore[attr-defined]
+        _Mapped(),
+        logger=_Logger(),
+        debug_enabled=True,
+        exc=ssl.SSLError("x"),
+    )
     assert logs["error"] >= 3
     assert logs["debug"] >= 1
 
     # Without debug enabled → still logs errors but no debug
     logs.update({"debug": 0, "error": 0})
-    v1._log_tls_error(_Mapped(), logger=_Logger(), debug_enabled=False, exc=ssl.SSLError("x"))  # type: ignore[attr-defined]
+    v1._log_tls_error(  # type: ignore[attr-defined]
+        _Mapped(),
+        logger=_Logger(),
+        debug_enabled=False,
+        exc=ssl.SSLError("x"),
+    )
     assert logs["error"] >= 3
     assert logs["debug"] == 0

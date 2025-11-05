@@ -100,8 +100,8 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
 ## BitSight API Documentation (v1 + v2 are complementary)
 
 **API Version**: This implementation is based on BitSight APIs as of July 24th, 2025.
-For the latest API changes and updates, refer to
-the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
+  For the latest API changes and updates, refer to
+  the [BitSight API Change Log](https://help.bitsighttech.com/hc/en-us/articles/231655907-API-Change-Log).
 
 **Interactive API Documentation** (requires BitSight account login):
 

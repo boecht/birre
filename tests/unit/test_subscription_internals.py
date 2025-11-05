@@ -6,6 +6,8 @@ import pytest
 
 import birre.domain.subscription as sub
 
+log_bulk_response = sub._log_bulk_response  # type: ignore[attr-defined]
+
 
 def test_extract_guid_values_and_payload_builder() -> None:
     resp = {"added": ["a", {"guid": "b"}, 3, None], "modified": [{"guid": "c"}]}
@@ -30,10 +32,10 @@ async def test_log_bulk_response_debug_toggle(monkeypatch) -> None:
 
     ctx = _Ctx()
     # Off → no call
-    await sub._log_bulk_response(ctx, {"a": 1}, "add", debug_enabled=False)  # type: ignore[attr-defined]
+    await log_bulk_response(ctx, {"a": 1}, "add", debug_enabled=False)
     assert calls == []
     # On → call
-    await sub._log_bulk_response(ctx, {"a": 1}, "add", debug_enabled=True)  # type: ignore[attr-defined]
+    await log_bulk_response(ctx, {"a": 1}, "add", debug_enabled=True)
     assert calls and "raw response" in calls[0]
 
     # Non-serializable object → fallback to str
@@ -42,5 +44,5 @@ async def test_log_bulk_response_debug_toggle(monkeypatch) -> None:
             return "OBJ"
 
     calls.clear()
-    await sub._log_bulk_response(ctx, Obj(), "add", debug_enabled=True)  # type: ignore[attr-defined]
+    await log_bulk_response(ctx, Obj(), "add", debug_enabled=True)
     assert "OBJ" in calls[0]

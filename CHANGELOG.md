@@ -7,7 +7,8 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Changed
 
-- **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability and error clarity
+- **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability
+  and error clarity
 - Improve startup reliability and remove event loop race conditions by simplifying async/sync bridge (lower memory)
 - Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
 - Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker
@@ -19,7 +20,8 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Standardize test selection flags (`--offline`, `--online-only`) across CLI, docs, and workflows for clearer usage
 - Prefer local `pyproject.toml` version when displaying CLI version to give accurate development context
 - Establish performance baselines with benchmark suite to enable future regression detection
-- Increase code clarity and reliability by replacing magic numbers with named constants and enforcing low complexity thresholds
+- Increase code clarity and reliability by replacing magic numbers with named constants and
+  enforcing low complexity thresholds
 - Streamline release workflow with validated version inputs and safer tag extraction for consistent releases
 - Improve Windows/macOS/Linux parity with cross-platform test matrix running under Python 3.13
 - Consolidate formatting and validation utilities for consistent, cleaner CLI tables and messages
