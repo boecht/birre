@@ -1,133 +1,68 @@
-############################################################
-# MegaLinter Configuration for BiRRe
-# Centralizes linting, formatting, typing, and SBOM generation
-# Descriptors enabled:
-#  - ACTION_ACTIONLINT
-#  - PYTHON_RUFF
-#  - PYTHON_RUFF_FORMAT
-#  - PYTHON_MYPY
-#  - MARKDOWN_MARKDOWNLINT
-#  - YAML_YAMLLINT
-#  - JSON_JSONLINT
-#  - EDITORCONFIG_EDITORCONFIG_CHECKER
-#  - REPOSITORY_SYFT
-#
-# Strategy:
-#  - Use existing in-repo configs (pyproject.toml, .markdownlint.json)
-#  - Apply fixes only for formatting-safe linters initially (Python format, markdownlint)
-#  - Provide single updating PR comment + SARIF for code scanning + markdown summary
-#  - Generate SBOM artifacts (CycloneDX + SPDX) via Syft descriptor
-#  - Exclude build, cache, vendored, generated API spec excerpts from most linters
-#  - Keep validation incremental on PRs; full scan on push to main/release branches
-#
-# Rollback triggers defined in migration doc (excess false positives, runtime regression, SARIF failures)
-############################################################
+# Configuration file for MegaLinter
+# See all available variables at https://megalinter.io/configuration/ and in linters documentation
 
 # Explicit list of linters (descriptor names)
-ENABLE_LINTERS: >-
-  ACTION_ACTIONLINT,
-  PYTHON_RUFF,
-  PYTHON_RUFF_FORMAT,
-  PYTHON_MYPY,
-  MARKDOWN_MARKDOWNLINT,
-  YAML_YAMLLINT,
-  JSON_JSONLINT,
-  EDITORCONFIG_EDITORCONFIG_CHECKER,
-  REPOSITORY_SYFT_SBOM
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - PYTHON_RUFF
+  - PYTHON_RUFF_FORMAT
+  - PYTHON_MYPY
+  - MARKDOWN_MARKDOWNLINT
+  - YAML_YAMLLINT
+  - JSON_JSONLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - REPOSITORY_SYFT
 
 # Linters allowed to apply fixes (safe formatting)
-APPLY_FIXES: >-
-  PYTHON_RUFF_FORMAT,
-  MARKDOWN_MARKDOWNLINT
+APPLY_FIXES:
+  - PYTHON_RUFF_FORMAT
+  - MARKDOWN_MARKDOWNLINT
 
-# Reporters: single updating comment, SARIF for code scanning, markdown summary for human review
-MEGALINTER_REPORTERS: >-
-  GitHubCommentReporter,
-  SarifReporter,
-  MarkdownSummaryReporter
-
-# Single PR comment behavior is handled by GitHubCommentReporter internally
+GITHUB_STATUS_REPORTER: true
+MARKDOWN_SUMMARY_REPORTER: true
+SARIF_REPORTER: true
 
 # General exclude regex (applies to all linters unless overridden)
-FILTER_REGEX_EXCLUDE: >-
-  (^dist/|^\.venv/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^\.hypothesis/|^docs/apis/|^scripts/|^birre\.log$|^\.benchmarks/|^BiRRe\.egg-info/|^artifacts/)
-
-# Include only tracked source + config by default
-FILTER_REGEX_INCLUDE: "" # empty → all (after excludes)
-
-# Always lint the full repository (diff-only mode disabled)
-VALIDATE_ALL_CODEBASE: true
+FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)
 
 ############################################
 # Descriptor-specific configuration overrides
 ############################################
 
+# Actionlint: restrict scope to GitHub workflow directory explicitly
+ACTION_ACTIONLINT_FILTER_REGEX_INCLUDE: '^(\.github/workflows/.*\.ya?ml)$'
+
 # Python Ruff (lint) uses pyproject.toml config; ensure formatting style is ruff
 PYTHON_DEFAULT_STYLE: ruff
 PYTHON_RUFF_CONFIG_FILE: pyproject.toml
 # Additional args (empty for now; ruff picks config from pyproject)
-PYTHON_RUFF_ARGUMENTS: ""
 PYTHON_RUFF_CLI_LINT_MODE: project
-PYTHON_RUFF_FILTER_REGEX_EXCLUDE: >-
-  (^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
-
-# Python Ruff Format (formatter) shares config; no errors (format-only)
-PYTHON_RUFF_FORMAT_ARGUMENTS: ""
-PYTHON_RUFF_FORMAT_FILTER_REGEX_EXCLUDE: >-
-  (^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
+PYTHON_RUFF_FILTER_REGEX_EXCLUDE: (^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
 
 # Mypy strict typing config via pyproject
 PYTHON_MYPY_CONFIG_FILE: pyproject.toml
 PYTHON_MYPY_ARGUMENTS: "--strict"
 PYTHON_MYPY_CLI_LINT_MODE: project
-PYTHON_MYPY_FILTER_REGEX_EXCLUDE: >-
-  (^scripts/|^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/)
 
-# Markdownlint uses in-repo configuration
-MARKDOWN_MARKDOWNLINT_CONFIG_FILE: .markdownlint.json
 # Enforce errors (override default disable)
 MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
 MARKDOWN_MARKDOWNLINT_ARGUMENTS: "--fix"
-MARKDOWN_MARKDOWNLINT_FILTER_REGEX_EXCLUDE: >-
-  (^docs/apis/|^dist/|^\.venv/|^\.project-notes/|^BiRRe\.egg-info/)
 
 # YAML Yamllint (optional config file forthcoming if needed)
 YAML_YAMLLINT_ARGUMENTS: "--strict"
-YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: >-
-  (^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/)
 
 # JSON Jsonlint; syntax only; exclude large generated or SBOM artifacts
 JSON_JSONLINT_ARGUMENTS: "--quiet"
-JSON_JSONLINT_FILTER_REGEX_EXCLUDE: >-
-  (^dist/|^artifacts/|^\.venv/|^docs/apis/|^src/birre/resources/apis/)
+JSON_JSONLINT_FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)
 
 # EditorConfig Checker (requires .editorconfig file at repo root)
 EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: "-f github-actions"
-EDITORCONFIG_EDITORCONFIG_CHECKER_FILTER_REGEX_EXCLUDE: >-
-  (^dist/|^\.venv/|^docs/apis/|^BiRRe\.egg-info/|^artifacts/)
 
 # Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
-REPOSITORY_SYFT_CLI_LINT_MODE: project
-REPOSITORY_SYFT_SBOM_ARGUMENTS: >-
-  -o cyclonedx-json=artifacts/sbom-cyclonedx.json
-  -o spdx-json=artifacts/sbom-spdx.json
-REPOSITORY_SYFT_SBOM_FILTER_REGEX_EXCLUDE: >-
-  (^\.venv/|^dist/|^\.mypy_cache/|^\.ruff_cache/|^\.pytest_cache/|^BiRRe\.egg-info/)
-
-# Auto-fix policy: only pure formatters (Ruff Format, Markdownlint) to avoid semantic changes.
-AUTO_FIX_POLICY: "formatters-only"
-
-# SBOM validation expectations (referenced by CI docs): CycloneDX + SPDX JSON must exist and be >0 bytes.
-SBOM_REQUIRED: true
-SBOM_PATHS: ["artifacts/sbom-cyclonedx.json", "artifacts/sbom-spdx.json"]
-
-# Future optional descriptors (disabled now; documented for expansion):
-# MARKDOWN_REMARK_LINT, LINKS_LYCHEE
+REPOSITORY_SYFT_ARGUMENTS: "-o cyclonedx-json=artifacts/sbom-cyclonedx.json -o spdx-json=artifacts/sbom-spdx.json"
 
 ############################################
 # Performance & Misc
 ############################################
-PARALLEL: true # Allow parallel execution where safe
-IGNORE_GITIGNORED_FILES: true # Skip files already ignored
 SHOW_ELAPSED_TIME: true
 # End of MegaLinter configuration
