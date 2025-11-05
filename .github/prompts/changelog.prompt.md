@@ -21,7 +21,7 @@ tools: [
   'github/github-mcp-server/search_pull_requests',
   'think',
   'changes',
-  'todos',
+  'todos'
 ]
 ---
 
