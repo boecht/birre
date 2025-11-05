@@ -115,7 +115,7 @@ Select a context via `--context`, `BIRRE_CONTEXT`, or the `[runtime].context` co
    - **v1**: <https://service.bitsighttech.com/customer-api/ratings/v1/schema>
    - **v2**: <https://service.bitsighttech.com/customer-api/ratings/v2/schema>
 3. Save as `src/birre/resources/apis/bitsight.v1.schema.json`
-  and `src/birre/resources/apis/bitsight.v2.schema.json`
+   and `src/birre/resources/apis/bitsight.v2.schema.json`
 
 ## Version History and Outlook
 
