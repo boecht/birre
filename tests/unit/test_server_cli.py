@@ -84,12 +84,18 @@ def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) ->
             "birre.cli.commands.run.resolve_runtime_and_logging",
             return_value=(runtime_settings, logging_settings, object()),
         ) as resolve_mock,
-        patch("birre.cli.commands.run.initialize_logging", return_value=root_logger) as init_mock,
-        patch("birre.cli.commands.run.run_offline_checks", return_value=False) as offline_mock,
+        patch(
+            "birre.cli.commands.run.initialize_logging", return_value=root_logger
+        ) as init_mock,
+        patch(
+            "birre.cli.commands.run.run_offline_checks", return_value=False
+        ) as offline_mock,
         patch("birre.cli.commands.run.run_online_checks") as online_mock,
         patch("birre.cli.commands.run.prepare_server") as prepare_server,
     ):
-        result = runner.invoke(server.app, ["run"], env={"BITSIGHT_API_KEY": "dummy"}, color=False)
+        result = runner.invoke(
+            server.app, ["run"], env={"BITSIGHT_API_KEY": "dummy"}, color=False
+        )
 
     assert result.exit_code == 1
     resolve_mock.assert_called_once()
@@ -118,12 +124,20 @@ def test_main_runs_server_when_checks_pass(monkeypatch: pytest.MonkeyPatch) -> N
             "birre.cli.commands.run.resolve_runtime_and_logging",
             return_value=(runtime_settings, logging_settings, object()),
         ) as resolve_mock,
-        patch("birre.cli.commands.run.initialize_logging", return_value=root_logger) as init_mock,
-        patch("birre.cli.commands.run.run_offline_checks", return_value=True) as offline_mock,
+        patch(
+            "birre.cli.commands.run.initialize_logging", return_value=root_logger
+        ) as init_mock,
+        patch(
+            "birre.cli.commands.run.run_offline_checks", return_value=True
+        ) as offline_mock,
         patch("birre.cli.commands.run.run_online_checks", async_online) as online_mock,
-        patch("birre.cli.commands.run.prepare_server", return_value=fake_server) as prepare_server,
+        patch(
+            "birre.cli.commands.run.prepare_server", return_value=fake_server
+        ) as prepare_server,
     ):
-        result = runner.invoke(server.app, ["run"], env={"BITSIGHT_API_KEY": "dummy"}, color=False)
+        result = runner.invoke(
+            server.app, ["run"], env={"BITSIGHT_API_KEY": "dummy"}, color=False
+        )
 
     assert result.exit_code == 0
 
@@ -456,7 +470,9 @@ def test_selftest_defaults_to_online_checks(
                 alerts=(),
             )
 
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             ["selftest"],
@@ -510,7 +526,9 @@ def test_selftest_outputs_summary_report(monkeypatch: pytest.MonkeyPatch) -> Non
                 alerts=(),
             )
 
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             ["selftest"],
@@ -606,7 +624,9 @@ def test_selftest_offline_flag_skips_network_checks(
                 alerts=(),
             )
 
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             ["selftest", "--offline"],
@@ -668,7 +688,9 @@ def test_selftest_passes_shared_options_to_build_invocation(
                 alerts=(),
             )
 
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             [
@@ -779,7 +801,9 @@ def test_selftest_uses_environment_config_path(
     config_path.write_text("[bitsight]\napi_key = 'test'\n", encoding="utf-8")
 
     # Use patch as decorator instead of context manager
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             ["selftest"],
@@ -801,12 +825,18 @@ def test_selftest_fails_when_context_tools_missing(
 ) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(selftest_runner, "run_offline_checks", lambda runtime, logger: True)
+    monkeypatch.setattr(
+        selftest_runner, "run_offline_checks", lambda runtime, logger: True
+    )
     logger = MagicMock(name="logger")
     monkeypatch.setattr(
         selftest_command,
         "initialize_logging",
-        lambda runtime, logging_settings, *, show_banner=False, banner_printer=None: logger,
+        lambda runtime,
+        logging_settings,
+        *,
+        show_banner=False,
+        banner_printer=None: logger,
     )
 
     expected = {
@@ -850,7 +880,9 @@ def test_selftest_fails_when_context_tools_missing(
                 summary[tool_name] = {"status": "pass"}
         return True
 
-    monkeypatch.setattr(selftest_runner, "run_context_tool_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(
+        selftest_runner, "run_context_tool_diagnostics", fake_diagnostics
+    )
 
     result = runner.invoke(
         server.app,
@@ -866,12 +898,18 @@ def test_selftest_fails_when_context_tools_missing(
 
 def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
-    monkeypatch.setattr(selftest_runner, "run_offline_checks", lambda runtime, logger: True)
+    monkeypatch.setattr(
+        selftest_runner, "run_offline_checks", lambda runtime, logger: True
+    )
     logger = MagicMock(name="logger")
     monkeypatch.setattr(
         selftest_command,
         "initialize_logging",
-        lambda runtime, logging_settings, *, show_banner=False, banner_printer=None: logger,
+        lambda runtime,
+        logging_settings,
+        *,
+        show_banner=False,
+        banner_printer=None: logger,
     )
 
     expected = {
@@ -913,7 +951,9 @@ def test_selftest_fails_when_diagnostics_fail(monkeypatch: pytest.MonkeyPatch) -
                 summary[tool_name] = {"status": "pass"}
         return context != "risk_manager"
 
-    monkeypatch.setattr(selftest_runner, "run_context_tool_diagnostics", fake_diagnostics)
+    monkeypatch.setattr(
+        selftest_runner, "run_context_tool_diagnostics", fake_diagnostics
+    )
 
     result = runner.invoke(
         server.app,
@@ -954,7 +994,11 @@ def test_selftest_production_flag_uses_production_base(
                     "environment": self.environment_label,
                     "offline_check": {"status": "pass"},
                     "contexts": {
-                        "standard": {"success": True, "online": {"status": "pass"}, "tools": {}},
+                        "standard": {
+                            "success": True,
+                            "online": {"status": "pass"},
+                            "tools": {},
+                        },
                         "risk_manager": {
                             "success": True,
                             "online": {"status": "pass"},
@@ -979,7 +1023,9 @@ def test_selftest_production_flag_uses_production_base(
 
     assert result.exit_code in (0, 2), result.stdout
     assert len(captured_args) == 1
-    assert captured_args[0]["target_base_url"] == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL
+    assert (
+        captured_args[0]["target_base_url"] == server.HEALTHCHECK_PRODUCTION_V1_BASE_URL
+    )
     assert captured_args[0]["environment_label"] == "production"
 
 
@@ -1000,7 +1046,10 @@ def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> 
                     context: {
                         "offline_mode": False,
                         "online": {"status": "pass"},
-                        "attempts": [{"status": "fail", "error": "TLS error"}, {"status": "pass"}]
+                        "attempts": [
+                            {"status": "fail", "error": "TLS error"},
+                            {"status": "pass"},
+                        ]
                         if context == "standard"
                         else [{"status": "pass"}],
                         "fallback_attempted": context == "standard",
@@ -1026,7 +1075,9 @@ def test_selftest_retries_after_tls_failure(monkeypatch: pytest.MonkeyPatch) -> 
                 alerts=(ErrorCode.TLS_CERT_CHAIN_INTERCEPTED.value,),
             )
 
-    with patch("birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner):
+    with patch(
+        "birre.cli.commands.selftest.command.SelfTestRunner", FakeSelfTestRunner
+    ):
         result = runner.invoke(
             server.app,
             ["selftest"],
@@ -1096,7 +1147,9 @@ def test_selftest_missing_ca_bundle_falls_back_to_defaults(
     assert result.exit_code == 2, result.stdout
 
 
-def test_logs_clear_truncates_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_logs_clear_truncates_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     runner = CliRunner()
     log_path = tmp_path / "birre.log"
     log_path.write_text("existing\n", encoding="utf-8")
@@ -1116,7 +1169,9 @@ def test_logs_clear_truncates_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             SimpleNamespace(file_path=str(log_path), backup_count=2, format="text"),
         )
 
-    monkeypatch.setattr(logs_command, "_resolve_logging_settings_from_cli", fake_resolver)
+    monkeypatch.setattr(
+        logs_command, "_resolve_logging_settings_from_cli", fake_resolver
+    )
 
     result = runner.invoke(
         server.app,
@@ -1155,7 +1210,9 @@ def test_logs_rotate_uses_override_backup_count(
     def fake_rotate(path: Path, backup_count: int) -> None:
         captured_backup_count.append(backup_count)
 
-    monkeypatch.setattr(logs_command, "_resolve_logging_settings_from_cli", fake_resolver)
+    monkeypatch.setattr(
+        logs_command, "_resolve_logging_settings_from_cli", fake_resolver
+    )
     monkeypatch.setattr(logs_command, "_rotate_logs", fake_rotate)
 
     result = runner.invoke(
@@ -1168,7 +1225,9 @@ def test_logs_rotate_uses_override_backup_count(
     assert captured_backup_count == [3]
 
 
-def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_logs_path_prints_resolved_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     runner = CliRunner()
     log_path = tmp_path / "birre.log"
 
@@ -1181,9 +1240,14 @@ def test_logs_path_prints_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_pat
         log_max_bytes,
         log_backup_count,
     ):
-        return (None, SimpleNamespace(file_path=str(log_path), format="json", backup_count=2))
+        return (
+            None,
+            SimpleNamespace(file_path=str(log_path), format="json", backup_count=2),
+        )
 
-    monkeypatch.setattr(logs_command, "_resolve_logging_settings_from_cli", fake_resolver)
+    monkeypatch.setattr(
+        logs_command, "_resolve_logging_settings_from_cli", fake_resolver
+    )
 
     result = runner.invoke(
         server.app,
@@ -1224,9 +1288,14 @@ def test_logs_show_filters_by_level_and_since(
         log_backup_count,
     ):
         assert log_file == str(log_path)
-        return (None, SimpleNamespace(file_path=str(log_path), format="text", backup_count=2))
+        return (
+            None,
+            SimpleNamespace(file_path=str(log_path), format="text", backup_count=2),
+        )
 
-    monkeypatch.setattr(logs_command, "_resolve_logging_settings_from_cli", fake_resolver)
+    monkeypatch.setattr(
+        logs_command, "_resolve_logging_settings_from_cli", fake_resolver
+    )
 
     result = runner.invoke(
         server.app,

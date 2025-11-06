@@ -44,7 +44,9 @@ class BridgeStub:
         self.handlers = handlers
         self.calls = []
 
-    async def __call__(self, tool_name: str, ctx: Context, params: dict[str, Any]) -> Any:
+    async def __call__(
+        self, tool_name: str, ctx: Context, params: dict[str, Any]
+    ) -> Any:
         self.calls.append((tool_name, params))
         handler = self.handlers.get(tool_name)
         if handler is None:

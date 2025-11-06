@@ -12,43 +12,21 @@ repos:
         exclude: "^docs/apis/"
       - id: check-toml
 
-  # Use local hooks with uv to ensure project Python version and dependencies
   - repo: local
     hooks:
-      - id: ruff
-        name: ruff
-        entry: uv run ruff check --fix
+      - id: mega-linter-docker
+        name: MegaLinter (Docker)
+        entry: bash
         language: system
-        types: [python]
-        require_serial: true
-
-      - id: ruff-format
-        name: ruff format
-        entry: uv run ruff format
-        language: system
-        types: [python]
-        require_serial: true
-
-      - id: mypy
-        name: mypy
-        entry: uv run mypy --strict
-        language: system
-        types: [python]
-        files: ^src/
-        require_serial: true
-
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
-    hooks:
-      - id: markdownlint
         args:
-          - "--config=.markdownlint.json"
-        exclude: '^(docs/apis/|\.github/|\.project-notes/)'
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.16.3
-    hooks:
-      - id: gitleaks
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v2.17.2
-    hooks:
-      - id: pylint
+          - -lc
+          - |
+            docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -v "$PWD:/tmp/lint" \
+              -w /tmp/lint \
+              -e HOME=/tmp \
+              -e RUN_LOCAL=true \
+              -e MEGALINTER_CONFIG=.mega-linter.local.yml \
+              ghcr.io/oxsecurity/megalinter-python:v9.1.0
+        pass_filenames: false

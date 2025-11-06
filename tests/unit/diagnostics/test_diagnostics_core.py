@@ -134,7 +134,9 @@ def test_check_required_and_optional_tool_paths() -> None:
 
 def test_aggregate_tool_outcomes_offline_and_merge() -> None:
     tools = frozenset({"a", "b"})
-    agg = dx.aggregate_tool_outcomes(tools, [], offline_mode=True, offline_missing=["a"])  # type: ignore[list-item]
+    agg = dx.aggregate_tool_outcomes(
+        tools, [], offline_mode=True, offline_missing=["a"]
+    )  # type: ignore[list-item]
     assert agg["a"]["status"] == "fail" and agg["b"]["status"] == "warning"
 
     attempts = [
@@ -148,7 +150,9 @@ def test_aggregate_tool_outcomes_offline_and_merge() -> None:
 def test_classify_and_summarize_failure() -> None:
     f = dx.DiagnosticFailure(tool="t", stage="s", message="TLS handshake error")
     assert dx.classify_failure(f) in (None, "tls")
-    f2 = dx.DiagnosticFailure(tool="t", stage="s", message="x", exception=ssl.SSLError("boom"))
+    f2 = dx.DiagnosticFailure(
+        tool="t", stage="s", message="x", exception=ssl.SSLError("boom")
+    )
     assert dx.classify_failure(f2) == "tls"
     f3 = dx.DiagnosticFailure(
         tool="t",

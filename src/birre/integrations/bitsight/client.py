@@ -104,7 +104,9 @@ def _load_api_spec(resource_name: str) -> Any:
     return specification
 
 
-def _create_client(base_url: str, api_key: str, *, verify: bool | str = True) -> httpx.AsyncClient:
+def _create_client(
+    base_url: str, api_key: str, *, verify: bool | str = True
+) -> httpx.AsyncClient:
     verify_option: bool | ssl.SSLContext
     if isinstance(verify, str):
         # Python 3.13+ uses secure defaults; explicitly enforce TLS 1.2+ below

@@ -119,7 +119,9 @@ def register(
                 finally:
                     profiler.disable()
                     profiler.dump_stats(str(invocation.profile_path))
-                    logger.info("Profiling data written", profile=str(invocation.profile_path))
+                    logger.info(
+                        "Profiling data written", profile=str(invocation.profile_path)
+                    )
             else:
                 server.run()
         except KeyboardInterrupt:

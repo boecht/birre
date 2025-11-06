@@ -49,7 +49,9 @@ class CompanySummary(BaseModel):
 
 
 class CompanySearchResponse(BaseModel):
-    error: str | None = Field(default=None, description="Error message if the search failed")
+    error: str | None = Field(
+        default=None, description="Error message if the search failed"
+    )
     companies: list[CompanySummary] = Field(default_factory=list)
     count: int = Field(default=0, ge=0)
 
@@ -190,7 +192,9 @@ def register_company_search_tool(
                 return response_payload
 
             result_count = response_payload.get("count", 0)
-            await ctx.info(f"Found {result_count} companies using FastMCP companySearch")
+            await ctx.info(
+                f"Found {result_count} companies using FastMCP companySearch"
+            )
             log_search_event(
                 logger,
                 "success",

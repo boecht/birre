@@ -105,11 +105,13 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 **Every single bullet point MUST start with an imperative verb. No exceptions.**
 
 Examples of imperative verbs to use:
+
 - Add, Remove, Fix, Update, Change, Improve, Enhance, Reduce, Increase
 - Support, Enable, Disable, Provide, Include, Exclude
 - Resolve, Correct, Prevent, Detect, Monitor, Track
 
 ✅ **Correct Examples**:
+
 - "Add health check endpoint"
 - "Remove deprecated sync mode"
 - "Fix memory leak in API client"
@@ -117,6 +119,7 @@ Examples of imperative verbs to use:
 - "Enhance error messages for authentication failures"
 
 ❌ **Wrong Examples** (and why):
+
 - "Added health check endpoint" — past tense verb
 - "Removed deprecated sync mode" — past tense verb
 - "New health check endpoint" — noun phrase, not imperative

@@ -10,7 +10,9 @@ def test_main_defaults_to_run(monkeypatch: pytest.MonkeyPatch) -> None:
     # Arrange: return a dummy command capturing args
     calls: list[dict] = []
 
-    def fake_main(*, args: list[str], prog_name: str) -> None:  # click.Command.main signature
+    def fake_main(
+        *, args: list[str], prog_name: str
+    ) -> None:  # click.Command.main signature
         calls.append({"args": args, "prog": prog_name})
 
     fake_get_command = lambda app: SimpleNamespace(main=fake_main)  # noqa: E731
@@ -59,7 +61,9 @@ def test_main_treats_leading_flags_as_run_args(monkeypatch: pytest.MonkeyPatch) 
 def test_main_passes_through_subcommand(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict] = []
 
-    def fake_main(*, args: list[str], prog_name: str) -> None:  # click.Command.main signature
+    def fake_main(
+        *, args: list[str], prog_name: str
+    ) -> None:  # click.Command.main signature
         calls.append({"args": args, "prog": prog_name})
 
     fake_get_command = lambda app: SimpleNamespace(main=fake_main)  # noqa: E731
@@ -74,7 +78,9 @@ def test_main_passes_through_subcommand(monkeypatch: pytest.MonkeyPatch) -> None
 def test_main_help_passthrough(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict] = []
 
-    def fake_main(*, args: list[str], prog_name: str) -> None:  # click.Command.main signature
+    def fake_main(
+        *, args: list[str], prog_name: str
+    ) -> None:  # click.Command.main signature
         calls.append({"args": args, "prog": prog_name})
 
     fake_get_command = lambda app: SimpleNamespace(main=fake_main)  # noqa: E731

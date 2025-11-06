@@ -66,7 +66,9 @@ def await_sync[T](coro: Awaitable[T]) -> T:
             result = _SYNC_BRIDGE_LOOP.run_until_complete(coro)
         finally:
             # Clean up pending tasks but keep the loop alive for reuse
-            pending = [task for task in asyncio.all_tasks(_SYNC_BRIDGE_LOOP) if not task.done()]
+            pending = [
+                task for task in asyncio.all_tasks(_SYNC_BRIDGE_LOOP) if not task.done()
+            ]
             if pending:
                 for task in pending:
                     task.cancel()
@@ -78,7 +80,9 @@ def await_sync[T](coro: Awaitable[T]) -> T:
         return result
 
 
-def invoke_with_optional_run_sync(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+def invoke_with_optional_run_sync(
+    func: Callable[..., Any], *args: Any, **kwargs: Any
+) -> Any:
     """Invoke *func*, binding :func:`await_sync` when it declares ``run_sync``."""
     kwargs = dict(kwargs)
     kwargs.pop("run_sync", None)

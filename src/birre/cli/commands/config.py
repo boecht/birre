@@ -160,7 +160,9 @@ def _format_config_section(section: str, section_values: dict[str, Any]) -> list
     return lines
 
 
-def _generate_local_config_content(values: dict[str, Any], *, include_header: bool = True) -> str:
+def _generate_local_config_content(
+    values: dict[str, Any], *, include_header: bool = True
+) -> str:
     """Generate TOML content from config values."""
     lines: list[str] = []
     if include_header:
@@ -221,7 +223,9 @@ def _prompt_and_record_string(
             return None
 
     if value and value not in (None, ""):
-        display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
+        display_value = format_config_value(
+            config_key, value, log_file_key=LOGGING_FILE_KEY
+        )
         summary_rows.append((config_key, display_value, source))
     return value
 
@@ -242,7 +246,9 @@ def _prompt_and_record_bool(
         value = _prompt_bool(prompt_text, default=default_value)
         source = "Default" if value == default_value else SOURCE_USER_INPUT
 
-    display_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
+    display_value = format_config_value(
+        config_key, value, log_file_key=LOGGING_FILE_KEY
+    )
     summary_rows.append((config_key, display_value, source))
     return value
 
@@ -261,7 +267,9 @@ def _check_overwrite_destination(
     else:
         stdout_console.print(f"[yellow]{destination} already exists.[/yellow]")
         if not typer.confirm("Overwrite this file?", default=False):
-            stdout_console.print("[red]Aborted without changing the existing configuration.[/red]")
+            stdout_console.print(
+                "[red]Aborted without changing the existing configuration.[/red]"
+            )
             raise typer.Exit(code=1)
 
 
@@ -371,7 +379,9 @@ def _build_cli_override_rows(
     """Build table rows for CLI overrides."""
     rows: list[tuple[str, str, str]] = []
     for key, value in _collect_cli_override_values(invocation).items():
-        rows.append((key, format_config_value(key, value, log_file_key=LOGGING_FILE_KEY), "CLI"))
+        rows.append(
+            (key, format_config_value(key, value, log_file_key=LOGGING_FILE_KEY), "CLI")
+        )
     return rows
 
 
@@ -386,7 +396,9 @@ def _build_env_override_rows(
         config_key = ENVVAR_TO_SETTINGS_KEY.get(env_var)
         if not config_key:
             continue
-        formatted_value = format_config_value(config_key, value, log_file_key=LOGGING_FILE_KEY)
+        formatted_value = format_config_value(
+            config_key, value, log_file_key=LOGGING_FILE_KEY
+        )
         rows.append((config_key, formatted_value, f"ENV ({env_var})"))
     return rows
 
@@ -410,20 +422,34 @@ _EFFECTIVE_CONFIG_KEY_ORDER: tuple[str, ...] = (
 )
 
 
-def _effective_configuration_values(runtime_settings: Any, logging_settings: Any) -> dict[str, Any]:
+def _effective_configuration_values(
+    runtime_settings: Any, logging_settings: Any
+) -> dict[str, Any]:
     """Extract effective configuration values from resolved settings."""
     values: dict[str, Any] = {
         BITSIGHT_API_KEY_KEY: getattr(runtime_settings, "api_key", None),
-        BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(runtime_settings, "subscription_folder", None),
-        BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(runtime_settings, "subscription_type", None),
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY: getattr(
+            runtime_settings, "subscription_folder", None
+        ),
+        BITSIGHT_SUBSCRIPTION_TYPE_KEY: getattr(
+            runtime_settings, "subscription_type", None
+        ),
         ROLE_CONTEXT_KEY: getattr(runtime_settings, "context", None),
-        ROLE_RISK_VECTOR_FILTER_KEY: getattr(runtime_settings, "risk_vector_filter", None),
+        ROLE_RISK_VECTOR_FILTER_KEY: getattr(
+            runtime_settings, "risk_vector_filter", None
+        ),
         ROLE_MAX_FINDINGS_KEY: getattr(runtime_settings, "max_findings", None),
         RUNTIME_DEBUG_KEY: getattr(runtime_settings, "debug", None),
-        RUNTIME_SKIP_STARTUP_CHECKS_KEY: getattr(runtime_settings, "skip_startup_checks", None),
-        RUNTIME_ALLOW_INSECURE_TLS_KEY: getattr(runtime_settings, "allow_insecure_tls", None),
+        RUNTIME_SKIP_STARTUP_CHECKS_KEY: getattr(
+            runtime_settings, "skip_startup_checks", None
+        ),
+        RUNTIME_ALLOW_INSECURE_TLS_KEY: getattr(
+            runtime_settings, "allow_insecure_tls", None
+        ),
         RUNTIME_CA_BUNDLE_PATH_KEY: getattr(runtime_settings, "ca_bundle_path", None),
-        LOGGING_LEVEL_KEY: logging.getLevelName(getattr(logging_settings, "level", logging.INFO)),
+        LOGGING_LEVEL_KEY: logging.getLevelName(
+            getattr(logging_settings, "level", logging.INFO)
+        ),
         LOGGING_FORMAT_KEY: getattr(logging_settings, "format", None),
         LOGGING_FILE_KEY: getattr(logging_settings, "file_path", None),
         LOGGING_MAX_BYTES_KEY: getattr(logging_settings, "max_bytes", None),
@@ -472,14 +498,18 @@ def _cmd_config_init(
     """Implementation of config init command."""
     ctx = click.get_current_context()
     config_source = ctx.get_parameter_source("config_path")
-    destination = Path(config_path if config_source is ParameterSource.COMMANDLINE else output)
+    destination = Path(
+        config_path if config_source is ParameterSource.COMMANDLINE else output
+    )
 
     _check_overwrite_destination(destination, overwrite, stdout_console)
 
     defaults_settings = load_settings(
         str(config_path) if config_source is ParameterSource.COMMANDLINE else None
     )
-    default_subscription_folder = defaults_settings.get(BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+    default_subscription_folder = defaults_settings.get(
+        BITSIGHT_SUBSCRIPTION_FOLDER_KEY
+    )
     default_subscription_type = defaults_settings.get(BITSIGHT_SUBSCRIPTION_TYPE_KEY)
     default_context = defaults_settings.get(ROLE_CONTEXT_KEY, "standard")
     default_debug = bool(defaults_settings.get(RUNTIME_DEBUG_KEY, False))
@@ -525,7 +555,9 @@ def _cmd_config_init(
         str(default_context or "standard"),
         summary_rows,
         ROLE_CONTEXT_KEY,
-        normalizer=lambda value, _: cli_options.normalize_context(value, choices=CONTEXT_CHOICES),
+        normalizer=lambda value, _: cli_options.normalize_context(
+            value, choices=CONTEXT_CHOICES
+        ),
     )
 
     debug_value = _prompt_and_record_bool(
@@ -631,12 +663,16 @@ def _cmd_config_show(  # NOSONAR python:S107
         for key, label in _build_cli_source_labels(invocation).items()
         if key not in env_labels
     }
-    cli_rows = [row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels]
+    cli_rows = [
+        row for row in _build_cli_override_rows(invocation) if row[0] not in env_labels
+    ]
     if cli_rows:
         stdout_console.print()
         _print_config_table("CLI overrides", cli_rows, stdout_console)
 
-    effective_values = _effective_configuration_values(runtime_settings, logging_settings)
+    effective_values = _effective_configuration_values(
+        runtime_settings, logging_settings
+    )
     effective_rows: list[tuple[str, str, str]] = []
     for key in _EFFECTIVE_CONFIG_KEY_ORDER:
         display_value = format_config_value(
@@ -644,7 +680,9 @@ def _cmd_config_show(  # NOSONAR python:S107
             effective_values.get(key),
             log_file_key=LOGGING_FILE_KEY,
         )
-        source_label = _determine_source_label(key, cli_labels, env_labels, config_entries)
+        source_label = _determine_source_label(
+            key, cli_labels, env_labels, config_entries
+        )
         effective_rows.append((key, display_value, source_label))
 
     stdout_console.print()
@@ -728,7 +766,9 @@ def register(
         overwrite: cli_options.OverwriteOption = False,
     ) -> None:
         """Guide the user through generating a configuration file."""
-        _cmd_config_init(output, config_path, subscription_type, debug, overwrite, stdout_console)
+        _cmd_config_init(
+            output, config_path, subscription_type, debug, overwrite, stdout_console
+        )
 
     @config_app.command(
         "show",

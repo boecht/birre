@@ -79,7 +79,9 @@ def test_cmd_logs_clear_oserror(monkeypatch, tmp_path: Path, capsys) -> None:
 
         return object(), LS(), object()
 
-    monkeypatch.setattr(logs_mod, "resolve_runtime_and_logging", lambda *a, **k: _fake_resolve())
+    monkeypatch.setattr(
+        logs_mod, "resolve_runtime_and_logging", lambda *a, **k: _fake_resolve()
+    )
 
     # Raise on write_text to hit except path
     def _boom(*a, **k):  # type: ignore[no-untyped-def]
@@ -103,7 +105,9 @@ def test_cmd_logs_path_resolve_oserror(monkeypatch, tmp_path: Path) -> None:
 
         return object(), LS(), object()
 
-    monkeypatch.setattr(logs_mod, "resolve_runtime_and_logging", lambda *a, **k: _fake_resolve())
+    monkeypatch.setattr(
+        logs_mod, "resolve_runtime_and_logging", lambda *a, **k: _fake_resolve()
+    )
 
     def _raise_oserror(self, *a, **k):  # type: ignore[no-untyped-def]
         raise OSError("bad path")

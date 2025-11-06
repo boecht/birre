@@ -1,0 +1,21 @@
+---
+EXTENDS: .mega-linter.yml
+
+# disable specific linters for local runs
+DISABLE_LINTERS:
+  - REPOSITORY_SYFT
+
+# disable CI-only reporters locally
+AZURE_COMMENT_REPORTER: false
+BITBUCKET_COMMENT_REPORTER: false
+EMAIL_REPORTER: false
+FILEIO_REPORTER: false
+GITLAB_COMMENT_REPORTER: false
+GITHUB_COMMENT_REPORTER: false
+GITHUB_STATUS_REPORTER: false
+MARKDOWN_SUMMARY_REPORTER: false
+SARIF_REPORTER: false
+UPDATED_SOURCES_REPORTER: false
+
+# keep console output when running locally
+TEXT_REPORTER: true

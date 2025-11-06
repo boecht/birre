@@ -12,7 +12,9 @@ def test_version_uses_pyproject(tmp_path: Path, monkeypatch) -> None:  # noqa: A
     # Point PROJECT_ROOT to a temp dir with a pyproject.toml
     proj = tmp_path
     (proj / "README.md").write_text("# readme", encoding="utf-8")
-    (proj / "pyproject.toml").write_text("[project]\nversion='9.9.9'\n", encoding="utf-8")
+    (proj / "pyproject.toml").write_text(
+        "[project]\nversion='9.9.9'\n", encoding="utf-8"
+    )
 
     monkeypatch.setattr(app_mod, "PROJECT_ROOT", proj)
 

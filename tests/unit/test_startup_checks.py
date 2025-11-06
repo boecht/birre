@@ -30,7 +30,9 @@ class DummyCallV1:
         self._responses = responses
         self.calls: list[str] = []
 
-    async def __call__(self, name: str, ctx: object, payload: dict[str, object]) -> object:
+    async def __call__(
+        self, name: str, ctx: object, payload: dict[str, object]
+    ) -> object:
         self.calls.append(name)
         response = self._responses.get(name)
         if isinstance(response, Exception):
@@ -51,7 +53,8 @@ def test_offline_checks_fail_without_api_key(caplog: pytest.LogCaptureFixture) -
 
     assert result is False
     assert any(
-        record.levelno == logging.CRITICAL and "offline.config.api_key.missing" in record.message
+        record.levelno == logging.CRITICAL
+        and "offline.config.api_key.missing" in record.message
         for record in caplog.records
     )
 
@@ -83,7 +86,8 @@ def test_offline_checks_success_logs_debug_and_warnings(
     debug_messages = [
         record.message
         for record in caplog.records
-        if record.levelno == logging.DEBUG and "offline.config.schema.parsed" in record.message
+        if record.levelno == logging.DEBUG
+        and "offline.config.schema.parsed" in record.message
     ]
     assert len(debug_messages) == 2
 
@@ -91,10 +95,12 @@ def test_offline_checks_success_logs_debug_and_warnings(
         record.message for record in caplog.records if record.levelno == logging.WARNING
     ]
     assert any(
-        "offline.config.subscription_folder.missing" in message for message in warning_messages
+        "offline.config.subscription_folder.missing" in message
+        for message in warning_messages
     )
     assert any(
-        "offline.config.subscription_type.missing" in message for message in warning_messages
+        "offline.config.subscription_type.missing" in message
+        for message in warning_messages
     )
 
 
@@ -113,13 +119,16 @@ async def test_online_checks_skipped(caplog: pytest.LogCaptureFixture) -> None:
 
     assert result is True
     assert any(
-        record.levelno == logging.WARNING and "online.startup_checks.skipped" in record.message
+        record.levelno == logging.WARNING
+        and "online.startup_checks.skipped" in record.message
         for record in caplog.records
     )
 
 
 @pytest.mark.asyncio
-async def test_online_checks_missing_call_tool(caplog: pytest.LogCaptureFixture) -> None:
+async def test_online_checks_missing_call_tool(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     logger = get_logger("birre.startup.online.missing")
     caplog.set_level(logging.CRITICAL)
 
@@ -139,7 +148,9 @@ async def test_online_checks_missing_call_tool(caplog: pytest.LogCaptureFixture)
 
 
 @pytest.mark.asyncio
-async def test_online_checks_connectivity_failure(caplog: pytest.LogCaptureFixture) -> None:
+async def test_online_checks_connectivity_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     logger = get_logger("birre.startup.online.connectivity")
     caplog.set_level(logging.CRITICAL)
 

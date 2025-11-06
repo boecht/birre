@@ -196,7 +196,9 @@ async def _validate_subscription_folder(
         )
         return True
 
-    folder_issue = await _check_subscription_folder(call_v1_tool, ctx, subscription_folder)
+    folder_issue = await _check_subscription_folder(
+        call_v1_tool, ctx, subscription_folder
+    )
     if folder_issue is not None:
         logger.critical(
             "online.subscription_folder_exists.failed",
@@ -270,10 +272,14 @@ async def run_online_startup_checks(
 
     logger.info("online.api_connectivity.success")
 
-    if not await _validate_subscription_folder(call_v1_tool, ctx, subscription_folder, logger):
+    if not await _validate_subscription_folder(
+        call_v1_tool, ctx, subscription_folder, logger
+    ):
         return False
 
-    if not await _validate_subscription_quota(call_v1_tool, ctx, subscription_type, logger):
+    if not await _validate_subscription_quota(
+        call_v1_tool, ctx, subscription_type, logger
+    ):
         return False
 
     return True

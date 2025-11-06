@@ -14,7 +14,9 @@ import pytest
 try:
     from fastmcp.client import Client  # type: ignore
 except Exception:  # pragma: no cover - module-level skip
-    pytest.skip("fastmcp client not installed; skipping online tests", allow_module_level=True)
+    pytest.skip(
+        "fastmcp client not installed; skipping online tests", allow_module_level=True
+    )
 
 from birre.integrations.bitsight import create_v1_api_server
 

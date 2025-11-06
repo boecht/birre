@@ -22,7 +22,9 @@ try:
     from fastmcp.client import Client
     from fastmcp.client.client import CallToolResult
 except ImportError:
-    pytest.skip("fastmcp client not installed; skipping online tests", allow_module_level=True)
+    pytest.skip(
+        "fastmcp client not installed; skipping online tests", allow_module_level=True
+    )
 
 from birre import create_birre_server  # noqa: E402
 from birre.config.settings import resolve_birre_settings  # noqa: E402
@@ -116,7 +118,9 @@ async def _fetch_first_company(client: Client, query: str = "GitHub") -> dict[st
     return companies[0]
 
 
-async def _fetch_company_by_name(client: Client, query: str, target_name: str) -> dict[str, Any]:
+async def _fetch_company_by_name(
+    client: Client, query: str, target_name: str
+) -> dict[str, Any]:
     result = await client.call_tool("company_search", {"name": query})
     payload = _unwrap(result)
     for company in payload.get("companies", []):
@@ -134,7 +138,9 @@ async def test_company_search_returns_results(birre_client: Client) -> None:
 
 @pytest.mark.asyncio
 async def test_company_rating_contains_rating_data(birre_client: Client) -> None:
-    company = await _fetch_company_by_name(birre_client, "Rheinmetall", "Rheinmetall AG")
+    company = await _fetch_company_by_name(
+        birre_client, "Rheinmetall", "Rheinmetall AG"
+    )
     guid = company["guid"]
 
     result = await birre_client.call_tool("get_company_rating", {"guid": guid})

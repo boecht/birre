@@ -20,9 +20,9 @@ APPLY_FIXES:
   - PYTHON_RUFF_FORMAT
 
 # Reporters
-GITHUB_STATUS_REPORTER: true
-MARKDOWN_SUMMARY_REPORTER: true
-SARIF_REPORTER: true
+GITHUB_STATUS_REPORTER: true # default: false
+MARKDOWN_SUMMARY_REPORTER: true # default: false
+SARIF_REPORTER: true # default: false
 
 # General exclude regex (applies to all linters unless overridden)
 FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)

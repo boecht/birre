@@ -40,7 +40,9 @@ class _FailingServer:
 
 
 @pytest.mark.asyncio
-async def test_tls_error_maps_to_domain_error(capfd: "pytest.CaptureFixture[str]") -> None:
+async def test_tls_error_maps_to_domain_error(
+    capfd: "pytest.CaptureFixture[str]",
+) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_TEXT,
@@ -81,7 +83,9 @@ async def test_tls_error_maps_to_domain_error(capfd: "pytest.CaptureFixture[str]
 
 
 @pytest.mark.asyncio
-async def test_tls_error_emits_traceback_in_debug(capfd: "pytest.CaptureFixture[str]") -> None:
+async def test_tls_error_emits_traceback_in_debug(
+    capfd: "pytest.CaptureFixture[str]",
+) -> None:
     settings = LoggingSettings(
         level=logging.DEBUG,
         format=LOG_FORMAT_TEXT,

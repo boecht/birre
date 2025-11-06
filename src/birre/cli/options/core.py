@@ -59,7 +59,9 @@ def validate_positive(name: str, value: int | None) -> int | None:
     return value
 
 
-def normalize_context(value: str | None, *, choices: set[str] | frozenset[str]) -> str | None:
+def normalize_context(
+    value: str | None, *, choices: set[str] | frozenset[str]
+) -> str | None:
     """Normalize the context option, ensuring it is one of the allowed choices."""
 
     if value is None:

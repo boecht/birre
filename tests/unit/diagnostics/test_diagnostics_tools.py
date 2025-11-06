@@ -140,7 +140,11 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     # manage_subscriptions payloads
     ok = dx._validate_manage_subscriptions_payload(
-        {"status": "dry_run", "guids": [dx.HEALTHCHECK_COMPANY_GUID], "payload": {"add": []}},
+        {
+            "status": "dry_run",
+            "guids": [dx.HEALTHCHECK_COMPANY_GUID],
+            "payload": {"add": []},
+        },
         logger=logger,  # type: ignore[arg-type]
         expected_guid=dx.HEALTHCHECK_COMPANY_GUID,
     )

@@ -10,7 +10,9 @@ import pytest_asyncio
 try:
     from fastmcp.client import Client
 except ImportError:
-    pytest.skip("fastmcp client not installed; skipping online tests", allow_module_level=True)
+    pytest.skip(
+        "fastmcp client not installed; skipping online tests", allow_module_level=True
+    )
 
 from birre.integrations.bitsight import create_v1_api_server
 
@@ -92,7 +94,9 @@ async def test_nonexistent_company_guid(v1_client: Client) -> None:
         error_str = str(e)
         # Accept various error formats
         assert (
-            "404" in error_str or "not found" in error_str.lower() or "error" in error_str.lower()
+            "404" in error_str
+            or "not found" in error_str.lower()
+            or "error" in error_str.lower()
         )
 
 

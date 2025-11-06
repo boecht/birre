@@ -70,7 +70,9 @@ async def _log_bulk_response(
     await ctx.info(f"manageSubscriptionsBulk({action}) raw response: {pretty}")
 
 
-async def _handle_bulk_errors(ctx: Context, errors: Any, guid: str) -> SubscriptionAttempt | None:
+async def _handle_bulk_errors(
+    ctx: Context, errors: Any, guid: str
+) -> SubscriptionAttempt | None:
     """Interpret the errors section from the bulk subscription response."""
 
     if not isinstance(errors, list):
@@ -88,7 +90,9 @@ async def _handle_bulk_errors(ctx: Context, errors: Any, guid: str) -> Subscript
             continue
 
         if "already exists" in normalized_message:
-            await ctx.info(f"Company {guid} already subscribed according to bulk response")
+            await ctx.info(
+                f"Company {guid} already subscribed according to bulk response"
+            )
             return SubscriptionAttempt(True, False, True, message or None)
 
     if len(errors) > 0:
@@ -105,13 +109,17 @@ async def _interpret_manage_subscription_response(
     """Translate the FastMCP bulk response into a SubscriptionAttempt."""
 
     if not isinstance(result, dict):
-        message = f"Unexpected response while managing subscription via FastMCP: {result}"
+        message = (
+            f"Unexpected response while managing subscription via FastMCP: {result}"
+        )
         await ctx.error(message)
         return SubscriptionAttempt(False, False, False, message)
 
     added_guids = set(_extract_guid_values(result, ("added", "add")))
     if guid in added_guids:
-        await ctx.info(f"Created temporary subscription for company {guid} using bulk API")
+        await ctx.info(
+            f"Created temporary subscription for company {guid} using bulk API"
+        )
         return SubscriptionAttempt(True, True, False)
 
     attempt = await _handle_bulk_errors(ctx, result.get("errors"), guid)
@@ -120,10 +128,14 @@ async def _interpret_manage_subscription_response(
 
     modified_guids = set(_extract_guid_values(result, ("modified",)))
     if guid in modified_guids:
-        await ctx.info(f"Subscription for company {guid} already active (reported as modified)")
+        await ctx.info(
+            f"Subscription for company {guid} already active (reported as modified)"
+        )
         return SubscriptionAttempt(True, False, True)
 
-    await ctx.info(f"No add/modify/errors reported for {guid}; assuming already subscribed")
+    await ctx.info(
+        f"No add/modify/errors reported for {guid}; assuming already subscribed"
+    )
     return SubscriptionAttempt(True, False, True)
 
 
@@ -142,7 +154,9 @@ async def create_ephemeral_subscription(
     try:
         await ctx.info(f"Ensuring BitSight subscription for company: {guid}")
 
-        subscription_base = _build_subscription_payload(default_folder, subscription_type)
+        subscription_base = _build_subscription_payload(
+            default_folder, subscription_type
+        )
 
         if not subscription_base:
             message = (
@@ -154,7 +168,9 @@ async def create_ephemeral_subscription(
 
         subscription_payload = {"add": [{**subscription_base, "guid": guid}]}
 
-        result = await call_v1_tool("manageSubscriptionsBulk", ctx, subscription_payload)
+        result = await call_v1_tool(
+            "manageSubscriptionsBulk", ctx, subscription_payload
+        )
 
         await _log_bulk_response(ctx, result, "add", debug_enabled=debug_enabled)
 
@@ -190,7 +206,9 @@ async def cleanup_ephemeral_subscription(
         await _log_bulk_response(ctx, result, "delete", debug_enabled=debug_enabled)
 
         if isinstance(result, dict) and result.get("errors"):
-            await ctx.error(f"Failed to delete subscription via FastMCP: {result['errors']}")
+            await ctx.error(
+                f"Failed to delete subscription via FastMCP: {result['errors']}"
+            )
             return False
 
         await ctx.info("Issued FastMCP delete request for ephemeral subscription")

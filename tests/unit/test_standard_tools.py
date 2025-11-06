@@ -76,8 +76,16 @@ async def test_company_search_returns_normalized_payload() -> None:
         assert params == {"name": "Example", "domain": None}
         return {
             "results": [
-                {"guid": "guid-1", "name": "Example Corp", "primary_domain": "example.com"},
-                {"guid": "guid-2", "name": "Example Blog", "display_url": "blog.example.com"},
+                {
+                    "guid": "guid-1",
+                    "name": "Example Corp",
+                    "primary_domain": "example.com",
+                },
+                {
+                    "guid": "guid-2",
+                    "name": "Example Blog",
+                    "display_url": "blog.example.com",
+                },
             ],
         }
 
@@ -154,7 +162,9 @@ async def test_get_company_rating_success_cleanup_subscription(
     # Patch internal helpers to isolate behaviour
     async def fake_create(*args, **kwargs):
         await asyncio.sleep(0)
-        return SimpleNamespace(success=True, created=True, already_subscribed=False, message=None)
+        return SimpleNamespace(
+            success=True, created=True, already_subscribed=False, message=None
+        )
 
     async def fake_cleanup(*args, **kwargs):
         await asyncio.sleep(0)
@@ -223,7 +233,9 @@ async def test_get_company_rating_success_cleanup_subscription(
 
 
 @pytest.mark.asyncio
-async def test_get_company_rating_subscription_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_company_rating_subscription_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     server, logger = make_server()
 
     async def call_v1_tool(name: str, ctx: Context, params: dict[str, Any]):
@@ -236,7 +248,10 @@ async def test_get_company_rating_subscription_failure(monkeypatch: pytest.Monke
     async def fake_create_fail(*args, **kwargs):
         await asyncio.sleep(0)
         return SimpleNamespace(
-            success=False, created=False, already_subscribed=False, message="no subscription"
+            success=False,
+            created=False,
+            already_subscribed=False,
+            message="no subscription",
         )
 
     monkeypatch.setattr(

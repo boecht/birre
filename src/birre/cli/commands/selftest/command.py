@@ -77,7 +77,9 @@ def register(
         )
 
         target_base_url = (
-            healthcheck_production_v1_base_url if production else healthcheck_testing_v1_base_url
+            healthcheck_production_v1_base_url
+            if production
+            else healthcheck_testing_v1_base_url
         )
         environment_label = "production" if production else "testing"
         logger.info(

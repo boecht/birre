@@ -144,7 +144,9 @@ class SelfTestRunner:
             )
 
         context_settings = replace(self._base_runtime_settings, context=context_name)
-        effective_settings, notes, degraded = self._resolve_ca_bundle(logger, context_settings)
+        effective_settings, notes, degraded = self._resolve_ca_bundle(
+            logger, context_settings
+        )
         report["notes"] = list(notes)
 
         if self._offline:
@@ -280,12 +282,16 @@ class SelfTestRunner:
             notes=report.get("notes", ()),
         )
         attempt_reports.append(primary_report)
-        self._update_failure_categories(primary_report, encountered_categories, failure_categories)
+        self._update_failure_categories(
+            primary_report, encountered_categories, failure_categories
+        )
         context_success = primary_report.success
 
         if not context_success:
             tls_failures = [
-                failure for failure in primary_report.failures if failure.category == "tls"
+                failure
+                for failure in primary_report.failures
+                if failure.category == "tls"
             ]
             if tls_failures and not effective_settings.allow_insecure_tls:
                 fallback_report = self._attempt_tls_fallback(
@@ -337,7 +343,9 @@ class SelfTestRunner:
         )
 
         tls_failure_present = any(
-            failure.category == "tls" for attempt in attempt_reports for failure in attempt.failures
+            failure.category == "tls"
+            for attempt in attempt_reports
+            for failure in attempt.failures
         )
         if tls_failure_present:
             report.setdefault("notes", []).append("tls-cert-chain-intercepted")
@@ -393,13 +401,17 @@ class SelfTestRunner:
             logger.warning(
                 "TLS fallback resolved diagnostics failure",
                 attempt="tls-fallback",
-                original_errors=[summarize_failure(failure) for failure in tls_failures],
+                original_errors=[
+                    summarize_failure(failure) for failure in tls_failures
+                ],
             )
         else:
             logger.error(
                 "TLS fallback failed to resolve diagnostics",
                 attempt="tls-fallback",
-                original_errors=[summarize_failure(failure) for failure in tls_failures],
+                original_errors=[
+                    summarize_failure(failure) for failure in tls_failures
+                ],
             )
 
     def _run_diagnostic_attempt(
@@ -591,12 +603,16 @@ class SelfTestRunner:
                 "discovered_tools": attempt.discovered_tools,
                 "missing_tools": attempt.missing_tools,
                 "tools": attempt.tools,
-                "failures": [summarize_failure(failure) for failure in attempt.failures],
+                "failures": [
+                    summarize_failure(failure) for failure in attempt.failures
+                ],
             }
             for attempt in attempt_reports
         ]
 
-    def _calculate_online_status(self, attempt_summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    def _calculate_online_status(
+        self, attempt_summaries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         online_attempts: dict[str, str] = {}
         for attempt in attempt_summaries:
             result = attempt.get("online_success")
@@ -636,10 +652,12 @@ class SelfTestRunner:
         failure_categories: set[str],
     ) -> tuple[list[str], list[str]]:
         recoverable = sorted(
-            (failure_categories | encountered_categories) & {"tls", MSG_CONFIG_CA_BUNDLE}
+            (failure_categories | encountered_categories)
+            & {"tls", MSG_CONFIG_CA_BUNDLE}
         )
         unrecoverable = sorted(
-            (failure_categories | encountered_categories) - {"tls", MSG_CONFIG_CA_BUNDLE}
+            (failure_categories | encountered_categories)
+            - {"tls", MSG_CONFIG_CA_BUNDLE}
         )
         return recoverable, unrecoverable
 
@@ -655,7 +673,8 @@ class SelfTestRunner:
             logger.error(
                 "Context diagnostics failed",
                 attempts=[
-                    {"label": report.label, "success": report.success} for report in attempt_reports
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
                 ],
                 recoverable_categories=recoverable or None,
                 unrecoverable_categories=unrecoverable or None,
@@ -664,7 +683,8 @@ class SelfTestRunner:
             logger.info(
                 "Context diagnostics completed with recoveries",
                 attempts=[
-                    {"label": report.label, "success": report.success} for report in attempt_reports
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
                 ],
             )
         else:

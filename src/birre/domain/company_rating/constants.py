@@ -20,7 +20,9 @@ DEFAULT_SEVERITY_FLOOR = SEVERITY_MODERATE
 SEVERITY_SCORE_UNKNOWN = -1.0
 
 # Timestamp parsing
-TIMESTAMP_INVALID = 0  # Epoch start (1970-01-01) used as sentinel for invalid/missing timestamps
+TIMESTAMP_INVALID = (
+    0  # Epoch start (1970-01-01) used as sentinel for invalid/missing timestamps
+)
 
 # Findings processing limits
 DEFAULT_FINDINGS_LIMIT = 1

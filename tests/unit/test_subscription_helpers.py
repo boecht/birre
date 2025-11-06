@@ -40,7 +40,9 @@ class StubContext(Context):
 
 
 @pytest.mark.asyncio
-async def test_create_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_ephemeral_subscription_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
@@ -112,7 +114,9 @@ async def test_create_ephemeral_subscription_missing_config(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cleanup_ephemeral_subscription_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):
@@ -130,7 +134,9 @@ async def test_cleanup_ephemeral_subscription_errors(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_cleanup_ephemeral_subscription_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cleanup_ephemeral_subscription_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = StubContext()
 
     async def call_v1(name: str, ctx: Context, payload: dict[str, Any]):

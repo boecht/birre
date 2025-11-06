@@ -58,8 +58,12 @@ def build_invocation(
     normalized_context = cli_options.normalize_context(context, choices=context_choices)
     normalized_log_format = cli_options.normalize_log_format(log_format)
     normalized_log_level = cli_options.normalize_log_level(log_level)
-    normalized_max_findings = cli_options.validate_positive("max_findings", max_findings)
-    normalized_log_max_bytes = cli_options.validate_positive("log_max_bytes", log_max_bytes)
+    normalized_max_findings = cli_options.validate_positive(
+        "max_findings", max_findings
+    )
+    normalized_log_max_bytes = cli_options.validate_positive(
+        "log_max_bytes", log_max_bytes
+    )
     normalized_log_backup_count = cli_options.validate_positive(
         "log_backup_count", log_backup_count
     )
@@ -163,7 +167,9 @@ def logging_inputs(overrides: LoggingOverrides) -> LoggingInputs | None:
     )
 
 
-def load_settings_from_invocation(invocation: CliInvocation) -> Any:  # Returns BirreSettings
+def load_settings_from_invocation(
+    invocation: CliInvocation,
+) -> Any:  # Returns BirreSettings
     """Load settings and apply CLI overrides."""
 
     settings = load_settings(invocation.config_path)

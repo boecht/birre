@@ -102,7 +102,9 @@ def _resolve_max_findings(settings: RuntimeSettings) -> int:
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(settings: RuntimeSettings, logger: BoundLogger) -> bool | str:
+def _resolve_tls_verification(
+    settings: RuntimeSettings, logger: BoundLogger
+) -> bool | str:
     allow_insecure_tls = bool(settings.allow_insecure_tls)
     ca_bundle_path = settings.ca_bundle_path
     verify_option: bool | str = True
@@ -235,7 +237,9 @@ def _configure_standard_tools(
     )
 
 
-def _coerce_runtime_settings(settings: RuntimeSettings | Mapping[str, Any]) -> RuntimeSettings:
+def _coerce_runtime_settings(
+    settings: RuntimeSettings | Mapping[str, Any],
+) -> RuntimeSettings:
     if isinstance(settings, RuntimeSettings):
         return settings
 

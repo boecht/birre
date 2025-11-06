@@ -29,7 +29,9 @@ def test_logs_clear_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     stdout = _C()
     orig_resolve = logs_mod._resolve_logging_settings_from_cli
     try:
-        monkeypatch.setattr(logs_mod, "_resolve_logging_settings_from_cli", _fake_resolver)
+        monkeypatch.setattr(
+            logs_mod, "_resolve_logging_settings_from_cli", _fake_resolver
+        )
         monkeypatch.setattr(Path, "write_text", _raise, raising=True)
         with pytest.raises(Exception):
             logs_mod._cmd_logs_clear(tmp_path / "c.toml", None, stdout)  # type: ignore[arg-type]
@@ -38,7 +40,9 @@ def test_logs_clear_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         logs_mod._resolve_logging_settings_from_cli = orig_resolve  # type: ignore[assignment]
 
 
-def test_logs_rotate_nonexistent_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_logs_rotate_nonexistent_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     path = tmp_path / "no.log"
 
     def _fake_resolver(**_: Any):
@@ -59,7 +63,9 @@ def test_logs_rotate_nonexistent_files(tmp_path: Path, monkeypatch: pytest.Monke
     stdout = _C()
     orig_resolve = logs_mod._resolve_logging_settings_from_cli
     try:
-        monkeypatch.setattr(logs_mod, "_resolve_logging_settings_from_cli", _fake_resolver)
+        monkeypatch.setattr(
+            logs_mod, "_resolve_logging_settings_from_cli", _fake_resolver
+        )
         monkeypatch.setattr(logs_mod, "validate_path_exists", lambda p: False)
         monkeypatch.setattr(Path, "touch", _touch, raising=True)
         logs_mod._cmd_logs_rotate(tmp_path / "c.toml", None, 2, stdout)  # type: ignore[arg-type]

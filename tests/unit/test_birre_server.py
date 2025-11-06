@@ -89,7 +89,9 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     )
 
     def fail_create_v2(*_args, **_kwargs):
-        pytest.fail("create_v2_api_server should not be invoked for the standard context")
+        pytest.fail(
+            "create_v2_api_server should not be invoked for the standard context"
+        )
 
     monkeypatch.setattr(birre_server, "create_v2_api_server", fail_create_v2)
 
@@ -290,7 +292,9 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     def capture_interactive(
         server, call_v1_tool, *, logger, default_folder, default_type, max_findings
     ):
-        captures.setdefault("interactive", []).append((default_folder, default_type, max_findings))
+        captures.setdefault("interactive", []).append(
+            (default_folder, default_type, max_findings)
+        )
 
     def capture_manage(server, call_v1_tool, *, logger, default_folder, default_type):
         captures.setdefault("manage", []).append((default_folder, default_type))
@@ -303,7 +307,9 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     monkeypatch.setattr(
         risk_manager, "register_company_search_interactive_tool", capture_interactive
     )
-    monkeypatch.setattr(risk_manager, "register_manage_subscriptions_tool", capture_manage)
+    monkeypatch.setattr(
+        risk_manager, "register_manage_subscriptions_tool", capture_manage
+    )
     monkeypatch.setattr(risk_manager, "register_request_company_tool", capture_request)
 
     settings = {
@@ -355,7 +361,9 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
         }
     ]
 
-    assert captures["rating"] == [(server, "compromised_hosts", 7, "folder", "type", False)]
+    assert captures["rating"] == [
+        (server, "compromised_hosts", 7, "folder", "type", False)
+    ]
     assert captures["search"] == [server]
     assert captures["interactive"] == [("folder", "type", 7)]
     assert captures["manage"] == [("folder", "type")]
@@ -395,10 +403,16 @@ async def test_create_birre_server_ignores_enable_v2_flag(monkeypatch, logger):
 
     monkeypatch.setattr(birre_server, "call_v1_openapi_tool", v1_recorder)
     monkeypatch.setattr(birre_server, "call_v2_openapi_tool", v2_recorder)
-    monkeypatch.setattr(birre_server, "register_company_rating_tool", lambda *args, **kwargs: None)
-    monkeypatch.setattr(birre_server, "register_company_search_tool", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        birre_server, "register_company_rating_tool", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        birre_server, "register_company_search_tool", lambda *args, **kwargs: None
+    )
 
-    server = birre_server.create_birre_server({"api_key": "key", "enable_v2": True}, logger)
+    server = birre_server.create_birre_server(
+        {"api_key": "key", "enable_v2": True}, logger
+    )
 
     assert not hasattr(server, "call_v2_tool")
     assert server.name == "io.github.boecht.birre"
