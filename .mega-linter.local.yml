@@ -1,11 +1,11 @@
 ---
 EXTENDS: .mega-linter.yml
 
-# disable specific linters for local runs
+# disable specific linters locally
 DISABLE_LINTERS:
   - REPOSITORY_SYFT
 
-# disable CI-only reporters locally
+# shotgun-approach to disable CI-only reporters locally
 AZURE_COMMENT_REPORTER: false
 BITBUCKET_COMMENT_REPORTER: false
 EMAIL_REPORTER: false

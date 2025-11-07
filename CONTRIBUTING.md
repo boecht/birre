@@ -42,6 +42,7 @@ By participating, you are expected to uphold this code.
 
     The hooks use `uv run` to ensure they execute with the correct Python version
     and project dependencies.
+    See [.pre-commit-config.yaml](.pre-commit-config.yaml) for usage details on staged, changed, or all files.
 
 4. **Set up environment variables** (optional, for online tests)
 

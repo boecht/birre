@@ -1,4 +1,18 @@
 ---
+# Install Git hooks so commits run hooks automatically:
+#   pre-commit install
+#
+# Manually run hooks on STAGED* files:
+#   pre-commit run
+#
+# Manually run hooks on CHANGED* files:
+#   git diff --name-only -z | xargs -0 pre-commit run --files
+#
+# Manually run hooks on ALL files:
+#   pre-commit run --all-files
+#
+# *Some hooks run repo-wide either way.
+#
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
