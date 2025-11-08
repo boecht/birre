@@ -25,12 +25,15 @@ from birre.application.diagnostics import (
     discover_context_tools,
     prepare_server,
     record_failure,
+    run_company_search_diagnostics,
     run_context_tool_diagnostics,
     run_offline_checks,
     run_online_checks,
     summarize_failure,
 )
+from birre.application.offline_samples import COMPANY_SEARCH_SAMPLE_PAYLOADS
 from birre.config.settings import RuntimeSettings
+from birre.domain.company_search.service import normalize_company_search_results
 from birre.domain.selftest_models import (
     AttemptReport,
     ContextDiagnosticsResult,
@@ -103,6 +106,7 @@ class SelfTestRunner:
                 degraded = True
 
         summary["overall_success"] = overall_success
+
         return SelfTestResult(
             success=overall_success,
             degraded=degraded,
@@ -249,6 +253,13 @@ class SelfTestRunner:
             tools=sorted(discovered_tools),
             attempt="offline",
         )
+
+        self._apply_offline_company_search_report(
+            context_name=context_name,
+            report=report,
+            logger=logger,
+        )
+
         report["success"] = True
         degraded = True  # offline mode limits coverage
         return ContextDiagnosticsResult(
@@ -512,6 +523,35 @@ class SelfTestRunner:
         )
 
         return attempt_report
+
+    def _apply_offline_company_search_report(
+        self,
+        *,
+        context_name: str,
+        report: dict[str, Any],
+        logger: BoundLogger,
+    ) -> None:
+        tool_summary = report.setdefault("tools", {})
+        summary_payload: dict[str, Any] = {}
+        offline_failures: list[DiagnosticFailure] = []
+        normalized_samples = {
+            mode: normalize_company_search_results(raw_payload)
+            for mode, raw_payload in COMPANY_SEARCH_SAMPLE_PAYLOADS.items()
+        }
+        success = run_company_search_diagnostics(
+            context=context_name,
+            logger=logger,
+            tool=None,
+            failures=offline_failures,
+            summary=summary_payload,
+            run_sync=self._run_sync,
+            sample_payloads=normalized_samples,
+        )
+        tool_summary["company_search"] = {
+            "status": "pass" if success else "warning",
+            "details": {"reason": "offline replay"},
+            "modes": summary_payload.get("modes"),
+        }
 
     def _handle_missing_tools(
         self,
