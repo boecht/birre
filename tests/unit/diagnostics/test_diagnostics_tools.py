@@ -30,11 +30,13 @@ class DummyLogger:
 
 
 def _ok_search_payload(domain: str | None) -> dict[str, Any]:
+    resolved = domain or dx.HEALTHCHECK_COMPANY_DOMAIN
     entries = [
         {
             "guid": "g-1",
             "name": "GitHub",
-            "domain": (domain or dx.HEALTHCHECK_COMPANY_DOMAIN),
+            "domain": resolved,
+            "primary_domain": resolved,
         }
     ]
     return {"companies": entries, "count": 1}
@@ -42,11 +44,11 @@ def _ok_search_payload(domain: str | None) -> dict[str, Any]:
 
 def test_company_search_diagnostics_success() -> None:
     def tool(ctx, **params):  # type: ignore[no-untyped-def]
-        if "name" in params:
+        if params.get("name") == dx.HEALTHCHECK_COMPANY_NAME:
             return _ok_search_payload(dx.HEALTHCHECK_COMPANY_DOMAIN)
         if "domain" in params:
             return _ok_search_payload(params["domain"])
-        return {}
+        return {"companies": [], "count": 0}
 
     assert (
         dx.run_company_search_diagnostics(
@@ -159,7 +161,14 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     # request_company payloads
     ok3 = dx._validate_request_company_payload(
-        {"status": "dry_run", "domain": dx.HEALTHCHECK_REQUEST_DOMAIN},
+        {
+            "status": "dry_run",
+            "dry_run": True,
+            "submitted": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "already_existing": [],
+            "successfully_requested": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "failed": [],
+        },
         logger=logger,  # type: ignore[arg-type]
         expected_domain=dx.HEALTHCHECK_REQUEST_DOMAIN,
     )
@@ -167,8 +176,11 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     ok4 = dx._validate_request_company_payload(
         {
-            "status": "requested",
-            "domains": [{"domain": dx.HEALTHCHECK_REQUEST_DOMAIN}],
+            "status": "submitted_v2_bulk",
+            "submitted": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "already_existing": [],
+            "successfully_requested": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "failed": [],
         },
         logger=logger,  # type: ignore[arg-type]
         expected_domain=dx.HEALTHCHECK_REQUEST_DOMAIN,

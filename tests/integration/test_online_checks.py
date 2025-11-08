@@ -44,4 +44,4 @@ async def test_run_online_startup_checks(
         skip_startup_checks=False,
     )
 
-    assert result is True
+    assert result.success is True

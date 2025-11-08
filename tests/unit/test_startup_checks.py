@@ -117,7 +117,8 @@ async def test_online_checks_skipped(caplog: pytest.LogCaptureFixture) -> None:
         skip_startup_checks=True,
     )
 
-    assert result is True
+    assert result.success is True
+    assert result.subscription_folder_guid is None
     assert any(
         record.levelno == logging.WARNING
         and "online.startup_checks.skipped" in record.message
@@ -139,7 +140,7 @@ async def test_online_checks_missing_call_tool(
         logger=logger,
     )
 
-    assert result is False
+    assert result.success is False
     assert any(
         record.levelno == logging.CRITICAL
         and "online.api_connectivity.unavailable" in record.message
@@ -163,7 +164,7 @@ async def test_online_checks_connectivity_failure(
         logger=logger,
     )
 
-    assert result is False
+    assert result.success is False
     assert call_v1.calls == ["companySearch"]
     assert any(
         record.levelno == logging.CRITICAL
@@ -192,7 +193,7 @@ async def test_online_checks_folder_failure(caplog: pytest.LogCaptureFixture) ->
         logger=logger,
     )
 
-    assert result is False
+    assert result.success is False
     assert call_v1.calls == ["companySearch", "getFolders"]
     assert any(
         record.levelno == logging.CRITICAL
@@ -210,7 +211,7 @@ async def test_online_checks_quota_failure(caplog: pytest.LogCaptureFixture) -> 
     call_v1 = DummyCallV1(
         {
             "companySearch": {"results": []},
-            "getFolders": [{"name": "Target"}],
+            "getFolders": [{"name": "Target", "guid": "target-guid"}],
             "getCompanySubscriptions": {"continuous_monitoring": {"remaining": 0}},
         }
     )
@@ -222,7 +223,7 @@ async def test_online_checks_quota_failure(caplog: pytest.LogCaptureFixture) -> 
         logger=logger,
     )
 
-    assert result is False
+    assert result.success is False
     assert call_v1.calls == ["companySearch", "getFolders", "getCompanySubscriptions"]
     assert any(
         record.levelno == logging.CRITICAL
@@ -240,7 +241,7 @@ async def test_online_checks_success(caplog: pytest.LogCaptureFixture) -> None:
     call_v1 = DummyCallV1(
         {
             "companySearch": {"results": []},
-            "getFolders": [{"name": "Target"}],
+            "getFolders": [{"name": "Target", "guid": "target-guid"}],
             "getCompanySubscriptions": {"continuous_monitoring": {"remaining": 2}},
         }
     )
@@ -252,7 +253,8 @@ async def test_online_checks_success(caplog: pytest.LogCaptureFixture) -> None:
         logger=logger,
     )
 
-    assert result is True
+    assert result.success is True
+    assert result.subscription_folder_guid == "target-guid"
     assert call_v1.calls == ["companySearch", "getFolders", "getCompanySubscriptions"]
     expected_fragments = [
         "online.api_connectivity.success",

@@ -130,7 +130,18 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
             "errors": [],
         }
 
-    call_v1 = BridgeStub({"manageSubscriptionsBulk": manage_handler})
+    call_v1 = BridgeStub(
+        {
+            "getFolders": lambda _: [
+                {
+                    "name": "API",
+                    "guid": "folder-1",
+                    "companies": [],
+                }
+            ],
+            "manageSubscriptionsBulk": manage_handler,
+        }
+    )
 
     tool = register_manage_subscriptions_tool(
         server,
@@ -143,17 +154,34 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
     ctx = FakeContext()
     dry_result = await tool.fn(ctx, action="subscribe", guids=["guid-1"], dry_run=True)
     assert dry_result["status"] == "dry_run"
-    assert dry_result["payload"]["add"][0]["folder"] == ["API"]
+    assert dry_result["payload"]["add"][0]["folder"] == ["folder-1"]
+    assert dry_result["folder_guid"] == "folder-1"
+    assert dry_result.get("folder_created") is None
 
     applied = await tool.fn(ctx, action="subscribe", guids=["guid-1"])
     assert applied["status"] == "applied"
     assert applied["summary"]["added"] == ["guid-1"]
+    assert applied["folder_guid"] == "folder-1"
+    assert applied.get("folder_created") is None
 
 
 @pytest.mark.asyncio
-async def test_request_company_falls_back_to_single_endpoint() -> None:
+async def test_request_company_filters_existing_and_submits_remaining() -> None:
     logger = get_logger("test.request_company")
     server = FastMCP(name="TestServer")
+
+    def company_search_handler(params: dict[str, Any]) -> dict[str, Any]:
+        domain = params.get("domain")
+        if domain == "existing.example":
+            return {
+                "results": [
+                    {
+                        "primary_domain": "existing.example",
+                        "name": "Existing Corp",
+                    }
+                ]
+            }
+        return {"results": []}
 
     call_v1 = BridgeStub(
         {
@@ -163,20 +191,19 @@ async def test_request_company_falls_back_to_single_endpoint() -> None:
                     "guid": "folder-1",
                     "companies": [],
                 }
-            ]
+            ],
+            "companySearch": company_search_handler,
         }
     )
 
-    def bulk_fail(_: dict[str, Any]) -> Any:
-        raise RuntimeError("bulk endpoint unavailable")
+    captured_payload: dict[str, Any] = {}
 
-    call_v2 = BridgeStub(
-        {
-            "getCompanyRequests": lambda _: [],
-            "createCompanyRequestBulk": bulk_fail,
-            "createCompanyRequest": lambda params: {"request": params},
-        }
-    )
+    def bulk_submit(params: dict[str, Any]) -> dict[str, Any]:
+        nonlocal captured_payload
+        captured_payload = params
+        return {"accepted": params.get("file")}
+
+    call_v2 = BridgeStub({"createCompanyRequestBulk": bulk_submit})
 
     tool = register_request_company_tool(
         server,
@@ -190,9 +217,154 @@ async def test_request_company_falls_back_to_single_endpoint() -> None:
     ctx = FakeContext()
     result = await tool.fn(
         ctx,
-        domain="missing.example",
-        company_name="Missing Corp",
+        domains="existing.example,new.example,duplicate.example,duplicate.example",
     )
-    assert result["status"] == "submitted_v2_single"
-    assert result["warning"].startswith("The folder could not be specified")
-    assert call_v2.calls[-1][0] == "createCompanyRequest"
+
+    assert result["status"] == "submitted_v2_bulk"
+    assert result["successfully_requested"] == [
+        "new.example",
+        "duplicate.example",
+    ]
+    assert result["submitted"] == [
+        "existing.example",
+        "new.example",
+        "duplicate.example",
+        "duplicate.example",
+    ]
+    assert result["already_existing"] == [
+        {"domain": "duplicate.example"},
+        {"domain": "existing.example", "company_name": "Existing Corp"},
+    ]
+    payload_csv = captured_payload["file"].replace("\r\n", "\n")
+    assert payload_csv.startswith("domain\n")
+    assert "duplicate.example" in captured_payload["file"]
+    assert result["folder_guid"] == "folder-1"
+    assert result.get("folder_created") is None
+    assert call_v2.calls[-1][0] == "createCompanyRequestBulk"
+
+
+@pytest.mark.asyncio
+async def test_request_company_dry_run_returns_preview() -> None:
+    logger = get_logger("test.request_company")
+    server = FastMCP(name="TestServer")
+
+    call_v1 = BridgeStub(
+        {
+            "getFolders": lambda _: [
+                {
+                    "name": "API",
+                    "guid": "folder-1",
+                    "companies": [],
+                }
+            ],
+            "companySearch": lambda _: {"results": []},
+        }
+    )
+    call_v2 = BridgeStub({"createCompanyRequestBulk": lambda params: params})
+
+    tool = register_request_company_tool(
+        server,
+        call_v1,
+        call_v2,
+        logger=logger,
+        default_folder="API",
+        default_type="continuous_monitoring",
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(
+        ctx,
+        domains="future.example",
+        dry_run=True,
+    )
+
+    assert result["status"] == "dry_run"
+    assert result["dry_run"] is True
+    preview = result["csv_preview"].replace("\r\n", "\n")
+    assert preview.startswith("domain\nfuture.example")
+    assert result["successfully_requested"] == ["future.example"]
+    assert result["folder_guid"] == "folder-1"
+    assert result.get("folder_created") is None
+    assert call_v2.calls == []
+
+
+@pytest.mark.asyncio
+async def test_request_company_auto_creates_folder_when_missing() -> None:
+    logger = get_logger("test.request_company")
+    server = FastMCP(name="TestServer")
+
+    call_v1 = BridgeStub(
+        {
+            "getFolders": lambda _: [],
+            "createFolder": lambda params: {
+                "guid": "auto-folder",
+                "name": params["name"],
+            },
+            "companySearch": lambda _: {"results": []},
+        }
+    )
+    call_v2 = BridgeStub({"createCompanyRequestBulk": lambda params: params})
+
+    tool = register_request_company_tool(
+        server,
+        call_v1,
+        call_v2,
+        logger=logger,
+        default_folder=None,
+        default_type="continuous_monitoring",
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(ctx, domains="auto.example", folder="Operations")
+
+    assert result["status"] == "submitted_v2_bulk"
+    assert result["folder_guid"] == "auto-folder"
+    assert result["folder_created"] is True
+    assert any(call[0] == "createFolder" for call in call_v1.calls)
+
+
+@pytest.mark.asyncio
+async def test_manage_subscriptions_auto_creates_folder() -> None:
+    logger = get_logger("test.manage_subscriptions")
+    server = FastMCP(name="TestServer")
+
+    def get_folders(_: dict[str, Any]) -> list[dict[str, Any]]:
+        return []
+
+    def create_folder(params: dict[str, Any]) -> dict[str, Any]:
+        assert params["name"] == "Ops"
+        assert "manage_subscriptions" in params["description"]
+        return {"guid": "ops-folder"}
+
+    def manage_bulk(params: dict[str, Any]) -> dict[str, Any]:
+        assert params["add"][0]["folder"] == ["ops-folder"]
+        return {"added": [entry["guid"] for entry in params["add"]]}
+
+    call_v1 = BridgeStub(
+        {
+            "getFolders": get_folders,
+            "createFolder": create_folder,
+            "manageSubscriptionsBulk": manage_bulk,
+        }
+    )
+
+    tool = register_manage_subscriptions_tool(
+        server,
+        call_v1,
+        logger=logger,
+        default_folder=None,
+        default_type="continuous_monitoring",
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(
+        ctx,
+        action="subscribe",
+        guids=["guid-9"],
+        folder="Ops",
+    )
+
+    assert result["status"] == "applied"
+    assert result["folder_guid"] == "ops-folder"
+    assert result["folder_created"] is True
+    assert any(call[0] == "createFolder" for call in call_v1.calls)
