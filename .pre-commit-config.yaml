@@ -13,6 +13,8 @@
 #
 # *Some hooks run repo-wide either way.
 #
+# To enable ruff fixing on manual run or pre-commit, see .mega-linter.local.yml
+#
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
