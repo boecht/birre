@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from importlib import resources
 from typing import Any, Protocol
 
@@ -30,11 +31,18 @@ SCHEMA_FILES: tuple[str, str] = (
 )
 
 
+@dataclass(frozen=True)
+class OnlineStartupResult:
+    success: bool
+    subscription_folder_guid: str | None = None
+
+
 class _StartupCheckContext:
     """Minimal context replicating FastMCP Context logging methods."""
 
     def __init__(self, logger: BoundLogger) -> None:
         self._logger = logger
+        self.subscription_folder_guid: str | None = None
 
     async def info(self, message: str) -> None:
         await asyncio.to_thread(self._logger.info, message)
@@ -119,15 +127,16 @@ async def _check_api_connectivity(
 
 async def _check_subscription_folder(
     call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext, folder: str
-) -> str | None:
+) -> tuple[str | None, str | None]:
     try:
         raw = await call_v1_tool("getFolders", ctx, {})
     except BirreError:
         raise
     except Exception as exc:
-        return f"Failed to query folders: {exc.__class__.__name__}: {exc}"
+        return f"Failed to query folders: {exc.__class__.__name__}: {exc}", None
 
     folders: list[str] = []
+    guid_lookup: dict[str, str] = {}
     if isinstance(raw, list):
         iterable = raw
     elif isinstance(raw, dict):
@@ -138,14 +147,20 @@ async def _check_subscription_folder(
     for entry in iterable:
         if isinstance(entry, dict) and isinstance(entry.get("name"), str):
             folders.append(entry["name"])
+            guid_value = entry.get("guid")
+            if isinstance(guid_value, str) and guid_value:
+                guid_lookup[entry["name"]] = guid_value
 
     raw = None  # free response
 
     if not folders:
-        return "No folders returned from BitSight"
+        return "No folders returned from BitSight", None
     if folder in folders:
-        return None
-    return f"Folder '{folder}' not found; available: {', '.join(sorted(folders))}"
+        return None, guid_lookup.get(folder)
+    return (
+        f"Folder '{folder}' not found; available: {', '.join(sorted(folders))}",
+        None,
+    )
 
 
 async def _check_subscription_quota(
@@ -188,15 +203,15 @@ async def _validate_subscription_folder(
     ctx: ToolLoggingContext,
     subscription_folder: str | None,
     logger: BoundLogger,
-) -> bool:
+) -> tuple[bool, str | None]:
     if not subscription_folder:
         logger.warning(
             "online.subscription_folder_exists.skipped",
             reason="BIRRE_SUBSCRIPTION_FOLDER not set",
         )
-        return True
+        return True, None
 
-    folder_issue = await _check_subscription_folder(
+    folder_issue, folder_guid = await _check_subscription_folder(
         call_v1_tool, ctx, subscription_folder
     )
     if folder_issue is not None:
@@ -204,13 +219,13 @@ async def _validate_subscription_folder(
             "online.subscription_folder_exists.failed",
             issue=folder_issue,
         )
-        return False
+        return False, None
 
     logger.info(
         "online.subscription_folder_exists.verified",
         subscription_folder=subscription_folder,
     )
-    return True
+    return True, folder_guid
 
 
 async def _validate_subscription_quota(
@@ -248,17 +263,17 @@ async def run_online_startup_checks(
     subscription_type: str | None,
     logger: BoundLogger,
     skip_startup_checks: bool = False,
-) -> bool:
+) -> OnlineStartupResult:
     if skip_startup_checks:
         logger.warning(
             "online.startup_checks.skipped",
             reason="skip_startup_checks flag set",
         )
-        return True
+        return OnlineStartupResult(success=True)
 
     if call_v1_tool is None:
         logger.critical("online.api_connectivity.unavailable")
-        return False
+        return OnlineStartupResult(success=False)
 
     ctx = _StartupCheckContext(logger)
 
@@ -268,21 +283,23 @@ async def run_online_startup_checks(
             "online.api_connectivity.failed",
             issue=connectivity_issue,
         )
-        return False
+        return OnlineStartupResult(success=False)
 
     logger.info("online.api_connectivity.success")
 
-    if not await _validate_subscription_folder(
+    folder_ok, folder_guid = await _validate_subscription_folder(
         call_v1_tool, ctx, subscription_folder, logger
-    ):
-        return False
+    )
+    if not folder_ok:
+        return OnlineStartupResult(success=False)
+    ctx.subscription_folder_guid = folder_guid
 
     if not await _validate_subscription_quota(
         call_v1_tool, ctx, subscription_type, logger
     ):
-        return False
+        return OnlineStartupResult(success=False)
 
-    return True
+    return OnlineStartupResult(success=True, subscription_folder_guid=folder_guid)
 
 
 __all__ = ["run_offline_startup_checks", "run_online_startup_checks"]

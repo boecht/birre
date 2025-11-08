@@ -169,6 +169,7 @@ class RuntimeSettings(Mapping[str, Any]):
     debug: bool
     allow_insecure_tls: bool
     ca_bundle_path: str | None
+    subscription_folder_guid: str | None = None
     warnings: tuple[str, ...] = field(default_factory=tuple)
     overrides: tuple[str, ...] = field(default_factory=tuple)
 
@@ -507,6 +508,7 @@ def runtime_from_settings(settings: Dynaconf) -> RuntimeSettings:
         api_key=api_key,
         subscription_folder=subscription_folder,
         subscription_type=subscription_type,
+        subscription_folder_guid=None,
         context=context,
         risk_vector_filter=risk_vector_filter,
         max_findings=max_findings,

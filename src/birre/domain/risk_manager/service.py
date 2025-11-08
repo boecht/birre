@@ -19,7 +19,10 @@ from birre.config.settings import DEFAULT_MAX_FINDINGS
 from birre.domain.common import CallV1Tool, CallV2Tool
 from birre.domain.company_rating.constants import DEFAULT_FINDINGS_LIMIT
 from birre.domain.company_rating.service import _rating_color
+from birre.domain.folders.utils import resolve_or_create_folder
 from birre.infrastructure.logging import BoundLogger, log_event, log_search_event
+
+MAX_REQUEST_COMPANY_DOMAINS = 255
 
 
 class SubscriptionSnapshot(BaseModel):
@@ -99,7 +102,7 @@ class CompanySearchInteractiveResponse(BaseModel):
     def to_payload(self) -> dict[str, Any]:
         if self.error:
             return {"error": self.error}
-        data = self.model_dump(exclude_unset=True)
+        data = self.model_dump(exclude_unset=True, exclude_none=True)
         data.pop("error", None)
         return data
 
@@ -109,17 +112,30 @@ class RequestGuidance(BaseModel):
     confirmation: str | None = None
 
 
+class RequestCompanyExistingEntry(BaseModel):
+    domain: str
+    company_name: str | None = None
+
+
+class RequestCompanyFailedEntry(BaseModel):
+    domain: str
+    error: str
+
+
 class RequestCompanyResponse(BaseModel):
     error: str | None = None
     status: str | None = None
-    domain: str | None = None
-    requests: list[dict[str, Any | None]] = Field(default_factory=list)
+    submitted: list[str] = Field(default_factory=list)
+    already_existing: list[RequestCompanyExistingEntry] = Field(default_factory=list)
+    successfully_requested: list[str] = Field(default_factory=list)
+    failed: list[RequestCompanyFailedEntry] = Field(default_factory=list)
+    dry_run: bool = False
+    csv_preview: str | None = None
     guidance: RequestGuidance | None = None
     folder: str | None = None
-    payload: dict[str, Any | None] = Field(default_factory=dict)
-    subscription_type: str | None = None
+    folder_guid: str | None = None
+    folder_created: bool | None = None
     result: Any | None = None
-    warning: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
         if self.error:
@@ -147,6 +163,8 @@ class ManageSubscriptionsResponse(BaseModel):
     action: str | None = None
     guids: list[str] | None = None
     folder: str | None = None
+    folder_guid: str | None = None
+    folder_created: bool | None = None
     payload: dict[str, Any] | None = None
     guidance: ManageSubscriptionsGuidance | None = None
     summary: ManageSubscriptionsSummary | None = None
@@ -1092,31 +1110,6 @@ def register_company_search_interactive_tool(
     )
 
 
-async def _resolve_folder_guid(
-    call_v1_tool: CallV1Tool,
-    ctx: Context,
-    folder_name: str | None,
-) -> str | None:
-    if not folder_name:
-        return None
-    folders = await call_v1_tool("getFolders", ctx, {})
-    if not isinstance(folders, list):
-        return None
-    normalized = folder_name.strip().lower()
-    for folder in folders:
-        if not isinstance(folder, dict):
-            continue
-        name = folder.get("name")
-        guid = folder.get("guid")
-        if not name or not guid:
-            continue
-        if not isinstance(name, str) or not isinstance(guid, str):
-            continue
-        if name.strip().lower() == normalized:
-            return guid
-    return None
-
-
 async def _list_company_requests(
     call_v2_tool: CallV2Tool,
     ctx: Context,
@@ -1137,286 +1130,339 @@ async def _list_company_requests(
     return []
 
 
-def _serialize_bulk_csv(domain: str, company_name: str | None) -> str:
+def _serialize_bulk_csv(domains: Sequence[str]) -> str:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["domain", "company_name"])
-    writer.writerow([domain, company_name or ""])
+    writer.writerow(["domain"])
+    for domain in domains:
+        writer.writerow([domain])
     return buffer.getvalue()
 
 
-def _normalize_domain(
-    domain: str,
+def _parse_domain_csv(
+    domains: str,
     *,
     logger: BoundLogger,
     ctx: Context,
-) -> tuple[str | None, dict[str, Any | None] | None]:
-    domain_value = (domain or "").strip().lower()
-    if domain_value:
-        return domain_value, None
+) -> tuple[list[str], dict[str, Any | None] | None]:
+    raw_value = (domains or "").strip()
+    if not raw_value:
+        log_event(
+            logger,
+            "company_request.invalid_domain_input",
+            level=logging.WARNING,
+            ctx=ctx,
+            domains=domains,
+        )
+        return [], {"error": "Provide at least one domain"}
 
-    log_event(
-        logger,
-        "company_request.invalid_domain",
-        level=logging.WARNING,
-        ctx=ctx,
-        domain=domain,
-    )
-    return None, {"error": "Domain is required to request a company"}
+    tokens = [token.strip().lower() for token in raw_value.split(",") if token.strip()]
+    if not tokens:
+        log_event(
+            logger,
+            "company_request.invalid_domain_input",
+            level=logging.WARNING,
+            ctx=ctx,
+            domains=domains,
+        )
+        return [], {"error": "Provide at least one valid domain"}
+
+    if len(tokens) > MAX_REQUEST_COMPANY_DOMAINS:
+        log_event(
+            logger,
+            "company_request.domain_limit_exceeded",
+            level=logging.WARNING,
+            ctx=ctx,
+            count=len(tokens),
+            limit=MAX_REQUEST_COMPANY_DOMAINS,
+        )
+        return [], {
+            "error": f"Provide at most {MAX_REQUEST_COMPANY_DOMAINS} domains per request",
+        }
+
+    invalid = [token for token in tokens if " " in token or "." not in token]
+    if invalid:
+        log_event(
+            logger,
+            "company_request.invalid_domain_token",
+            level=logging.WARNING,
+            ctx=ctx,
+            invalid=invalid[:5],
+        )
+        return [], {
+            "error": f"Invalid domain entries: {', '.join(invalid[:5])}",
+        }
+
+    return tokens, None
 
 
-async def _resolve_folder_selection(
+def _deduplicate_domains(domains: Sequence[str]) -> tuple[list[str], list[str]]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    duplicates: list[str] = []
+    for domain in domains:
+        if domain in seen:
+            duplicates.append(domain)
+            continue
+        seen.add(domain)
+        unique.append(domain)
+    return unique, duplicates
+
+
+def _register_existing_domain(
+    order: list[str],
+    mapping: dict[str, str | None],
+    domain: str,
+    company_name: str | None,
+) -> None:
+    if domain not in mapping:
+        order.append(domain)
+        mapping[domain] = company_name
+        return
+    if company_name and not mapping[domain]:
+        mapping[domain] = company_name
+
+
+def _build_existing_entries(
+    order: Sequence[str], mapping: dict[str, str | None]
+) -> list[RequestCompanyExistingEntry]:
+    entries: list[RequestCompanyExistingEntry] = []
+    for domain in order:
+        company_name = mapping.get(domain)
+        if company_name:
+            entries.append(
+                RequestCompanyExistingEntry(domain=domain, company_name=company_name)
+            )
+        else:
+            entries.append(RequestCompanyExistingEntry(domain=domain))
+    return entries
+
+
+async def _find_existing_company(
     call_v1_tool: CallV1Tool,
     ctx: Context,
     *,
     logger: BoundLogger,
-    domain_value: str,
-    selected_folder: str | None,
-) -> tuple[str | None, dict[str, Any | None] | None]:
-    if not selected_folder:
-        return None, None
+    domain: str,
+) -> str | None:
+    params = {"domain": domain}
+    try:
+        result = await call_v1_tool("companySearch", ctx, params)
+    except Exception as exc:  # pragma: no cover - diagnostics path
+        await ctx.warning(f"Company search failed for {domain}: {exc}")
+        log_event(
+            logger,
+            "company_request.company_search_failed",
+            level=logging.WARNING,
+            ctx=ctx,
+            domain=domain,
+            error=str(exc),
+        )
+        return None
 
-    folder_guid = await _resolve_folder_guid(call_v1_tool, ctx, selected_folder)
-    if folder_guid is not None:
-        return folder_guid, None
+    candidates: list[dict[str, Any]] = []
+    if isinstance(result, dict):
+        maybe_results = result.get("results")
+        if isinstance(maybe_results, list):
+            candidates = [cast(dict[str, Any], entry) for entry in maybe_results]
 
-    log_event(
-        logger,
-        "company_request.folder_unknown",
-        level=logging.WARNING,
-        ctx=ctx,
-        domain=domain_value,
-        folder=selected_folder,
-    )
-    return None, {
-        "error": (
-            f"Unknown folder '{selected_folder}'. Call `company_search_interactive` "
-            "to inspect available folders first."
-        ),
-    }
-
-
-def _existing_requests_response(
-    *,
-    logger: BoundLogger,
-    ctx: Context,
-    domain_value: str,
-    existing: list[dict[str, Any]],
-) -> RequestCompanyResponse:
-    log_event(
-        logger,
-        "company_request.already_requested",
-        ctx=ctx,
-        domain=domain_value,
-        existing_count=len(existing),
-    )
-    return RequestCompanyResponse(
-        status="already_requested",
-        domain=domain_value,
-        requests=existing,
-        guidance=RequestGuidance(
-            next_steps=(
-                "Monitor the existing request in BitSight or wait for fulfillment before retrying."
+    target = domain.lower()
+    for candidate in candidates:
+        primary = str(candidate.get("primary_domain") or "").lower()
+        if primary == target:
+            return str(
+                candidate.get("name") or candidate.get("primary_domain") or domain
             )
-        ),
-    )
+        candidate_domain = str(candidate.get("domain") or "").lower()
+        if candidate_domain == target:
+            return str(candidate.get("name") or candidate.get("domain") or domain)
+
+    return None
 
 
-def _build_bulk_payload(
-    domain_value: str,
-    company_name: str | None,
-    folder_guid: str | None,
-    subscription_type: str | None,
-) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "file": _serialize_bulk_csv(domain_value, company_name),
-    }
+def _build_bulk_payload(csv_body: str, folder_guid: str | None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"file": csv_body}
     if folder_guid:
         payload["folder_guid"] = folder_guid
-    if subscription_type:
-        payload["subscription_type"] = subscription_type
     return payload
 
 
-def _dry_run_response(
-    *,
-    logger: BoundLogger,
-    ctx: Context,
-    domain_value: str,
-    selected_folder: str | None,
-    subscription_type: str | None,
-    bulk_payload: dict[str, Any],
-) -> RequestCompanyResponse:
-    log_event(
-        logger,
-        "company_request.dry_run",
-        ctx=ctx,
-        domain=domain_value,
-        folder=selected_folder,
-        subscription_type=subscription_type,
-    )
-    return RequestCompanyResponse(
-        status="dry_run",
-        domain=domain_value,
-        folder=selected_folder,
-        payload=bulk_payload,
-        guidance=RequestGuidance(
-            confirmation=(
-                "Share the preview with the human operator before submitting the real request."
-            )
-        ),
-    )
-
-
-async def _submit_company_request(
-    call_v2_tool: CallV2Tool,
-    ctx: Context,
-    *,
-    logger: BoundLogger,
-    domain_value: str,
-    selected_folder: str | None,
-    subscription_type: str | None,
-    bulk_payload: dict[str, Any],
-) -> RequestCompanyResponse:
-    try:
-        result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
-        log_event(
-            logger,
-            "company_request.submitted_bulk",
-            ctx=ctx,
-            domain=domain_value,
-            folder=selected_folder,
-            subscription_type=subscription_type,
-        )
-        return RequestCompanyResponse(
-            status="submitted_v2_bulk",
-            domain=domain_value,
-            folder=selected_folder,
-            subscription_type=subscription_type,
-            result=result,
-        )
-    except Exception as exc:
-        log_event(
-            logger,
-            "company_request.bulk_failed",
-            level=logging.WARNING,
-            ctx=ctx,
-            domain=domain_value,
-            folder=selected_folder,
-            subscription_type=subscription_type,
-            error=str(exc),
-        )
-        payload = {"company_request": {"domain": domain_value}}
-        if subscription_type:
-            payload["company_request"]["subscription_type"] = subscription_type
-        result = await call_v2_tool("createCompanyRequest", ctx, payload)
-        log_event(
-            logger,
-            "company_request.submitted_single",
-            ctx=ctx,
-            domain=domain_value,
-            folder=selected_folder,
-            subscription_type=subscription_type,
-        )
-        return RequestCompanyResponse(
-            status="submitted_v2_single",
-            domain=domain_value,
-            folder=selected_folder,
-            subscription_type=subscription_type,
-            result=result,
-            warning=(
-                "The folder could not be specified via bulk API; adjust "
-                "subscriptions once the request is approved."
-            ),
-        )
-
-
-def register_request_company_tool(
+def register_request_company_tool(  # noqa: C901
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     call_v2_tool: CallV2Tool,
     *,
     logger: BoundLogger,
     default_folder: str | None,
+    default_folder_guid: str | None = None,
     default_type: str | None,
 ) -> FunctionTool:
-    async def request_company(
+    async def request_company(  # noqa: C901
         ctx: Context,
-        domain: str,
+        domains: str,
         *,
-        company_name: str | None = None,
         folder: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        """Submit a BitSight company onboarding request when an entity is missing."""
+        """Submit a BitSight company onboarding request for one or more domains."""
 
-        domain_value, error = _normalize_domain(domain, logger=logger, ctx=ctx)
+        submitted_domains, error = _parse_domain_csv(domains, logger=logger, ctx=ctx)
         if error:
-            # Pydantic models accept **kwargs, but mypy can't verify field names
-            return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
+            return RequestCompanyResponse(error=error["error"]).to_payload()
 
-        # After error check, domain_value is guaranteed to be non-None
-        assert domain_value is not None
-
+        unique_domains, duplicates = _deduplicate_domains(submitted_domains)
         selected_folder = folder or default_folder
-        folder_guid = None
+        folder_guid: str | None = None
+        folder_created = False
+        existing_order: list[str] = []
+        existing_mapping: dict[str, str | None] = {}
+        for duplicate in duplicates:
+            _register_existing_domain(existing_order, existing_mapping, duplicate, None)
+
         log_event(
             logger,
             "company_request.start",
             ctx=ctx,
-            domain=domain_value,
+            domains=submitted_domains,
             folder=selected_folder,
             dry_run=dry_run,
         )
-        folder_guid, error = await _resolve_folder_selection(
-            call_v1_tool,
-            ctx,
-            logger=logger,
-            domain_value=domain_value,
-            selected_folder=selected_folder,
-        )
-        if error:
-            # Pydantic models accept **kwargs, but mypy can't verify field names
-            return RequestCompanyResponse(**error).to_payload()  # type: ignore[arg-type]
 
-        existing = await _list_company_requests(call_v2_tool, ctx, domain_value)
-        if existing:
-            return _existing_requests_response(
+        if selected_folder:
+            if (
+                default_folder
+                and selected_folder == default_folder
+                and default_folder_guid
+            ):
+                folder_guid = default_folder_guid
+            else:
+                folder_result = await resolve_or_create_folder(
+                    call_v1_tool,
+                    ctx,
+                    logger=logger,
+                    folder_name=selected_folder,
+                    tool_name="request_company",
+                    allow_create=True,
+                )
+                if folder_result.error:
+                    return RequestCompanyResponse(
+                        error=folder_result.error,
+                        status="folder_error",
+                        submitted=submitted_domains,
+                        already_existing=_build_existing_entries(
+                            existing_order, existing_mapping
+                        ),
+                        folder=selected_folder,
+                    ).to_payload()
+                folder_guid = folder_result.guid
+                folder_created = folder_result.created
+
+        remaining_domains: list[str] = []
+        for domain_value in unique_domains:
+            company_name = await _find_existing_company(
+                call_v1_tool,
+                ctx,
                 logger=logger,
-                ctx=ctx,
-                domain_value=domain_value,
-                existing=existing,
-            ).to_payload()
+                domain=domain_value,
+            )
+            if company_name:
+                log_event(
+                    logger,
+                    "company_request.domain_exists",
+                    ctx=ctx,
+                    domain=domain_value,
+                    company_name=company_name,
+                )
+                _register_existing_domain(
+                    existing_order,
+                    existing_mapping,
+                    domain_value,
+                    company_name,
+                )
+                continue
+            remaining_domains.append(domain_value)
 
-        subscription_type = default_type
-
-        bulk_payload = _build_bulk_payload(
-            domain_value,
-            company_name,
-            folder_guid,
-            subscription_type,
-        )
+        csv_body = _serialize_bulk_csv(remaining_domains) if remaining_domains else ""
+        existing_entries = _build_existing_entries(existing_order, existing_mapping)
 
         if dry_run:
-            return _dry_run_response(
-                logger=logger,
-                ctx=ctx,
-                domain_value=domain_value,
-                selected_folder=selected_folder,
-                subscription_type=subscription_type,
-                bulk_payload=bulk_payload,
+            return RequestCompanyResponse(
+                status="dry_run",
+                submitted=submitted_domains,
+                already_existing=existing_entries,
+                successfully_requested=remaining_domains,
+                failed=[],
+                dry_run=True,
+                folder=selected_folder,
+                folder_guid=folder_guid,
+                folder_created=folder_created or None,
+                csv_preview=csv_body or None,
             ).to_payload()
 
-        response_model = await _submit_company_request(
-            call_v2_tool,
-            ctx,
-            logger=logger,
-            domain_value=domain_value,
-            selected_folder=selected_folder,
-            subscription_type=subscription_type,
-            bulk_payload=bulk_payload,
+        if not remaining_domains:
+            return RequestCompanyResponse(
+                status="already_existing",
+                submitted=submitted_domains,
+                already_existing=existing_entries,
+                successfully_requested=[],
+                failed=[],
+                folder=selected_folder,
+                folder_guid=folder_guid,
+                folder_created=folder_created or None,
+                guidance=RequestGuidance(
+                    next_steps=(
+                        "All provided domains already exist in BitSight or were duplicates."
+                    )
+                ),
+            ).to_payload()
+
+        bulk_payload = _build_bulk_payload(csv_body, folder_guid)
+        try:
+            result = await call_v2_tool("createCompanyRequestBulk", ctx, bulk_payload)
+        except Exception as exc:
+            log_event(
+                logger,
+                "company_request.bulk_failed",
+                level=logging.WARNING,
+                ctx=ctx,
+                domains=remaining_domains,
+                folder=selected_folder,
+                error=str(exc),
+            )
+            failed_entries = [
+                RequestCompanyFailedEntry(domain=domain, error=str(exc))
+                for domain in remaining_domains
+            ]
+            return RequestCompanyResponse(
+                error=str(exc),
+                status="failed",
+                submitted=submitted_domains,
+                already_existing=existing_entries,
+                successfully_requested=[],
+                failed=failed_entries,
+                folder=selected_folder,
+                folder_guid=folder_guid,
+                folder_created=folder_created or None,
+            ).to_payload()
+
+        log_event(
+            logger,
+            "company_request.submitted_bulk",
+            ctx=ctx,
+            domains=remaining_domains,
+            folder=selected_folder,
         )
-        return response_model.to_payload()
+        return RequestCompanyResponse(
+            status="submitted_v2_bulk",
+            submitted=submitted_domains,
+            already_existing=existing_entries,
+            successfully_requested=remaining_domains,
+            failed=[],
+            folder=selected_folder,
+            folder_guid=folder_guid,
+            folder_created=folder_created or None,
+            result=result,
+        ).to_payload()
 
     return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(
         request_company
@@ -1427,7 +1473,7 @@ def _build_subscription_payload(
     action: str,
     guids: Sequence[str],
     *,
-    folder: str | None,
+    folder_guid: str | None,
     subscription_type: str | None,
 ) -> dict[str, Any]:
     if action == "add":
@@ -1436,8 +1482,8 @@ def _build_subscription_payload(
             entry: dict[str, Any] = {"guid": guid}
             if subscription_type:
                 entry["type"] = subscription_type
-            if folder:
-                entry["folder"] = [folder]
+            if folder_guid:
+                entry["folder"] = [folder_guid]
             entries.append(entry)
         return {"add": entries}
     if action == "delete":
@@ -1503,6 +1549,8 @@ def _manage_subscriptions_dry_run_response(
     action: str,
     guids: Sequence[str],
     folder: str | None,
+    folder_guid: str | None,
+    folder_created: bool,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     return ManageSubscriptionsResponse(
@@ -1510,6 +1558,8 @@ def _manage_subscriptions_dry_run_response(
         action=action,
         guids=list(guids),
         folder=folder,
+        folder_guid=folder_guid,
+        folder_created=folder_created or None,
         payload=payload,
         guidance=ManageSubscriptionsGuidance(
             confirmation=(
@@ -1526,6 +1576,7 @@ def register_manage_subscriptions_tool(
     *,
     logger: BoundLogger,
     default_folder: str | None,
+    default_folder_guid: str | None = None,
     default_type: str | None,
 ) -> FunctionTool:
     async def manage_subscriptions(
@@ -1553,10 +1604,33 @@ def register_manage_subscriptions_tool(
             )
 
         target_folder = folder or default_folder
+        folder_guid: str | None = None
+        folder_created = False
+        if target_folder:
+            if (
+                default_folder
+                and target_folder == default_folder
+                and default_folder_guid
+            ):
+                folder_guid = default_folder_guid
+            else:
+                folder_result = await resolve_or_create_folder(
+                    call_v1_tool,
+                    ctx,
+                    logger=logger,
+                    folder_name=target_folder,
+                    tool_name="manage_subscriptions",
+                    allow_create=True,
+                )
+                if folder_result.error:
+                    return _manage_subscriptions_error(folder_result.error)
+                folder_guid = folder_result.guid
+                folder_created = folder_result.created
+
         payload = _build_subscription_payload(
             normalized_action,
             guid_list,
-            folder=target_folder,
+            folder_guid=folder_guid,
             subscription_type=default_type,
         )
 
@@ -1565,6 +1639,8 @@ def register_manage_subscriptions_tool(
                 action=normalized_action,
                 guids=guid_list,
                 folder=target_folder,
+                folder_guid=folder_guid,
+                folder_created=folder_created,
                 payload=payload,
             )
 
@@ -1598,6 +1674,8 @@ def register_manage_subscriptions_tool(
             action=normalized_action,
             guids=guid_list,
             folder=target_folder,
+            folder_guid=folder_guid,
+            folder_created=folder_created or None,
             summary=summary_model,
             guidance=ManageSubscriptionsGuidance(
                 next_steps=(
