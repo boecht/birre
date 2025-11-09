@@ -378,7 +378,8 @@ def test_short_circuit_request_company_paths() -> None:
 
 def test_serialize_and_build_bulk_payload() -> None:
     csv_body = risk_service._serialize_bulk_csv(["one.com", "two.com"])
-    assert csv_body.startswith("domain") and "one.com" in csv_body
+    csv_lines = csv_body.strip().splitlines()
+    assert csv_lines == ["domain", "one.com", "two.com"]
     payload = risk_service._build_bulk_payload(csv_body, "folder-1")
-    assert payload["file"].startswith("domain")
+    assert payload["file"].splitlines()[:3] == ["domain", "one.com", "two.com"]
     assert payload["folder_guid"] == "folder-1"
