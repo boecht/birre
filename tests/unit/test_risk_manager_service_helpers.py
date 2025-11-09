@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -17,13 +18,16 @@ class StubContext(Context):
         self.warnings: list[str] = []
         self.errors: list[str] = []
 
-    async def info(self, message: str) -> None:
+    async def info(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.infos.append(message)
 
-    async def warning(self, message: str) -> None:
+    async def warning(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.warnings.append(message)
 
-    async def error(self, message: str) -> None:
+    async def error(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.errors.append(message)
 
     @property
@@ -79,6 +83,9 @@ async def test_fetch_folder_memberships_success_and_failure() -> None:
     async def call_success(
         tool_name: str, _ctx: Context, params: dict[str, Any]
     ) -> list[dict[str, Any]]:
+        import asyncio
+
+        await asyncio.sleep(0)
         assert tool_name == "getFolders" and params == {}
         return [
             {"name": "Ops", "companies": ["guid-1", "extra"]},
@@ -169,6 +176,9 @@ async def test_bulk_subscribe_and_unsubscribe_paths() -> None:
     async def call_success(
         tool_name: str, _ctx: Context, params: dict[str, Any]
     ) -> dict[str, Any]:
+        import asyncio
+
+        await asyncio.sleep(0)
         payloads.append(params)
         return {"status": "ok"}
 
@@ -202,6 +212,9 @@ async def test_bulk_subscribe_and_unsubscribe_paths() -> None:
     async def call_delete(
         tool_name: str, _ctx: Context, params: dict[str, Any]
     ) -> dict[str, Any]:
+        import asyncio
+
+        await asyncio.sleep(0)
         delete_payloads.append(params)
         return {"status": "ok"}
 
@@ -305,12 +318,11 @@ async def test_partition_submitted_domains_marks_existing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def fake_find(
-        _call_v1_tool: Any,
-        _ctx: Any,
-        *,
-        logger: Any,
-        domain: str,
+        _call_v1_tool: Any, _ctx: Any, *, logger: Any, domain: str
     ) -> str | None:
+        import asyncio
+
+        await asyncio.sleep(0)
         return "Known" if domain == "existing.com" else None
 
     monkeypatch.setattr(risk_service, "_find_existing_company", fake_find)

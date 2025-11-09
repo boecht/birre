@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -16,13 +17,16 @@ class DummyContext:
         self.warnings: list[str] = []
         self.errors: list[str] = []
 
-    async def info(self, message: str) -> None:
+    async def info(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.infos.append(message)
 
-    async def warning(self, message: str) -> None:
+    async def warning(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.warnings.append(message)
 
-    async def error(self, message: str) -> None:
+    async def error(self, message: str) -> None:  # type: ignore[override]
+        await asyncio.sleep(0)
         self.errors.append(message)
 
 
@@ -82,8 +86,17 @@ class DummyClient:
         self.captured: list[tuple[str, dict[str, Any]]] = []
 
     async def post(
-        self, path: str, data: Any, files: Any, timeout: Any
+        self, path: str, data: Any, files: Any, **kwargs: Any
     ) -> DummyResponse:
+        """Minimal async stub matching only the parameters used by code under test.
+
+            Introduces a trivial await to satisfy async function linting without impacting behavior.
+        Accepts optional keyword arguments (e.g., timeout) for interface
+        compatibility; values are ignored.
+        """
+        import asyncio
+
+        await asyncio.sleep(0)
         self.captured.append((path, data))
         return self.response
 
