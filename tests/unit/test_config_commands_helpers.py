@@ -61,7 +61,8 @@ def test_collect_config_file_entries(monkeypatch, tmp_path: Path) -> None:
     assert entries["section.key"][1] == "local.toml"
 
 
-def test_build_cli_and_env_override_rows() -> None:
+def test_build_cli_and_env_override_rows(tmp_path: Path) -> None:
+    log_path = tmp_path / "log"
     invocation = CliInvocation(
         config_path=None,
         auth=AuthOverrides(api_key="secret"),
@@ -71,7 +72,7 @@ def test_build_cli_and_env_override_rows() -> None:
         logging=LoggingOverrides(
             level="DEBUG",
             format=None,
-            file_path="/tmp/log",
+            file_path=str(log_path),
             max_bytes=None,
             backup_count=None,
         ),
