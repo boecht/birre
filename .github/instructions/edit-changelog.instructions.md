@@ -35,8 +35,9 @@ This is the authoritative guidance for creating or editing `CHANGELOG.md`.
 
 1. Changelogs are for humans, not machines — write clearly and concisely.
 2. Focus on user benefits, not technical implementation — describe impact, not code changes.
-3. Breaking changes are normal — make them highly visible.
-4. Quality over backwards compatibility — don’t sugarcoat necessary changes.
+3. Highlight up to three changes with biggest functional or user impact  with `**TOP:**` prefix.
+4. Breaking changes are normal — make them highly visible with `**Breaking:**` prefix.
+5. Quality over backwards compatibility — don’t sugarcoat necessary changes.
 
 ## Format Standards
 
@@ -137,6 +138,10 @@ Examples of imperative verbs to use:
 
 - Good: “Resolve authentication failures when API key contains special characters”
 - Bad: “Fix issue #123” or “Implement TD-003”
+
+### Changes with biggest functional or user impact (Required Format)
+
+Prefix with `**TOP:**` and place first under Added or Changed.
 
 ### Breaking Changes (Required Format)
 
