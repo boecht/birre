@@ -23,15 +23,12 @@ repos:
         exclude: "^docs/apis/"
       - id: end-of-file-fixer
         exclude: "^docs/apis/"
-      - id: check-yaml
-      - id: check-json
-        exclude: "^docs/apis/"
       - id: check-toml
 
   - repo: local
     hooks:
-      - id: mega-linter-docker
-        name: MegaLinter (Docker)
+      - id: mega-linter
+        name: run MegaLinter (Docker)
         entry: bash
         language: system
         args:

@@ -5,8 +5,8 @@ EXTENDS: .mega-linter.yml
 DISABLE_LINTERS:
   - REPOSITORY_SYFT
 
-# uncomment and stage this file to auto-fix with ruff
-# PYTHON_RUFF_ARGUMENTS: "--fix"
+# uncomment and stage this file to fix issues automatically
+# APPLY_FIXES: all
 
 # shotgun-approach to disable CI-only reporters locally
 AZURE_COMMENT_REPORTER: false
