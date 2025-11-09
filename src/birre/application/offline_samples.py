@@ -24,13 +24,13 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                 "name": "GitHub Company",
                 "industry": "Technology",
                 "industry_slug": "technology",
-                "primary_domain": "github.com",
+                "primary_domain": "github.com",  # NOSONAR
                 "description": (
                     "GitHub Company holds the companies that form the collective, "
                     "including npm, Inc. and GitHub, Inc. The company is "
                     "headquartered in San Francisco, California."
                 ),
-                "website": "http://www.github.com",
+                "website": "http://www.github.com",  # NOSONAR
             },
             {
                 "guid": "e90b389b-0b7e-4722-9411-97d81c8e2bc6",
@@ -44,7 +44,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "software. The company was founded in 2008 and is "
                     "headquartered in San Francisco, California."
                 ),
-                "website": "http://www.github.com",
+                "website": "http://www.github.com",  # NOSONAR
             },
             {
                 "guid": "a3b69f2e-ec1b-491e-adc9-e228cbd964a8",
@@ -56,7 +56,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "GitHub Blog provides information on GitHub repositories. The "
                     "company is headquartered in San Francisco, California."
                 ),
-                "website": "http://www.atom.io",
+                "website": "http://www.atom.io",  # NOSONAR
             },
             {
                 "guid": "fc5b5fed-6d74-479d-8257-29439e635a71",
@@ -69,7 +69,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "issues and labels. The company is headquartered in "
                     "Mochengladbach, Germany."
                 ),
-                "website": "http://githubnotionsync.com",
+                "website": "http://githubnotionsync.com",  # NOSONAR
             },
             {
                 "guid": "b6e60e88-dd18-447b-afe7-0951ba952b87",
@@ -78,7 +78,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                 "industry_slug": "technology",
                 "primary_domain": "winauth.github.io",
                 "description": "WinAuth is a portable open-source authenticator for Windows.",
-                "website": "http://winauth.github.io",
+                "website": "http://winauth.github.io",  # NOSONAR
             },
         ],
     },
@@ -100,7 +100,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "including npm, Inc. and GitHub, Inc. The company is "
                     "headquartered in San Francisco, California."
                 ),
-                "website": "http://www.github.com",
+                "website": "http://www.github.com",  # NOSONAR
             },
             {
                 "guid": "e90b389b-0b7e-4722-9411-97d81c8e2bc6",
@@ -114,7 +114,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "software. The company was founded in 2008 and is "
                     "headquartered in San Francisco, California."
                 ),
-                "website": "http://www.github.com",
+                "website": "http://www.github.com",  # NOSONAR
             },
             {
                 "guid": "5ebe8c20-0235-4300-82cb-2e0d6a5174af",
@@ -128,7 +128,7 @@ COMPANY_SEARCH_SAMPLE_PAYLOADS: dict[str, dict] = {
                     "Company, LinkedIn Group of Companies, and Microsoft "
                     "Corporation. The group is headquartered in Redmond, Washington."
                 ),
-                "website": "http://www.microsoft.com",
+                "website": "http://www.microsoft.com",  # NOSONAR
             },
         ],
     },
