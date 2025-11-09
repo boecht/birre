@@ -69,7 +69,34 @@ def _build_invocation(**overrides):
         "profile_path": None,
     }
     defaults.update(overrides)
-    return cli_invocation.build_invocation(**defaults)
+    return cli_invocation.build_invocation(
+        context_choices=defaults["context_choices"],
+        config_path=defaults["config_path"],
+        auth=cli_invocation.AuthCliInputs(api_key=defaults["api_key"]),
+        subscription=cli_invocation.SubscriptionCliInputs(
+            folder=defaults["subscription_folder"],
+            type=defaults["subscription_type"],
+        ),
+        runtime=cli_invocation.RuntimeCliInputs(
+            context=defaults["context"],
+            debug=defaults["debug"],
+            risk_vector_filter=defaults["risk_vector_filter"],
+            max_findings=defaults["max_findings"],
+            skip_startup_checks=defaults["skip_startup_checks"],
+        ),
+        tls=cli_invocation.TlsCliInputs(
+            allow_insecure_tls=defaults["allow_insecure_tls"],
+            ca_bundle=defaults["ca_bundle"],
+        ),
+        logging=cli_invocation.LoggingCliInputs(
+            level=defaults["log_level"],
+            format=defaults["log_format"],
+            file_path=defaults["log_file"],
+            max_bytes=defaults["log_max_bytes"],
+            backup_count=defaults["log_backup_count"],
+        ),
+        profile_path=defaults["profile_path"],
+    )
 
 
 def test_main_exits_when_offline_checks_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -732,20 +759,25 @@ def test_selftest_passes_shared_options_to_build_invocation(
         f"build_invocation not called or not captured. Keys: {list(captured.keys())}"
     )
     assert captured["config_path"] == "custom.toml"
-    assert captured["api_key"] == "abc"
-    assert captured["subscription_folder"] == "folder"
-    assert captured["subscription_type"] == "continuous_monitoring"
-    assert captured["debug"] is True
-    assert captured["allow_insecure_tls"] is True
-    assert captured["ca_bundle"] == "bundle.pem"
-    assert captured["risk_vector_filter"] == "botnet"
-    assert captured["max_findings"] == 5
-    assert captured["log_level"] == "DEBUG"
-    assert captured["log_format"] == "json"
-    assert captured["log_file"] == "logs/app.log"
-    assert captured["log_max_bytes"] == 1024
-    assert captured["log_backup_count"] == 3
-    assert captured["skip_startup_checks"] is False
+    auth_inputs = captured["auth"]
+    assert auth_inputs.api_key == "abc"
+    subscription_inputs = captured["subscription"]
+    assert subscription_inputs.folder == "folder"
+    assert subscription_inputs.type == "continuous_monitoring"
+    runtime_inputs = captured["runtime"]
+    assert runtime_inputs.debug is True
+    assert runtime_inputs.risk_vector_filter == "botnet"
+    assert runtime_inputs.max_findings == 5
+    assert runtime_inputs.skip_startup_checks is False
+    tls_inputs = captured["tls"]
+    assert tls_inputs.allow_insecure_tls is True
+    assert tls_inputs.ca_bundle == "bundle.pem"
+    logging_inputs = captured["logging"]
+    assert logging_inputs.level == "DEBUG"
+    assert logging_inputs.format == "json"
+    assert logging_inputs.file_path == "logs/app.log"
+    assert logging_inputs.max_bytes == 1024
+    assert logging_inputs.backup_count == 3
 
 
 def test_selftest_uses_environment_config_path(

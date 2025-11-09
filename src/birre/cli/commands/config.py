@@ -23,7 +23,15 @@ from birre.cli.formatting import (
     flatten_to_dotted,
     format_config_value,
 )
-from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import (
+    AuthCliInputs,
+    LoggingCliInputs,
+    RuntimeCliInputs,
+    SubscriptionCliInputs,
+    TlsCliInputs,
+    build_invocation,
+    resolve_runtime_and_logging,
+)
 from birre.cli.models import CliInvocation
 from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import parse_toml_file, require_file_exists
@@ -797,22 +805,30 @@ def register(
         """Display configuration files, overrides, and effective values."""
         invocation = build_invocation(
             config_path=str(config) if config is not None else None,
-            api_key=bitsight_api_key,
-            subscription_folder=subscription_folder,
-            subscription_type=subscription_type,
-            context=context,
             context_choices=CONTEXT_CHOICES,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=None,
-            allow_insecure_tls=allow_insecure_tls,
-            ca_bundle=ca_bundle,
-            log_level=log_level,
-            log_format=log_format,
-            log_file=log_file,
-            log_max_bytes=log_max_bytes,
-            log_backup_count=log_backup_count,
+            auth=AuthCliInputs(api_key=bitsight_api_key),
+            subscription=SubscriptionCliInputs(
+                folder=subscription_folder,
+                type=subscription_type,
+            ),
+            runtime=RuntimeCliInputs(
+                context=context,
+                debug=debug,
+                risk_vector_filter=risk_vector_filter,
+                max_findings=max_findings,
+                skip_startup_checks=None,
+            ),
+            tls=TlsCliInputs(
+                allow_insecure_tls=allow_insecure_tls,
+                ca_bundle=ca_bundle,
+            ),
+            logging=LoggingCliInputs(
+                level=log_level,
+                format=log_format,
+                file_path=log_file,
+                max_bytes=log_max_bytes,
+                backup_count=log_backup_count,
+            ),
         )
         _cmd_config_show(config, invocation, stdout_console)
 

@@ -211,7 +211,6 @@ async def test_request_company_filters_existing_and_submits_remaining() -> None:
         call_v2,
         logger=logger,
         default_folder="API",
-        default_type="continuous_monitoring",
     )
 
     ctx = FakeContext()
@@ -268,7 +267,6 @@ async def test_request_company_dry_run_returns_preview() -> None:
         call_v2,
         logger=logger,
         default_folder="API",
-        default_type="continuous_monitoring",
     )
 
     ctx = FakeContext()
@@ -311,7 +309,6 @@ async def test_request_company_auto_creates_folder_when_missing() -> None:
         call_v2,
         logger=logger,
         default_folder=None,
-        default_type="continuous_monitoring",
     )
 
     ctx = FakeContext()

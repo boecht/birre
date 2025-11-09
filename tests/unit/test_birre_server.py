@@ -299,10 +299,8 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     def capture_manage(server, call_v1_tool, *, logger, default_folder, default_type):
         captures.setdefault("manage", []).append((default_folder, default_type))
 
-    def capture_request(
-        server, call_v1_tool, call_v2_tool, *, logger, default_folder, default_type
-    ):
-        captures.setdefault("request", []).append((default_folder, default_type))
+    def capture_request(server, call_v1_tool, call_v2_tool, *, logger, default_folder):
+        captures.setdefault("request", []).append(default_folder)
 
     monkeypatch.setattr(
         risk_manager, "register_company_search_interactive_tool", capture_interactive
@@ -367,7 +365,7 @@ async def test_create_birre_server_risk_manager_context(monkeypatch, logger):
     assert captures["search"] == [server]
     assert captures["interactive"] == [("folder", "type", 7)]
     assert captures["manage"] == [("folder", "type")]
-    assert captures["request"] == [("folder", "type")]
+    assert captures["request"] == ["folder"]
 
     assert scheduled == [
         (("key", True, v1_server), EXPECTED_V1_KEEP),

@@ -10,7 +10,11 @@ import typer
 from rich.console import Console
 
 from birre.cli import options as cli_options
-from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import (
+    LoggingCliInputs,
+    build_invocation,
+    resolve_runtime_and_logging,
+)
 from birre.cli.models import CliInvocation, LogViewLine
 from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import validate_path_exists
@@ -47,22 +51,14 @@ def _resolve_logging_settings_from_cli(
     """Resolve logging settings from CLI parameters."""
     invocation = build_invocation(
         config_path=str(config_path) if config_path is not None else None,
-        api_key=None,
-        subscription_folder=None,
-        subscription_type=None,
-        context=None,
         context_choices=CONTEXT_CHOICES,
-        debug=None,
-        risk_vector_filter=None,
-        max_findings=None,
-        skip_startup_checks=None,
-        allow_insecure_tls=None,
-        ca_bundle=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
+        logging=LoggingCliInputs(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
     )
     _, logging_settings, _ = resolve_runtime_and_logging(invocation)
     return invocation, logging_settings

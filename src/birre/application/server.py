@@ -226,7 +226,6 @@ def _configure_risk_manager_tools(
         logger=logger,
         default_folder=default_folder,
         default_folder_guid=settings.subscription_folder_guid,
-        default_type=default_type,
     )
 
 

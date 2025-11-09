@@ -256,6 +256,27 @@ async def _validate_subscription_quota(
     return True
 
 
+async def _ensure_api_connectivity(
+    call_v1_tool: CallV1ToolFn | None,
+    ctx: ToolLoggingContext,
+    logger: BoundLogger,
+) -> bool:
+    if call_v1_tool is None:
+        logger.critical("online.api_connectivity.unavailable")
+        return False
+
+    connectivity_issue = await _check_api_connectivity(call_v1_tool, ctx)
+    if connectivity_issue is not None:
+        logger.critical(
+            "online.api_connectivity.failed",
+            issue=connectivity_issue,
+        )
+        return False
+
+    logger.info("online.api_connectivity.success")
+    return True
+
+
 async def run_online_startup_checks(
     *,
     call_v1_tool: CallV1ToolFn,
@@ -271,35 +292,44 @@ async def run_online_startup_checks(
         )
         return OnlineStartupResult(success=True)
 
-    if call_v1_tool is None:
-        logger.critical("online.api_connectivity.unavailable")
-        return OnlineStartupResult(success=False)
-
     ctx = _StartupCheckContext(logger)
 
-    connectivity_issue = await _check_api_connectivity(call_v1_tool, ctx)
-    if connectivity_issue is not None:
-        logger.critical(
-            "online.api_connectivity.failed",
-            issue=connectivity_issue,
-        )
+    success, folder_guid = await _perform_online_validations(
+        call_v1_tool,
+        ctx,
+        logger,
+        subscription_folder,
+        subscription_type,
+    )
+    if not success:
         return OnlineStartupResult(success=False)
 
-    logger.info("online.api_connectivity.success")
+    ctx.subscription_folder_guid = folder_guid
+    return OnlineStartupResult(success=True, subscription_folder_guid=folder_guid)
+
+
+async def _perform_online_validations(
+    call_v1_tool: CallV1ToolFn,
+    ctx: _StartupCheckContext,
+    logger: BoundLogger,
+    subscription_folder: str | None,
+    subscription_type: str | None,
+) -> tuple[bool, str | None]:
+    if not await _ensure_api_connectivity(call_v1_tool, ctx, logger):
+        return False, None
 
     folder_ok, folder_guid = await _validate_subscription_folder(
         call_v1_tool, ctx, subscription_folder, logger
     )
     if not folder_ok:
-        return OnlineStartupResult(success=False)
-    ctx.subscription_folder_guid = folder_guid
+        return False, None
 
     if not await _validate_subscription_quota(
         call_v1_tool, ctx, subscription_type, logger
     ):
-        return OnlineStartupResult(success=False)
+        return False, folder_guid
 
-    return OnlineStartupResult(success=True, subscription_folder_guid=folder_guid)
+    return True, folder_guid
 
 
 __all__ = ["run_offline_startup_checks", "run_online_startup_checks"]
