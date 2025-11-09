@@ -57,22 +57,37 @@ def register(
     ) -> None:
         """Execute BiRRe diagnostics and optional online checks."""
 
+        auth_inputs = AuthCliInputs(api_key=bitsight_api_key)
+        subscription_inputs = SubscriptionCliInputs(
+            folder=subscription_folder,
+            type=subscription_type,
+        )
+        runtime_inputs = RuntimeCliInputs(
+            context=None,
+            debug=debug,
+            risk_vector_filter=risk_vector_filter,
+            max_findings=max_findings,
+            skip_startup_checks=bool(offline),
+        )
+        tls_inputs = TlsCliInputs(
+            allow_insecure_tls=allow_insecure_tls,
+            ca_bundle=ca_bundle,
+        )
+        logging_inputs = LoggingCliInputs(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        )
+
         invocation = _build_selftest_invocation(
-            config,
-            bitsight_api_key,
-            subscription_folder,
-            subscription_type,
-            debug,
-            allow_insecure_tls,
-            ca_bundle,
-            risk_vector_filter,
-            max_findings,
-            log_level,
-            log_format,
-            log_file,
-            log_max_bytes,
-            log_backup_count,
-            offline,
+            config=config,
+            auth_inputs=auth_inputs,
+            subscription_inputs=subscription_inputs,
+            runtime_inputs=runtime_inputs,
+            tls_inputs=tls_inputs,
+            logging_inputs=logging_inputs,
         )
 
         runtime_settings, logging_settings, _ = resolve_runtime_and_logging(invocation)
@@ -120,48 +135,22 @@ def register(
 
 
 def _build_selftest_invocation(
+    *,
     config: Path,
-    api_key: str | None,
-    subscription_folder: str | None,
-    subscription_type: str | None,
-    debug: bool | None,
-    allow_insecure_tls: bool | None,
-    ca_bundle: str | None,
-    risk_vector_filter: str | None,
-    max_findings: int | None,
-    log_level: str | None,
-    log_format: str | None,
-    log_file: str | None,
-    log_max_bytes: int | None,
-    log_backup_count: int | None,
-    offline: bool,
+    auth_inputs: AuthCliInputs,
+    subscription_inputs: SubscriptionCliInputs,
+    runtime_inputs: RuntimeCliInputs,
+    tls_inputs: TlsCliInputs,
+    logging_inputs: LoggingCliInputs,
 ) -> Any:
     return build_invocation(
         context_choices=CONTEXT_CHOICES,
         config_path=str(config) if config is not None else None,
-        auth=AuthCliInputs(api_key=api_key),
-        subscription=SubscriptionCliInputs(
-            folder=subscription_folder,
-            type=subscription_type,
-        ),
-        runtime=RuntimeCliInputs(
-            context=None,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=bool(offline),
-        ),
-        tls=TlsCliInputs(
-            allow_insecure_tls=allow_insecure_tls,
-            ca_bundle=ca_bundle,
-        ),
-        logging=LoggingCliInputs(
-            level=log_level,
-            format=log_format,
-            file_path=log_file,
-            max_bytes=log_max_bytes,
-            backup_count=log_backup_count,
-        ),
+        auth=auth_inputs,
+        subscription=subscription_inputs,
+        runtime=runtime_inputs,
+        tls=tls_inputs,
+        logging=logging_inputs,
     )
 
 

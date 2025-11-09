@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from birre.application.diagnostics import (
     EXPECTED_TOOLS_BY_CONTEXT,
@@ -147,7 +147,10 @@ class SelfTestRunner:
                 report=report,
             )
 
-        context_settings = replace(self._base_runtime_settings, context=context_name)
+        context_settings = cast(
+            RuntimeSettings,
+            replace(self._base_runtime_settings, context=context_name),
+        )
         effective_settings, notes, degraded = self._resolve_ca_bundle(
             logger, context_settings
         )

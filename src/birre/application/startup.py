@@ -125,6 +125,30 @@ async def _check_api_connectivity(
         return f"{exc.__class__.__name__}: {exc}"
 
 
+def _folder_entries_from_response(raw: Any) -> Any:
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        return raw.get("results") or raw.get("folders") or []
+    return []
+
+
+def _collect_folder_catalog(entries: Any) -> tuple[list[str], dict[str, str]]:
+    folders: list[str] = []
+    guid_lookup: dict[str, str] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str):
+            continue
+        folders.append(name)
+        guid_value = entry.get("guid")
+        if isinstance(guid_value, str) and guid_value:
+            guid_lookup[name] = guid_value
+    return folders, guid_lookup
+
+
 async def _check_subscription_folder(
     call_v1_tool: CallV1ToolFn, ctx: ToolLoggingContext, folder: str
 ) -> tuple[str | None, str | None]:
@@ -135,21 +159,8 @@ async def _check_subscription_folder(
     except Exception as exc:
         return f"Failed to query folders: {exc.__class__.__name__}: {exc}", None
 
-    folders: list[str] = []
-    guid_lookup: dict[str, str] = {}
-    if isinstance(raw, list):
-        iterable = raw
-    elif isinstance(raw, dict):
-        iterable = raw.get("results") or raw.get("folders") or []
-    else:
-        iterable = []
-
-    for entry in iterable:
-        if isinstance(entry, dict) and isinstance(entry.get("name"), str):
-            folders.append(entry["name"])
-            guid_value = entry.get("guid")
-            if isinstance(guid_value, str) and guid_value:
-                guid_lookup[entry["name"]] = guid_value
+    iterable = _folder_entries_from_response(raw)
+    folders, guid_lookup = _collect_folder_catalog(iterable)
 
     raw = None  # free response
 
