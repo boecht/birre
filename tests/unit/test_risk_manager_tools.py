@@ -335,13 +335,14 @@ async def test_request_company_dry_run_reports_missing_folder() -> None:
     logger = get_logger("test.request_company")
     server = FastMCP(name="TestServer")
 
+    def _no_create(_: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("should not create")
+
     call_v1 = BridgeStub(
         {
             "companySearch": lambda _: {"results": []},
             "getFolders": lambda _: [],
-            "createFolder": lambda _: (_ for _ in ()).throw(
-                RuntimeError("should not create")
-            ),
+            "createFolder": _no_create,
         }
     )
     call_v2 = BridgeStub({})
