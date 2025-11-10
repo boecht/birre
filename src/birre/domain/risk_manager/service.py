@@ -1194,20 +1194,21 @@ def _serialize_bulk_csv(domains: Sequence[str]) -> str:
     return buffer.getvalue()
 
 
-def _parse_domain_csv(
-    domains: str,
+def _parse_domain_string(
+    comma_separated_domains: str,
     *,
     logger: BoundLogger,
     ctx: Context,
 ) -> tuple[list[str], dict[str, Any | None] | None]:
-    raw_value = (domains or "").strip()
+    """Parse the CLI comma-separated domain list (not a CSV file)."""
+    raw_value = (comma_separated_domains or "").strip()
     if not raw_value:
         log_event(
             logger,
             "company_request.invalid_domain_input",
             level=logging.WARNING,
             ctx=ctx,
-            domains=domains,
+            domains=comma_separated_domains,
         )
         return [], {"error": "Provide at least one domain"}
 
@@ -1218,7 +1219,7 @@ def _parse_domain_csv(
             "company_request.invalid_domain_input",
             level=logging.WARNING,
             ctx=ctx,
-            domains=domains,
+            domains=comma_separated_domains,
         )
         return [], {"error": "Provide at least one valid domain"}
 
@@ -1303,7 +1304,7 @@ async def _initialize_request_company_state(
     ctx: Context,
     logger: BoundLogger,
 ) -> tuple[RequestCompanyState | None, dict[str, Any] | None]:
-    submitted_domains, error = _parse_domain_csv(domains, logger=logger, ctx=ctx)
+    submitted_domains, error = _parse_domain_string(domains, logger=logger, ctx=ctx)
     if error:
         return (
             None,

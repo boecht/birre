@@ -285,13 +285,13 @@ def test_subscription_payload_and_validation_errors() -> None:
     assert action == "delete" and guids == ["g1"] and validation_error is None
 
 
-def test_parse_domain_csv_and_deduplicate() -> None:
+def test_parse_domain_string_and_deduplicate() -> None:
     logger = get_logger("test.request")
     ctx = StubContext()
-    _, error = risk_service._parse_domain_csv(" ", logger=logger, ctx=ctx)
+    _, error = risk_service._parse_domain_string(" ", logger=logger, ctx=ctx)
     assert error and "Provide at least one" in error["error"]
 
-    tokens, error = risk_service._parse_domain_csv(
+    tokens, error = risk_service._parse_domain_string(
         "Example.com, example.com , new.io", logger=logger, ctx=ctx
     )
     assert error is None
