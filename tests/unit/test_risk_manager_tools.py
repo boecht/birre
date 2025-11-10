@@ -172,12 +172,13 @@ async def test_manage_subscriptions_dry_run_reports_missing_folder() -> None:
     logger = get_logger("test.manage_subscriptions")
     server = FastMCP(name="TestServer")
 
+    def _forbid_create(_: dict[str, Any]) -> dict[str, Any]:
+        raise AssertionError("createFolder should not be called during dry run")
+
     call_v1 = BridgeStub(
         {
             "getFolders": lambda _: [],
-            "createFolder": lambda _: (_ for _ in ()).throw(
-                AssertionError("createFolder should not be called during dry run")
-            ),
+            "createFolder": _forbid_create,
         }
     )
 

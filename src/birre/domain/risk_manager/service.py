@@ -190,6 +190,18 @@ MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: dict[str, Any] = (
 )
 
 
+@dataclass
+class RequestCompanyState:
+    submitted_domains: list[str]
+    remaining_domains: list[str]
+    existing_entries: list[RequestCompanyExistingEntry]
+    selected_folder: str | None
+    folder_guid: str | None
+    folder_created: bool
+    folder_pending_reason: str | None
+    csv_body: str
+
+
 @dataclass(frozen=True)
 class CompanySearchInputs:
     name: str | None
@@ -1273,6 +1285,65 @@ def _build_existing_entries(
     return entries
 
 
+async def _initialize_request_company_state(
+    domains: str,
+    *,
+    folder: str | None,
+    default_folder: str | None,
+    default_folder_guid: str | None,
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    logger: BoundLogger,
+) -> tuple[RequestCompanyState | None, dict[str, Any] | None]:
+    submitted_domains, error = _parse_domain_csv(domains, logger=logger, ctx=ctx)
+    if error:
+        return (
+            None,
+            RequestCompanyResponse(error=error["error"]).to_payload(),
+        )
+
+    unique_domains, duplicates = _deduplicate_domains(submitted_domains)
+    existing_order: list[str] = []
+    existing_mapping: dict[str, str | None] = {}
+    for duplicate in duplicates:
+        _register_existing_domain(existing_order, existing_mapping, duplicate, None)
+
+    selected_folder = folder or default_folder
+    folder_guid: str | None = None
+    folder_created = False
+    if (
+        selected_folder
+        and default_folder
+        and selected_folder == default_folder
+        and default_folder_guid
+    ):
+        folder_guid = default_folder_guid
+
+    remaining_domains = await _partition_submitted_domains(
+        unique_domains,
+        call_v1_tool=call_v1_tool,
+        ctx=ctx,
+        logger=logger,
+        existing_order=existing_order,
+        existing_mapping=existing_mapping,
+    )
+
+    existing_entries = _build_existing_entries(existing_order, existing_mapping)
+    csv_body = _serialize_bulk_csv(remaining_domains) if remaining_domains else ""
+
+    state = RequestCompanyState(
+        submitted_domains=list(submitted_domains),
+        remaining_domains=remaining_domains,
+        existing_entries=existing_entries,
+        selected_folder=selected_folder,
+        folder_guid=folder_guid,
+        folder_created=folder_created,
+        folder_pending_reason=None,
+        csv_body=csv_body,
+    )
+    return state, None
+
+
 async def _find_existing_company(
     call_v1_tool: CallV1Tool,
     ctx: Context,
@@ -1490,6 +1561,24 @@ def _short_circuit_request_company(
     return None
 
 
+def _short_circuit_request_company_state(
+    state: RequestCompanyState,
+    *,
+    dry_run: bool,
+) -> dict[str, Any] | None:
+    return _short_circuit_request_company(
+        dry_run=dry_run,
+        submitted_domains=state.submitted_domains,
+        existing_entries=state.existing_entries,
+        remaining_domains=state.remaining_domains,
+        selected_folder=state.selected_folder,
+        folder_guid=state.folder_guid,
+        folder_created=state.folder_created,
+        csv_body=state.csv_body,
+        folder_pending_reason=state.folder_pending_reason,
+    )
+
+
 async def _submit_request_company_bulk(
     call_v2_tool: CallV2Tool,
     ctx: Context,
@@ -1542,6 +1631,54 @@ async def _submit_request_company_bulk(
     return result, None
 
 
+async def _maybe_resolve_request_company_folder(
+    state: RequestCompanyState,
+    *,
+    dry_run: bool,
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    logger: BoundLogger,
+    default_folder: str | None,
+    default_folder_guid: str | None,
+) -> dict[str, Any] | None:
+    needs_folder = (
+        state.selected_folder
+        and state.remaining_domains
+        and not state.folder_guid
+        and not (
+            default_folder
+            and state.selected_folder == default_folder
+            and default_folder_guid
+        )
+    )
+    if not needs_folder:
+        return None
+
+    (
+        folder_guid,
+        folder_created,
+        folder_error,
+        folder_pending_reason,
+    ) = await _resolve_request_company_folder(
+        call_v1_tool,
+        ctx,
+        logger=logger,
+        selected_folder=state.selected_folder,
+        default_folder=default_folder,
+        default_folder_guid=default_folder_guid,
+        submitted_domains=state.submitted_domains,
+        existing_entries=state.existing_entries,
+        allow_create=not dry_run,
+    )
+    if folder_error is not None:
+        return folder_error
+
+    state.folder_guid = folder_guid
+    state.folder_created = folder_created
+    state.folder_pending_reason = folder_pending_reason
+    return None
+
+
 def _build_bulk_payload(csv_body: str, folder_guid: str | None) -> dict[str, Any]:
     payload: dict[str, Any] = {"file": csv_body}
     if folder_guid:
@@ -1549,7 +1686,7 @@ def _build_bulk_payload(csv_body: str, folder_guid: str | None) -> dict[str, Any
     return payload
 
 
-def register_request_company_tool(  # noqa: C901
+def register_request_company_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
     call_v2_tool: CallV2Tool,
@@ -1558,147 +1695,60 @@ def register_request_company_tool(  # noqa: C901
     default_folder: str | None,
     default_folder_guid: str | None = None,
 ) -> FunctionTool:
-    async def request_company(  # noqa: C901
+    async def request_company(
         ctx: Context,
         domains: str,
         *,
         folder: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        """Submit BitSight onboarding requests for one or more domains.
+        "Submit BitSight onboarding requests for one or more domains."
 
-        Parameters
-        - domains: Comma-separated list of domains to request (case-insensitive).
-        - folder: Optional folder name to target; defaults to risk-manager config.
-        - dry_run: When True, validate and produce the payload without submitting.
-
-        Returns
-        - RequestCompanyResponse payload:
-            {"status": str, "submitted": [...], "successfully_requested": [...],
-            "already_existing": [...], "failed": [...], "folder": str | None,
-            "folder_guid": str | None, "folder_created": bool | None,
-            "result": Any} or {"error": str}
-
-        Output semantics
-        - status: "dry_run", "already_existing", or "submitted_v2_bulk".
-        - submitted: Original normalized domain list (lower-cased strings).
-        - successfully_requested: Domains accepted by BitSight during this run.
-        - already_existing: Domains already onboarded along with reason text.
-        - failed: Domains rejected by BitSight with error information.
-        - folder / folder_guid / folder_created: Where the subscription will live.
-        - result: Raw BitSight API echo for auditing (CSV metadata or v2 response).
-        - error: Present when validation or API submission fails.
-
-        Notes
-        - Input domains are trimmed, deduplicated, and checked for basic validity.
-        - When every domain already exists, `status` is "already_existing" and no
-            new submission occurs.
-        - `dry_run=True` returns the CSV payload and classifications without
-            calling BitSight, allowing review before sending.
-        - Analysts may explicitly request this automated flow; use
-            `company_search_interactive` when they prefer a conversational review.
-
-        Example
-        >>> request_company(domains="acme.com,example.org", folder="Ops")
-        {
-            "status": "submitted_v2_bulk",
-            "submitted": ["acme.com", "example.org"],
-            "successfully_requested": ["acme.com"],
-            "already_existing": [{"domain": "example.org", "reason": "In portfolio"}],
-            "failed": [],
-            "folder": "Ops",
-            "folder_guid": "folder-123",
-            "folder_created": False,
-            "result": {"ticket": "REQ-42"}
-        }
-        """
-
-        submitted_domains, error = _parse_domain_csv(domains, logger=logger, ctx=ctx)
-        if error:
-            return RequestCompanyResponse(error=error["error"]).to_payload()
-
-        unique_domains, duplicates = _deduplicate_domains(submitted_domains)
-        selected_folder = folder or default_folder
-        folder_guid: str | None = None
-        folder_created = False
-        folder_pending_reason: str | None = None
-        existing_order: list[str] = []
-        existing_mapping: dict[str, str | None] = {}
-        for duplicate in duplicates:
-            _register_existing_domain(existing_order, existing_mapping, duplicate, None)
+        state, error_response = await _initialize_request_company_state(
+            domains,
+            folder=folder,
+            default_folder=default_folder,
+            default_folder_guid=default_folder_guid,
+            call_v1_tool=call_v1_tool,
+            ctx=ctx,
+            logger=logger,
+        )
+        if error_response is not None or state is None:
+            return error_response  # type: ignore[return-value]
 
         log_event(
             logger,
             "company_request.start",
             ctx=ctx,
-            domains=submitted_domains,
-            folder=selected_folder,
+            domains=state.submitted_domains,
+            folder=state.selected_folder,
             dry_run=dry_run,
         )
 
-        selected_folder = folder or default_folder
-        folder_guid: str | None = None
-        folder_created = False
-        if (
-            selected_folder
-            and default_folder
-            and selected_folder == default_folder
-            and default_folder_guid
-        ):
-            folder_guid = default_folder_guid
+        needs_folder_for_dry_run = (
+            dry_run
+            and state.remaining_domains
+            and state.selected_folder
+            and not state.folder_guid
+        )
+        if not needs_folder_for_dry_run:
+            short_circuit = _short_circuit_request_company_state(state, dry_run=dry_run)
+            if short_circuit is not None:
+                return short_circuit
 
-        remaining_domains = await _partition_submitted_domains(
-            unique_domains,
+        folder_error = await _maybe_resolve_request_company_folder(
+            state,
+            dry_run=dry_run,
             call_v1_tool=call_v1_tool,
             ctx=ctx,
             logger=logger,
-            existing_order=existing_order,
-            existing_mapping=existing_mapping,
+            default_folder=default_folder,
+            default_folder_guid=default_folder_guid,
         )
+        if folder_error is not None:
+            return folder_error
 
-        csv_body = _serialize_bulk_csv(remaining_domains) if remaining_domains else ""
-        existing_entries = _build_existing_entries(existing_order, existing_mapping)
-
-        needs_folder_resolution = (
-            selected_folder
-            and bool(remaining_domains)
-            and not (
-                default_folder
-                and selected_folder == default_folder
-                and default_folder_guid
-            )
-        )
-        if needs_folder_resolution:
-            (
-                folder_guid,
-                folder_created,
-                folder_error,
-                folder_pending_reason,
-            ) = await _resolve_request_company_folder(
-                call_v1_tool,
-                ctx,
-                logger=logger,
-                selected_folder=selected_folder,
-                default_folder=default_folder,
-                default_folder_guid=default_folder_guid,
-                submitted_domains=submitted_domains,
-                existing_entries=existing_entries,
-                allow_create=not dry_run,
-            )
-            if folder_error is not None:
-                return folder_error
-
-        short_circuit = _short_circuit_request_company(
-            dry_run=dry_run,
-            submitted_domains=submitted_domains,
-            existing_entries=existing_entries,
-            remaining_domains=remaining_domains,
-            selected_folder=selected_folder,
-            folder_guid=folder_guid,
-            folder_created=folder_created,
-            csv_body=csv_body,
-            folder_pending_reason=folder_pending_reason,
-        )
+        short_circuit = _short_circuit_request_company_state(state, dry_run=dry_run)
         if short_circuit is not None:
             return short_circuit
 
@@ -1706,25 +1756,26 @@ def register_request_company_tool(  # noqa: C901
             call_v2_tool,
             ctx,
             logger=logger,
-            remaining_domains=remaining_domains,
-            selected_folder=selected_folder,
-            folder_guid=folder_guid,
-            submitted_domains=submitted_domains,
-            existing_entries=existing_entries,
-            folder_created=folder_created,
-            csv_body=csv_body,
+            remaining_domains=state.remaining_domains,
+            selected_folder=state.selected_folder,
+            folder_guid=state.folder_guid,
+            submitted_domains=state.submitted_domains,
+            existing_entries=state.existing_entries,
+            folder_created=state.folder_created,
+            csv_body=state.csv_body,
         )
         if failure_payload is not None:
             return failure_payload
+
         return RequestCompanyResponse(
             status="submitted_v2_bulk",
-            submitted=submitted_domains,
-            already_existing=existing_entries,
-            successfully_requested=remaining_domains,
+            submitted=state.submitted_domains,
+            already_existing=state.existing_entries,
+            successfully_requested=state.remaining_domains,
             failed=[],
-            folder=selected_folder,
-            folder_guid=folder_guid,
-            folder_created=folder_created or None,
+            folder=state.selected_folder,
+            folder_guid=state.folder_guid,
+            folder_created=state.folder_created or None,
             result=result,
         ).to_payload()
 
