@@ -1679,6 +1679,35 @@ async def _maybe_resolve_request_company_folder(
     return None
 
 
+async def _finalize_request_company_state(
+    state: RequestCompanyState,
+    *,
+    dry_run: bool,
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    logger: BoundLogger,
+    default_folder: str | None,
+    default_folder_guid: str | None,
+) -> dict[str, Any] | None:
+    ready = _short_circuit_request_company_state(state, dry_run=dry_run)
+    if ready is not None:
+        return ready
+
+    folder_error = await _maybe_resolve_request_company_folder(
+        state,
+        dry_run=dry_run,
+        call_v1_tool=call_v1_tool,
+        ctx=ctx,
+        logger=logger,
+        default_folder=default_folder,
+        default_folder_guid=default_folder_guid,
+    )
+    if folder_error is not None:
+        return folder_error
+
+    return _short_circuit_request_company_state(state, dry_run=dry_run)
+
+
 def _build_bulk_payload(csv_body: str, folder_guid: str | None) -> dict[str, Any]:
     payload: dict[str, Any] = {"file": csv_body}
     if folder_guid:
@@ -1731,12 +1760,20 @@ def register_request_company_tool(
             and state.selected_folder
             and not state.folder_guid
         )
-        if not needs_folder_for_dry_run:
-            short_circuit = _short_circuit_request_company_state(state, dry_run=dry_run)
-            if short_circuit is not None:
-                return short_circuit
+        if needs_folder_for_dry_run:
+            folder_error = await _maybe_resolve_request_company_folder(
+                state,
+                dry_run=dry_run,
+                call_v1_tool=call_v1_tool,
+                ctx=ctx,
+                logger=logger,
+                default_folder=default_folder,
+                default_folder_guid=default_folder_guid,
+            )
+            if folder_error is not None:
+                return folder_error
 
-        folder_error = await _maybe_resolve_request_company_folder(
+        short_circuit = await _finalize_request_company_state(
             state,
             dry_run=dry_run,
             call_v1_tool=call_v1_tool,
@@ -1745,10 +1782,6 @@ def register_request_company_tool(
             default_folder=default_folder,
             default_folder_guid=default_folder_guid,
         )
-        if folder_error is not None:
-            return folder_error
-
-        short_circuit = _short_circuit_request_company_state(state, dry_run=dry_run)
         if short_circuit is not None:
             return short_circuit
 

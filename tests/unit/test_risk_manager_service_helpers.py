@@ -360,6 +360,7 @@ def test_short_circuit_request_company_paths() -> None:
         folder_guid="folder-1",
         folder_created=False,
         csv_body="domain\nb.com",
+        folder_pending_reason=None,
     )
     assert payload and payload["status"] == "dry_run"
 
@@ -372,6 +373,7 @@ def test_short_circuit_request_company_paths() -> None:
         folder_guid="folder-1",
         folder_created=True,
         csv_body="domain\na.com",
+        folder_pending_reason=None,
     )
     assert all_existing and all_existing["status"] == "already_existing"
 
@@ -384,8 +386,219 @@ def test_short_circuit_request_company_paths() -> None:
         folder_guid="folder-1",
         folder_created=False,
         csv_body="domain\nb.com",
+        folder_pending_reason=None,
     )
     assert none is None
+
+
+@pytest.mark.asyncio
+async def test_collect_company_trees_filters_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[str] = []
+
+    async def fake_tree(
+        call_v1_tool: Any,
+        ctx: Context,
+        guid: str,
+        *,
+        logger: Any,
+    ) -> dict[str, Any] | None:
+        captured.append(guid)
+        if guid == "alpha":
+            return {"guid": guid, "tree": True}
+        return None
+
+    monkeypatch.setattr(risk_service, "_fetch_company_tree", fake_tree)
+
+    details = {
+        "alpha": {"has_company_tree": True},
+        "beta": {"has_company_tree": False},
+    }
+
+    trees = await risk_service._fetch_company_trees(
+        None,
+        StubContext(),
+        details,
+        logger=get_logger("test.collect"),
+    )
+
+    assert trees == {"alpha": {"guid": "alpha", "tree": True}}
+    assert captured == ["alpha"]
+
+
+@pytest.mark.asyncio
+async def test_process_parent_companies_enriches_relations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_subscribe(
+        call_v1_tool: Any,
+        ctx: Context,
+        *,
+        parent_guid: str,
+        tree_data: dict[str, Any],
+        logger: Any,
+        defaults: Any,
+    ) -> tuple[set[str], dict[str, Any] | None]:
+        return {parent_guid}, {"guid": parent_guid, "has_company_tree": False}
+
+    monkeypatch.setattr(risk_service, "_subscribe_and_fetch_parent", fake_subscribe)
+
+    trees = {
+        "child-guid": {
+            "guid": "parent-guid",
+            "children": [{"guid": "child-guid", "children": []}],
+        }
+    }
+    details = {"child-guid": {"has_company_tree": True}}
+    defaults = risk_service.CompanySearchDefaults(
+        folder="Ops",
+        subscription_type="managed",
+        limit=5,
+    )
+
+    (
+        parent_details,
+        parent_children,
+        ephemerals,
+    ) = await risk_service._process_parent_companies(
+        None,
+        StubContext(),
+        trees=trees,
+        details=details,
+        logger=get_logger("test.parents"),
+        defaults=defaults,
+    )
+
+    assert parent_details["parent-guid"]["guid"] == "parent-guid"
+    assert parent_children["parent-guid"] == ["child-guid"]
+    assert ephemerals == {"parent-guid"}
+
+
+@pytest.mark.asyncio
+async def test_initialize_request_company_state_error() -> None:
+    logger = get_logger("test.init.error")
+    state, error = await risk_service._initialize_request_company_state(
+        domains="",
+        folder=None,
+        default_folder=None,
+        default_folder_guid=None,
+        call_v1_tool=None,
+        ctx=None,
+        logger=logger,
+    )
+    assert state is None
+    assert error and "Provide at least one domain" in error["error"]
+
+
+@pytest.mark.asyncio
+async def test_initialize_request_company_state_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_partition(*_args: Any, **_kwargs: Any) -> list[str]:
+        return ["new.io"]
+
+    monkeypatch.setattr(risk_service, "_partition_submitted_domains", fake_partition)
+
+    logger = get_logger("test.init.success")
+    state, error = await risk_service._initialize_request_company_state(
+        domains="dup.com,dup.com,new.io",
+        folder="Ops",
+        default_folder="Ops",
+        default_folder_guid="cached-guid",
+        call_v1_tool=None,
+        ctx=None,
+        logger=logger,
+    )
+    assert error is None and state is not None
+    assert state.remaining_domains == ["new.io"]
+    assert state.existing_entries[0].domain == "dup.com"
+    assert state.folder_guid == "cached-guid"
+
+
+@pytest.mark.asyncio
+async def test_finalize_request_company_state_returns_folder_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = risk_service.RequestCompanyState(
+        submitted_domains=["a.com"],
+        remaining_domains=["b.com"],
+        existing_entries=[],
+        selected_folder="Ops",
+        folder_guid=None,
+        folder_created=False,
+        folder_pending_reason=None,
+        csv_body="domain\nb.com",
+    )
+
+    async def fake_maybe(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        return {"error": "folder missing"}
+
+    monkeypatch.setattr(
+        risk_service,
+        "_maybe_resolve_request_company_folder",
+        fake_maybe,
+    )
+
+    result = await risk_service._finalize_request_company_state(
+        state,
+        dry_run=False,
+        call_v1_tool=None,
+        ctx=None,
+        logger=get_logger("test.finalize.error"),
+        default_folder=None,
+        default_folder_guid=None,
+    )
+    assert result == {"error": "folder missing"}
+
+
+@pytest.mark.asyncio
+async def test_finalize_request_company_state_returns_short_circuit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = risk_service.RequestCompanyState(
+        submitted_domains=["a.com"],
+        remaining_domains=["b.com"],
+        existing_entries=[],
+        selected_folder=None,
+        folder_guid=None,
+        folder_created=False,
+        folder_pending_reason=None,
+        csv_body="domain\nb.com",
+    )
+
+    calls: list[int] = []
+
+    async def fake_maybe(*_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
+        return None
+
+    def fake_short(state_arg: risk_service.RequestCompanyState, *, dry_run: bool):
+        calls.append(1)
+        if len(calls) == 1:
+            return None
+        return {"status": "dry_run", "folder": state_arg.selected_folder}
+
+    monkeypatch.setattr(
+        risk_service,
+        "_maybe_resolve_request_company_folder",
+        fake_maybe,
+    )
+    monkeypatch.setattr(
+        risk_service,
+        "_short_circuit_request_company_state",
+        fake_short,
+    )
+
+    result = await risk_service._finalize_request_company_state(
+        state,
+        dry_run=True,
+        call_v1_tool=None,
+        ctx=None,
+        logger=get_logger("test.finalize.short"),
+        default_folder=None,
+        default_folder_guid=None,
+    )
+    assert result == {"status": "dry_run", "folder": None}
 
 
 def test_serialize_and_build_bulk_payload() -> None:
