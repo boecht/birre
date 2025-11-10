@@ -2055,6 +2055,63 @@ async def _perform_manage_subscriptions_bulk(
     return result, None
 
 
+def _maybe_return_manage_subscriptions_dry_run(
+    *,
+    dry_run: bool,
+    normalized_action: str,
+    guid_list: Sequence[str],
+    folder_state: ManageSubscriptionsFolderState,
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not dry_run:
+        return None
+    return _manage_subscriptions_dry_run_response(
+        action=normalized_action,
+        guids=guid_list,
+        folder=folder_state.folder if normalized_action == "add" else None,
+        folder_guid=folder_state.folder_guid,
+        folder_created=folder_state.folder_created,
+        payload=payload,
+        pending_folder_reason=folder_state.folder_pending_reason,
+    )
+
+
+async def _apply_manage_subscriptions_changes(
+    *,
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    payload: dict[str, Any],
+    normalized_action: str,
+    guid_list: Sequence[str],
+    logger: BoundLogger,
+    target_folder: str | None,
+    folder_state: ManageSubscriptionsFolderState,
+) -> dict[str, Any]:
+    await ctx.info(
+        f"Executing manageSubscriptionsBulk action={normalized_action} "
+        f"for {len(guid_list)} companies"
+    )
+
+    result, error_payload = await _perform_manage_subscriptions_bulk(
+        call_v1_tool,
+        ctx,
+        payload,
+        normalized_action,
+        guid_list,
+        logger,
+    )
+    if error_payload is not None:
+        return error_payload
+
+    return _build_manage_subscriptions_success_response(
+        normalized_action=normalized_action,
+        guid_list=guid_list,
+        target_folder=target_folder,
+        folder_state=folder_state,
+        result=result,
+    )
+
+
 def register_manage_subscriptions_tool(
     business_server: FastMCP,
     call_v1_tool: CallV1Tool,
@@ -2148,39 +2205,25 @@ def register_manage_subscriptions_tool(
             subscription_type=default_type,
         )
 
-        if dry_run:
-            return _manage_subscriptions_dry_run_response(
-                action=normalized_action,
-                guids=guid_list,
-                folder=folder_state.folder if normalized_action == "add" else None,
-                folder_guid=folder_state.folder_guid,
-                folder_created=folder_state.folder_created,
-                payload=payload,
-                pending_folder_reason=folder_state.folder_pending_reason,
-            )
-
-        await ctx.info(
-            f"Executing manageSubscriptionsBulk action={normalized_action} "
-            f"for {len(guid_list)} companies"
-        )
-
-        result, error_payload = await _perform_manage_subscriptions_bulk(
-            call_v1_tool,
-            ctx,
-            payload,
-            normalized_action,
-            guid_list,
-            logger,
-        )
-        if error_payload is not None:
-            return error_payload
-
-        return _build_manage_subscriptions_success_response(
+        dry_run_payload = _maybe_return_manage_subscriptions_dry_run(
+            dry_run=dry_run,
             normalized_action=normalized_action,
             guid_list=guid_list,
+            folder_state=folder_state,
+            payload=payload,
+        )
+        if dry_run_payload is not None:
+            return dry_run_payload
+
+        return await _apply_manage_subscriptions_changes(
+            call_v1_tool=call_v1_tool,
+            ctx=ctx,
+            payload=payload,
+            normalized_action=normalized_action,
+            guid_list=guid_list,
+            logger=logger,
             target_folder=target_folder,
             folder_state=folder_state,
-            result=result,
         )
 
     return business_server.tool(output_schema=MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA)(
