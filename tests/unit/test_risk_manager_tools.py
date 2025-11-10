@@ -157,12 +157,54 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
     assert dry_result["payload"]["add"][0]["folder"] == ["folder-1"]
     assert dry_result["folder_guid"] == "folder-1"
     assert dry_result.get("folder_created") is None
+    assert any(call_name == "getFolders" for call_name, _ in call_v1.calls)
+    assert all(call_name != "createFolder" for call_name, _ in call_v1.calls)
 
     applied = await tool.fn(ctx, action="subscribe", guids=["guid-1"])
     assert applied["status"] == "applied"
     assert applied["summary"]["added"] == ["guid-1"]
     assert applied["folder_guid"] == "folder-1"
     assert applied.get("folder_created") is None
+
+
+@pytest.mark.asyncio
+async def test_manage_subscriptions_dry_run_reports_missing_folder() -> None:
+    logger = get_logger("test.manage_subscriptions")
+    server = FastMCP(name="TestServer")
+
+    call_v1 = BridgeStub(
+        {
+            "getFolders": lambda _: [],
+            "createFolder": lambda _: (_ for _ in ()).throw(
+                AssertionError("createFolder should not be called during dry run")
+            ),
+        }
+    )
+
+    tool = register_manage_subscriptions_tool(
+        server,
+        call_v1,
+        logger=logger,
+        default_folder=None,
+        default_type="continuous_monitoring",
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(
+        ctx,
+        action="subscribe",
+        guids=["guid-2"],
+        folder="Ops",
+        dry_run=True,
+    )
+
+    assert result["status"] == "dry_run"
+    assert result["folder_guid"] is None
+    guidance = result.get("guidance") or {}
+    assert "Ops" in (guidance.get("next_steps") or "")
+    assert any(call_name == "getFolders" for call_name, _ in call_v1.calls)
+    assert all(call_name != "createFolder" for call_name, _ in call_v1.calls)
+    assert "folder" not in result["payload"]["add"][0]
 
 
 @pytest.mark.asyncio

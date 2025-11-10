@@ -1816,7 +1816,17 @@ def _manage_subscriptions_dry_run_response(
     folder_guid: str | None,
     folder_created: bool,
     payload: dict[str, Any],
+    pending_folder_reason: str | None,
 ) -> dict[str, Any]:
+    guidance = ManageSubscriptionsGuidance(
+        confirmation=(
+            "Review the payload with the human operator. \
+                Re-run with dry_run=false to apply changes."
+        )
+    )
+    if pending_folder_reason:
+        guidance.next_steps = pending_folder_reason
+
     return ManageSubscriptionsResponse(
         status="dry_run",
         action=action,
@@ -1825,12 +1835,7 @@ def _manage_subscriptions_dry_run_response(
         folder_guid=folder_guid,
         folder_created=folder_created or None,
         payload=payload,
-        guidance=ManageSubscriptionsGuidance(
-            confirmation=(
-                "Review the payload with the human operator. Re-run with "
-                "dry_run=false to apply changes."
-            )
-        ),
+        guidance=guidance,
     ).to_payload()
 
 
@@ -1842,12 +1847,13 @@ async def _resolve_manage_subscriptions_folder(
     target_folder: str | None,
     default_folder: str | None,
     default_folder_guid: str | None,
-) -> tuple[str | None, bool, dict[str, Any] | None]:
+    allow_create: bool,
+) -> tuple[str | None, bool, dict[str, Any] | None, str | None]:
     if not target_folder:
-        return None, False, None
+        return None, False, None, None
 
     if default_folder and target_folder == default_folder and default_folder_guid:
-        return default_folder_guid, False, None
+        return default_folder_guid, False, None, None
 
     folder_result = await resolve_or_create_folder(
         call_v1_tool,
@@ -1855,11 +1861,13 @@ async def _resolve_manage_subscriptions_folder(
         logger=logger,
         folder_name=target_folder,
         tool_name="manage_subscriptions",
-        allow_create=True,
+        allow_create=allow_create,
     )
     if folder_result.error:
-        return None, False, _manage_subscriptions_error(folder_result.error)
-    return folder_result.guid, folder_result.created, None
+        if not allow_create:
+            return None, False, None, folder_result.error
+        return None, False, _manage_subscriptions_error(folder_result.error), None
+    return folder_result.guid, folder_result.created, None, None
 
 
 async def _perform_manage_subscriptions_bulk(
@@ -1968,6 +1976,7 @@ def register_manage_subscriptions_tool(
             folder_guid,
             folder_created,
             folder_error,
+            folder_pending_reason,
         ) = await _resolve_manage_subscriptions_folder(
             call_v1_tool,
             ctx,
@@ -1975,6 +1984,7 @@ def register_manage_subscriptions_tool(
             target_folder=target_folder,
             default_folder=default_folder,
             default_folder_guid=default_folder_guid,
+            allow_create=not dry_run,
         )
         if folder_error is not None:
             return folder_error
@@ -1994,6 +2004,7 @@ def register_manage_subscriptions_tool(
                 folder_guid=folder_guid,
                 folder_created=folder_created,
                 payload=payload,
+                pending_folder_reason=folder_pending_reason,
             )
 
         await ctx.info(
