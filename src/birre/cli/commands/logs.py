@@ -10,7 +10,11 @@ import typer
 from rich.console import Console
 
 from birre.cli import options as cli_options
-from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import (
+    LoggingCliInputs,
+    build_invocation,
+    resolve_runtime_and_logging,
+)
 from birre.cli.models import CliInvocation, LogViewLine
 from birre.cli.runtime import CONTEXT_CHOICES
 from birre.cli.validation import validate_path_exists
@@ -47,22 +51,14 @@ def _resolve_logging_settings_from_cli(
     """Resolve logging settings from CLI parameters."""
     invocation = build_invocation(
         config_path=str(config_path) if config_path is not None else None,
-        api_key=None,
-        subscription_folder=None,
-        subscription_type=None,
-        context=None,
         context_choices=CONTEXT_CHOICES,
-        debug=None,
-        risk_vector_filter=None,
-        max_findings=None,
-        skip_startup_checks=None,
-        allow_insecure_tls=None,
-        ca_bundle=None,
-        log_level=log_level,
-        log_format=log_format,
-        log_file=log_file,
-        log_max_bytes=log_max_bytes,
-        log_backup_count=log_backup_count,
+        logging=LoggingCliInputs(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        ),
     )
     _, logging_settings, _ = resolve_runtime_and_logging(invocation)
     return invocation, logging_settings
@@ -172,7 +168,9 @@ def _validate_logs_show_params(
 ) -> str | None:
     """Validate logs_show parameters. Returns normalized format or None."""
     if tail < 0:
-        raise typer.BadParameter("Tail must be greater than or equal to zero.", param_hint="--tail")
+        raise typer.BadParameter(
+            "Tail must be greater than or equal to zero.", param_hint="--tail"
+        )
     if since and last:
         raise typer.BadParameter(
             "Only one of --since or --last can be provided.", param_hint="--since"
@@ -193,7 +191,9 @@ def _resolve_start_timestamp(since: str | None, last: str | None) -> float | Non
     if since:
         timestamp = _parse_iso_timestamp_to_epoch(since)
         if timestamp is None:
-            raise typer.BadParameter("Invalid ISO 8601 timestamp.", param_hint="--since")
+            raise typer.BadParameter(
+                "Invalid ISO 8601 timestamp.", param_hint="--since"
+            )
         return timestamp
 
     if last:
@@ -237,7 +237,9 @@ def _display_log_entries(
 ) -> None:
     """Display filtered log entries to stdout."""
     if not matched:
-        stdout_console.print("[yellow]No log entries matched the supplied filters[/yellow]")
+        stdout_console.print(
+            "[yellow]No log entries matched the supplied filters[/yellow]"
+        )
         return
 
     for entry in matched:
@@ -263,7 +265,9 @@ def _cmd_logs_clear(
     )
     file_path = getattr(logging_settings, "file_path", None)
     if not file_path:
-        stdout_console.print("[yellow]File logging is disabled; nothing to clear[/yellow]")
+        stdout_console.print(
+            "[yellow]File logging is disabled; nothing to clear[/yellow]"
+        )
         return
 
     path = Path(file_path)
@@ -292,7 +296,9 @@ def _cmd_logs_rotate(
     )
     file_path = getattr(logging_settings, "file_path", None)
     if not file_path:
-        stdout_console.print("[yellow]File logging is disabled; nothing to rotate[/yellow]")
+        stdout_console.print(
+            "[yellow]File logging is disabled; nothing to rotate[/yellow]"
+        )
         return
 
     path = Path(file_path)
@@ -347,8 +353,12 @@ def _cmd_logs_show(
 ) -> None:
     """Implementation of logs show command."""
     normalized_format = _validate_logs_show_params(tail, since, last, format_override)
-    normalized_level = cli_options.normalize_log_level(level) if level is not None else None
-    level_threshold = cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
+    normalized_level = (
+        cli_options.normalize_log_level(level) if level is not None else None
+    )
+    level_threshold = (
+        cli_options.LOG_LEVEL_MAP.get(normalized_level) if normalized_level else None
+    )
 
     _, logging_settings = _resolve_logging_settings_from_cli(
         config_path=config,
@@ -359,10 +369,14 @@ def _cmd_logs_show(
         log_backup_count=None,
     )
     file_path = getattr(logging_settings, "file_path", None)
-    resolved_format = normalized_format or getattr(logging_settings, "format", None) or "text"
+    resolved_format = (
+        normalized_format or getattr(logging_settings, "format", None) or "text"
+    )
 
     if not file_path:
-        stdout_console.print("[yellow]File logging is disabled; nothing to show[/yellow]")
+        stdout_console.print(
+            "[yellow]File logging is disabled; nothing to show[/yellow]"
+        )
         return
 
     path = Path(file_path)

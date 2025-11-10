@@ -8,11 +8,20 @@ from rich.console import Console
 
 from birre.cli import options as cli_options
 from birre.cli.commands.selftest.runner import SelfTestRunner
-from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import (
+    AuthCliInputs,
+    LoggingCliInputs,
+    RuntimeCliInputs,
+    SubscriptionCliInputs,
+    TlsCliInputs,
+    build_invocation,
+    resolve_runtime_and_logging,
+)
 from birre.cli.runtime import CONTEXT_CHOICES, initialize_logging
 from birre.cli.sync_bridge import await_sync
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
 from birre.infrastructure.errors import ErrorCode
+from birre.infrastructure.logging import BoundLogger
 
 
 def register(
@@ -48,24 +57,37 @@ def register(
     ) -> None:
         """Execute BiRRe diagnostics and optional online checks."""
 
-        invocation = build_invocation(
-            context_choices=CONTEXT_CHOICES,
-            config_path=str(config) if config is not None else None,
-            api_key=bitsight_api_key,
-            subscription_folder=subscription_folder,
-            subscription_type=subscription_type,
+        auth_inputs = AuthCliInputs(api_key=bitsight_api_key)
+        subscription_inputs = SubscriptionCliInputs(
+            folder=subscription_folder,
+            type=subscription_type,
+        )
+        runtime_inputs = RuntimeCliInputs(
             context=None,
             debug=debug,
             risk_vector_filter=risk_vector_filter,
             max_findings=max_findings,
-            skip_startup_checks=True if offline else False,
+            skip_startup_checks=bool(offline),
+        )
+        tls_inputs = TlsCliInputs(
             allow_insecure_tls=allow_insecure_tls,
             ca_bundle=ca_bundle,
-            log_level=log_level,
-            log_format=log_format,
-            log_file=log_file,
-            log_max_bytes=log_max_bytes,
-            log_backup_count=log_backup_count,
+        )
+        logging_inputs = LoggingCliInputs(
+            level=log_level,
+            format=log_format,
+            file_path=log_file,
+            max_bytes=log_max_bytes,
+            backup_count=log_backup_count,
+        )
+
+        invocation = _build_selftest_invocation(
+            config=config,
+            auth_inputs=auth_inputs,
+            subscription_inputs=subscription_inputs,
+            runtime_inputs=runtime_inputs,
+            tls_inputs=tls_inputs,
+            logging_inputs=logging_inputs,
         )
 
         runtime_settings, logging_settings, _ = resolve_runtime_and_logging(invocation)
@@ -76,25 +98,18 @@ def register(
             banner_printer=lambda: stderr_console.print(banner_factory()),
         )
 
-        target_base_url = (
-            healthcheck_production_v1_base_url if production else healthcheck_testing_v1_base_url
+        target_base_url, environment_label = _resolve_selftest_environment(
+            production,
+            healthcheck_testing_v1_base_url,
+            healthcheck_production_v1_base_url,
         )
-        environment_label = "production" if production else "testing"
-        logger.info(
-            "Configured BitSight API environment",
-            environment=environment_label,
-            base_url=target_base_url,
+        _log_environment_notice(
+            logger,
+            stdout_console,
+            environment_label,
+            target_base_url,
+            offline,
         )
-        if environment_label == "testing" and not offline:
-            stdout_console.print(
-                "[yellow]Note:[/yellow] BitSight's testing environment often returns "
-                "[bold]HTTP 403[/bold] for subscription management tools even with "
-                "valid credentials. "
-                "This is expected for accounts without sandbox write access. "
-                "Re-run with [green]--production[/green] to validate against the live API."
-            )
-        if offline:
-            logger.info("Offline mode enabled; skipping online diagnostics")
 
         runner = SelfTestRunner(
             runtime_settings=runtime_settings,
@@ -116,20 +131,85 @@ def register(
 
         render_healthcheck_summary(result.summary, stdout_console)
 
-        exit_code = result.exit_code()
-        if exit_code == 1:
-            logger.critical("Health checks failed")
-            raise typer.Exit(code=1)
-        if exit_code == 2:
-            logger.warning(
-                "Health checks completed with warnings",
-                contexts=list(result.contexts),
-                environment=environment_label,
-            )
-            raise typer.Exit(code=2)
+        _handle_selftest_exit(result, logger, environment_label)
 
-        logger.info(
-            "Health checks completed successfully",
-            contexts=list(result.contexts),
+
+def _build_selftest_invocation(
+    *,
+    config: Path,
+    auth_inputs: AuthCliInputs,
+    subscription_inputs: SubscriptionCliInputs,
+    runtime_inputs: RuntimeCliInputs,
+    tls_inputs: TlsCliInputs,
+    logging_inputs: LoggingCliInputs,
+) -> Any:
+    return build_invocation(
+        context_choices=CONTEXT_CHOICES,
+        config_path=str(config) if config is not None else None,
+        auth=auth_inputs,
+        subscription=subscription_inputs,
+        runtime=runtime_inputs,
+        tls=tls_inputs,
+        logging=logging_inputs,
+    )
+
+
+def _resolve_selftest_environment(
+    production: bool,
+    testing_base_url: str,
+    production_base_url: str,
+) -> tuple[str, str]:
+    if production:
+        return production_base_url, "production"
+    return testing_base_url, "testing"
+
+
+def _log_environment_notice(
+    logger: BoundLogger,
+    stdout_console: Console,
+    environment_label: str,
+    target_base_url: str,
+    offline: bool,
+) -> None:
+    logger.info(
+        "Configured BitSight API environment",
+        environment=environment_label,
+        base_url=target_base_url,
+    )
+    if environment_label == "testing" and not offline:
+        stdout_console.print(
+            "[yellow]Note:[/yellow] BitSight's testing environment often returns "
+            "[bold]HTTP 403[/bold] for subscription management tools even with "
+            "valid credentials. "
+            "This is expected for accounts without sandbox write access. "
+            "Re-run with [green]--production[/green] to validate against the live API."
+        )
+    if offline:
+        logger.info("Offline mode enabled; skipping online diagnostics")
+
+
+def _handle_selftest_exit(
+    result: Any,
+    logger: BoundLogger,
+    environment_label: str,
+) -> None:
+    exit_code = result.exit_code()
+    contexts = list(result.contexts)
+    if exit_code == 1:
+        logger.critical(
+            "Health checks failed", contexts=contexts, environment=environment_label
+        )
+        raise typer.Exit(code=1)
+    if exit_code == 2:
+        logger.warning(
+            "Health checks completed with warnings",
+            contexts=contexts,
             environment=environment_label,
         )
+        raise typer.Exit(code=2)
+
+    logger.info(
+        "Health checks completed successfully",
+        contexts=contexts,
+        environment=environment_label,
+    )

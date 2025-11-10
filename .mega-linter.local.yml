@@ -1,0 +1,36 @@
+---
+EXTENDS: .mega-linter.yml
+
+# overrides .mega-linter.yml selection for local runs
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - JSON_JSONLINT
+  - MARKDOWN_MARKDOWNLINT
+  - PYTHON_RUFF
+  - PYTHON_RUFF_FORMAT
+  - PYTHON_MYPY
+  # REPOSITORY_SYFT
+  - YAML_YAMLLINT
+
+# ignored if ENABLE_LINTERS is set in .mega-linter.yml or here
+DISABLE_LINTERS:
+  - REPOSITORY_SYFT
+
+# uncomment and stage this file to fix issues automatically
+# APPLY_FIXES: all
+
+# shotgun-approach to disable CI-only reporters locally
+AZURE_COMMENT_REPORTER: false
+BITBUCKET_COMMENT_REPORTER: false
+EMAIL_REPORTER: false
+FILEIO_REPORTER: false
+GITLAB_COMMENT_REPORTER: false
+GITHUB_COMMENT_REPORTER: false
+GITHUB_STATUS_REPORTER: false
+MARKDOWN_SUMMARY_REPORTER: false
+SARIF_REPORTER: false
+UPDATED_SOURCES_REPORTER: false
+
+# keep console output when running locally
+TEXT_REPORTER: true

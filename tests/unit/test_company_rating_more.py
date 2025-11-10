@@ -14,7 +14,9 @@ def test_infection_narrative_preference() -> None:
 
     # Without family, append description
     details2 = {"infection": {"description": "note"}}
-    out2 = s._apply_infection_narrative_preference("Base", "botnet_infections", details2)
+    out2 = s._apply_infection_narrative_preference(
+        "Base", "botnet_infections", details2
+    )
     assert out2.endswith("note")
 
 
@@ -35,7 +37,10 @@ def test_primary_port_and_asset() -> None:
 async def test_extract_results_and_fetch_findings_paths() -> None:
     # results not a list -> []
     out = s._extract_results_from_payload(
-        {"results": {}}, SimpleNamespace(info=lambda *a, **k: None), "L", debug_enabled=False
+        {"results": {}},
+        SimpleNamespace(info=lambda *a, **k: None),
+        "L",
+        debug_enabled=False,
     )  # type: ignore[arg-type]
     assert out == []
 
@@ -44,6 +49,11 @@ async def test_extract_results_and_fetch_findings_paths() -> None:
         return 123
 
     findings, ok = await s._fetch_and_normalize_findings(
-        _call, SimpleNamespace(info=lambda *a, **k: None), {}, 5, "strict", debug_enabled=False
+        _call,
+        SimpleNamespace(info=lambda *a, **k: None),
+        {},
+        5,
+        "strict",
+        debug_enabled=False,
     )  # type: ignore[arg-type]
     assert findings == [] and ok is False

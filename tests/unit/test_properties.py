@@ -33,7 +33,11 @@ def test_severity_category_always_returns_int(severity_text: str) -> None:
 
 
 @pytest.mark.offline
-@given(st.one_of(st.integers(), st.floats(allow_nan=False, allow_infinity=False), st.none()))
+@given(
+    st.one_of(
+        st.integers(), st.floats(allow_nan=False, allow_infinity=False), st.none()
+    )
+)
 def test_severity_category_handles_non_strings(value: Any) -> None:
     """Severity ranking handles non-string inputs gracefully."""
     result = _rank_severity_category_value(value)
@@ -75,7 +79,9 @@ def test_severity_ordering_invariant(category: str) -> None:
 
 
 @pytest.mark.offline
-@given(st.floats(min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False))
+@given(
+    st.floats(min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False)
+)
 def test_numeric_severity_extracts_direct_float(score: float) -> None:
     """Direct numeric severity values are extracted correctly."""
     finding = {"severity": score}
@@ -93,7 +99,11 @@ def test_numeric_severity_extracts_direct_int(score: int) -> None:
 
 
 @pytest.mark.offline
-@given(st.dictionaries(st.text(max_size=50), st.one_of(st.none(), st.text(), st.booleans())))
+@given(
+    st.dictionaries(
+        st.text(max_size=50), st.one_of(st.none(), st.text(), st.booleans())
+    )
+)
 def test_numeric_severity_handles_arbitrary_dicts(finding_data: dict[str, Any]) -> None:
     """Numeric severity extraction doesn't crash on arbitrary dict inputs."""
     result = _derive_numeric_severity_score(finding_data)
@@ -139,15 +149,27 @@ def test_numeric_severity_cvss_extraction(cvss_score: float, cvss_key: str) -> N
         max_size=10,
     )
 )
-def test_normalize_finding_always_returns_required_keys(finding: dict[str, Any]) -> None:
+def test_normalize_finding_always_returns_required_keys(
+    finding: dict[str, Any],
+) -> None:
     """Finding normalization always returns the required 5 keys."""
     result = _normalize_finding_entry(finding)
     assert isinstance(result, dict)
-    assert set(result.keys()) == {"finding", "details", "asset", "first_seen", "last_seen"}
+    assert set(result.keys()) == {
+        "finding",
+        "details",
+        "asset",
+        "first_seen",
+        "last_seen",
+    }
 
 
 @pytest.mark.offline
-@given(st.dictionaries(st.text(), st.one_of(st.text(), st.none(), st.integers()), max_size=20))
+@given(
+    st.dictionaries(
+        st.text(), st.one_of(st.text(), st.none(), st.integers()), max_size=20
+    )
+)
 def test_normalize_finding_never_crashes(finding: dict[str, Any]) -> None:
     """Finding normalization handles arbitrary dict inputs without crashing."""
     result = _normalize_finding_entry(finding)
@@ -246,7 +268,11 @@ def test_finding_normalization_deterministic(details1: str, details2: str) -> No
 
 
 @pytest.mark.offline
-@given(st.text(alphabet=st.characters(whitelist_categories=("Zs",)), min_size=1, max_size=20))
+@given(
+    st.text(
+        alphabet=st.characters(whitelist_categories=("Zs",)), min_size=1, max_size=20
+    )
+)
 def test_severity_category_whitespace_only(whitespace: str) -> None:
     """Whitespace-only strings are not recognized as valid severity categories."""
     result = _rank_severity_category_value(whitespace)
@@ -265,7 +291,9 @@ def test_severity_category_arbitrary_text_safe(text: str) -> None:
 
 @pytest.mark.offline
 @given(st.lists(st.dictionaries(st.text(), st.integers(), max_size=5), max_size=10))
-def test_numeric_severity_handles_complex_nesting(nested_data: list[dict[str, Any]]) -> None:
+def test_numeric_severity_handles_complex_nesting(
+    nested_data: list[dict[str, Any]],
+) -> None:
     """Numeric severity extraction handles deeply nested structures safely."""
     finding = {"details": {"data": nested_data}}
     result = _derive_numeric_severity_score(finding)
@@ -275,8 +303,14 @@ def test_numeric_severity_handles_complex_nesting(nested_data: list[dict[str, An
 
 
 @pytest.mark.offline
-@given(st.dictionaries(st.text(), st.recursive(st.none(), lambda x: st.lists(x, max_size=3))))
-def test_finding_normalization_recursive_structures(recursive_dict: dict[str, Any]) -> None:
+@given(
+    st.dictionaries(
+        st.text(), st.recursive(st.none(), lambda x: st.lists(x, max_size=3))
+    )
+)
+def test_finding_normalization_recursive_structures(
+    recursive_dict: dict[str, Any],
+) -> None:
     """Finding normalization handles recursive/nested structures safely."""
     result = _normalize_finding_entry(recursive_dict)
     assert isinstance(result, dict)

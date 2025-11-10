@@ -3,16 +3,67 @@
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
 See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
+## [4.0.0-beta.1] - 2025-11-10
+
+### Changed
+
+- Streamline selftest invocation with typed CLI input dataclasses for
+  clearer parameter handling and more predictable diagnostics
+- Refactor risk-manager tools by extracting subscription and request
+  helpers (folder resolution, domain parsing/deduplication, bulk payload
+  construction, CSV serialization) to reduce duplication and improve
+  maintainability
+- Propagate folder GUIDs in runtime settings to enable automatic folder
+  placement during manage/request operations without repeated lookups
+- Enable MegaLinter local runner for developers to run comprehensive
+  linting locally before pushing
+- Refine pre-commit hook documentation with usage examples and local
+  auto-fix guidance
+
+### Added
+
+- **TOP:** Add bulk company request workflow accepting CSV domain lists (1–255
+  entries) with automatic deduplication via BitSight company search,
+  multipart CSV submission to v2 bulk API, and structured reporting of
+  submitted/existing/failed domains
+- **TOP:** Document risk-manager tools: add docstrings and output
+  semantics for `company_search_interactive`, `request_company`, and
+  `manage_subscriptions` to clarify payloads, dry-run behavior, and
+  example return shapes for better discoverability and QA
+- **TOP:** Add automatic folder resolution and creation for subscription
+  management and company request workflows, with timestamped audit
+  metadata when creating new folders
+- Add offline selftest replay samples enabling diagnostics to run without
+  network connectivity by replaying recorded BitSight responses
+- Add SonarQube remediation playbook prompt for structured,
+  agent-assisted code quality fixes
+- Add optional ruff auto-fix configuration guidance in local MegaLinter
+  config for contributors
+
+### Fixed
+
+- Fix CI workflow permissions for release and lint workflows to properly
+  allow SARIF uploads
+- Fix SBOM artifact handling in PyPI publish workflow to prevent
+  packaging errors
+- Fix changelog extraction logic in release workflow for more robust
+  version parsing
+
+### Security
+
+- Apply StepSecurity automated best-practices to harden GitHub Actions
+  workflows
+- Grant least-privilege permissions (contents: read) to CI workflows
+  following security best practices
+
 ## [4.0.0-alpha.2] - 2025-11-05
 
 ### Changed
 
 - **Breaking:** Require Python 3.13+ (upgrade from 3.11+ in alpha.1) to improve asyncio reliability
   and error clarity
+- **TOP:** Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
 - Improve startup reliability and remove event loop race conditions by simplifying async/sync bridge (lower memory)
-- Enhance interactive search with bulk subscription, rating number + color, and parent hierarchy enrichment
-- Improve selftest output by placing machine-readable JSON summary first with compact formatting for quicker
-  automation parsing
 - Reduce CLI and diagnostics complexity through extensive refactors for more predictable behavior and lower
   maintenance risk
 - Improve logging robustness by guarding against writes to closed streams to prevent noisy teardown errors
@@ -31,16 +82,16 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Added
 
+- **TOP:** Add parent company enrichment and rating color details to interactive search results for richer risk context
 - Add property-based testing (Hypothesis) to detect edge cases automatically in rating and findings logic
 - Add performance benchmarks (pytest-benchmark) for critical paths to track regressions over time
 - Add complexity checking (mccabe) to enforce a maximum function complexity threshold and surface refactor candidates
-- Add parent company enrichment and rating color details to interactive search results for richer risk context
 - Add dependency review, Scorecard, and Codecov workflows for safer dependencies and coverage transparency
 - Add agent operations and prompt documentation to standardize automated contribution workflows
 
 ### Removed
 
-- Remove dry-run shortcuts from diagnostics so production selftests execute real API calls for authentic validation
+- **TOP:** Remove dry-run shortcuts from diagnostics so production selftests execute real API calls for authentic validation
 - Remove thousands of lines of duplicate and obsolete CLI/diagnostic helper code to lower memory usage and
   improve performance
 
@@ -72,9 +123,9 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 ### Changed
 
 - **Breaking:** Require Python 3.11+ for modern features and better performance
+- **TOP:** Enhance selftest diagnostics with clearer output
 - Remove over 3,200 lines of duplicate code to improve response times
 - Improve CLI modularity and organization for easier troubleshooting
-- Enhance selftest diagnostics with clearer output
 - Strengthen error handling throughout for better user experience
 
 ### Added
@@ -112,9 +163,9 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Added
 
-- Add comprehensive health check command with `birre selftest`
-- Add detailed offline and online diagnostic reporting
-- Add production API testing with `--production` flag
+- **TOP:** Add comprehensive health check command with `birre selftest`
+- **TOP:** Add detailed offline and online diagnostic reporting
+- **TOP:** Add production API testing with `--production` flag
 - Add machine-readable JSON output for automation
 - Add automatic TLS error detection with retry logic
 
@@ -173,10 +224,10 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Added
 
-- Add risk manager context mode with specialized subscription management
-- Add interactive company search tool `company_search_interactive` with folder membership and metadata
-- Add bulk subscription management tool `manage_subscriptions` with dry-run support
-- Add `request_company` workflow using BitSight API v2
+- **TOP:** Add risk manager context mode with specialized subscription management
+- **TOP:** Add interactive company search tool `company_search_interactive` with folder membership and metadata
+- **TOP:** Add bulk subscription management tool `manage_subscriptions` with dry-run support
+- **TOP:** Add `request_company` workflow using BitSight API v2
 - Add context selection via CLI flag, environment variable, or configuration
 - Add comprehensive offline unit test suite
 - Add online smoke tests for core workflows
@@ -198,6 +249,7 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Add configuration via environment variables and config files
 
 [4.0.0-alpha.2]: https://github.com/boecht/birre/compare/v4.0.0-alpha.1...v4.0.0-alpha.2
+[4.0.0-beta.1]: https://github.com/boecht/birre/compare/v4.0.0-alpha.2...v4.0.0-beta.1
 [4.0.0-alpha.1]: https://github.com/boecht/birre/compare/v3.2.0...v4.0.0-alpha.1
 [3.2.0]: https://github.com/boecht/birre/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/boecht/birre/compare/v3.0.0...v3.1.0

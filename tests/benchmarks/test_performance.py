@@ -53,7 +53,9 @@ def sample_findings_data() -> list[dict[str, Any]]:
     """Realistic findings API response with 50 findings."""
     return [
         {
-            "risk_vector": "web_application_security" if i % 4 == 0 else "patching_cadence",
+            "risk_vector": "web_application_security"
+            if i % 4 == 0
+            else "patching_cadence",
             "first_seen": "2025-09-15",
             "last_seen": "2025-10-30",
             "severity": ["severe", "material", "moderate", "low"][i % 4],

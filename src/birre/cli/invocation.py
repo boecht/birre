@@ -6,7 +6,7 @@ and conversion between CLI overrides and settings input objects.
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -32,57 +32,96 @@ from birre.config.settings import (
 )
 
 
+@dataclass(frozen=True)
+class AuthCliInputs:
+    api_key: str | None = None
+
+
+@dataclass(frozen=True)
+class SubscriptionCliInputs:
+    folder: str | None = None
+    type: str | None = None
+
+
+@dataclass(frozen=True)
+class RuntimeCliInputs:
+    context: str | None = None
+    debug: bool | None = None
+    risk_vector_filter: str | None = None
+    max_findings: int | None = None
+    skip_startup_checks: bool | None = None
+
+
+@dataclass(frozen=True)
+class TlsCliInputs:
+    allow_insecure_tls: bool | None = None
+    ca_bundle: str | None = None
+
+
+@dataclass(frozen=True)
+class LoggingCliInputs:
+    level: str | None = None
+    format: str | None = None
+    file_path: str | None = None
+    max_bytes: int | None = None
+    backup_count: int | None = None
+
+
 def build_invocation(
     *,
     config_path: Path | str | None,
-    api_key: str | None,
-    subscription_folder: str | None,
-    subscription_type: str | None,
-    context: str | None,
     context_choices: frozenset[str],
-    debug: bool | None,
-    risk_vector_filter: str | None,
-    max_findings: int | None,
-    skip_startup_checks: bool | None,
-    allow_insecure_tls: bool | None,
-    ca_bundle: str | None,
-    log_level: str | None,
-    log_format: str | None,
-    log_file: str | None,
-    log_max_bytes: int | None,
-    log_backup_count: int | None,
+    auth: AuthCliInputs | None = None,
+    subscription: SubscriptionCliInputs | None = None,
+    runtime: RuntimeCliInputs | None = None,
+    tls: TlsCliInputs | None = None,
+    logging: LoggingCliInputs | None = None,
     profile_path: Path | None = None,
 ) -> CliInvocation:
     """Construct a :class:`CliInvocation` with normalized CLI parameters."""
 
-    normalized_context = cli_options.normalize_context(context, choices=context_choices)
-    normalized_log_format = cli_options.normalize_log_format(log_format)
-    normalized_log_level = cli_options.normalize_log_level(log_level)
-    normalized_max_findings = cli_options.validate_positive("max_findings", max_findings)
-    normalized_log_max_bytes = cli_options.validate_positive("log_max_bytes", log_max_bytes)
+    auth_inputs = auth or AuthCliInputs()
+    subscription_inputs = subscription or SubscriptionCliInputs()
+    runtime_inputs = runtime or RuntimeCliInputs()
+    tls_inputs = tls or TlsCliInputs()
+    logging_inputs = logging or LoggingCliInputs()
+
+    normalized_context = cli_options.normalize_context(
+        runtime_inputs.context, choices=context_choices
+    )
+    normalized_log_format = cli_options.normalize_log_format(logging_inputs.format)
+    normalized_log_level = cli_options.normalize_log_level(logging_inputs.level)
+    normalized_max_findings = cli_options.validate_positive(
+        "max_findings", runtime_inputs.max_findings
+    )
+    normalized_log_max_bytes = cli_options.validate_positive(
+        "log_max_bytes", logging_inputs.max_bytes
+    )
     normalized_log_backup_count = cli_options.validate_positive(
-        "log_backup_count", log_backup_count
+        "log_backup_count", logging_inputs.backup_count
     )
 
-    clean_log_file = cli_options.clean_string(log_file)
+    clean_log_file = cli_options.clean_string(logging_inputs.file_path)
 
     return CliInvocation(
         config_path=str(config_path) if config_path is not None else None,
-        auth=AuthOverrides(api_key=cli_options.clean_string(api_key)),
+        auth=AuthOverrides(api_key=cli_options.clean_string(auth_inputs.api_key)),
         subscription=SubscriptionOverrides(
-            folder=cli_options.clean_string(subscription_folder),
-            type=cli_options.clean_string(subscription_type),
+            folder=cli_options.clean_string(subscription_inputs.folder),
+            type=cli_options.clean_string(subscription_inputs.type),
         ),
         runtime=RuntimeOverrides(
             context=normalized_context,
-            debug=debug,
-            risk_vector_filter=cli_options.clean_string(risk_vector_filter),
+            debug=runtime_inputs.debug,
+            risk_vector_filter=cli_options.clean_string(
+                runtime_inputs.risk_vector_filter
+            ),
             max_findings=normalized_max_findings,
-            skip_startup_checks=skip_startup_checks,
+            skip_startup_checks=runtime_inputs.skip_startup_checks,
         ),
         tls=TlsOverrides(
-            allow_insecure=allow_insecure_tls,
-            ca_bundle_path=cli_options.clean_string(ca_bundle),
+            allow_insecure=tls_inputs.allow_insecure_tls,
+            ca_bundle_path=cli_options.clean_string(tls_inputs.ca_bundle),
         ),
         logging=LoggingOverrides(
             level=normalized_log_level,
@@ -163,7 +202,9 @@ def logging_inputs(overrides: LoggingOverrides) -> LoggingInputs | None:
     )
 
 
-def load_settings_from_invocation(invocation: CliInvocation) -> Any:  # Returns BirreSettings
+def load_settings_from_invocation(
+    invocation: CliInvocation,
+) -> Any:  # Returns BirreSettings
     """Load settings and apply CLI overrides."""
 
     settings = load_settings(invocation.config_path)
@@ -194,11 +235,16 @@ def resolve_runtime_and_logging(
 
 
 __all__ = [
+    "AuthCliInputs",
     "build_invocation",
     "load_settings_from_invocation",
     "logging_inputs",
+    "LoggingCliInputs",
     "resolve_runtime_and_logging",
+    "RuntimeCliInputs",
     "runtime_inputs",
+    "SubscriptionCliInputs",
     "subscription_inputs",
+    "TlsCliInputs",
     "tls_inputs",
 ]

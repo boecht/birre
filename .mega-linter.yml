@@ -20,12 +20,15 @@ APPLY_FIXES:
   - PYTHON_RUFF_FORMAT
 
 # Reporters
-GITHUB_STATUS_REPORTER: true
-MARKDOWN_SUMMARY_REPORTER: true
-SARIF_REPORTER: true
+GITHUB_STATUS_REPORTER: true # default: false
+MARKDOWN_SUMMARY_REPORTER: true # default: false
+SARIF_REPORTER: true # default: false
 
 # General exclude regex (applies to all linters unless overridden)
 FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)
+
+# Secured environment variables (to avoid leaking in reports)
+SECURED_ENV_VARIABLES: BITSIGHT_API_KEY
 
 ############################################
 # Descriptor-specific configuration overrides
@@ -53,8 +56,6 @@ PYTHON_MYPY_ARGUMENTS: "--strict"
 PYTHON_DEFAULT_STYLE: ruff
 PYTHON_RUFF_CLI_LINT_MODE: project
 PYTHON_RUFF_CONFIG_FILE: pyproject.toml
-PYTHON_RUFF_FILTER_REGEX_EXCLUDE: >-
-  (^docs/apis/|^src/birre/resources/apis/|^scripts/|^dist/|^\.venv/|^BiRRe\.egg-info/)
 
 # Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
 REPOSITORY_SYFT_ARGUMENTS: >-
@@ -68,5 +69,7 @@ YAML_YAMLLINT_ARGUMENTS: "--strict"
 # Performance & Misc
 ############################################
 
+FLAVOR_SUGGESTIONS: false
+PARALLEL: true
 SHOW_ELAPSED_TIME: true
 # End of MegaLinter configuration

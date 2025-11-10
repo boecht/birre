@@ -206,7 +206,9 @@ def _extract_request_id(ctx: Context | None) -> str | None:
         return None
 
     candidate_attrs = ("request_id", "call_id", "id")
-    direct_match = _first_non_empty_str(getattr(ctx, attr, None) for attr in candidate_attrs)
+    direct_match = _first_non_empty_str(
+        getattr(ctx, attr, None) for attr in candidate_attrs
+    )
     if direct_match:
         return direct_match
 

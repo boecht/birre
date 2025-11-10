@@ -26,7 +26,9 @@ def test_primary_port_and_asset_fallbacks() -> None:
     # Non-int ports ignored
     assert s._determine_primary_port({"port_list": ["22"]}) is None
     # Detected service summary formatting fallback
-    txt = s._normalize_detected_service_summary("Detected service: SSH, version 1", None)
+    txt = s._normalize_detected_service_summary(
+        "Detected service: SSH, version 1", None
+    )
     assert "Detected service: SSH, version 1" in txt
 
 

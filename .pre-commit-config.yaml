@@ -1,4 +1,20 @@
 ---
+# Install Git hooks so commits run hooks automatically:
+#   pre-commit install
+#
+# Manually run hooks on STAGED* files:
+#   pre-commit run
+#
+# Manually run hooks on CHANGED* files:
+#   git diff --name-only -z | xargs -0 pre-commit run --files
+#
+# Manually run hooks on ALL files:
+#   pre-commit run --all-files
+#
+# *Some hooks run repo-wide either way.
+#
+# To enable ruff fixing on manual run or pre-commit, see .mega-linter.local.yml
+#
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -7,40 +23,23 @@ repos:
         exclude: "^docs/apis/"
       - id: end-of-file-fixer
         exclude: "^docs/apis/"
-      - id: check-yaml
-      - id: check-json
-        exclude: "^docs/apis/"
       - id: check-toml
 
-  # Use local hooks with uv to ensure project Python version and dependencies
   - repo: local
     hooks:
-      - id: ruff
-        name: ruff
-        entry: uv run ruff check --fix
+      - id: mega-linter
+        name: run MegaLinter (Docker)
+        entry: bash
         language: system
-        types: [python]
-        require_serial: true
-
-      - id: ruff-format
-        name: ruff format
-        entry: uv run ruff format
-        language: system
-        types: [python]
-        require_serial: true
-
-      - id: mypy
-        name: mypy
-        entry: uv run mypy --strict
-        language: system
-        types: [python]
-        files: ^src/
-        require_serial: true
-
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
-    hooks:
-      - id: markdownlint
         args:
-          - "--config=.markdownlint.json"
-        exclude: '^(docs/apis/|\.github/|\.project-notes/)'
+          - -lc
+          - |
+            docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -v "$PWD:/tmp/lint" \
+              -w /tmp/lint \
+              -e HOME=/tmp \
+              -e RUN_LOCAL=true \
+              -e MEGALINTER_CONFIG=.mega-linter.local.yml \
+              ghcr.io/oxsecurity/megalinter-python:v9.1.0
+        pass_filenames: false

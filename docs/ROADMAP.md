@@ -4,7 +4,16 @@
 
 ## Released Versions
 
-### 4.0.0-alpha.2 — Quality & Security Infrastructure (current pre-release)
+### 4.0.0-beta.1 — Structural Hardening & Developer Ergonomics (current pre-release)
+
+- Context modes refined with automatic folder placement and bulk company request workflow improvements
+- Subscription and request helpers reduce duplication and improve reliability
+- Offline selftest replay samples enable diagnostics without network connectivity
+- SonarQube remediation prompt and MegaLinter local runner improve contributor experience
+- Security hardening of CI workflows (least privilege, StepSecurity best-practices)
+- **Breaking:** Python 3.13+ requirement reaffirmed (asyncio stability, error clarity)
+
+### 4.0.0-alpha.2 — Quality & Security Infrastructure (previous pre-release)
 
 - Strict type checking with mypy catches errors before runtime
 - Property-based testing with Hypothesis for edge case discovery

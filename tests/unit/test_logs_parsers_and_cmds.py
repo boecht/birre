@@ -129,7 +129,9 @@ def test_logs_clear_rotate_and_path(tmp_path: Path) -> None:
     try:
         logs_mod._resolve_logging_settings_from_cli = _fake_resolver  # type: ignore[assignment]
         # clear
-        logs_mod._cmd_logs_clear(config=tmp_path / "x.toml", log_file=None, stdout_console=stdout)  # type: ignore[arg-type]
+        logs_mod._cmd_logs_clear(
+            config=tmp_path / "x.toml", log_file=None, stdout_console=stdout
+        )  # type: ignore[arg-type]
         assert log_file.read_text(encoding="utf-8") == ""
 
         # write a couple of lines to rotate
@@ -143,7 +145,9 @@ def test_logs_clear_rotate_and_path(tmp_path: Path) -> None:
         assert (tmp_path / "demo.log.1").exists()
 
         # path
-        logs_mod._cmd_logs_path(config=tmp_path / "x.toml", log_file=None, stdout_console=stdout)  # type: ignore[arg-type]
+        logs_mod._cmd_logs_path(
+            config=tmp_path / "x.toml", log_file=None, stdout_console=stdout
+        )  # type: ignore[arg-type]
         assert any("Log file (absolute)" in line for line in stdout_lines)
     finally:
         logs_mod._resolve_logging_settings_from_cli = orig  # type: ignore[assignment]
@@ -170,7 +174,9 @@ def test_logs_disabled_paths(tmp_path: Path) -> None:
     orig = logs_mod._resolve_logging_settings_from_cli
     try:
         logs_mod._resolve_logging_settings_from_cli = _fake_resolver  # type: ignore[assignment]
-        logs_mod._cmd_logs_show(tmp_path / "c.toml", None, None, 10, None, None, None, stdout)  # type: ignore[arg-type]
+        logs_mod._cmd_logs_show(
+            tmp_path / "c.toml", None, None, 10, None, None, None, stdout
+        )  # type: ignore[arg-type]
         logs_mod._cmd_logs_path(tmp_path / "c.toml", None, stdout)  # type: ignore[arg-type]
         logs_mod._cmd_logs_clear(tmp_path / "c.toml", None, stdout)  # type: ignore[arg-type]
     finally:

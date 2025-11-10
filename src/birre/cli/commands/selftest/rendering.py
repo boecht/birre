@@ -163,7 +163,9 @@ def _add_healthcheck_context_rows(
     online_summary = context_data.get("online", {})
     online_status_label = _healthcheck_status_label(online_summary.get("status"))
     online_detail = _format_healthcheck_online_detail(online_summary)
-    table.add_row("Online", context_name, "-", online_status_label, online_detail or "-")
+    table.add_row(
+        "Online", context_name, "-", online_status_label, online_detail or "-"
+    )
 
     tools = context_data.get("tools", {})
     for tool_name, tool_summary in sorted(tools.items()):
@@ -186,7 +188,9 @@ def _collect_healthcheck_critical_failures(
 
     unrecoverable = context_data.get("unrecoverable_categories") or []
     if unrecoverable:
-        failures.append(f"{context_name}: unrecoverable={','.join(sorted(unrecoverable))}")
+        failures.append(
+            f"{context_name}: unrecoverable={','.join(sorted(unrecoverable))}"
+        )
 
     return failures
 
@@ -199,7 +203,9 @@ def render_healthcheck_summary(report: dict[str, Any], stdout_console: Console) 
     critical_failures: list[str] = []
     for context_name, context_data in sorted(report.get("contexts", {}).items()):
         _add_healthcheck_context_rows(table, context_name, context_data)
-        critical_failures.extend(_collect_healthcheck_critical_failures(context_name, context_data))
+        critical_failures.extend(
+            _collect_healthcheck_critical_failures(context_name, context_data)
+        )
 
     if critical_failures:
         table.add_row(
@@ -212,6 +218,8 @@ def render_healthcheck_summary(report: dict[str, Any], stdout_console: Console) 
 
     stdout_console.print()
     stdout_console.print("Machine-readable summary:")
-    stdout_console.print(json.dumps(report, indent=2, separators=(",", ": "), sort_keys=True))
+    stdout_console.print(
+        json.dumps(report, indent=2, separators=(",", ": "), sort_keys=True)
+    )
     stdout_console.print()
     stdout_console.print(table)

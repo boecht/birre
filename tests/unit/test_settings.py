@@ -57,7 +57,9 @@ def _write_base_config(path: Path) -> None:
     )
 
 
-def test_runtime_defaults_from_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_runtime_defaults_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 
@@ -135,7 +137,9 @@ def test_cli_overrides_supersede_environment(
             max_findings=5,
             skip_startup_checks=True,
         ),
-        tls_inputs=TlsInputs(allow_insecure=False, ca_bundle_path=" /etc/ssl/custom.pem "),
+        tls_inputs=TlsInputs(
+            allow_insecure=False, ca_bundle_path=" /etc/ssl/custom.pem "
+        ),
     )
 
     runtime = runtime_from_settings(settings_obj)
@@ -208,7 +212,9 @@ def test_logging_overrides_follow_cli(tmp_path: Path) -> None:
     assert isinstance(logging_settings, LoggingSettings)
     assert logging_settings.level == logging.DEBUG
     assert logging_settings.format == "json"
-    assert logging_settings.file_path and logging_settings.file_path.endswith("birre.log")
+    assert logging_settings.file_path and logging_settings.file_path.endswith(
+        "birre.log"
+    )
     assert logging_settings.max_bytes == 2048
     assert logging_settings.backup_count == 2
 
@@ -264,7 +270,9 @@ def test_birre_config_env_overrides_default_config(
     assert runtime.debug is True
 
 
-def test_logging_env_disable_sentinel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_logging_env_disable_sentinel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write_base_config(config_path)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
@@ -102,7 +103,9 @@ def _resolve_max_findings(settings: RuntimeSettings) -> int:
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(settings: RuntimeSettings, logger: BoundLogger) -> bool | str:
+def _resolve_tls_verification(
+    settings: RuntimeSettings, logger: BoundLogger
+) -> bool | str:
     allow_insecure_tls = bool(settings.allow_insecure_tls)
     ca_bundle_path = settings.ca_bundle_path
     verify_option: bool | str = True
@@ -198,7 +201,7 @@ def _configure_risk_manager_tools(
     default_folder = settings.subscription_folder
     default_type = settings.subscription_type
 
-    register_company_search_interactive_tool(
+    risk_manager.register_company_search_interactive_tool(
         business_server,
         call_v1_tool,
         logger=logger,
@@ -206,20 +209,23 @@ def _configure_risk_manager_tools(
         default_type=default_type,
         max_findings=max_findings,
     )
-    register_manage_subscriptions_tool(
+    _call_with_supported_kwargs(
+        risk_manager.register_manage_subscriptions_tool,
         business_server,
         call_v1_tool,
         logger=logger,
         default_folder=default_folder,
+        default_folder_guid=settings.subscription_folder_guid,
         default_type=default_type,
     )
-    register_request_company_tool(
+    _call_with_supported_kwargs(
+        risk_manager.register_request_company_tool,
         business_server,
         call_v1_tool,
         call_v2_tool,
         logger=logger,
         default_folder=default_folder,
-        default_type=default_type,
+        default_folder_guid=settings.subscription_folder_guid,
     )
 
 
@@ -235,7 +241,9 @@ def _configure_standard_tools(
     )
 
 
-def _coerce_runtime_settings(settings: RuntimeSettings | Mapping[str, Any]) -> RuntimeSettings:
+def _coerce_runtime_settings(
+    settings: RuntimeSettings | Mapping[str, Any],
+) -> RuntimeSettings:
     if isinstance(settings, RuntimeSettings):
         return settings
 
@@ -268,6 +276,7 @@ def _coerce_runtime_settings(settings: RuntimeSettings | Mapping[str, Any]) -> R
         api_key=api_key,
         subscription_folder=data.get("subscription_folder"),
         subscription_type=data.get("subscription_type"),
+        subscription_folder_guid=data.get("subscription_folder_guid"),
         context=data.get("context"),
         risk_vector_filter=risk_vector_filter,
         max_findings=max_findings,
@@ -371,3 +380,18 @@ def create_birre_server(
 __all__ = [
     "create_birre_server",
 ]
+
+
+def _call_with_supported_kwargs(func, *args, **kwargs):
+    sig = inspect.signature(func)
+    accepted = {}
+    for name, param in sig.parameters.items():
+        if param.kind in (
+            inspect.Parameter.VAR_KEYWORD,
+            inspect.Parameter.VAR_POSITIONAL,
+        ):
+            return func(*args, **kwargs)
+    for key, value in kwargs.items():
+        if key in sig.parameters:
+            accepted[key] = value
+    return func(*args, **accepted)

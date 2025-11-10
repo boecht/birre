@@ -27,11 +27,17 @@ def _is_integration_path(s: str) -> bool:
 def _mark_by_path(items: list[pytest.Item]) -> None:
     for item in items:
         node_str = str(getattr(item, "fspath", item.nodeid))
-        marker = pytest.mark.online if _is_integration_path(node_str) else pytest.mark.offline
+        marker = (
+            pytest.mark.online
+            if _is_integration_path(node_str)
+            else pytest.mark.offline
+        )
         item.add_marker(marker)
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     _mark_by_path(items)
 
     offline_only = bool(config.getoption("birre_offline"))

@@ -5,22 +5,30 @@
 [![Tests][tests-badge]][tests-link]
 [![codecov][codecov-badge]][codecov-link]
 [![Type Checked][type-checked-badge]][type-checked-link]
-[![OpenSSF Best Practices][ossf-badge]][ossf-link]
+[![OpenSSF Best Practices][ossf-bp-badge]][ossf-bp-link]
+[![OpenSSF Scorecard report][ossf-scr-badge]][ossf-scr-link]
+[![MegaLinter][mega-linter-badge]][mega-linter-link]
 
-[python-badge]: https://img.shields.io/badge/python-3.13%2B-blue
-[python-link]: pyproject.toml
-[license-badge]: https://img.shields.io/badge/license-Unlicense-blue
-[license-link]: LICENSE
-[tests-badge]: https://img.shields.io/badge/tests-passing-success
-[tests-link]: https://github.com/boecht/birre/actions
-[codecov-badge]: https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg
-[codecov-link]: https://codecov.io/gh/boecht/birre
-[type-checked-badge]: https://img.shields.io/badge/type--checked-yes-success
-[type-checked-link]: src/birre/py.typed
-[ossf-badge]: https://www.bestpractices.dev/projects/11405/badge
-[ossf-link]: https://www.bestpractices.dev/projects/11405
+[python-badge]: <https://img.shields.io/badge/python-3.13%2B-blue>
+[python-link]: <pyproject.toml>
+[license-badge]: <https://img.shields.io/badge/license-Unlicense-blue>
+[license-link]: <LICENSE>
+[tests-badge]: <https://img.shields.io/badge/tests-passing-success>
+[tests-link]: <https://github.com/boecht/birre/actions>
+[codecov-badge]: <https://codecov.io/gh/boecht/birre/branch/main/graph/badge.svg>
+[codecov-link]: <https://codecov.io/gh/boecht/birre>
+[type-checked-badge]: <https://img.shields.io/badge/type--checked-yes-success>
+[type-checked-link]: <src/birre/py.typed>
+[ossf-bp-badge]: <https://www.bestpractices.dev/projects/11405/badge>
+[ossf-bp-link]: <https://www.bestpractices.dev/projects/11405>
+[ossf-scr-badge]: <https://github.com/boecht/birre/actions/workflows/scorecard.yml/badge.svg?branch=main>
+[ossf-scr-link]: <https://github.com/boecht/birre/actions/workflows/scorecard.yml>
+[mega-linter-badge]: <https://github.com/boecht/birre/actions/workflows/lint-and-test.yml/badge.svg?branch=main>
+[mega-linter-link]: <https://github.com/boecht/birre/actions/workflows/lint-and-test.yml>
 
-<div align="center"><img src="birre-logo.png" alt="BiRRe Logo" width="375"></div>
+<div align="center">
+<img src="https://github.com/boecht/birre/blob/main/birre-logo.png?raw=true" alt="BiRRe Logo" width="350">
+</div>
 
 **BiRRe** (*Bi*tsight *R*ating *Re*triever) is a Model Context Protocol (MCP) server
 that provides access to BitSight security rating data through an existing subscription.

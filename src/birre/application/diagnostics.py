@@ -16,14 +16,19 @@ import errno
 import inspect
 import logging
 import ssl
-from collections.abc import Awaitable, Callable, Sequence
+import uuid
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
 from typing import Any, Final
 
 import httpx
 
 from birre import _resolve_tls_verification, create_birre_server
-from birre.application.startup import run_offline_startup_checks, run_online_startup_checks
+from birre.application.startup import (
+    OnlineStartupResult,
+    run_offline_startup_checks,
+    run_online_startup_checks,
+)
 from birre.config.settings import RuntimeSettings
 from birre.domain.selftest_models import (
     AttemptReport,
@@ -75,7 +80,9 @@ MSG_CONFIG_CA_BUNDLE: Final = "config.ca_bundle"
 HEALTHCHECK_COMPANY_NAME: Final = "GitHub"
 HEALTHCHECK_COMPANY_DOMAIN: Final = "github.com"
 HEALTHCHECK_COMPANY_GUID: Final = "6ca077e2-b5a7-42c2-ae1e-a974c3a91dc1"
-HEALTHCHECK_REQUEST_DOMAIN: Final = "github.com"  # Use existing domain to avoid creating tickets
+HEALTHCHECK_REQUEST_DOMAIN: Final = (
+    "github.com"  # Use existing domain to avoid creating tickets
+)
 
 
 def _default_run_sync(coro: Awaitable[Any]) -> Any:
@@ -177,7 +184,11 @@ def collect_tool_map(
     tools_attr = getattr(server, "tools", None)
     if isinstance(tools_attr, dict):
         tools.update(
-            {str(name): tool for name, tool in tools_attr.items() if isinstance(name, str)}
+            {
+                str(name): tool
+                for name, tool in tools_attr.items()
+                if isinstance(name, str)
+            }
         )
 
     get_tools = getattr(server, "get_tools", None)
@@ -192,7 +203,11 @@ def collect_tool_map(
             resolved = result
         if isinstance(resolved, dict):
             tools.update(
-                {str(name): tool for name, tool in resolved.items() if isinstance(name, str)}
+                {
+                    str(name): tool
+                    for name, tool in resolved.items()
+                    if isinstance(name, str)
+                }
             )
 
     for candidate in (
@@ -294,7 +309,9 @@ def check_required_tool(
             {
                 "status": "pass" if ok else "fail",
                 "details": {
-                    "reason": "diagnostic succeeded" if ok else "diagnostic reported failure",
+                    "reason": "diagnostic succeeded"
+                    if ok
+                    else "diagnostic reported failure",
                 },
             }
         )
@@ -357,7 +374,9 @@ def check_optional_tool(
             {
                 "status": "pass" if ok else "warning",
                 "details": {
-                    "reason": "diagnostic succeeded" if ok else "diagnostic reported warnings",
+                    "reason": "diagnostic succeeded"
+                    if ok
+                    else "diagnostic reported warnings",
                 },
             }
         )
@@ -457,14 +476,17 @@ def run_company_search_diagnostics(
     *,
     context: str,
     logger: BoundLogger,
-    tool: Any,
+    tool: Any | None,
     failures: list[DiagnosticFailure | None] | None = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
+    sample_payloads: Mapping[str, Any] | None = None,
 ) -> bool:
     """Run diagnostics for company_search tool with both name and domain modes."""
     tool_logger = logger.bind(tool="company_search")
-    ctx = _MockSelfTestContext(context=context, tool_name="company_search", logger=tool_logger)
+    ctx = _MockSelfTestContext(
+        context=context, tool_name="company_search", logger=tool_logger
+    )
 
     if summary is not None:
         summary.clear()
@@ -477,6 +499,8 @@ def run_company_search_diagnostics(
         mode="name",
         search_params={"name": HEALTHCHECK_COMPANY_NAME},
         expected_domain=None,
+        require_results=True,
+        sample_payload=(sample_payloads or {}).get("name") if sample_payloads else None,
         tool_logger=tool_logger,
         failures=failures,
         summary=summary,
@@ -491,6 +515,28 @@ def run_company_search_diagnostics(
         mode="domain",
         search_params={"domain": HEALTHCHECK_COMPANY_DOMAIN},
         expected_domain=HEALTHCHECK_COMPANY_DOMAIN,
+        require_results=True,
+        sample_payload=(sample_payloads or {}).get("domain")
+        if sample_payloads
+        else None,
+        tool_logger=tool_logger,
+        failures=failures,
+        summary=summary,
+        run_sync=run_sync,
+    ):
+        return False
+
+    random_term = f"birre-random-{uuid.uuid4().hex}"
+    if not _test_company_search_mode(
+        tool=tool,
+        ctx=ctx,
+        mode="random",
+        search_params={"name": random_term},
+        expected_domain=None,
+        require_results=False,
+        sample_payload=(sample_payloads or {}).get("random")
+        if sample_payloads
+        else None,
         tool_logger=tool_logger,
         failures=failures,
         summary=summary,
@@ -504,11 +550,13 @@ def run_company_search_diagnostics(
 
 def _test_company_search_mode(
     *,
-    tool: Any,
+    tool: Any | None,
     ctx: _MockSelfTestContext,
     mode: str,
     search_params: dict[str, str],
     expected_domain: str | None,
+    require_results: bool,
+    sample_payload: Any | None,
     tool_logger: BoundLogger,
     failures: list[DiagnosticFailure | None] | None,
     summary: dict[str, Any | None] | None,
@@ -516,23 +564,30 @@ def _test_company_search_mode(
 ) -> bool:
     """Test a single search mode (name or domain) for company_search diagnostics."""
     # Try to invoke the tool
-    try:
-        result = _invoke_tool(tool, ctx, run_sync=run_sync, **search_params)
-    except Exception as exc:  # pragma: no cover - network failures
-        return _handle_company_search_call_failure(
-            mode=mode,
-            exc=exc,
-            tool_logger=tool_logger,
-            failures=failures,
-            summary=summary,
-        )
+    if sample_payload is not None:
+        result = sample_payload
+    else:
+        try:
+            if tool is None:
+                raise RuntimeError("company_search tool unavailable for offline replay")
+            result = _invoke_tool(tool, ctx, run_sync=run_sync, **search_params)
+        except Exception as exc:  # pragma: no cover - network failures
+            return _handle_company_search_call_failure(
+                mode=mode,
+                exc=exc,
+                tool_logger=tool_logger,
+                failures=failures,
+                summary=summary,
+            )
 
     # Validate the response
-    if not _validate_company_search_payload(
+    valid, result_count = _validate_company_search_payload(
         result,
         logger=tool_logger,
         expected_domain=expected_domain,
-    ):
+        require_results=require_results,
+    )
+    if not valid:
         return _handle_company_search_validation_failure(
             mode=mode,
             failures=failures,
@@ -542,7 +597,10 @@ def _test_company_search_mode(
     # Record success
     if summary is not None:
         modes = _ensure_mode_mapping(summary)
-        modes[mode] = {"status": "pass"}
+        entry: dict[str, Any] = {"status": "pass"}
+        if result_count is not None:
+            entry["count"] = result_count
+        modes[mode] = entry
 
     return True
 
@@ -556,7 +614,9 @@ def _handle_company_search_call_failure(
     summary: dict[str, Any | None] | None,
 ) -> bool:
     """Handle failures during company_search tool invocation."""
-    tool_logger.critical(f"healthcheck.company_search.{mode}_call_failed", error=str(exc))
+    tool_logger.critical(
+        f"healthcheck.company_search.{mode}_call_failed", error=str(exc)
+    )
     record_failure(
         failures,
         tool="company_search",
@@ -614,7 +674,9 @@ def run_rating_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="get_company_rating")
-    ctx = _MockSelfTestContext(context=context, tool_name="get_company_rating", logger=tool_logger)
+    ctx = _MockSelfTestContext(
+        context=context, tool_name="get_company_rating", logger=tool_logger
+    )
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -655,7 +717,10 @@ def run_rating_diagnostics(
         return False
 
     domain_value = payload.get("domain")
-    if isinstance(domain_value, str) and domain_value.lower() != HEALTHCHECK_COMPANY_DOMAIN:
+    if (
+        isinstance(domain_value, str)
+        and domain_value.lower() != HEALTHCHECK_COMPANY_DOMAIN
+    ):
         tool_logger.critical(
             "healthcheck.rating.domain_mismatch",
             domain=domain_value,
@@ -705,7 +770,9 @@ def run_company_search_interactive_diagnostics(
             name=HEALTHCHECK_COMPANY_NAME,
         )
     except Exception as exc:  # pragma: no cover - network failures
-        tool_logger.warning("healthcheck.company_search_interactive.call_failed", error=str(exc))
+        tool_logger.warning(
+            "healthcheck.company_search_interactive.call_failed", error=str(exc)
+        )
         record_failure(
             failures,
             tool="company_search_interactive",
@@ -762,7 +829,9 @@ def run_manage_subscriptions_diagnostics(
             guids=[HEALTHCHECK_COMPANY_GUID],
         )
     except Exception as exc:  # pragma: no cover - network failures
-        tool_logger.warning("healthcheck.manage_subscriptions.call_failed", error=str(exc))
+        tool_logger.warning(
+            "healthcheck.manage_subscriptions.call_failed", error=str(exc)
+        )
         record_failure(
             failures,
             tool="manage_subscriptions",
@@ -808,7 +877,9 @@ def run_request_company_diagnostics(
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tool_logger = logger.bind(tool="request_company")
-    ctx = _MockSelfTestContext(context=context, tool_name="request_company", logger=tool_logger)
+    ctx = _MockSelfTestContext(
+        context=context, tool_name="request_company", logger=tool_logger
+    )
     if summary is not None:
         summary.clear()
         summary["status"] = "pass"
@@ -817,8 +888,7 @@ def run_request_company_diagnostics(
             tool,
             ctx,
             run_sync=run_sync,
-            domain=HEALTHCHECK_REQUEST_DOMAIN,
-            company_name=HEALTHCHECK_COMPANY_NAME,
+            domains=HEALTHCHECK_REQUEST_DOMAIN,
         )
     except Exception as exc:  # pragma: no cover - network failures
         # 400 errors mean API is reachable and processed our request - that's SUCCESS
@@ -876,7 +946,9 @@ def run_request_company_diagnostics(
 
 def _validate_company_entry(entry: Any, logger: BoundLogger) -> bool:
     if not isinstance(entry, dict):
-        logger.critical("healthcheck.company_search.invalid_company", reason="entry not dict")
+        logger.critical(
+            "healthcheck.company_search.invalid_company", reason="entry not dict"
+        )
         return False
     if not entry.get("guid") or not entry.get("name"):
         logger.critical(
@@ -888,12 +960,16 @@ def _validate_company_entry(entry: Any, logger: BoundLogger) -> bool:
     return True
 
 
-def _check_domain_match(companies: list[Any], expected_domain: str, logger: BoundLogger) -> bool:
+def _check_domain_match(
+    companies: list[Any], expected_domain: str, logger: BoundLogger
+) -> bool:
     for entry in companies:
         domain_value = str(entry.get("domain") or "")
         if domain_value.lower() == expected_domain.lower():
             return True
-    logger.critical("healthcheck.company_search.domain_missing", expected=expected_domain)
+    logger.critical(
+        "healthcheck.company_search.domain_missing", expected=expected_domain
+    )
     return False
 
 
@@ -902,32 +978,70 @@ def _validate_company_search_payload(
     *,
     logger: BoundLogger,
     expected_domain: str | None,
-) -> bool:
+    require_results: bool,
+) -> tuple[bool, int | None]:
+    base = _extract_company_search_payload(payload, logger)
+    if base is None:
+        return False, None
+
+    companies = base["companies"]
+    if not _validate_company_search_results(companies, require_results, logger):
+        return False, None
+
+    count_value = base["count"]
+    if not _validate_company_search_count(count_value, require_results, logger):
+        return False, None
+
+    if expected_domain and not _check_domain_match(companies, expected_domain, logger):
+        return False, count_value
+
+    return True, count_value
+
+
+def _extract_company_search_payload(
+    payload: Any, logger: BoundLogger
+) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
-        logger.critical("healthcheck.company_search.invalid_response", reason=MSG_NOT_A_DICT)
-        return False
+        logger.critical(
+            "healthcheck.company_search.invalid_response", reason=MSG_NOT_A_DICT
+        )
+        return None
 
     if payload.get("error"):
-        logger.critical("healthcheck.company_search.api_error", error=str(payload["error"]))
-        return False
+        logger.critical(
+            "healthcheck.company_search.api_error", error=str(payload["error"])
+        )
+        return None
 
-    companies = payload.get("companies")
-    if not isinstance(companies, list) or not companies:
-        logger.critical("healthcheck.company_search.empty", reason="no companies returned")
+    return {
+        "companies": payload.get("companies"),
+        "count": payload.get("count"),
+    }
+
+
+def _validate_company_search_results(
+    companies: Any, require_results: bool, logger: BoundLogger
+) -> bool:
+    if not isinstance(companies, list) or (require_results and not companies):
+        logger.critical(
+            "healthcheck.company_search.empty", reason="no companies returned"
+        )
         return False
 
     for entry in companies:
         if not _validate_company_entry(entry, logger):
             return False
+    return True
 
-    count_value = payload.get("count")
-    if not isinstance(count_value, int) or count_value <= 0:
+
+def _validate_company_search_count(
+    count_value: Any,
+    require_results: bool,
+    logger: BoundLogger,
+) -> bool:
+    if not isinstance(count_value, int) or (require_results and count_value <= 0):
         logger.critical("healthcheck.company_search.invalid_count", count=count_value)
         return False
-
-    if expected_domain and not _check_domain_match(companies, expected_domain, logger):
-        return False
-
     return True
 
 
@@ -936,21 +1050,44 @@ def _validate_company_search_interactive_payload(
     *,
     logger: BoundLogger,
 ) -> bool:
+    base = _extract_company_search_interactive_payload(payload, logger)
+    if base is None:
+        return False
+
+    if not _validate_company_search_interactive_results(base["results"], logger):
+        return False
+    if not _validate_company_search_interactive_count(base["count"], logger):
+        return False
+    return _validate_company_search_interactive_guidance(base["guidance"], logger)
+
+
+def _extract_company_search_interactive_payload(
+    payload: Any, logger: BoundLogger
+) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         logger.critical(
             "healthcheck.company_search_interactive.invalid_response",
             reason=MSG_NOT_A_DICT,
         )
-        return False
+        return None
 
     if payload.get("error"):
         logger.critical(
             "healthcheck.company_search_interactive.api_error",
             error=str(payload["error"]),
         )
-        return False
+        return None
 
-    results = payload.get("results")
+    return {
+        "results": payload.get("results"),
+        "count": payload.get("count"),
+        "guidance": payload.get("guidance"),
+    }
+
+
+def _validate_company_search_interactive_results(
+    results: Any, logger: BoundLogger
+) -> bool:
     if not isinstance(results, list) or not results:
         logger.critical(
             "healthcheck.company_search_interactive.empty_results",
@@ -979,20 +1116,27 @@ def _validate_company_search_interactive_payload(
                 subscription=subscription,
             )
             return False
+    return True
 
-    count_value = payload.get("count")
+
+def _validate_company_search_interactive_count(
+    count_value: Any, logger: BoundLogger
+) -> bool:
     if not isinstance(count_value, int) or count_value <= 0:
         logger.critical(
             "healthcheck.company_search_interactive.invalid_count",
             count=count_value,
         )
         return False
+    return True
 
-    guidance = payload.get("guidance")
+
+def _validate_company_search_interactive_guidance(
+    guidance: Any, logger: BoundLogger
+) -> bool:
     if not isinstance(guidance, dict):
         logger.critical("healthcheck.company_search_interactive.missing_guidance")
         return False
-
     return True
 
 
@@ -1005,17 +1149,39 @@ def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
         logger.critical("healthcheck.rating.api_error", error=str(payload["error"]))
         return False
 
+    if not _validate_rating_required_fields(payload, logger):
+        return False
+    if not _validate_rating_current_section(payload, logger):
+        return False
+    if not _validate_rating_findings(payload, logger):
+        return False
+    return _validate_rating_legend(payload, logger)
+
+
+def _validate_rating_required_fields(
+    payload: Mapping[str, Any], logger: BoundLogger
+) -> bool:
     required_fields = ("name", "domain", "current_rating", "top_findings", "legend")
     for field in required_fields:
         if payload.get(field) in (None, {}):
             logger.critical("healthcheck.rating.missing_field", field=field)
             return False
+    return True
 
+
+def _validate_rating_current_section(
+    payload: Mapping[str, Any], logger: BoundLogger
+) -> bool:
     current_rating = payload.get("current_rating")
     if not isinstance(current_rating, dict) or current_rating.get("value") is None:
-        logger.critical("healthcheck.rating.invalid_current_rating", payload=current_rating)
+        logger.critical(
+            "healthcheck.rating.invalid_current_rating", payload=current_rating
+        )
         return False
+    return True
 
+
+def _validate_rating_findings(payload: Mapping[str, Any], logger: BoundLogger) -> bool:
     findings = payload.get("top_findings")
     if not isinstance(findings, dict):
         logger.critical("healthcheck.rating.invalid_findings", payload=findings)
@@ -1023,18 +1189,28 @@ def _validate_rating_payload(payload: Any, *, logger: BoundLogger) -> bool:
 
     finding_count = findings.get("count")
     finding_entries = findings.get("findings")
-    if not isinstance(finding_count, int) or finding_count <= 0:
-        logger.critical("healthcheck.rating.no_findings", count=finding_count)
+    if not isinstance(finding_count, int):
+        logger.critical(
+            "healthcheck.rating.invalid_findings_count", count=finding_count
+        )
         return False
-    if not isinstance(finding_entries, list) or not finding_entries:
-        logger.critical("healthcheck.rating.empty_findings", payload=findings)
+    if not isinstance(finding_entries, list):
+        logger.critical("healthcheck.rating.invalid_findings_entries", payload=findings)
         return False
+    if finding_count <= 0 or not finding_entries:
+        logger.warning(
+            "healthcheck.rating.no_findings_returned",
+            count=finding_count,
+            entries=len(finding_entries),
+        )
+    return True
 
+
+def _validate_rating_legend(payload: Mapping[str, Any], logger: BoundLogger) -> bool:
     legend = payload.get("legend")
     if not isinstance(legend, dict) or not legend.get("rating"):
         logger.critical("healthcheck.rating.missing_legend", payload=legend)
         return False
-
     return True
 
 
@@ -1044,20 +1220,54 @@ def _validate_manage_subscriptions_payload(
     logger: BoundLogger,
     expected_guid: str,
 ) -> bool:
-    if not isinstance(payload, dict):
-        logger.critical("healthcheck.manage_subscriptions.invalid_response", reason=MSG_NOT_A_DICT)
+    base = _extract_manage_subscriptions_payload(payload, logger)
+    if base is None:
         return False
+
+    status = base["status"]
+    if not _validate_manage_subscription_status(status, logger):
+        return False
+
+    if not _validate_manage_subscription_guids(base["guids"], expected_guid, logger):
+        return False
+
+    return _validate_manage_subscription_dry_payload(status, base["payload"], logger)
+
+
+def _extract_manage_subscriptions_payload(
+    payload: Any, logger: BoundLogger
+) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        logger.critical(
+            "healthcheck.manage_subscriptions.invalid_response", reason=MSG_NOT_A_DICT
+        )
+        return None
 
     if payload.get("error"):
-        logger.critical("healthcheck.manage_subscriptions.api_error", error=str(payload["error"]))
-        return False
+        logger.critical(
+            "healthcheck.manage_subscriptions.api_error", error=str(payload["error"])
+        )
+        return None
 
-    status = payload.get("status")
+    return {
+        "status": payload.get("status"),
+        "guids": payload.get("guids"),
+        "payload": payload.get("payload"),
+    }
+
+
+def _validate_manage_subscription_status(status: Any, logger: BoundLogger) -> bool:
     if status not in {"dry_run", "applied"}:
-        logger.critical("healthcheck.manage_subscriptions.unexpected_status", status=status)
+        logger.critical(
+            "healthcheck.manage_subscriptions.unexpected_status", status=status
+        )
         return False
+    return True
 
-    guids = payload.get("guids")
+
+def _validate_manage_subscription_guids(
+    guids: Any, expected_guid: str, logger: BoundLogger
+) -> bool:
     if not isinstance(guids, list) or expected_guid not in guids:
         logger.critical(
             "healthcheck.manage_subscriptions.guid_missing",
@@ -1065,31 +1275,23 @@ def _validate_manage_subscriptions_payload(
             expected=expected_guid,
         )
         return False
-
-    if status == "dry_run":
-        dry_payload = payload.get("payload")
-        if not isinstance(dry_payload, dict) or "add" not in dry_payload:
-            logger.critical(
-                "healthcheck.manage_subscriptions.invalid_payload",
-                payload=dry_payload,
-            )
-            return False
-
     return True
 
 
-def _validate_request_company_domains(domains: Any, *, logger: BoundLogger, expected: str) -> bool:
-    if not isinstance(domains, list) or not domains:
-        logger.critical("healthcheck.request_company.invalid_domains", domains=domains)
+def _validate_manage_subscription_dry_payload(
+    status: str,
+    dry_payload: Any,
+    logger: BoundLogger,
+) -> bool:
+    if status != "dry_run":
+        return True
+    if not isinstance(dry_payload, dict) or "add" not in dry_payload:
+        logger.critical(
+            "healthcheck.manage_subscriptions.invalid_payload",
+            payload=dry_payload,
+        )
         return False
-    for entry in domains:
-        if not isinstance(entry, dict) or not entry.get("domain"):
-            logger.critical("healthcheck.request_company.invalid_domain_entry", entry=entry)
-            return False
-        if entry.get("domain", "").lower() == expected.lower():
-            return True
-    logger.critical("healthcheck.request_company.domain_missing", expected=expected)
-    return False
+    return True
 
 
 def _validate_request_company_payload(
@@ -1098,49 +1300,181 @@ def _validate_request_company_payload(
     logger: BoundLogger,
     expected_domain: str,
 ) -> bool:
-    if not isinstance(payload, dict):
-        logger.critical("healthcheck.request_company.invalid_response", reason=MSG_NOT_A_DICT)
+    base = _extract_request_company_payload(payload, logger)
+    if base is None:
         return False
+
+    status = base["status"]
+    submitted = base["submitted"]
+    expected_lower = expected_domain.lower()
+
+    if not _validate_submitted_domains(
+        submitted, expected_lower, expected_domain, logger
+    ):
+        return False
+
+    sections = _extract_request_company_sections(payload, logger)
+    if sections is None:
+        return False
+    success_list, already_existing, failed_entries = sections
+
+    if not _domain_present_in_sections(
+        success_list,
+        already_existing,
+        failed_entries,
+        expected_lower,
+        expected_domain,
+        logger,
+    ):
+        return False
+
+    return _validate_request_company_dry_run(status, payload, logger)
+
+
+def _extract_request_company_payload(
+    payload: Any, logger: BoundLogger
+) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        logger.critical(
+            "healthcheck.request_company.invalid_response", reason=MSG_NOT_A_DICT
+        )
+        return None
 
     if payload.get("error"):
-        logger.critical("healthcheck.request_company.api_error", error=str(payload["error"]))
-        return False
+        logger.critical(
+            "healthcheck.request_company.api_error", error=str(payload["error"])
+        )
+        return None
 
     status = payload.get("status")
-    if status not in {"requested", "existing", "already_requested", "submitted_v2_bulk", "dry_run"}:
+    if status not in {
+        "already_existing",
+        "submitted_v2_bulk",
+        "dry_run",
+        "failed",
+        "folder_error",
+    }:
         logger.critical("healthcheck.request_company.unexpected_status", status=status)
-        return False
+        return None
 
-    # For dry_run, check domain field (used when testing to avoid creating tickets)
-    if status == "dry_run":
-        domain = payload.get("domain")
-        if not domain or domain.lower() != expected_domain.lower():
+    submitted = payload.get("submitted")
+    if not isinstance(submitted, list) or not submitted:
+        logger.critical(
+            "healthcheck.request_company.invalid_submitted", submitted=submitted
+        )
+        return None
+
+    return {"status": status, "submitted": submitted}
+
+
+def _extract_request_company_sections(
+    payload: Mapping[str, Any], logger: BoundLogger
+) -> tuple[list[Any], list[Any], list[Any]] | None:
+    success_list = payload.get("successfully_requested") or []
+    if not _validate_string_list(success_list, "success_list", logger):
+        return None
+
+    already_existing = payload.get("already_existing") or []
+    if not _validate_domain_mapping_list(already_existing, "already_existing", logger):
+        return None
+
+    failed_entries = payload.get("failed") or []
+    if not _validate_domain_mapping_list(failed_entries, "failed", logger):
+        return None
+
+    return success_list, already_existing, failed_entries
+
+
+def _validate_submitted_domains(
+    submitted: list[Any],
+    expected_lower: str,
+    expected_domain: str,
+    logger: BoundLogger,
+) -> bool:
+    if all(
+        not isinstance(item, str) or item.lower() != expected_lower
+        for item in submitted
+    ):
+        logger.critical(
+            "healthcheck.request_company.domain_missing",
+            expected=expected_domain,
+        )
+        return False
+    return True
+
+
+def _validate_string_list(values: list[Any], label: str, logger: BoundLogger) -> bool:
+    if not isinstance(values, list):
+        logger.critical(
+            f"healthcheck.request_company.invalid_{label}",
+            entries=values,
+        )
+        return False
+    return True
+
+
+def _validate_domain_mapping_list(
+    values: list[Any], label: str, logger: BoundLogger
+) -> bool:
+    if not isinstance(values, list):
+        logger.critical(
+            f"healthcheck.request_company.invalid_{label}_list",
+            entries=values,
+        )
+        return False
+    for entry in values:
+        if not isinstance(entry, Mapping):
             logger.critical(
-                "healthcheck.request_company.domain_mismatch",
-                domain=domain,
-                expected=expected_domain,
+                "healthcheck.request_company.invalid_domain_entry",
+                entry=entry,
             )
             return False
-        return True
-
-    # For "already_requested", check requests field exists
-    if status == "already_requested":
-        requests = payload.get("requests")
-        if not isinstance(requests, list):
-            logger.critical("healthcheck.request_company.invalid_requests", requests=requests)
+        domain_value = entry.get("domain")
+        if not isinstance(domain_value, str) or not domain_value.strip():
+            logger.critical(
+                "healthcheck.request_company.invalid_domain_entry",
+                entry=entry,
+            )
             return False
-        return True
-
-    # For submitted requests, just verify it completed
-    if status == "submitted_v2_bulk":
-        return True
-
-    # For actual requests with domains list
-    domains = payload.get("domains")
-    if not _validate_request_company_domains(domains, logger=logger, expected=expected_domain):
-        return False
-
     return True
+
+
+def _validate_request_company_dry_run(
+    status: str, payload: Mapping[str, Any], logger: BoundLogger
+) -> bool:
+    if status != "dry_run":
+        return True
+    if payload.get("dry_run"):
+        return True
+    logger.critical("healthcheck.request_company.dry_run_flag_missing")
+    return False
+
+
+def _domain_present_in_sections(
+    success_list: list[Any],
+    existing: list[Any],
+    failed: list[Any],
+    expected_lower: str,
+    expected_domain: str,
+    logger: BoundLogger,
+) -> bool:
+    if any(
+        isinstance(value, str) and value.lower() == expected_lower
+        for value in success_list
+    ):
+        return True
+
+    for entries in (existing, failed):
+        for entry in entries:
+            domain_value = str(entry.get("domain") or "").lower()
+            if domain_value == expected_lower:
+                return True
+
+    logger.critical(
+        "healthcheck.request_company.domain_missing",
+        expected=expected_domain,
+    )
+    return False
 
 
 def _is_tls_exception(exc: BaseException) -> bool:
@@ -1203,7 +1537,9 @@ def summarize_failure(failure: DiagnosticFailure) -> dict[str, Any]:
     return summary
 
 
-def _create_offline_tool_status(tool_name: str, missing_set: set[str | None]) -> dict[str, Any]:
+def _create_offline_tool_status(
+    tool_name: str, missing_set: set[str | None]
+) -> dict[str, Any]:
     if tool_name in missing_set:
         return {
             "status": "fail",
@@ -1297,7 +1633,7 @@ def run_online_checks(
     verify_option = _resolve_tls_verification(runtime_settings, logger)
     base_url = v1_base_url or DEFAULT_V1_API_BASE_URL
 
-    async def _execute_checks() -> bool:
+    async def _execute_checks() -> OnlineStartupResult:
         api_server = create_v1_api_server(
             runtime_settings.api_key,
             verify=verify_option,
@@ -1319,7 +1655,9 @@ def run_online_checks(
                 subscription_folder=runtime_settings.subscription_folder,
                 subscription_type=runtime_settings.subscription_type,
                 logger=logger,
-                skip_startup_checks=getattr(runtime_settings, "skip_startup_checks", False),
+                skip_startup_checks=getattr(
+                    runtime_settings, "skip_startup_checks", False
+                ),
             )
         finally:
             client = getattr(api_server, "_client", None)
@@ -1328,14 +1666,31 @@ def run_online_checks(
                 try:
                     await close()
                 except Exception as exc:  # pragma: no cover - defensive logging
-                    _LOOP_LOGGER.warning("online_checks.client_close_failed: %s", str(exc))
+                    _LOOP_LOGGER.warning(
+                        "online_checks.client_close_failed: %s", str(exc)
+                    )
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):
                 with suppress(Exception):
                     await shutdown()
 
-    result: bool = _sync(_execute_checks(), run_sync=run_sync)
-    return result
+    startup_result = _sync(_execute_checks(), run_sync=run_sync)
+    if isinstance(startup_result, OnlineStartupResult):
+        if startup_result.subscription_folder_guid:
+            _apply_subscription_folder_guid(
+                runtime_settings, startup_result.subscription_folder_guid
+            )
+        return startup_result.success
+    return bool(startup_result)
+
+
+def _apply_subscription_folder_guid(
+    runtime_settings: RuntimeSettings, folder_guid: str
+) -> None:
+    try:
+        object.__setattr__(runtime_settings, "subscription_folder_guid", folder_guid)
+    except Exception:  # pragma: no cover - defensive
+        pass
 
 
 __all__ = [

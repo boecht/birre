@@ -3,10 +3,20 @@ from __future__ import annotations
 import asyncio
 import ssl
 from types import SimpleNamespace
+from typing import Any
 
 import httpx
 
 from birre.application import diagnostics as dx
+from birre.infrastructure.logging import get_logger
+
+
+def _run_sync(awaitable):
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(awaitable)
+    finally:
+        loop.close()
 
 
 class DummyLogger:
@@ -134,7 +144,9 @@ def test_check_required_and_optional_tool_paths() -> None:
 
 def test_aggregate_tool_outcomes_offline_and_merge() -> None:
     tools = frozenset({"a", "b"})
-    agg = dx.aggregate_tool_outcomes(tools, [], offline_mode=True, offline_missing=["a"])  # type: ignore[list-item]
+    agg = dx.aggregate_tool_outcomes(
+        tools, [], offline_mode=True, offline_missing=["a"]
+    )  # type: ignore[list-item]
     assert agg["a"]["status"] == "fail" and agg["b"]["status"] == "warning"
 
     attempts = [
@@ -148,7 +160,9 @@ def test_aggregate_tool_outcomes_offline_and_merge() -> None:
 def test_classify_and_summarize_failure() -> None:
     f = dx.DiagnosticFailure(tool="t", stage="s", message="TLS handshake error")
     assert dx.classify_failure(f) in (None, "tls")
-    f2 = dx.DiagnosticFailure(tool="t", stage="s", message="x", exception=ssl.SSLError("boom"))
+    f2 = dx.DiagnosticFailure(
+        tool="t", stage="s", message="x", exception=ssl.SSLError("boom")
+    )
     assert dx.classify_failure(f2) == "tls"
     f3 = dx.DiagnosticFailure(
         tool="t",
@@ -167,3 +181,108 @@ def test_classify_and_summarize_failure() -> None:
 
     s = dx.summarize_failure(f4)
     assert s["tool"] == "t" and "error" in s
+
+
+def test_discover_context_tools_handles_async_get_tools():
+    class AsyncServer(SimpleNamespace):
+        async def get_tools(self):
+            await asyncio.sleep(0)
+            return {"beta": object()}
+
+    names = dx.discover_context_tools(AsyncServer(), run_sync=_run_sync)
+    assert "beta" in names
+
+
+def test_run_rating_diagnostics_domain_mismatch():
+    logger = get_logger("test.rating")
+    summary: dict[str, Any | None] = {}
+    failures: list[dx.DiagnosticFailure | None] = []
+
+    def tool(ctx, **_params):
+        return {
+            "name": "Company",
+            "domain": "wrong.com",
+            "current_rating": {"value": 750},
+            "top_findings": {"count": 1, "findings": [{"id": "f1"}]},
+            "legend": {"sections": []},
+        }
+
+    ok = dx.run_rating_diagnostics(
+        context="standard",
+        logger=logger,  # type: ignore[arg-type]
+        tool=tool,
+        failures=failures,
+        summary=summary,
+        run_sync=None,
+    )
+
+    assert ok is False
+    assert summary["status"] == "fail"
+    assert failures and failures[-1].stage == "validation"
+
+
+def test_validate_manage_subscriptions_payload_paths() -> None:
+    logger = get_logger("test.manage.validate")
+    guid = dx.HEALTHCHECK_COMPANY_GUID
+    payload = {
+        "status": "dry_run",
+        "guids": [guid],
+        "payload": {"add": [{"guid": guid}]},
+    }
+
+    assert dx._validate_manage_subscriptions_payload(  # type: ignore[attr-defined]
+        payload,
+        logger=logger,  # type: ignore[arg-type]
+        expected_guid=guid,
+    )
+
+    bad_status = dict(payload)
+    bad_status["status"] = "unexpected"
+    assert not dx._validate_manage_subscriptions_payload(  # type: ignore[attr-defined]
+        bad_status,
+        logger=logger,  # type: ignore[arg-type]
+        expected_guid=guid,
+    )
+
+    missing_guid = dict(payload)
+    missing_guid["guids"] = []
+    assert not dx._validate_manage_subscriptions_payload(  # type: ignore[attr-defined]
+        missing_guid,
+        logger=logger,  # type: ignore[arg-type]
+        expected_guid=guid,
+    )
+
+
+def test_validate_request_company_payload_sections() -> None:
+    logger = get_logger("test.request.validate")
+    domain = dx.HEALTHCHECK_REQUEST_DOMAIN
+    payload = {
+        "status": "dry_run",
+        "submitted": [domain],
+        "successfully_requested": [domain],
+        "already_existing": [{"domain": domain, "company_name": "GitHub"}],
+        "failed": [],
+        "dry_run": True,
+    }
+
+    assert dx._validate_request_company_payload(  # type: ignore[attr-defined]
+        payload,
+        logger=logger,  # type: ignore[arg-type]
+        expected_domain=domain,
+    )
+
+    missing_domain = dict(payload)
+    missing_domain["submitted"] = ["other.com"]
+    assert not dx._validate_request_company_payload(  # type: ignore[attr-defined]
+        missing_domain,
+        logger=logger,  # type: ignore[arg-type]
+        expected_domain=domain,
+    )
+
+    missing_flag = dict(payload)
+    missing_flag.pop("dry_run", None)
+    assert not dx._validate_request_company_payload(  # type: ignore[attr-defined]
+        missing_flag,
+        logger=logger,  # type: ignore[arg-type]
+        expected_domain=domain,
+    )

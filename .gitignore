@@ -34,7 +34,8 @@ htmlcov/
 megalinter-reports/
 
 # IDE and editor
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .claude/
 .serena/
 

@@ -4,9 +4,13 @@ import birre.domain.company_rating.service as s
 
 
 def test_severity_category_and_numeric_extraction_variants() -> None:
-    assert s._rank_severity_category_value("severe") > s._rank_severity_category_value("low")
+    assert s._rank_severity_category_value("severe") > s._rank_severity_category_value(
+        "low"
+    )
     # Unknowns map to the lowest rank; must be <= low
-    assert s._rank_severity_category_value("unknown") <= s._rank_severity_category_value("low")
+    assert s._rank_severity_category_value(
+        "unknown"
+    ) <= s._rank_severity_category_value("low")
 
     # direct numeric
     assert s._derive_numeric_severity_score({"severity": 7}) == 7
@@ -15,7 +19,12 @@ def test_severity_category_and_numeric_extraction_variants() -> None:
     # details.grade
     assert s._derive_numeric_severity_score({"details": {"grade": 5}}) == 5
     # details.cvss.base
-    assert abs(s._derive_numeric_severity_score({"details": {"cvss": {"base": 4.2}}}) - 4.2) < 0.01
+    assert (
+        abs(
+            s._derive_numeric_severity_score({"details": {"cvss": {"base": 4.2}}}) - 4.2
+        )
+        < 0.01
+    )
     # fallback
     assert s._derive_numeric_severity_score("bad") == s.SEVERITY_SCORE_UNKNOWN
 
@@ -37,9 +46,21 @@ def test_asset_importance_derivation() -> None:
 
 
 def test_sort_and_score_keys_and_candidate_selection() -> None:
-    a = {"severity": "severe", "details": {"cvss": {"base": 9.0}}, "last_seen": "2025-01-03"}
-    b = {"severity": "moderate", "details": {"cvss": {"base": 7.0}}, "last_seen": "2025-01-04"}
-    c = {"severity": "material", "details": {"cvss": {"base": 8.0}}, "last_seen": "2025-01-02"}
+    a = {
+        "severity": "severe",
+        "details": {"cvss": {"base": 9.0}},
+        "last_seen": "2025-01-03",
+    }
+    b = {
+        "severity": "moderate",
+        "details": {"cvss": {"base": 7.0}},
+        "last_seen": "2025-01-04",
+    }
+    c = {
+        "severity": "material",
+        "details": {"cvss": {"base": 8.0}},
+        "last_seen": "2025-01-02",
+    }
     key_a = s._build_finding_sort_key(a)
     key_b = s._build_finding_sort_key(b)
     assert key_a < key_b  # because we negate severities for descending
@@ -61,7 +82,9 @@ def test_details_text_and_label_helpers() -> None:
     details2 = {"remediations": [{"help_text": "Fix it"}]}
     assert s._find_first_remediation_text(details2) == "Fix it"
 
-    txt = s._normalize_detected_service_summary("Detected service: SSH, version 1", "Patch")
+    txt = s._normalize_detected_service_summary(
+        "Detected service: SSH, version 1", "Patch"
+    )
     assert "Patch" in txt
 
     # append hint punctuation
@@ -79,4 +102,10 @@ def test_normalize_top_findings_shapes() -> None:
         }
     ]
     out = s._normalize_top_findings(raw)
-    assert out and set(out[0].keys()) >= {"finding", "details", "asset", "first_seen", "last_seen"}
+    assert out and set(out[0].keys()) >= {
+        "finding",
+        "details",
+        "asset",
+        "first_seen",
+        "last_seen",
+    }

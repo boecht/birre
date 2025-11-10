@@ -130,7 +130,9 @@ async def test_call_openapi_tool_unstructured_returns_raw_with_warnings(
         ctx,
         {},
         logger=SimpleNamespace(
-            debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
+            debug=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
         ),
     )  # type: ignore[arg-type]
     # When no structured data is available, the raw ToolResult (or equivalent) is returned
@@ -145,7 +147,9 @@ async def test_parse_text_content_invalid_json_logs_warning(
     class _API:
         async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
             await asyncio.sleep(0)
-            return SimpleNamespace(structured_content=None, content=[SimpleNamespace(text="{bad}")])
+            return SimpleNamespace(
+                structured_content=None, content=[SimpleNamespace(text="{bad}")]
+            )
 
     api = _API()
     ctx, _ = _ctx_spy()
@@ -168,7 +172,9 @@ async def test_parse_text_content_invalid_json_logs_warning(
         ctx,
         {},
         logger=SimpleNamespace(
-            debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
+            debug=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
         ),
     )  # type: ignore[arg-type]
     assert isinstance(out, str)  # raw text returned
@@ -240,7 +246,9 @@ async def test_call_openapi_tool_http_status_error_propagates(
             ctx,
             {},
             logger=SimpleNamespace(
-                debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
+                debug=lambda *a, **k: None,
+                error=lambda *a, **k: None,
+                warning=lambda *a, **k: None,
             ),
         )  # type: ignore[arg-type]
 
@@ -286,7 +294,9 @@ async def test_call_openapi_tool_request_error_maps_to_domain(
             ctx,
             {},
             logger=SimpleNamespace(
-                debug=lambda *a, **k: None, error=lambda *a, **k: None, warning=lambda *a, **k: None
+                debug=lambda *a, **k: None,
+                error=lambda *a, **k: None,
+                warning=lambda *a, **k: None,
             ),
         )  # type: ignore[arg-type]
 
@@ -328,11 +338,15 @@ async def test_delegate_v1_and_v2_to_common(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @pytest.mark.asyncio
-async def test_request_error_without_mapping_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_request_error_without_mapping_propagates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class _API:
         async def _call_tool_middleware(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
             await asyncio.sleep(0)
-            raise httpx.RequestError("boom", request=httpx.Request("GET", "https://e/x"))
+            raise httpx.RequestError(
+                "boom", request=httpx.Request("GET", "https://e/x")
+            )
 
     api = _API()
     ctx, _ = _ctx_spy()

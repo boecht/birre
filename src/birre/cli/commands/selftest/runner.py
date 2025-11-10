@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from birre.application.diagnostics import (
     EXPECTED_TOOLS_BY_CONTEXT,
@@ -25,12 +25,15 @@ from birre.application.diagnostics import (
     discover_context_tools,
     prepare_server,
     record_failure,
+    run_company_search_diagnostics,
     run_context_tool_diagnostics,
     run_offline_checks,
     run_online_checks,
     summarize_failure,
 )
+from birre.application.offline_samples import COMPANY_SEARCH_SAMPLE_PAYLOADS
 from birre.config.settings import RuntimeSettings
+from birre.domain.company_search.service import normalize_company_search_results
 from birre.domain.selftest_models import (
     AttemptReport,
     ContextDiagnosticsResult,
@@ -103,6 +106,7 @@ class SelfTestRunner:
                 degraded = True
 
         summary["overall_success"] = overall_success
+
         return SelfTestResult(
             success=overall_success,
             degraded=degraded,
@@ -143,8 +147,13 @@ class SelfTestRunner:
                 report=report,
             )
 
-        context_settings = replace(self._base_runtime_settings, context=context_name)
-        effective_settings, notes, degraded = self._resolve_ca_bundle(logger, context_settings)
+        context_settings = cast(
+            RuntimeSettings,
+            replace(self._base_runtime_settings, context=context_name),
+        )
+        effective_settings, notes, degraded = self._resolve_ca_bundle(
+            logger, context_settings
+        )
         report["notes"] = list(notes)
 
         if self._offline:
@@ -247,6 +256,13 @@ class SelfTestRunner:
             tools=sorted(discovered_tools),
             attempt="offline",
         )
+
+        self._apply_offline_company_search_report(
+            context_name=context_name,
+            report=report,
+            logger=logger,
+        )
+
         report["success"] = True
         degraded = True  # offline mode limits coverage
         return ContextDiagnosticsResult(
@@ -280,12 +296,16 @@ class SelfTestRunner:
             notes=report.get("notes", ()),
         )
         attempt_reports.append(primary_report)
-        self._update_failure_categories(primary_report, encountered_categories, failure_categories)
+        self._update_failure_categories(
+            primary_report, encountered_categories, failure_categories
+        )
         context_success = primary_report.success
 
         if not context_success:
             tls_failures = [
-                failure for failure in primary_report.failures if failure.category == "tls"
+                failure
+                for failure in primary_report.failures
+                if failure.category == "tls"
             ]
             if tls_failures and not effective_settings.allow_insecure_tls:
                 fallback_report = self._attempt_tls_fallback(
@@ -337,7 +357,9 @@ class SelfTestRunner:
         )
 
         tls_failure_present = any(
-            failure.category == "tls" for attempt in attempt_reports for failure in attempt.failures
+            failure.category == "tls"
+            for attempt in attempt_reports
+            for failure in attempt.failures
         )
         if tls_failure_present:
             report.setdefault("notes", []).append("tls-cert-chain-intercepted")
@@ -393,13 +415,17 @@ class SelfTestRunner:
             logger.warning(
                 "TLS fallback resolved diagnostics failure",
                 attempt="tls-fallback",
-                original_errors=[summarize_failure(failure) for failure in tls_failures],
+                original_errors=[
+                    summarize_failure(failure) for failure in tls_failures
+                ],
             )
         else:
             logger.error(
                 "TLS fallback failed to resolve diagnostics",
                 attempt="tls-fallback",
-                original_errors=[summarize_failure(failure) for failure in tls_failures],
+                original_errors=[
+                    summarize_failure(failure) for failure in tls_failures
+                ],
             )
 
     def _run_diagnostic_attempt(
@@ -501,6 +527,35 @@ class SelfTestRunner:
 
         return attempt_report
 
+    def _apply_offline_company_search_report(
+        self,
+        *,
+        context_name: str,
+        report: dict[str, Any],
+        logger: BoundLogger,
+    ) -> None:
+        tool_summary = report.setdefault("tools", {})
+        summary_payload: dict[str, Any] = {}
+        offline_failures: list[DiagnosticFailure] = []
+        normalized_samples = {
+            mode: normalize_company_search_results(raw_payload)
+            for mode, raw_payload in COMPANY_SEARCH_SAMPLE_PAYLOADS.items()
+        }
+        success = run_company_search_diagnostics(
+            context=context_name,
+            logger=logger,
+            tool=None,
+            failures=offline_failures,
+            summary=summary_payload,
+            run_sync=self._run_sync,
+            sample_payloads=normalized_samples,
+        )
+        tool_summary["company_search"] = {
+            "status": "pass" if success else "warning",
+            "details": {"reason": "offline replay"},
+            "modes": summary_payload.get("modes"),
+        }
+
     def _handle_missing_tools(
         self,
         missing_tools: list[str],
@@ -591,12 +646,16 @@ class SelfTestRunner:
                 "discovered_tools": attempt.discovered_tools,
                 "missing_tools": attempt.missing_tools,
                 "tools": attempt.tools,
-                "failures": [summarize_failure(failure) for failure in attempt.failures],
+                "failures": [
+                    summarize_failure(failure) for failure in attempt.failures
+                ],
             }
             for attempt in attempt_reports
         ]
 
-    def _calculate_online_status(self, attempt_summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    def _calculate_online_status(
+        self, attempt_summaries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         online_attempts: dict[str, str] = {}
         for attempt in attempt_summaries:
             result = attempt.get("online_success")
@@ -636,10 +695,12 @@ class SelfTestRunner:
         failure_categories: set[str],
     ) -> tuple[list[str], list[str]]:
         recoverable = sorted(
-            (failure_categories | encountered_categories) & {"tls", MSG_CONFIG_CA_BUNDLE}
+            (failure_categories | encountered_categories)
+            & {"tls", MSG_CONFIG_CA_BUNDLE}
         )
         unrecoverable = sorted(
-            (failure_categories | encountered_categories) - {"tls", MSG_CONFIG_CA_BUNDLE}
+            (failure_categories | encountered_categories)
+            - {"tls", MSG_CONFIG_CA_BUNDLE}
         )
         return recoverable, unrecoverable
 
@@ -655,7 +716,8 @@ class SelfTestRunner:
             logger.error(
                 "Context diagnostics failed",
                 attempts=[
-                    {"label": report.label, "success": report.success} for report in attempt_reports
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
                 ],
                 recoverable_categories=recoverable or None,
                 unrecoverable_categories=unrecoverable or None,
@@ -664,7 +726,8 @@ class SelfTestRunner:
             logger.info(
                 "Context diagnostics completed with recoveries",
                 attempts=[
-                    {"label": report.label, "success": report.success} for report in attempt_reports
+                    {"label": report.label, "success": report.success}
+                    for report in attempt_reports
                 ],
             )
         else:

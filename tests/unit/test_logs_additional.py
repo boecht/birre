@@ -30,7 +30,9 @@ def test_logs_show_file_not_found(tmp_path: Path) -> None:
     orig = logs_mod._resolve_logging_settings_from_cli
     try:
         logs_mod._resolve_logging_settings_from_cli = _fake_resolver  # type: ignore[assignment]
-        logs_mod._cmd_logs_show(tmp_path / "c.toml", None, None, 10, None, None, None, _C())  # type: ignore[arg-type]
+        logs_mod._cmd_logs_show(
+            tmp_path / "c.toml", None, None, 10, None, None, None, _C()
+        )  # type: ignore[arg-type]
     finally:
         logs_mod._resolve_logging_settings_from_cli = orig  # type: ignore[assignment]
     assert any("not found" in s.lower() for s in outs)

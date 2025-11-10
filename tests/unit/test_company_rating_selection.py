@@ -44,12 +44,29 @@ async def test_build_top_findings_selection_strict_relaxed_and_webappsec(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange: strict returns 1 item, relaxed returns 2, web_appsec returns more
-    strict = [{"severity": "severe", "details": {}, "risk_vector": "x", "last_seen": "2025-10-01"}]
+    strict = [
+        {
+            "severity": "severe",
+            "details": {},
+            "risk_vector": "x",
+            "last_seen": "2025-10-01",
+        }
+    ]
     relaxed = strict + [
-        {"severity": "moderate", "details": {}, "risk_vector": "y", "last_seen": "2025-10-02"}
+        {
+            "severity": "moderate",
+            "details": {},
+            "risk_vector": "y",
+            "last_seen": "2025-10-02",
+        }
     ]
     web = relaxed + [
-        {"severity": "low", "details": {}, "risk_vector": "web_appsec", "last_seen": "2025-10-03"}
+        {
+            "severity": "low",
+            "details": {},
+            "risk_vector": "web_appsec",
+            "last_seen": "2025-10-03",
+        }
     ]
 
     async def _req(tool, ctx, params, limit, label, *, debug_enabled):  # noqa: ANN001
@@ -117,9 +134,24 @@ async def test_assemble_top_findings_section_indexes_and_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     findings = [
-        {"severity": "severe", "details": {}, "risk_vector": "x", "last_seen": "2025-10-01"},
-        {"severity": "material", "details": {}, "risk_vector": "y", "last_seen": "2025-10-02"},
-        {"severity": "moderate", "details": {}, "risk_vector": "z", "last_seen": "2025-10-03"},
+        {
+            "severity": "severe",
+            "details": {},
+            "risk_vector": "x",
+            "last_seen": "2025-10-01",
+        },
+        {
+            "severity": "material",
+            "details": {},
+            "risk_vector": "y",
+            "last_seen": "2025-10-02",
+        },
+        {
+            "severity": "moderate",
+            "details": {},
+            "risk_vector": "z",
+            "last_seen": "2025-10-03",
+        },
     ]
 
     async def _build(call, ctx, base_params, limit, *, debug_enabled):  # noqa: ANN001
@@ -134,7 +166,10 @@ async def test_assemble_top_findings_section_indexes_and_policy(
     )  # type: ignore[arg-type]
     assert payload["count"] == 3
     assert payload["policy"]["max_items"] == 5
-    assert all(isinstance(x.get("top"), int) and 1 <= x["top"] <= 5 for x in payload["findings"])
+    assert all(
+        isinstance(x.get("top"), int) and 1 <= x["top"] <= 5
+        for x in payload["findings"]
+    )
 
 
 def test_normalize_top_finding_limit_and_unavailable_payload() -> None:

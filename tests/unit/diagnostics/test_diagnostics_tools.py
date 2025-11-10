@@ -30,11 +30,13 @@ class DummyLogger:
 
 
 def _ok_search_payload(domain: str | None) -> dict[str, Any]:
+    resolved = domain or dx.HEALTHCHECK_COMPANY_DOMAIN
     entries = [
         {
             "guid": "g-1",
             "name": "GitHub",
-            "domain": (domain or dx.HEALTHCHECK_COMPANY_DOMAIN),
+            "domain": resolved,
+            "primary_domain": resolved,
         }
     ]
     return {"companies": entries, "count": 1}
@@ -42,11 +44,11 @@ def _ok_search_payload(domain: str | None) -> dict[str, Any]:
 
 def test_company_search_diagnostics_success() -> None:
     def tool(ctx, **params):  # type: ignore[no-untyped-def]
-        if "name" in params:
+        if params.get("name") == dx.HEALTHCHECK_COMPANY_NAME:
             return _ok_search_payload(dx.HEALTHCHECK_COMPANY_DOMAIN)
         if "domain" in params:
             return _ok_search_payload(params["domain"])
-        return {}
+        return {"companies": [], "count": 0}
 
     assert (
         dx.run_company_search_diagnostics(
@@ -103,6 +105,32 @@ def _rating_payload(domain: str) -> dict[str, Any]:
     }
 
 
+def _interactive_payload() -> dict[str, Any]:
+    return {
+        "results": [
+            {
+                "guid": "g-1",
+                "name": "GitHub",
+                "primary_domain": dx.HEALTHCHECK_COMPANY_DOMAIN,
+                "subscription": {"active": True},
+            }
+        ],
+        "count": 1,
+        "guidance": {"next": "step"},
+    }
+
+
+def _request_company_payload() -> dict[str, Any]:
+    return {
+        "status": "dry_run",
+        "dry_run": True,
+        "submitted": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+        "successfully_requested": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+        "already_existing": [{"domain": dx.HEALTHCHECK_REQUEST_DOMAIN}],
+        "failed": [],
+    }
+
+
 def test_run_rating_diagnostics_success_and_domain_mismatch() -> None:
     def tool(ctx, **params):  # type: ignore[no-untyped-def]
         return _rating_payload(dx.HEALTHCHECK_COMPANY_DOMAIN)
@@ -140,7 +168,11 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     # manage_subscriptions payloads
     ok = dx._validate_manage_subscriptions_payload(
-        {"status": "dry_run", "guids": [dx.HEALTHCHECK_COMPANY_GUID], "payload": {"add": []}},
+        {
+            "status": "dry_run",
+            "guids": [dx.HEALTHCHECK_COMPANY_GUID],
+            "payload": {"add": []},
+        },
         logger=logger,  # type: ignore[arg-type]
         expected_guid=dx.HEALTHCHECK_COMPANY_GUID,
     )
@@ -155,7 +187,14 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     # request_company payloads
     ok3 = dx._validate_request_company_payload(
-        {"status": "dry_run", "domain": dx.HEALTHCHECK_REQUEST_DOMAIN},
+        {
+            "status": "dry_run",
+            "dry_run": True,
+            "submitted": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "already_existing": [],
+            "successfully_requested": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "failed": [],
+        },
         logger=logger,  # type: ignore[arg-type]
         expected_domain=dx.HEALTHCHECK_REQUEST_DOMAIN,
     )
@@ -163,10 +202,178 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
 
     ok4 = dx._validate_request_company_payload(
         {
-            "status": "requested",
-            "domains": [{"domain": dx.HEALTHCHECK_REQUEST_DOMAIN}],
+            "status": "submitted_v2_bulk",
+            "submitted": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "already_existing": [],
+            "successfully_requested": [dx.HEALTHCHECK_REQUEST_DOMAIN],
+            "failed": [],
         },
         logger=logger,  # type: ignore[arg-type]
         expected_domain=dx.HEALTHCHECK_REQUEST_DOMAIN,
     )
     assert ok4 is True
+
+
+def test_company_search_interactive_diagnostics_success_and_validation_warning() -> (
+    None
+):
+    logger = DummyLogger()
+    summary: dict[str, Any] = {}
+
+    def tool_success(ctx, **params):  # type: ignore[no-untyped-def]
+        assert params["name"] == dx.HEALTHCHECK_COMPANY_NAME
+        return _interactive_payload()
+
+    assert (
+        dx.run_company_search_interactive_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_success,
+            failures=[],
+            summary=summary,
+            run_sync=None,
+        )
+        is True
+    )
+    assert summary["status"] == "pass"
+
+    failures: list[dx.DiagnosticFailure | None] = []
+    summary_warning: dict[str, Any | None] = {}
+
+    def tool_invalid(ctx, **params):  # type: ignore[no-untyped-def]
+        return {"results": [], "count": 0, "guidance": {}}
+
+    assert (
+        dx.run_company_search_interactive_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_invalid,
+            failures=failures,
+            summary=summary_warning,
+            run_sync=None,
+        )
+        is False
+    )
+    assert summary_warning["status"] == "warning"
+    assert (
+        summary_warning.get("details", {}).get("reason")
+        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
+    )
+    assert failures and failures[-1].stage == "validation"
+
+
+def test_manage_subscriptions_diagnostics_success_and_invalid_payload() -> None:
+    logger = DummyLogger()
+
+    def tool_success(ctx, **params):  # type: ignore[no-untyped-def]
+        assert params["action"] == "subscribe"
+        assert params["guids"] == [dx.HEALTHCHECK_COMPANY_GUID]
+        return {
+            "status": "dry_run",
+            "guids": [dx.HEALTHCHECK_COMPANY_GUID],
+            "payload": {"add": []},
+        }
+
+    summary: dict[str, Any] = {}
+    assert (
+        dx.run_manage_subscriptions_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_success,
+            failures=[],
+            summary=summary,
+            run_sync=None,
+        )
+        is True
+    )
+    assert summary["status"] == "pass"
+
+    failures: list[dx.DiagnosticFailure | None] = []
+    summary_warning: dict[str, Any | None] = {}
+
+    def tool_invalid(ctx, **params):  # type: ignore[no-untyped-def]
+        return {"status": "applied", "guids": []}
+
+    assert (
+        dx.run_manage_subscriptions_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_invalid,
+            failures=failures,
+            summary=summary_warning,
+            run_sync=None,
+        )
+        is False
+    )
+    assert summary_warning["status"] == "warning"
+    assert (
+        summary_warning.get("details", {}).get("reason")
+        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
+    )
+    assert failures and failures[-1].stage == "validation"
+
+
+def test_request_company_diagnostics_handles_400_and_payload(monkeypatch) -> None:  # noqa: ANN001
+    logger = DummyLogger()
+
+    summary: dict[str, Any] = {}
+
+    def tool_success(ctx, **params):  # type: ignore[no-untyped-def]
+        assert params["domains"] == dx.HEALTHCHECK_REQUEST_DOMAIN
+        return _request_company_payload()
+
+    assert (
+        dx.run_request_company_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_success,
+            failures=[],
+            summary=summary,
+            run_sync=None,
+        )
+        is True
+    )
+    assert summary["status"] == "pass"
+
+    summary_400: dict[str, Any | None] = {}
+
+    def tool_raises(ctx, **params):  # type: ignore[no-untyped-def]
+        raise RuntimeError("HTTP 400 Bad Request: domain already exists")
+
+    assert (
+        dx.run_request_company_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_raises,
+            failures=[],
+            summary=summary_400,
+            run_sync=None,
+        )
+        is True
+    )
+    assert summary_400["status"] == "pass"
+    assert "API reachable" in summary_400.get("details", {}).get("reason", "")
+
+    failures: list[dx.DiagnosticFailure | None] = []
+    summary_warning: dict[str, Any | None] = {}
+
+    def tool_invalid(ctx, **params):  # type: ignore[no-untyped-def]
+        return {"status": "dry_run", "submitted": []}
+
+    assert (
+        dx.run_request_company_diagnostics(
+            context="standard",
+            logger=logger,  # type: ignore[arg-type]
+            tool=tool_invalid,
+            failures=failures,
+            summary=summary_warning,
+            run_sync=None,
+        )
+        is False
+    )
+    assert summary_warning["status"] == "warning"
+    assert (
+        summary_warning.get("details", {}).get("reason")
+        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
+    )
+    assert failures and failures[-1].stage == "validation"

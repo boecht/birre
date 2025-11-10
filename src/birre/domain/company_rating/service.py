@@ -284,7 +284,9 @@ def _build_finding_sort_key(item: Any) -> tuple[float, int, float, float, str]:
         item.get("severity") if isinstance(item, dict) else None
     )
     imp = _derive_asset_importance_score(item)
-    last = _parse_timestamp_seconds(item.get("last_seen") if isinstance(item, dict) else None)
+    last = _parse_timestamp_seconds(
+        item.get("last_seen") if isinstance(item, dict) else None
+    )
     rv = (item.get("risk_vector") or "") if isinstance(item, dict) else ""
     # Desc numeric severity, then desc categorical rank, desc importance,
     # desc last_seen; asc risk_vector
@@ -298,11 +300,15 @@ def _build_finding_score_tuple(item: Any) -> tuple[float, int, float, float]:
         item.get("severity") if isinstance(item, dict) else None
     )
     imp = _derive_asset_importance_score(item)
-    last = _parse_timestamp_seconds(item.get("last_seen") if isinstance(item, dict) else None)
+    last = _parse_timestamp_seconds(
+        item.get("last_seen") if isinstance(item, dict) else None
+    )
     return (sev_num, sev_cat, imp, last)
 
 
-def _select_top_finding_candidates(results: list[dict[str, Any]], k: int) -> list[dict[str, Any]]:
+def _select_top_finding_candidates(
+    results: list[dict[str, Any]], k: int
+) -> list[dict[str, Any]]:
     if not results:
         return []
     # Keep only the top-k by primary numeric keys; finalize ordering with full _sort_key
@@ -323,7 +329,9 @@ INFECTION_RISK_VECTORS = {
 }
 
 
-def _determine_finding_label(item: dict[str, Any], details: dict[str, Any]) -> str | None:
+def _determine_finding_label(
+    item: dict[str, Any], details: dict[str, Any]
+) -> str | None:
     """Choose a finding label from details.name/display_name or risk_vector_label."""
     if isinstance(details.get("name"), str):
         return details.get("name")
@@ -339,10 +347,14 @@ def _compose_base_details_text(details: dict[str, Any]) -> str | None:
     searchable_details/infection.family.
     """
     display_name: str | None = (
-        details.get("display_name") if isinstance(details.get("display_name"), str) else None
+        details.get("display_name")
+        if isinstance(details.get("display_name"), str)
+        else None
     )
     long_desc: str | None = (
-        details.get("description") if isinstance(details.get("description"), str) else None
+        details.get("description")
+        if isinstance(details.get("description"), str)
+        else None
     )
     if display_name and long_desc:
         return f"{display_name} — {long_desc}"
@@ -361,10 +373,16 @@ def _compose_base_details_text(details: dict[str, Any]) -> str | None:
 
 def _find_first_remediation_text(details: dict[str, Any]) -> str | None:
     """Return the first available remediation hint text if present."""
-    rem_list = details.get("remediations") if isinstance(details.get("remediations"), list) else []
+    rem_list = (
+        details.get("remediations")
+        if isinstance(details.get("remediations"), list)
+        else []
+    )
     for rem in rem_list or []:
         if isinstance(rem, dict):
-            text = rem.get("help_text") or rem.get("remediation_tip") or rem.get("message")
+            text = (
+                rem.get("help_text") or rem.get("remediation_tip") or rem.get("message")
+            )
             if isinstance(text, str) and text:
                 return text
     return None
@@ -382,7 +400,9 @@ def _normalize_detected_service_summary(text: str, remediation_hint: str | None)
         return f"{text} — {remediation_hint}" if remediation_hint not in text else text
 
 
-def _append_remediation_hint(text: str | None, remediation_hint: str | None) -> str | None:
+def _append_remediation_hint(
+    text: str | None, remediation_hint: str | None
+) -> str | None:
     """Append remediation hint to text, preserving punctuation and avoiding duplication."""
     if not remediation_hint:
         return text
@@ -429,7 +449,9 @@ def _determine_primary_port(details: dict[str, Any]) -> int | None:
     return None
 
 
-def _determine_primary_asset(item: dict[str, Any], details: dict[str, Any]) -> str | None:
+def _determine_primary_asset(
+    item: dict[str, Any], details: dict[str, Any]
+) -> str | None:
     """Choose an asset from evidence_key, then details.assets[0] (+port), then observed_ips[0]."""
     asset: str | None = (
         item.get("evidence_key") if isinstance(item.get("evidence_key"), str) else None
@@ -461,7 +483,9 @@ def _normalize_finding_entry(item: dict[str, Any]) -> dict[str, Any]:
         text = _normalize_detected_service_summary(text, remediation)
     else:
         text = _append_remediation_hint(text, remediation)
-    text = _apply_infection_narrative_preference(text, item.get("risk_vector"), details_obj)
+    text = _apply_infection_narrative_preference(
+        text, item.get("risk_vector"), details_obj
+    )
     asset = _determine_primary_asset(item, details_obj)
     first_seen_raw = item.get("first_seen")
     # BitSight's Finding schema (apis/v1/components/schemas.json) does not require
@@ -517,7 +541,9 @@ def _emit_sorted_preview(
                     "sev_cat": it.get("severity") if isinstance(it, dict) else None,
                     "importance": _derive_asset_importance_score(it),
                     "last_seen": it.get("last_seen") if isinstance(it, dict) else None,
-                    "risk_vector": it.get("risk_vector") if isinstance(it, dict) else None,
+                    "risk_vector": it.get("risk_vector")
+                    if isinstance(it, dict)
+                    else None,
                 }
             )
         _debug(
@@ -553,7 +579,6 @@ async def _fetch_and_normalize_findings(
     *,
     debug_enabled: bool,
 ) -> tuple[list[dict[str, Any]], bool]:
-    # Allow test doubles that return either an awaitable or a plain value
     result = call_v1_tool("getCompaniesFindings", ctx, params)
     raw = await result if hasattr(result, "__await") else result
     if not isinstance(raw, dict):
@@ -564,7 +589,9 @@ async def _fetch_and_normalize_findings(
         raw,
         debug_enabled=debug_enabled,
     )
-    results = _extract_results_from_payload(raw, ctx, label, debug_enabled=debug_enabled)
+    results = _extract_results_from_payload(
+        raw, ctx, label, debug_enabled=debug_enabled
+    )
     top_raw = _select_top_finding_candidates(results, limit)
     findings = _normalize_top_findings(top_raw)
     return findings, True
@@ -903,7 +930,9 @@ def register_company_rating_tool(
         else DEFAULT_RISK_VECTOR_FILTER
     )
     effective_findings = (
-        max_findings if isinstance(max_findings, int) and max_findings > 0 else DEFAULT_MAX_FINDINGS
+        max_findings
+        if isinstance(max_findings, int) and max_findings > 0
+        else DEFAULT_MAX_FINDINGS
     )
 
     @business_server.tool(output_schema=COMPANY_RATING_OUTPUT_SCHEMA)

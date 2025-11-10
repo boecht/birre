@@ -11,7 +11,15 @@ from typing import Any
 import typer
 
 from birre.cli import options as cli_options
-from birre.cli.invocation import build_invocation, resolve_runtime_and_logging
+from birre.cli.invocation import (
+    AuthCliInputs,
+    LoggingCliInputs,
+    RuntimeCliInputs,
+    SubscriptionCliInputs,
+    TlsCliInputs,
+    build_invocation,
+    resolve_runtime_and_logging,
+)
 from birre.cli.runtime import (
     CONTEXT_CHOICES,
     initialize_logging,
@@ -59,22 +67,30 @@ def register(
 
         invocation = build_invocation(
             config_path=str(config) if config is not None else None,
-            api_key=bitsight_api_key,
-            subscription_folder=subscription_folder,
-            subscription_type=subscription_type,
-            context=context,
             context_choices=CONTEXT_CHOICES,
-            debug=debug,
-            risk_vector_filter=risk_vector_filter,
-            max_findings=max_findings,
-            skip_startup_checks=skip_startup_checks,
-            allow_insecure_tls=allow_insecure_tls,
-            ca_bundle=ca_bundle,
-            log_level=log_level,
-            log_format=log_format,
-            log_file=log_file,
-            log_max_bytes=log_max_bytes,
-            log_backup_count=log_backup_count,
+            auth=AuthCliInputs(api_key=bitsight_api_key),
+            subscription=SubscriptionCliInputs(
+                folder=subscription_folder,
+                type=subscription_type,
+            ),
+            runtime=RuntimeCliInputs(
+                context=context,
+                debug=debug,
+                risk_vector_filter=risk_vector_filter,
+                max_findings=max_findings,
+                skip_startup_checks=skip_startup_checks,
+            ),
+            tls=TlsCliInputs(
+                allow_insecure_tls=allow_insecure_tls,
+                ca_bundle=ca_bundle,
+            ),
+            logging=LoggingCliInputs(
+                level=log_level,
+                format=log_format,
+                file_path=log_file,
+                max_bytes=log_max_bytes,
+                backup_count=log_backup_count,
+            ),
             profile_path=profile,
         )
 
@@ -89,42 +105,64 @@ def register(
         if not run_offline_checks(runtime_settings, logger=logger):
             raise typer.Exit(code=1)
 
-        try:
-            online_result = run_online_checks(runtime_settings, logger=logger)
-            if inspect.isawaitable(online_result):
-                online_ok = await_sync(online_result)
-            else:
-                online_ok = online_result
-        except BirreError as exc:
-            logger.critical(
-                "Online startup checks failed; aborting startup",
-                **exc.log_fields(),
-            )
-            raise typer.Exit(code=1) from exc
-
+        online_ok = _execute_online_checks(runtime_settings, logger)
         if not online_ok:
             logger.critical("Online startup checks failed; aborting startup")
             raise typer.Exit(code=1)
 
         server = prepare_server(runtime_settings, logger)
-
-        logger.info("Starting BiRRe FastMCP server")
-        try:
-            if invocation.profile_path is not None:
-                invocation.profile_path.parent.mkdir(parents=True, exist_ok=True)
-                profiler = cProfile.Profile()
-                profiler.enable()
-                try:
-                    server.run()
-                finally:
-                    profiler.disable()
-                    profiler.dump_stats(str(invocation.profile_path))
-                    logger.info("Profiling data written", profile=str(invocation.profile_path))
-            else:
-                server.run()
-        except KeyboardInterrupt:
-            stderr_console.print(keyboard_interrupt_banner())
-            logger.info("BiRRe stopped via KeyboardInterrupt")
+        _run_server_with_optional_profile(
+            server,
+            invocation,
+            logger,
+            stderr_console,
+            keyboard_interrupt_banner,
+        )
 
 
 __all__ = ["register"]
+
+
+def _execute_online_checks(runtime_settings: Any, logger: Any) -> bool:
+    try:
+        online_result = run_online_checks(runtime_settings, logger=logger)
+    except BirreError as exc:
+        logger.critical(
+            "Online startup checks failed; aborting startup",
+            **exc.log_fields(),
+        )
+        raise typer.Exit(code=1) from exc
+
+    if inspect.isawaitable(online_result):
+        return await_sync(online_result)
+    return bool(online_result)
+
+
+def _run_server_with_optional_profile(
+    server: Any,
+    invocation: Any,
+    logger: Any,
+    stderr_console: Any,
+    keyboard_interrupt_banner: Callable[[], object],
+) -> None:
+    logger.info("Starting BiRRe FastMCP server")
+    try:
+        if invocation.profile_path is not None:
+            _run_profiled_server(server, invocation.profile_path, logger)
+        else:
+            server.run()
+    except KeyboardInterrupt:
+        stderr_console.print(keyboard_interrupt_banner())
+        logger.info("BiRRe stopped via KeyboardInterrupt")
+
+
+def _run_profiled_server(server: Any, profile_path: Path, logger: Any) -> None:
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    profiler = cProfile.Profile()
+    profiler.enable()
+    try:
+        server.run()
+    finally:
+        profiler.disable()
+        profiler.dump_stats(str(profile_path))
+        logger.info("Profiling data written", profile=str(profile_path))

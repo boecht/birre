@@ -14,7 +14,9 @@ from birre.infrastructure.logging import (
 )
 
 
-def test_text_logging_renders_structured_fields(capfd: pytest.CaptureFixture[str]) -> None:
+def test_text_logging_renders_structured_fields(
+    capfd: pytest.CaptureFixture[str],
+) -> None:
     settings = LoggingSettings(
         level=logging.INFO,
         format=LOG_FORMAT_TEXT,

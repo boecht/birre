@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from birre.application import diagnostics as dx
+from birre.application.startup import OnlineStartupResult
 from birre.config.settings import RuntimeSettings
 
 
@@ -31,6 +32,7 @@ def _rs(**kwargs):  # type: ignore[no-untyped-def]
         "api_key": "k",
         "subscription_folder": None,
         "subscription_type": None,
+        "subscription_folder_guid": None,
         "context": "standard",
         "risk_vector_filter": None,
         "max_findings": 10,
@@ -75,7 +77,7 @@ def test_run_online_checks_success_and_cleanup(monkeypatch) -> None:  # noqa: AN
 
     async def fake_checks(**k):  # type: ignore[no-untyped-def]
         await asyncio.sleep(0)
-        return True
+        return OnlineStartupResult(success=True, subscription_folder_guid="guid-1")
 
     monkeypatch.setattr(dx, "run_online_startup_checks", fake_checks)
 
@@ -83,14 +85,16 @@ def test_run_online_checks_success_and_cleanup(monkeypatch) -> None:  # noqa: AN
     def run_sync(coro):  # noqa: ANN001
         return asyncio.run(coro)
 
+    runtime_settings = _rs()
     assert (
         dx.run_online_checks(
-            _rs(),
+            runtime_settings,
             DummyLogger(),
             run_sync=run_sync,
         )
         is True
     )
+    assert runtime_settings.subscription_folder_guid == "guid-1"
 
 
 def test_run_online_checks_failure(monkeypatch) -> None:  # noqa: ANN001
@@ -99,7 +103,7 @@ def test_run_online_checks_failure(monkeypatch) -> None:  # noqa: ANN001
 
     async def fake_checks(**k):  # type: ignore[no-untyped-def]
         await asyncio.sleep(0)
-        return False
+        return OnlineStartupResult(success=False)
 
     monkeypatch.setattr(dx, "run_online_startup_checks", fake_checks)
 

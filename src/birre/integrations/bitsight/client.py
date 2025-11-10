@@ -104,20 +104,39 @@ def _load_api_spec(resource_name: str) -> Any:
     return specification
 
 
-def _create_client(base_url: str, api_key: str, *, verify: bool | str = True) -> httpx.AsyncClient:
-    verify_option: bool | ssl.SSLContext
-    if isinstance(verify, str):
-        # Python 3.13+ uses secure defaults; explicitly enforce TLS 1.2+ below
-        context = ssl.create_default_context(cafile=verify)  # NOSONAR python:S4830
-        tls_version = getattr(ssl, "TLSVersion", None)
-        if tls_version is not None:
-            context.minimum_version = tls_version.TLSv1_2
-        else:  # pragma: no cover - fallback for older Python versions
-            context.options |= getattr(ssl, "OP_NO_TLSv1", 0)
-            context.options |= getattr(ssl, "OP_NO_TLSv1_1", 0)
-        verify_option = context
+def _enforce_tls12(context: ssl.SSLContext) -> ssl.SSLContext:
+    """Ensure TLS 1.2+ is required regardless of interpreter defaults."""
+
+    tls_version = getattr(ssl, "TLSVersion", None)
+    if tls_version is not None:
+        context.minimum_version = tls_version.TLSv1_2
     else:
-        verify_option = verify
+        context.options |= getattr(ssl, "OP_NO_TLSv1", 0)
+        context.options |= getattr(ssl, "OP_NO_TLSv1_1", 0)
+    return context
+
+
+def _build_verify_option(verify: bool | str) -> bool | ssl.SSLContext:
+    if verify is True:
+        return _enforce_tls12(ssl.create_default_context())  # NOSONAR
+
+    if verify is False:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)  # NOSONAR
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE  # NOSONAR
+        return _enforce_tls12(context)
+
+    if isinstance(verify, str):
+        context = ssl.create_default_context(cafile=verify)  # NOSONAR
+        return _enforce_tls12(context)
+
+    return verify
+
+
+def _create_client(
+    base_url: str, api_key: str, *, verify: bool | str = True
+) -> httpx.AsyncClient:
+    verify_option = _build_verify_option(verify)
 
     client_kwargs: dict[str, Any] = {
         "base_url": base_url,
