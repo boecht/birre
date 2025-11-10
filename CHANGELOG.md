@@ -3,7 +3,7 @@
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
 See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
-## [4.0.0-beta.1] - 2025-11-09
+## [4.0.0-beta.1] - 2025-11-10
 
 ### Changed
 
@@ -26,6 +26,10 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
   entries) with automatic deduplication via BitSight company search,
   multipart CSV submission to v2 bulk API, and structured reporting of
   submitted/existing/failed domains
+- **TOP:** Document risk-manager tools: add docstrings and output
+  semantics for `company_search_interactive`, `request_company`, and
+  `manage_subscriptions` to clarify payloads, dry-run behavior, and
+  example return shapes for better discoverability and QA
 - **TOP:** Add automatic folder resolution and creation for subscription
   management and company request workflows, with timestamped audit
   metadata when creating new folders
