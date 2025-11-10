@@ -177,6 +177,14 @@ class ManageSubscriptionsResponse(BaseModel):
         return data
 
 
+@dataclass
+class ManageSubscriptionsFolderState:
+    folder: str | None
+    folder_guid: str | None = None
+    folder_created: bool = False
+    folder_pending_reason: str | None = None
+
+
 COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[str, Any] = (
     CompanySearchInteractiveResponse.model_json_schema()
 )
@@ -1631,6 +1639,44 @@ async def _submit_request_company_bulk(
     return result, None
 
 
+async def _prepare_manage_subscriptions_folder_state(
+    *,
+    normalized_action: str,
+    target_folder: str | None,
+    default_folder: str | None,
+    default_folder_guid: str | None,
+    call_v1_tool: CallV1Tool,
+    ctx: Context,
+    logger: BoundLogger,
+    allow_create: bool,
+) -> tuple[ManageSubscriptionsFolderState, dict[str, Any] | None]:
+    state = ManageSubscriptionsFolderState(folder=target_folder)
+    if normalized_action != "add" or not target_folder:
+        return state, None
+
+    (
+        folder_guid,
+        folder_created,
+        folder_error,
+        folder_pending_reason,
+    ) = await _resolve_manage_subscriptions_folder(
+        call_v1_tool,
+        ctx,
+        logger=logger,
+        target_folder=target_folder,
+        default_folder=default_folder,
+        default_folder_guid=default_folder_guid,
+        allow_create=allow_create,
+    )
+    if folder_error is not None:
+        return state, folder_error
+
+    state.folder_guid = folder_guid
+    state.folder_created = folder_created
+    state.folder_pending_reason = folder_pending_reason
+    return state, None
+
+
 async def _maybe_resolve_request_company_folder(
     state: RequestCompanyState,
     *,
@@ -1854,6 +1900,32 @@ def _manage_subscriptions_error(message: str) -> dict[str, Any]:
     return ManageSubscriptionsResponse(error=message).to_payload()
 
 
+def _build_manage_subscriptions_success_response(
+    *,
+    normalized_action: str,
+    guid_list: Sequence[str],
+    target_folder: str | None,
+    folder_state: ManageSubscriptionsFolderState,
+    result: Any,
+) -> dict[str, Any]:
+    summary = _summarize_bulk_result(result)
+    summary_model = ManageSubscriptionsSummary.model_validate(summary)
+    return ManageSubscriptionsResponse(
+        status="applied",
+        action=normalized_action,
+        guids=guid_list,
+        folder=target_folder,
+        folder_guid=folder_state.folder_guid,
+        folder_created=folder_state.folder_created or None,
+        summary=summary_model,
+        guidance=ManageSubscriptionsGuidance(
+            next_steps=(
+                "Run `get_company_rating` for a sample GUID to verify post-change access."
+            )
+        ),
+    ).to_payload()
+
+
 def _validate_manage_subscriptions_inputs(
     action: str,
     guids: Sequence[str],
@@ -2056,32 +2128,23 @@ def register_manage_subscriptions_tool(
             )
 
         target_folder = folder or default_folder
-        folder_guid: str | None = None
-        folder_created = False
-        folder_pending_reason: str | None = None
-
-        if normalized_action == "add" and target_folder:
-            (
-                folder_guid,
-                folder_created,
-                folder_error,
-                folder_pending_reason,
-            ) = await _resolve_manage_subscriptions_folder(
-                call_v1_tool,
-                ctx,
-                logger=logger,
-                target_folder=target_folder,
-                default_folder=default_folder,
-                default_folder_guid=default_folder_guid,
-                allow_create=not dry_run,
-            )
-            if folder_error is not None:
-                return folder_error
+        folder_state, folder_error = await _prepare_manage_subscriptions_folder_state(
+            normalized_action=normalized_action,
+            target_folder=target_folder,
+            default_folder=default_folder,
+            default_folder_guid=default_folder_guid,
+            call_v1_tool=call_v1_tool,
+            ctx=ctx,
+            logger=logger,
+            allow_create=not dry_run,
+        )
+        if folder_error is not None:
+            return folder_error
 
         payload = _build_subscription_payload(
             normalized_action,
             guid_list,
-            folder_guid=folder_guid,
+            folder_guid=folder_state.folder_guid,
             subscription_type=default_type,
         )
 
@@ -2089,11 +2152,11 @@ def register_manage_subscriptions_tool(
             return _manage_subscriptions_dry_run_response(
                 action=normalized_action,
                 guids=guid_list,
-                folder=target_folder if normalized_action == "add" else None,
-                folder_guid=folder_guid,
-                folder_created=folder_created,
+                folder=folder_state.folder if normalized_action == "add" else None,
+                folder_guid=folder_state.folder_guid,
+                folder_created=folder_state.folder_created,
                 payload=payload,
-                pending_folder_reason=folder_pending_reason,
+                pending_folder_reason=folder_state.folder_pending_reason,
             )
 
         await ctx.info(
@@ -2112,22 +2175,13 @@ def register_manage_subscriptions_tool(
         if error_payload is not None:
             return error_payload
 
-        summary = _summarize_bulk_result(result)
-        summary_model = ManageSubscriptionsSummary.model_validate(summary)
-        return ManageSubscriptionsResponse(
-            status="applied",
-            action=normalized_action,
-            guids=guid_list,
-            folder=target_folder,
-            folder_guid=folder_guid,
-            folder_created=folder_created or None,
-            summary=summary_model,
-            guidance=ManageSubscriptionsGuidance(
-                next_steps=(
-                    "Run `get_company_rating` for a sample GUID to verify post-change access."
-                )
-            ),
-        ).to_payload()
+        return _build_manage_subscriptions_success_response(
+            normalized_action=normalized_action,
+            guid_list=guid_list,
+            target_folder=target_folder,
+            folder_state=folder_state,
+            result=result,
+        )
 
     return business_server.tool(output_schema=MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA)(
         manage_subscriptions
