@@ -404,6 +404,7 @@ async def test_collect_company_trees_filters_missing(
         *,
         logger: Any,
     ) -> dict[str, Any] | None:
+        await asyncio.sleep(0)
         captured.append(guid)
         if guid == "alpha":
             return {"guid": guid, "tree": True}
@@ -440,6 +441,7 @@ async def test_process_parent_companies_enriches_relations(
         logger: Any,
         defaults: Any,
     ) -> tuple[set[str], dict[str, Any] | None]:
+        await asyncio.sleep(0)
         return {parent_guid}, {"guid": parent_guid, "has_company_tree": False}
 
     monkeypatch.setattr(risk_service, "_subscribe_and_fetch_parent", fake_subscribe)
@@ -496,6 +498,7 @@ async def test_initialize_request_company_state_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def fake_partition(*_args: Any, **_kwargs: Any) -> list[str]:
+        await asyncio.sleep(0)
         return ["new.io"]
 
     monkeypatch.setattr(risk_service, "_partition_submitted_domains", fake_partition)
@@ -532,6 +535,7 @@ async def test_finalize_request_company_state_returns_folder_error(
     )
 
     async def fake_maybe(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        await asyncio.sleep(0)
         return {"error": "folder missing"}
 
     monkeypatch.setattr(
@@ -570,6 +574,7 @@ async def test_finalize_request_company_state_returns_short_circuit(
     calls: list[int] = []
 
     async def fake_maybe(*_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
+        await asyncio.sleep(0)
         return None
 
     def fake_short(state_arg: risk_service.RequestCompanyState, *, dry_run: bool):
