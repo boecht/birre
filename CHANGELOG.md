@@ -22,7 +22,7 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Added
 
-- **TOP:** Add bulk company request workflow accepting CSV domain lists (1–65535
+- **TOP:** Add bulk company request workflow accepting CSV domain lists (1–255
   entries) with automatic deduplication via BitSight company search,
   multipart CSV submission to v2 bulk API, and structured reporting of
   submitted/existing/failed domains
