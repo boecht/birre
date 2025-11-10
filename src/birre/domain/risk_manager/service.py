@@ -1054,7 +1054,42 @@ def register_company_search_interactive_tool(
         name: str | None = None,
         domain: str | None = None,
     ) -> dict[str, Any]:
-        """Return enriched search results for human-in-the-loop selection."""
+        """Search for a single company with interactive guidance.
+
+        Parameters
+        - name: Optional company name (fuzzy match, best for human review).
+        - domain: Optional primary domain (exact match preferred; overrides name).
+
+        Returns
+        - {"results": [<enriched company dict>], "count": int,
+            "guidance": {...}, "defaults": {...}} or {"error": str}
+
+        Output semantics
+        - results: Ordered list of enriched candidates. Each entry includes
+            BitSight GUID, display label, domain, subscription metadata, folders,
+            ratings, and descriptive text for analyst decision-making.
+        - count: Number of enriched candidates returned (bounded by max_findings).
+        - guidance: Next-step recommendations (e.g., "run manage_subscriptions")
+            plus context such as suggested folder or subscription type.
+        - defaults: Echoes the implicit folder/subscription defaults that will be
+            used by downstream actions.
+        - error: Present when validation or BitSight calls fail; formatted message.
+
+        Notes
+        - Use this tool when the operator explicitly wants a human-in-the-loop,
+            high-signal search for a *single* company.
+        - Prefer `company_search` for automation and bulk enumeration.
+        - Provide at least one of name or domain; domain wins when both exist.
+
+        Example
+        >>> company_search_interactive(name="Acme Security")
+        {
+            "results": [{"guid": "...", "label": "Acme Security", "folders": ["Ops"], ...}],
+            "count": 3,
+            "guidance": {"next": "Review candidates and run manage_subscriptions"},
+            "defaults": {"folder": "Ops", "subscription_type": "managed"}
+        }
+        """
 
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
@@ -1515,7 +1550,53 @@ def register_request_company_tool(  # noqa: C901
         folder: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        """Submit a BitSight company onboarding request for one or more domains."""
+        """Submit BitSight onboarding requests for one or more domains.
+
+        Parameters
+        - domains: Comma-separated list of domains to request (case-insensitive).
+        - folder: Optional folder name to target; defaults to risk-manager config.
+        - dry_run: When True, validate and produce the payload without submitting.
+
+        Returns
+        - RequestCompanyResponse payload:
+            {"status": str, "submitted": [...], "successfully_requested": [...],
+            "already_existing": [...], "failed": [...], "folder": str | None,
+            "folder_guid": str | None, "folder_created": bool | None,
+            "result": Any} or {"error": str}
+
+        Output semantics
+        - status: "dry_run", "already_existing", or "submitted_v2_bulk".
+        - submitted: Original normalized domain list (lower-cased strings).
+        - successfully_requested: Domains accepted by BitSight during this run.
+        - already_existing: Domains already onboarded along with reason text.
+        - failed: Domains rejected by BitSight with error information.
+        - folder / folder_guid / folder_created: Where the subscription will live.
+        - result: Raw BitSight API echo for auditing (CSV metadata or v2 response).
+        - error: Present when validation or API submission fails.
+
+        Notes
+        - Input domains are trimmed, deduplicated, and checked for basic validity.
+        - When every domain already exists, `status` is "already_existing" and no
+            new submission occurs.
+        - `dry_run=True` returns the CSV payload and classifications without
+            calling BitSight, allowing review before sending.
+        - Analysts may explicitly request this automated flow; use
+            `company_search_interactive` when they prefer a conversational review.
+
+        Example
+        >>> request_company(domains="acme.com,example.org", folder="Ops")
+        {
+            "status": "submitted_v2_bulk",
+            "submitted": ["acme.com", "example.org"],
+            "successfully_requested": ["acme.com"],
+            "already_existing": [{"domain": "example.org", "reason": "In portfolio"}],
+            "failed": [],
+            "folder": "Ops",
+            "folder_guid": "folder-123",
+            "folder_created": False,
+            "result": {"ticket": "REQ-42"}
+        }
+        """
 
         submitted_domains, error = _parse_domain_csv(domains, logger=logger, ctx=ctx)
         if error:
@@ -1787,7 +1868,46 @@ def register_manage_subscriptions_tool(
         folder: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        """Bulk subscribe or unsubscribe companies using BitSight's v1 API."""
+        """Bulk subscribe or unsubscribe BitSight companies.
+
+        Parameters
+        - action: Desired change; accepts add/subscribe or delete/unsubscribe.
+        - guids: Iterable of BitSight company GUIDs to modify.
+        - folder: Optional folder to apply when subscribing (defaults to context).
+        - dry_run: When True, return the planned payload instead of executing.
+
+        Returns
+        - ManageSubscriptionsResponse payload:
+            {"status": str, "action": str, "guids": [...], "folder": str | None,
+            "folder_guid": str | None, "folder_created": bool | None,
+            "summary": {...}, "guidance": {...}} or {"error": str}
+
+        Output semantics
+        - status: "dry_run" or "applied".
+        - action: Normalized action ("add" or "delete").
+        - guids: Normalized GUID list targeted by the operation.
+        - folder / folder_guid / folder_created: Folder context used for adds.
+        - summary: Aggregated BitSight response (added / deleted / modified / errors).
+        - guidance: Follow-up instruction (e.g., run get_company_rating to verify).
+        - error: Present when validation fails or BitSight rejects the call.
+
+        Notes
+        - `dry_run=True` returns the computed payload so operators can audit
+            the exact GUID/folder/type combination before executing.
+        - Folder names are resolved (and created if necessary) when subscribing.
+        - Only call this tool when the user explicitly asks to change
+            subscriptions; discover GUIDs first via company_search or
+            company_search_interactive.
+
+        Example
+        >>> manage_subscriptions(action=\"add\", guids=[\"guid-1\"], folder=\"Ops\")
+        {
+            \"status\": \"applied\",
+            \"action\": \"add\",
+            \"summary\": {\"added\": [\"guid-1\"], \"deleted\": [], \"errors\": []},
+            \"guidance\": {\"next_steps\": \"Run get_company_rating for guid-1\"}
+        }
+        """
 
         normalized_action, guid_list, error_payload = (
             _validate_manage_subscriptions_inputs(
