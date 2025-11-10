@@ -209,6 +209,55 @@ async def test_manage_subscriptions_dry_run_reports_missing_folder() -> None:
 
 
 @pytest.mark.asyncio
+async def test_manage_subscriptions_delete_skips_folder_resolution() -> None:
+    logger = get_logger("test.manage_subscriptions")
+    server = FastMCP(name="TestServer")
+
+    def manage_handler(params: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "added": [],
+            "deleted": [guid["guid"] for guid in params.get("delete", [])],
+            "errors": [],
+        }
+
+    call_v1 = BridgeStub({"manageSubscriptionsBulk": manage_handler})
+
+    tool = register_manage_subscriptions_tool(
+        server,
+        call_v1,
+        logger=logger,
+        default_folder="API",
+        default_type="continuous_monitoring",
+    )
+
+    ctx = FakeContext()
+    dry = await tool.fn(
+        ctx,
+        action="delete",
+        guids=["guid-1"],
+        folder="Ops",
+        dry_run=True,
+    )
+
+    assert dry["status"] == "dry_run"
+    assert dry["payload"] == {"delete": [{"guid": "guid-1"}]}
+    assert dry.get("folder") is None
+    assert not call_v1.calls
+
+    applied = await tool.fn(
+        ctx,
+        action="delete",
+        guids=["guid-1"],
+        folder="Ops",
+    )
+
+    assert applied["status"] == "applied"
+    assert applied["summary"]["deleted"] == ["guid-1"]
+    assert any(call_name == "manageSubscriptionsBulk" for call_name, _ in call_v1.calls)
+    assert all(call_name != "getFolders" for call_name, _ in call_v1.calls)
+
+
+@pytest.mark.asyncio
 async def test_request_company_filters_existing_and_submits_remaining() -> None:
     logger = get_logger("test.request_company")
     server = FastMCP(name="TestServer")

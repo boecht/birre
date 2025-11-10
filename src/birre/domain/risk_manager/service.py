@@ -2056,22 +2056,27 @@ def register_manage_subscriptions_tool(
             )
 
         target_folder = folder or default_folder
-        (
-            folder_guid,
-            folder_created,
-            folder_error,
-            folder_pending_reason,
-        ) = await _resolve_manage_subscriptions_folder(
-            call_v1_tool,
-            ctx,
-            logger=logger,
-            target_folder=target_folder,
-            default_folder=default_folder,
-            default_folder_guid=default_folder_guid,
-            allow_create=not dry_run,
-        )
-        if folder_error is not None:
-            return folder_error
+        folder_guid: str | None = None
+        folder_created = False
+        folder_pending_reason: str | None = None
+
+        if normalized_action == "add" and target_folder:
+            (
+                folder_guid,
+                folder_created,
+                folder_error,
+                folder_pending_reason,
+            ) = await _resolve_manage_subscriptions_folder(
+                call_v1_tool,
+                ctx,
+                logger=logger,
+                target_folder=target_folder,
+                default_folder=default_folder,
+                default_folder_guid=default_folder_guid,
+                allow_create=not dry_run,
+            )
+            if folder_error is not None:
+                return folder_error
 
         payload = _build_subscription_payload(
             normalized_action,
@@ -2084,7 +2089,7 @@ def register_manage_subscriptions_tool(
             return _manage_subscriptions_dry_run_response(
                 action=normalized_action,
                 guids=guid_list,
-                folder=target_folder,
+                folder=target_folder if normalized_action == "add" else None,
                 folder_guid=folder_guid,
                 folder_created=folder_created,
                 payload=payload,
