@@ -1,7 +1,19 @@
 ---
 EXTENDS: .mega-linter.yml
 
-# disable specific linters locally
+# overrides .mega-linter.yml selection for local runs
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - JSON_JSONLINT
+  - MARKDOWN_MARKDOWNLINT
+  - PYTHON_RUFF
+  - PYTHON_RUFF_FORMAT
+  - PYTHON_MYPY
+  # REPOSITORY_SYFT
+  - YAML_YAMLLINT
+
+# ignored if ENABLE_LINTERS is set in .mega-linter.yml or here
 DISABLE_LINTERS:
   - REPOSITORY_SYFT
 
