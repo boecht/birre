@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "BiRRe-normal": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "birre"]
+    },
+    "BiRRe-risk_manager": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "birre", "--context", "risk_manager"]
+    }
+  }
+}
