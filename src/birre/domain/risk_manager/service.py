@@ -1325,12 +1325,13 @@ async def _resolve_request_company_folder(
     default_folder_guid: str | None,
     submitted_domains: Sequence[str],
     existing_entries: list[RequestCompanyExistingEntry],
-) -> tuple[str | None, bool, dict[str, Any] | None]:
+    allow_create: bool,
+) -> tuple[str | None, bool, dict[str, Any] | None, str | None]:
     if not selected_folder:
-        return None, False, None
+        return None, False, None, None
 
     if default_folder and selected_folder == default_folder and default_folder_guid:
-        return default_folder_guid, False, None
+        return default_folder_guid, False, None, None
 
     folder_result = await resolve_or_create_folder(
         call_v1_tool,
@@ -1338,9 +1339,11 @@ async def _resolve_request_company_folder(
         logger=logger,
         folder_name=selected_folder,
         tool_name="request_company",
-        allow_create=True,
+        allow_create=allow_create,
     )
     if folder_result.error:
+        if not allow_create:
+            return None, False, None, folder_result.error
         return (
             None,
             False,
@@ -1353,9 +1356,10 @@ async def _resolve_request_company_folder(
                 failed=[],
                 folder=selected_folder,
             ).to_payload(),
+            None,
         )
 
-    return folder_result.guid, folder_result.created, None
+    return folder_result.guid, folder_result.created, None, None
 
 
 async def _partition_submitted_domains(
@@ -1403,7 +1407,15 @@ def _request_company_dry_run_response(
     folder_guid: str | None,
     folder_created: bool,
     csv_body: str,
+    pending_folder_reason: str | None,
 ) -> dict[str, Any]:
+    guidance: RequestGuidance | None = None
+    if pending_folder_reason:
+        guidance = RequestGuidance(
+            next_steps=pending_folder_reason,
+            confirmation="Folder not created during dry run; \
+                submission would create or require it.",
+        )
     return RequestCompanyResponse(
         status="dry_run",
         submitted=submitted_domains,
@@ -1415,6 +1427,7 @@ def _request_company_dry_run_response(
         folder_guid=folder_guid,
         folder_created=folder_created or None,
         csv_preview=csv_body or None,
+        guidance=guidance,
     ).to_payload()
 
 
@@ -1453,6 +1466,7 @@ def _short_circuit_request_company(
     folder_guid: str | None,
     folder_created: bool,
     csv_body: str,
+    folder_pending_reason: str | None,
 ) -> dict[str, Any] | None:
     if dry_run:
         return _request_company_dry_run_response(
@@ -1463,6 +1477,7 @@ def _short_circuit_request_company(
             folder_guid=folder_guid,
             folder_created=folder_created,
             csv_body=csv_body,
+            pending_folder_reason=folder_pending_reason,
         )
     if not remaining_domains:
         return _request_company_all_existing_response(
@@ -1606,6 +1621,7 @@ def register_request_company_tool(  # noqa: C901
         selected_folder = folder or default_folder
         folder_guid: str | None = None
         folder_created = False
+        folder_pending_reason: str | None = None
         existing_order: list[str] = []
         existing_mapping: dict[str, str | None] = {}
         for duplicate in duplicates:
@@ -1620,23 +1636,16 @@ def register_request_company_tool(  # noqa: C901
             dry_run=dry_run,
         )
 
-        initial_entries = _build_existing_entries(existing_order, existing_mapping)
-        (
-            folder_guid,
-            folder_created,
-            folder_error,
-        ) = await _resolve_request_company_folder(
-            call_v1_tool,
-            ctx,
-            logger=logger,
-            selected_folder=selected_folder,
-            default_folder=default_folder,
-            default_folder_guid=default_folder_guid,
-            submitted_domains=submitted_domains,
-            existing_entries=initial_entries,
-        )
-        if folder_error is not None:
-            return folder_error
+        selected_folder = folder or default_folder
+        folder_guid: str | None = None
+        folder_created = False
+        if (
+            selected_folder
+            and default_folder
+            and selected_folder == default_folder
+            and default_folder_guid
+        ):
+            folder_guid = default_folder_guid
 
         remaining_domains = await _partition_submitted_domains(
             unique_domains,
@@ -1650,6 +1659,35 @@ def register_request_company_tool(  # noqa: C901
         csv_body = _serialize_bulk_csv(remaining_domains) if remaining_domains else ""
         existing_entries = _build_existing_entries(existing_order, existing_mapping)
 
+        needs_folder_resolution = (
+            selected_folder
+            and bool(remaining_domains)
+            and not (
+                default_folder
+                and selected_folder == default_folder
+                and default_folder_guid
+            )
+        )
+        if needs_folder_resolution:
+            (
+                folder_guid,
+                folder_created,
+                folder_error,
+                folder_pending_reason,
+            ) = await _resolve_request_company_folder(
+                call_v1_tool,
+                ctx,
+                logger=logger,
+                selected_folder=selected_folder,
+                default_folder=default_folder,
+                default_folder_guid=default_folder_guid,
+                submitted_domains=submitted_domains,
+                existing_entries=existing_entries,
+                allow_create=not dry_run,
+            )
+            if folder_error is not None:
+                return folder_error
+
         short_circuit = _short_circuit_request_company(
             dry_run=dry_run,
             submitted_domains=submitted_domains,
@@ -1659,9 +1697,11 @@ def register_request_company_tool(  # noqa: C901
             folder_guid=folder_guid,
             folder_created=folder_created,
             csv_body=csv_body,
+            folder_pending_reason=folder_pending_reason,
         )
         if short_circuit is not None:
             return short_circuit
+
         result, failure_payload = await _submit_request_company_bulk(
             call_v2_tool,
             ctx,

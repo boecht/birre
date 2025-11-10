@@ -282,7 +282,85 @@ async def test_request_company_dry_run_returns_preview() -> None:
     assert preview.startswith("domain\nfuture.example")
     assert result["successfully_requested"] == ["future.example"]
     assert result["folder_guid"] == "folder-1"
-    assert result.get("folder_created") is None
+    assert result.get("folder_created") in (None, False)
+    assert call_v2.calls == []
+    assert any(tool_name == "getFolders" for tool_name, _ in call_v1.calls)
+    assert all(tool_name != "createFolder" for tool_name, _ in call_v1.calls)
+
+
+@pytest.mark.asyncio
+async def test_request_company_dry_run_reports_missing_folder() -> None:
+    logger = get_logger("test.request_company")
+    server = FastMCP(name="TestServer")
+
+    call_v1 = BridgeStub(
+        {
+            "companySearch": lambda _: {"results": []},
+            "getFolders": lambda _: [],
+            "createFolder": lambda _: (_ for _ in ()).throw(
+                RuntimeError("should not create")
+            ),
+        }
+    )
+    call_v2 = BridgeStub({})
+
+    tool = register_request_company_tool(
+        server,
+        call_v1,
+        call_v2,
+        logger=logger,
+        default_folder=None,
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(
+        ctx,
+        domains="manual.example",
+        folder="Ops",
+        dry_run=True,
+    )
+
+    assert result["status"] == "dry_run"
+    assert result["folder_guid"] is None
+    assert result["guidance"]
+    assert "Ops" in (result["guidance"]["next_steps"] or "")
+    assert any(tool_name == "getFolders" for tool_name, _ in call_v1.calls)
+    assert call_v2.calls == []
+
+
+@pytest.mark.asyncio
+async def test_request_company_all_existing_skips_folder_resolution() -> None:
+    logger = get_logger("test.request_company")
+    server = FastMCP(name="TestServer")
+
+    def existing_handler(params: dict[str, Any]) -> dict[str, Any]:
+        domain = params.get("domain")
+        return {
+            "results": [
+                {
+                    "primary_domain": domain,
+                    "name": f"{domain} Corp",
+                }
+            ]
+        }
+
+    call_v1 = BridgeStub({"companySearch": existing_handler})
+    call_v2 = BridgeStub({})
+
+    tool = register_request_company_tool(
+        server,
+        call_v1,
+        call_v2,
+        logger=logger,
+        default_folder=None,
+    )
+
+    ctx = FakeContext()
+    result = await tool.fn(ctx, domains="existing.example", folder="Ops")
+
+    assert result["status"] == "already_existing"
+    assert result["folder_guid"] is None
+    assert all(tool_name != "getFolders" for tool_name, _ in call_v1.calls)
     assert call_v2.calls == []
 
 
