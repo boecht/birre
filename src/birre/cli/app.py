@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.text import Text
 
+from birre._fastmcp_env import enable_new_openapi_parser
+
 # FastMCP checks this flag during import time, so ensure it is enabled before
 # importing any modules that depend on FastMCP.
-os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
+enable_new_openapi_parser()
 
 from birre.application.diagnostics import (  # noqa: E402
     EXPECTED_TOOLS_BY_CONTEXT as _DIAGNOSTIC_EXPECTED_TOOLS,

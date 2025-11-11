@@ -1,3 +1,4 @@
+# ruff: noqa: I001  # Must import _fastmcp_env before third-party modules.
 """Assembly for the BiRRe FastMCP business server."""
 
 from __future__ import annotations
@@ -7,6 +8,8 @@ import logging
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import Any, ParamSpec, TypeVar, cast
+
+from birre import _fastmcp_env  # noqa: F401
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import FunctionTool
