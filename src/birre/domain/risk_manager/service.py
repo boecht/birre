@@ -1430,7 +1430,7 @@ async def _resolve_request_company_folder(
             RequestCompanyResponse(
                 error=folder_result.error,
                 status="folder_error",
-                submitted=submitted_domains,
+                submitted=list(submitted_domains),
                 already_existing=existing_entries,
                 successfully_requested=[],
                 failed=[],
@@ -1498,7 +1498,7 @@ def _request_company_dry_run_response(
         )
     return RequestCompanyResponse(
         status="dry_run",
-        submitted=submitted_domains,
+        submitted=list(submitted_domains),
         already_existing=existing_entries,
         successfully_requested=list(remaining_domains),
         failed=[],
@@ -1521,7 +1521,7 @@ def _request_company_all_existing_response(
 ) -> dict[str, Any]:
     return RequestCompanyResponse(
         status="already_existing",
-        submitted=submitted_domains,
+        submitted=list(submitted_domains),
         already_existing=existing_entries,
         successfully_requested=[],
         failed=[],
@@ -1621,7 +1621,7 @@ async def _submit_request_company_bulk(
         return None, RequestCompanyResponse(
             error=str(exc),
             status="failed",
-            submitted=submitted_domains,
+            submitted=list(submitted_domains),
             already_existing=existing_entries,
             successfully_requested=[],
             failed=failed_entries,
@@ -1849,7 +1849,7 @@ def register_request_company_tool(
 
         return RequestCompanyResponse(
             status="submitted_v2_bulk",
-            submitted=state.submitted_domains,
+            submitted=list(state.submitted_domains),
             already_existing=state.existing_entries,
             successfully_requested=state.remaining_domains,
             failed=[],
@@ -1914,7 +1914,7 @@ def _build_manage_subscriptions_success_response(
     return ManageSubscriptionsResponse(
         status="applied",
         action=normalized_action,
-        guids=guid_list,
+        guids=list(guid_list),
         folder=target_folder,
         folder_guid=folder_state.folder_guid,
         folder_created=folder_state.folder_created or None,

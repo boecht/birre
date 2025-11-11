@@ -94,7 +94,7 @@ def _load_api_spec(resource_name: str) -> Any:
 
     resource_path = resources.files("birre.resources") / "apis" / resource_name
     with resources.as_file(resource_path) as spec_path:
-        parser = ResolvingParser(
+        parser = ResolvingParser(  # type: ignore[no-untyped-call]
             str(spec_path),
             strict=True,
             resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
