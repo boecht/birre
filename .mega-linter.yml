@@ -55,7 +55,7 @@ PYTHON_MYPY_CONFIG_FILE: pyproject.toml
 PYTHON_MYPY_ENV_VARIABLES:
   - MYPYPATH=/tmp/lint/.deps_cache
 PYTHON_MYPY_PRE_COMMANDS:
-  - command: pip install . --target ./.deps_cache --upgrade
+  - command: pip install -q . --target ./.deps_cache --upgrade
     cwd: workspace
     run_before_linters: true
   - command: rm -rf ./.deps_cache/typing_extensions*
