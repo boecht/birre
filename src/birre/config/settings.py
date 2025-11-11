@@ -386,7 +386,7 @@ def _apply_cli_overrides(
 
 def _build_dynaconf(config_path: str | None) -> Dynaconf:
     files, root_path = _default_settings_files(config_path)
-    settings = Dynaconf(
+    settings = Dynaconf(  # type: ignore[no-untyped-call]
         settings_files=list(files),
         envvar_prefix="BIRRE",
         environments=False,

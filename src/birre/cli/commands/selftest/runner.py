@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from birre.application.diagnostics import (
     EXPECTED_TOOLS_BY_CONTEXT,
@@ -147,9 +147,8 @@ class SelfTestRunner:
                 report=report,
             )
 
-        context_settings = cast(
-            RuntimeSettings,
-            replace(self._base_runtime_settings, context=context_name),
+        context_settings: RuntimeSettings = replace(
+            self._base_runtime_settings, context=context_name
         )
         effective_settings, notes, degraded = self._resolve_ca_bundle(
             logger, context_settings
@@ -536,7 +535,7 @@ class SelfTestRunner:
     ) -> None:
         tool_summary = report.setdefault("tools", {})
         summary_payload: dict[str, Any] = {}
-        offline_failures: list[DiagnosticFailure] = []
+        offline_failures: list[DiagnosticFailure | None] = []
         normalized_samples = {
             mode: normalize_company_search_results(raw_payload)
             for mode, raw_payload in COMPANY_SEARCH_SAMPLE_PAYLOADS.items()

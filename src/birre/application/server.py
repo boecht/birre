@@ -6,7 +6,7 @@ import inspect
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any
+from typing import Any, ParamSpec, TypeVar, cast
 
 from fastmcp import FastMCP
 from fastmcp.tools.tool import FunctionTool
@@ -66,6 +66,8 @@ def register_request_company_tool(*args: Any, **kwargs: Any) -> FunctionTool:
 
 
 _tool_logger = logging.getLogger("birre.tools")
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 INSTRUCTIONS_MAP: dict[str, str] = {
@@ -382,9 +384,11 @@ __all__ = [
 ]
 
 
-def _call_with_supported_kwargs(func, *args, **kwargs):
+def _call_with_supported_kwargs(
+    func: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+) -> T:
     sig = inspect.signature(func)
-    accepted = {}
+    accepted: dict[str, Any] = {}
     for name, param in sig.parameters.items():
         if param.kind in (
             inspect.Parameter.VAR_KEYWORD,
@@ -394,4 +398,4 @@ def _call_with_supported_kwargs(func, *args, **kwargs):
     for key, value in kwargs.items():
         if key in sig.parameters:
             accepted[key] = value
-    return func(*args, **accepted)
+    return func(*args, **cast(Any, accepted))

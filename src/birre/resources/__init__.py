@@ -2,7 +2,11 @@
 
 from collections.abc import Iterator
 from importlib import resources as _resources
-from importlib.abc import Traversable
+
+try:
+    from importlib.resources.abc import Traversable
+except ImportError:  # pragma: no cover - fallback for older interpreters
+    from importlib.abc import Traversable
 from typing import cast
 
 __all__ = ["iter_data_files"]

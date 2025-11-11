@@ -48,9 +48,19 @@ MARKDOWN_MARKDOWNLINT_ARGUMENTS: "--fix"
 MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
 
 # Mypy strict typing config via pyproject
+PYTHON_MYPY_COMMAND_REMOVE_ARGUMENTS: "--install-types --non-interactive"
+PYTHON_MYPY_ARGUMENTS: "--strict"
 PYTHON_MYPY_CLI_LINT_MODE: project
 PYTHON_MYPY_CONFIG_FILE: pyproject.toml
-PYTHON_MYPY_ARGUMENTS: "--strict"
+PYTHON_MYPY_ENV_VARIABLES:
+  - MYPYPATH=/tmp/lint/.deps_cache
+PYTHON_MYPY_PRE_COMMANDS:
+  - command: pip install -q . --target ./.deps_cache --upgrade
+    cwd: workspace
+    run_before_linters: true
+  - command: rm -rf ./.deps_cache/typing_extensions*
+    cwd: workspace
+    run_before_linters: true
 
 # Python Ruff (lint) uses pyproject.toml config; ensure formatting style is ruff
 PYTHON_DEFAULT_STYLE: ruff

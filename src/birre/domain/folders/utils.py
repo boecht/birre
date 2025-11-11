@@ -80,9 +80,11 @@ def _format_missing_folder_error(
     folders: list[dict[str, Any]],
     folder_name: str,
 ) -> str:
-    available_names = [
-        entry.get("name") for entry in folders if isinstance(entry.get("name"), str)
-    ]
+    available_names: list[str] = []
+    for entry in folders:
+        name = entry.get("name")
+        if isinstance(name, str):
+            available_names.append(name)
     available = ", ".join(sorted(available_names)) or "none"
     return f"Folder '{folder_name}' not found; available: {available}"
 

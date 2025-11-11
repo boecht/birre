@@ -30,7 +30,7 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
   semantics for `company_search_interactive`, `request_company`, and
   `manage_subscriptions` to clarify payloads, dry-run behavior, and
   example return shapes for better discoverability and QA
-- **TOP:** Add automatic folder resolution and creation for subscription
+- Add automatic folder resolution and creation for subscription
   management and company request workflows, with timestamped audit
   metadata when creating new folders
 - Add offline selftest replay samples enabling diagnostics to run without
@@ -51,6 +51,8 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### Security
 
+- **TOP:** Add Python 3.14 to CI cross-platform matrix to validate support on
+  both Python 3.13 and 3.14
 - Apply StepSecurity automated best-practices to harden GitHub Actions
   workflows
 - Grant least-privilege permissions (contents: read) to CI workflows
