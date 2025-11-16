@@ -7,7 +7,7 @@ import inspect
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any, ParamSpec, TypeVar, cast
+from typing import Any, Protocol, TypeVar
 
 from birre import _fastmcp_env  # noqa: F401
 
@@ -69,8 +69,11 @@ def register_request_company_tool(*args: Any, **kwargs: Any) -> FunctionTool:
 
 
 _tool_logger = logging.getLogger("birre.tools")
-P = ParamSpec("P")
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
+
+
+class _AnyCallable(Protocol[T]):
+    def __call__(self, *args: Any, **kwargs: Any) -> T: ...
 
 
 INSTRUCTIONS_MAP: dict[str, str] = {
@@ -387,8 +390,8 @@ __all__ = [
 ]
 
 
-def _call_with_supported_kwargs(
-    func: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+def _call_with_supported_kwargs(  # noqa: UP047 - ParamSpec rejected by pyright
+    func: _AnyCallable[T], *args: Any, **kwargs: Any
 ) -> T:
     sig = inspect.signature(func)
     accepted: dict[str, Any] = {}
@@ -401,4 +404,4 @@ def _call_with_supported_kwargs(
     for key, value in kwargs.items():
         if key in sig.parameters:
             accepted[key] = value
-    return func(*args, **cast(Any, accepted))
+    return func(*args, **accepted)

@@ -19,7 +19,7 @@ import ssl
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
-from typing import Any, Final
+from typing import Any, Final, cast
 
 import httpx
 
@@ -43,6 +43,7 @@ from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL, create_v1_api_s
 from birre.integrations.bitsight.v1_bridge import call_v1_openapi_tool
 
 SyncRunner = Callable[[Awaitable[Any]], Any]
+FailureLog = list[DiagnosticFailure] | None
 
 _LOOP_LOGGER = logging.getLogger("birre.loop")
 
@@ -85,17 +86,35 @@ HEALTHCHECK_REQUEST_DOMAIN: Final = (
 )
 
 
-def _default_run_sync(coro: Awaitable[Any]) -> Any:
-    return asyncio.run(coro)  # type: ignore[arg-type]  # asyncio.run accepts Awaitable
+def _default_run_sync(awaitable: Awaitable[Any]) -> Any:
+    async def _await_wrapper() -> Any:
+        return await awaitable
+
+    return asyncio.run(_await_wrapper())
 
 
 def _sync(coro: Awaitable[Any], run_sync: SyncRunner | None = None) -> Any:
     runner = run_sync or _default_run_sync
-    return runner(coro)
+    loop_to_close: asyncio.AbstractEventLoop | None = None
+    if run_sync is not None:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                asyncio.get_event_loop()
+            except RuntimeError:
+                loop_to_close = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop_to_close)
+    try:
+        return runner(coro)
+    finally:
+        if loop_to_close is not None:
+            asyncio.set_event_loop(None)
+            loop_to_close.close()
 
 
 def record_failure(
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     *,
     tool: str,
     stage: str,
@@ -122,9 +141,9 @@ def _resolve_tool_callable(tool: Any) -> Callable[..., Any | None] | None:
     if hasattr(tool, "fn"):
         fn = getattr(tool, "fn")
         if callable(fn):
-            return fn  # type: ignore[no-any-return]  # Dynamic tool resolution
+            return cast(Callable[..., Any | None], fn)
     if callable(tool):
-        return tool  # type: ignore[no-any-return]  # Dynamic tool resolution
+        return cast(Callable[..., Any | None], tool)
     return None
 
 
@@ -253,7 +272,7 @@ def check_required_tool(
     context: str,
     logger: BoundLogger,
     diagnostic_fn: Callable[..., bool],
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     summary: dict[str, Any] | None,
     run_sync: SyncRunner | None,
 ) -> bool:
@@ -325,7 +344,7 @@ def check_optional_tool(
     context: str,
     logger: BoundLogger,
     diagnostic_fn: Callable[..., bool],
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     summary: dict[str, Any] | None,
     run_sync: SyncRunner | None,
 ) -> bool:
@@ -391,7 +410,7 @@ def run_context_tool_diagnostics(
     server_instance: Any,
     expected_tools: frozenset[str],
     summary: dict[str, dict[str, Any | None]] | None = None,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
     tools = collect_tool_map(server_instance, run_sync=run_sync)
@@ -477,7 +496,7 @@ def run_company_search_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any | None,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
     sample_payloads: Mapping[str, Any] | None = None,
@@ -558,7 +577,7 @@ def _test_company_search_mode(
     require_results: bool,
     sample_payload: Any | None,
     tool_logger: BoundLogger,
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     summary: dict[str, Any | None] | None,
     run_sync: SyncRunner | None,
 ) -> bool:
@@ -610,7 +629,7 @@ def _handle_company_search_call_failure(
     mode: str,
     exc: Exception,
     tool_logger: BoundLogger,
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     summary: dict[str, Any | None] | None,
 ) -> bool:
     """Handle failures during company_search tool invocation."""
@@ -641,7 +660,7 @@ def _handle_company_search_call_failure(
 def _handle_company_search_validation_failure(
     *,
     mode: str,
-    failures: list[DiagnosticFailure | None] | None,
+    failures: FailureLog,
     summary: dict[str, Any | None] | None,
 ) -> bool:
     """Handle failures during company_search payload validation."""
@@ -669,7 +688,7 @@ def run_rating_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
@@ -749,7 +768,7 @@ def run_company_search_interactive_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
@@ -809,7 +828,7 @@ def run_manage_subscriptions_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
@@ -872,7 +891,7 @@ def run_request_company_diagnostics(
     context: str,
     logger: BoundLogger,
     tool: Any,
-    failures: list[DiagnosticFailure | None] | None = None,
+    failures: FailureLog = None,
     summary: dict[str, Any | None] | None = None,
     run_sync: SyncRunner | None = None,
 ) -> bool:
@@ -1663,16 +1682,18 @@ def run_online_checks(
             client = getattr(api_server, "_client", None)
             close = getattr(client, "aclose", None)
             if callable(close):
+                close_callable = cast(Callable[[], Awaitable[None]], close)
                 try:
-                    await close()
+                    await close_callable()
                 except Exception as exc:  # pragma: no cover - defensive logging
                     _LOOP_LOGGER.warning(
                         "online_checks.client_close_failed: %s", str(exc)
                     )
             shutdown = getattr(api_server, "shutdown", None)
             if callable(shutdown):
+                shutdown_callable = cast(Callable[[], Awaitable[Any]], shutdown)
                 with suppress(Exception):
-                    await shutdown()
+                    await shutdown_callable()
 
     startup_result = _sync(_execute_checks(), run_sync=run_sync)
     if isinstance(startup_result, OnlineStartupResult):

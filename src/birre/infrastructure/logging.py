@@ -191,7 +191,7 @@ def configure_logging(settings: LoggingSettings) -> None:
 
 
 def get_logger(name: str) -> BoundLogger:
-    return structlog.get_logger(name)  # type: ignore[no-any-return]  # structlog stub limitation
+    return cast(BoundLogger, structlog.get_logger(name))
 
 
 def _first_non_empty_str(values: Any) -> str | None:

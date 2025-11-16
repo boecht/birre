@@ -1113,7 +1113,7 @@ def register_company_search_interactive_tool(
 
         validation_error = _validate_company_search_inputs(name, domain)
         if validation_error:
-            # Pydantic models accept **kwargs, but mypy can't verify field names
+            # Pydantic models accept **kwargs, but pyright can't verify field names
             validation_payload = cast(dict[str, Any], validation_error)
             response = CompanySearchInteractiveResponse(**validation_payload)
             return response.to_payload()
@@ -1139,7 +1139,7 @@ def register_company_search_interactive_tool(
             domain=domain,
         )
         if failure_response is not None:
-            # Pydantic models accept **kwargs, but mypy can't verify field names
+            # Pydantic models accept **kwargs, but pyright can't verify field names
             failure_payload = cast(dict[str, Any], failure_response)
             response = CompanySearchInteractiveResponse(**failure_payload)
             return response.to_payload()
@@ -1789,8 +1789,11 @@ def register_request_company_tool(
             ctx=ctx,
             logger=logger,
         )
-        if error_response is not None or state is None:
-            return error_response  # type: ignore[return-value]
+        if error_response is not None:
+            return error_response
+        assert state is not None, (
+            "State must be available when no error response is returned."
+        )
 
         log_event(
             logger,

@@ -15,7 +15,7 @@
 
 ### 4.0.0-alpha.2 — Quality & Security Infrastructure (previous pre-release)
 
-- Strict type checking with mypy catches errors before runtime
+- Strict type checking with pyright catches errors before runtime
 - Property-based testing with Hypothesis for edge case discovery
 - Performance benchmarks establish regression tracking baselines
 - Cross-platform CI validates Windows, macOS, and Linux compatibility

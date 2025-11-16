@@ -69,18 +69,16 @@ def run_offline_startup_checks(
 
     for schema_name in SCHEMA_FILES:
         resource = resources.files("birre.resources") / "apis" / schema_name
-        # Traversable protocol doesn't declare exists() in stub
-        if not resource.exists():  # type: ignore[attr-defined]
+        try:
+            with resources.as_file(resource) as path:
+                with path.open("r", encoding="utf-8") as handle:
+                    json.load(handle)
+        except FileNotFoundError:
             logger.critical(
                 "offline.config.schema.missing",
                 schema=schema_name,
             )
             return False
-
-        try:
-            with resources.as_file(resource) as path:
-                with path.open("r", encoding="utf-8") as handle:
-                    json.load(handle)
         except Exception as exc:  # pragma: no cover - defensive
             logger.critical(
                 "offline.config.schema.parse_error",
