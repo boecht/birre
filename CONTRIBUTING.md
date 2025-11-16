@@ -89,7 +89,7 @@ By participating, you are expected to uphold this code.
     uv run ruff format src tests
 
     # Type check
-    uv run mypy src
+    uv run pyright
 
     # Test
     uv run pytest --offline --cov=src/birre
@@ -131,7 +131,7 @@ file-scoped guidance during code changes.
 ### Code Quality Tools
 
 - **Ruff**: Linting and formatting (replaces black, isort, flake8)
-- **mypy**: Static type checking with strict mode
+- **pyright**: Static type checking with strict mode
 - **pytest**: Testing framework with coverage reporting
 
 ### Testing
@@ -199,7 +199,7 @@ but comprehensive enough to be meaningful. Avoid both:
 
 1. **Ensure all checks pass**
     - Linting (ruff)
-    - Type checking (mypy)
+    - Type checking (pyright)
     - Tests (pytest)
     - Coverage (70%+ minimum)
 
