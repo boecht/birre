@@ -85,20 +85,11 @@ dev = [
 
 [tool.pyright]
 include = ["src", "tests"]
-# exclude = ["**/node_modules",
-#     "**/__pycache__",
-#     "src/experimental",
-#     "src/typestubs"
-# ]
 pythonVersion = "3.13"
-typeCheckingMode = "basic" # "off" | "basic" | "standard" | "strict"
+typeCheckingMode = "standard" # "off" | "basic" | "standard" | "strict"
 extraPaths = ["src"]
 venvPath = "."
 venv = ".venv"
-# reportGeneralTypeIssues = "none"
-# reportCallIssue = "none"
-# reportMissingImports = "error"
-# reportMissingTypeStubs = false
 ignore = ["tests"]
 
 [tool.ruff]
