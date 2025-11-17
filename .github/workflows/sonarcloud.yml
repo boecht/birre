@@ -1,0 +1,36 @@
+---
+name: SonarCloud analysis
+
+"on":
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+      - "v*"
+  push:
+    branches:
+      - main
+      - "release/*"
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read # allows SonarCloud to decorate PRs with analysis results
+
+jobs:
+  Analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Analyze with SonarCloud
+
+        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216 # 2.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args:
+            -Dsonar.projectKey=boecht_birre
+            -Dsonar.organization=boecht
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+          projectBaseDir: .
