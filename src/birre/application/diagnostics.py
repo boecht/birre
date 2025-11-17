@@ -157,11 +157,15 @@ def _invoke_tool(
     callable_fn = _resolve_tool_callable(tool)
     if callable_fn is None:
         raise TypeError(f"Tool object {tool!r} is not callable")
+
+    result: Awaitable[Any] | Any | None = None
     try:
         result = callable_fn(ctx, **params)
     except TypeError:
-        if params:
-            result = callable_fn(ctx, params)
+        if not params:
+            raise
+        result = callable_fn(ctx, params)
+
     if inspect.isawaitable(result):
         return _sync(result, run_sync)
     return result
