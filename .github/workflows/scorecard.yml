@@ -6,6 +6,7 @@ name: OpenSSF Scorecard report
     - cron: "26 9 * * 1"
   push:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions: read-all
 
