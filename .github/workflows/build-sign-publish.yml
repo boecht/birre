@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  quality-lint:
+  lint:
     name: Lint, Type, Test & SBOM Gate (Lint)
     uses: ./.github/workflows/lint-and-test.yml
     permissions:
@@ -34,7 +34,7 @@ jobs:
 
   build:
     name: Build Distribution
-    needs: quality-lint
+    needs: lint
     runs-on: ubuntu-latest
 
     steps:
