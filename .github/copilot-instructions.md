@@ -23,21 +23,29 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 
 ### Project Principles
 
-1. **When anything is unclear, seems inconsistent, or is unsuitable to reach design goals:
-  Stop and ask the user — never guess, assume, or silently default, except when a more specific prompt or
-  mode explicitly defines a different requirement.**
-    - Applies at all stages: requirements, system design, implementation
-    - Always clarify technical ambiguities or specification gaps with a clear technical question
-    - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate
-2. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
+1. **Ground every statement in current evidence.**
+    - Inspect the live repo/docs/logs before forming an opinion or recommending a change
+    - Cite the exact file/line that supports your conclusion so nothing relies on memory or stale data
+
+2. **Clarify, don’t guess**
+    - Whenever something is unclear, inconsistent, or blocking the design goal, pause and
+    ask the user a precise technical question instead of assuming or defaulting
+    - Only follow a different approach if the prompt/mode explicitly demands it
+    - Apply this discipline across all stages; requirements, system design, and implementation alike
+    - Turn every ambiguity or spec gap into a targeted clarification
+    - Treat uncertainty signals like "I think", "probably", or "maybe" as red flags that require clarification
+
+3. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
     - Prioritize functionality and stability over broad compatibility
     - Avoid premature optimization for universal use cases
-3. **Quality and architecture trump backwards compatibility.**
+
+4. **Quality and architecture trump backwards compatibility.**
     - Breaking changes are acceptable if they improve the codebase
     - Remove outdated patterns immediately; do not preserve legacy code
     - Avoid shortcuts; build the right solution once
     - Clean, maintainable architecture outranks legacy API stability
-4. **Documentation focuses on user value, not internal implementation.**
+
+5. **Documentation focuses on user value, not internal implementation.**
     - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
     - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
     - Keep technical specifics in commits and internal tracking
