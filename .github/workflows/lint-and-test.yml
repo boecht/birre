@@ -6,11 +6,12 @@ name: Lint, Type, Test & SBOM Gate
     branches:
       - main
       - "release/*"
-      - "dev/*"
+      - "v*"
   push:
     branches:
       - main
       - "release/*"
+      - "v*"
   workflow_dispatch:
     inputs:
       enable-dependency-review:

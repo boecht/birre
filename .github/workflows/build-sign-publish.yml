@@ -13,72 +13,28 @@ name: Build, Sign & Publish
         type: string
 
 permissions:
-  contents: write
-  id-token: write # Required for PyPI trusted publishing
-  pull-requests: write # Reusable lint workflow posts summaries
-  statuses: write # Allow MegaLinter to update commit statuses
-  security-events: write # Allow SARIF uploads from reusable workflow
+  contents: read
 
 jobs:
   quality-lint:
     name: Lint, Type, Test & SBOM Gate (Lint)
     uses: ./.github/workflows/lint-and-test.yml
+    permissions:
+      contents: read
+      pull-requests: write # Reusable lint workflow posts summaries
+      statuses: write # Allow MegaLinter to update commit statuses
+      security-events: write # Allow SARIF uploads from reusable workflow
     with:
       enable-dependency-review: false
-      enable-tests: false
+      enable-tests: true
     secrets:
       REUSABLE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  validate:
-    name: Pre-release Validation
-    runs-on: ubuntu-latest
-    needs: quality-lint
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
-        with:
-          egress-policy: audit
-
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Prepare Python environment
-        uses: ./.github/actions/uv-env
-        with:
-          cache-key-prefix: release-validate
-
-      - name: Audit dependencies
-        run: |
-          uv tool run pip-audit --strict
-
-      - name: Lint with ruff
-        run: |
-          uv run ruff check src tests
-
-      - name: Type check with pyright
-        run: |
-          uv run pyright
-
-      - name: Run tests with coverage (full if API key present, else offline)
-        env:
-          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
-        run: |
-          if [ -n "${BITSIGHT_API_KEY}" ]; then
-            uv run pytest \
-              --cov=src/birre \
-              --cov-report=term \
-              --cov-fail-under=80
-          else
-            uv run pytest --offline \
-              --cov=src/birre \
-              --cov-report=term \
-              --cov-fail-under=80
-          fi
+      BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build Distribution
-    needs: validate
+    needs: quality-lint
     runs-on: ubuntu-latest
 
     steps:
@@ -128,6 +84,8 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -226,6 +184,9 @@ jobs:
     name: Publish to PyPI
     needs: github-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: release
       url: https://pypi.org/project/birre/

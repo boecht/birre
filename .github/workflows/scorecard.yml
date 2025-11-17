@@ -13,13 +13,11 @@ jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
-    if: github.event.repository.default_branch == github.ref_name ||
-      github.event_name == 'pull_request'
+    if: github.event.repository.default_branch == github.ref_name
     permissions:
       contents: read
       security-events: write
       id-token: write
-      actions: write
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
