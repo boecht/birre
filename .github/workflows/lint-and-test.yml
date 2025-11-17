@@ -6,11 +6,12 @@ name: Lint, Type, Test & SBOM Gate
     branches:
       - main
       - "release/*"
-      - "dev/*"
+      - "v*"
   push:
     branches:
       - main
       - "release/*"
+      - "v*"
   workflow_dispatch:
     inputs:
       enable-dependency-review:
@@ -55,8 +56,6 @@ name: Lint, Type, Test & SBOM Gate
 
 permissions:
   contents: read
-  pull-requests: write
-  security-events: write
 
 jobs:
   dependency-review:
@@ -315,6 +314,9 @@ jobs:
     needs:
       - lint
       - tests
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Harden the runner (Audit all outbound calls)

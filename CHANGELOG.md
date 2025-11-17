@@ -3,6 +3,35 @@
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
 See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
+## [4.0.0-beta.2] - 2025-11-17
+
+### Changed
+
+- **Breaking:** Replace mypy with pyright for type checking to simplify CI setup and improve type inference
+- Refine workflow permissions and branch filters across CI pipelines to tighten security and reduce token scope
+- Improve type safety across diagnostics and server modules with explicit casts and Protocol definitions for pyright
+  compatibility
+- Enhance async/sync bridge handling with proper event loop lifecycle management for more robust diagnostic operations
+- Improve CLI version display to prefer local `pyproject.toml` version during development over installed package
+  metadata
+
+### Added
+
+- Add Dependabot configuration for automated dependency updates (daily GitHub Actions, weekly pip packages)
+- Add comprehensive type annotations to functions across CLI and application layers
+- Add explicit Protocol definitions for better type checker compatibility
+
+### Fixed
+
+- Fix diagnostic tool invocations to use correct parameter names (action instead of name for subscriptions)
+- Fix import ordering and formatting across test files for consistency
+- Fix configuration validation to use equality comparison instead of identity for reliable parameter source detection
+- Fix closed stream handling in logging to avoid exceptions during teardown
+
+### Security
+
+- Grant least-privilege permissions to CI workflows (contents: read where appropriate)
+
 ## [4.0.0-beta.1] - 2025-11-10
 
 ### Changed

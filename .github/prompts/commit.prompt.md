@@ -26,7 +26,7 @@ Follow this playbook exactly and in order; do every step during this run, even i
 
 - Use `runCommands` to execute the following commands in order during this invocation:
   - `git diff --cached --numstat --shortstat && git diff --cached --name-status`
-  - `git diff --cached -U2 --minimal --no-color | head -n 1000`
+  - `git diff --cached -U2 --minimal --no-color`
 - Do not alter the commands or add any others, use them exactly as given
 - If the commands show nothing staged, report that no commit is needed and stop
 - Read the diff output so you understand what will be committed

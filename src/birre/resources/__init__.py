@@ -7,7 +7,7 @@ try:
     from importlib.resources.abc import Traversable
 except ImportError:  # pragma: no cover - fallback for older interpreters
     from importlib.abc import Traversable
-from typing import cast
+from typing import Protocol, cast
 
 __all__ = ["iter_data_files"]
 
@@ -15,7 +15,11 @@ __all__ = ["iter_data_files"]
 def iter_data_files(pattern: str) -> Iterator[str]:
     """Yield resource paths within the package matching a suffix pattern."""
     root = _resources.files(__name__)
-    # Cast needed because Traversable protocol doesn't declare rglob in the stub
-    for entry in cast("type[Traversable]", root).rglob(pattern):  # type: ignore[attr-defined]
+    rglobber = cast(_SupportsRGlob, root)
+    for entry in rglobber.rglob(pattern):
         if entry.is_file():
             yield str(entry)
+
+
+class _SupportsRGlob(Protocol):
+    def rglob(self, pattern: str) -> Iterator[Traversable]: ...

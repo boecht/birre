@@ -3,16 +3,18 @@ name: Cross-Platform Testing
 
 permissions:
   contents: read
-  pull-requests: write
 
 "on":
   pull_request:
     branches:
       - main
       - "release/*"
+      - "v*"
   push:
     branches:
       - main
+      - "release/*"
+      - "v*"
   workflow_dispatch:
 
 jobs:

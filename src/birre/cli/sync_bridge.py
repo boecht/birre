@@ -87,10 +87,10 @@ def invoke_with_optional_run_sync(
     kwargs = dict(kwargs)
     kwargs.pop("run_sync", None)
     try:
-        params = inspect.signature(func).parameters
+        signature = inspect.signature(func)
     except (TypeError, ValueError):
-        params = {}  # type: ignore[assignment]
-    if "run_sync" in params:
+        return func(*args, **kwargs)
+    if "run_sync" in signature.parameters:
         return func(*args, run_sync=await_sync, **kwargs)
     return func(*args, **kwargs)
 

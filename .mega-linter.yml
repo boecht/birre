@@ -8,9 +8,9 @@ ENABLE_LINTERS:
   - EDITORCONFIG_EDITORCONFIG_CHECKER
   - JSON_JSONLINT
   - MARKDOWN_MARKDOWNLINT
+  - PYTHON_PYRIGHT
   - PYTHON_RUFF
   - PYTHON_RUFF_FORMAT
-  - PYTHON_MYPY
   - REPOSITORY_SYFT
   - YAML_YAMLLINT
 
@@ -47,18 +47,11 @@ JSON_JSONLINT_ARGUMENTS: "--quiet"
 MARKDOWN_MARKDOWNLINT_ARGUMENTS: "--fix"
 MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
 
-# Mypy strict typing config via pyproject
-PYTHON_MYPY_COMMAND_REMOVE_ARGUMENTS: "--install-types --non-interactive"
-PYTHON_MYPY_ARGUMENTS: "--strict"
-PYTHON_MYPY_CLI_LINT_MODE: project
-PYTHON_MYPY_CONFIG_FILE: pyproject.toml
-PYTHON_MYPY_ENV_VARIABLES:
-  - MYPYPATH=/tmp/lint/.deps_cache
-PYTHON_MYPY_PRE_COMMANDS:
-  - command: pip install -q . --target ./.deps_cache --upgrade
-    cwd: workspace
-    run_before_linters: true
-  - command: rm -rf ./.deps_cache/typing_extensions*
+# Pyright strict typing config via pyproject
+PYTHON_PYRIGHT_CLI_LINT_MODE: project
+PYTHON_PYRIGHT_CONFIG_FILE: pyproject.toml
+PYTHON_PYRIGHT_PRE_COMMANDS:
+  - command: uv sync --frozen --no-install-project
     cwd: workspace
     run_before_linters: true
 

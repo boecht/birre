@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ssl
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, MutableMapping
 from importlib import resources
 from typing import Any
 
@@ -32,7 +32,7 @@ def _get_schema_definitions(spec: Any) -> Mapping[str, Any]:
     return schemas
 
 
-def _iter_api_responses(spec: Any) -> Iterator[dict[str, Any]]:
+def _iter_api_responses(spec: Any) -> Iterator[MutableMapping[str, Any]]:
     if not isinstance(spec, Mapping):
         return
 
@@ -47,8 +47,8 @@ def _iter_api_responses(spec: Any) -> Iterator[dict[str, Any]]:
             if not isinstance(operation, Mapping):
                 continue
             responses = operation.get("responses")
-            if isinstance(responses, Mapping):
-                yield responses  # type: ignore[misc]  # OpenAPI spec dict is mutable
+            if isinstance(responses, MutableMapping):
+                yield responses
 
 
 def _schema_description(schemas: Mapping[str, Any], ref: str) -> str:
@@ -94,7 +94,7 @@ def _load_api_spec(resource_name: str) -> Any:
 
     resource_path = resources.files("birre.resources") / "apis" / resource_name
     with resources.as_file(resource_path) as spec_path:
-        parser = ResolvingParser(  # type: ignore[no-untyped-call]
+        parser = ResolvingParser(
             str(spec_path),
             strict=True,
             resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,

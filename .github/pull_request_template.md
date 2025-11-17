@@ -42,7 +42,7 @@ Fixes #
 ### Code Quality Checklist
 
 - [ ] Code follows project style guidelines (ruff check/format)
-- [ ] Type hints added/updated (mypy --strict passes)
+- [ ] Type hints added/updated (pyright passes)
 - [ ] Documentation updated (docstrings, README, etc.)
 - [ ] Coverage maintained or improved (70%+ for new code)
 - [ ] No new warnings or errors introduced

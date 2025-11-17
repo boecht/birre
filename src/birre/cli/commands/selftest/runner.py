@@ -494,7 +494,7 @@ class SelfTestRunner:
                 server_instance=server_instance,
                 expected_tools=expected_tools,
                 summary=tool_report,
-                failures=failure_records,  # type: ignore[arg-type]  # list invariance
+                failures=failure_records,
                 run_sync=self._run_sync,
             ):
                 attempt_success = False
@@ -535,7 +535,7 @@ class SelfTestRunner:
     ) -> None:
         tool_summary = report.setdefault("tools", {})
         summary_payload: dict[str, Any] = {}
-        offline_failures: list[DiagnosticFailure | None] = []
+        offline_failures: list[DiagnosticFailure] = []
         normalized_samples = {
             mode: normalize_company_search_results(raw_payload)
             for mode, raw_payload in COMPANY_SEARCH_SAMPLE_PAYLOADS.items()
@@ -571,7 +571,7 @@ class SelfTestRunner:
         )
         for tool_name in missing_tools:
             record_failure(
-                failure_records,  # type: ignore[arg-type]  # list invariance
+                failure_records,
                 tool=tool_name,
                 stage="discovery",
                 message=MSG_EXPECTED_TOOL_NOT_REGISTERED,
@@ -608,7 +608,7 @@ class SelfTestRunner:
         except BirreError as exc:
             self._alerts.add(exc.code)
             record_failure(
-                failure_records,  # type: ignore[arg-type]  # list invariance
+                failure_records,
                 tool="startup_checks",
                 stage="online",
                 message="online startup checks failed",
@@ -624,7 +624,7 @@ class SelfTestRunner:
         else:
             if not online_ok:
                 record_failure(
-                    failure_records,  # type: ignore[arg-type]  # list invariance
+                    failure_records,
                     tool="startup_checks",
                     stage="online",
                     message="online startup checks failed",
