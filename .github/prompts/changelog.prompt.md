@@ -38,6 +38,8 @@ Non-compliance will result in rejected entries. Pay special attention to:
 2. **Category order**: Changed, Added, Deprecated, Removed, Fixed, Security (EXACT order, no exceptions)
 3. **Imperative mood**: "Add feature" NOT "Added feature" or "New feature added"
 4. **User benefits**: Describe impact, not implementation details
+5. **Headline prefixes**: Use `**TOP:**` for the most impactful bullets (first in Changed/Added) and `**Breaking:**`
+    for any breaking behavior as mandated in the instructions file.
 
 ## Inputs (from user)
 
@@ -57,7 +59,8 @@ Non-compliance will result in rejected entries. Pay special attention to:
 - Use the six categories in this EXACT order: Changed, Added, Deprecated, Removed, Fixed, Security
 - Use imperative mood for ALL bullets (e.g., "Add X", "Fix Y", "Remove Z" — NOT "Added", "Fixed", "Removed")
 - Describe user impact (not implementation): "Improve startup time" not "Refactor config loader"
-- Mark breaking changes with `**Breaking:**` under Changed/Removed
+- Mark breaking changes with `**Breaking:**` under Changed/Removed and highlight the most significant updates with
+  `**TOP:**` (always first in Changed/Added when present)
 
 ### Write the entry
 

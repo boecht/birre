@@ -24,7 +24,8 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 ### Project Principles
 
 1. **When anything is unclear, seems inconsistent, or is unsuitable to reach design goals:
-  Stop and ask the user — never guess, assume, or silently default.**
+  Stop and ask the user — never guess, assume, or silently default, except when a more specific prompt or
+  mode explicitly defines a different requirement.**
     - Applies at all stages: requirements, system design, implementation
     - Always clarify technical ambiguities or specification gaps with a clear technical question
     - Watch for uncertainty signals such as "I think", "probably", "maybe", and investigate

@@ -46,16 +46,10 @@ tools: [
 - Never bypass hooks (`--no-verify`) and never modify files to appease linters; if checks fail, report and stop.
 - If idle (no staged work and no other Git task), stop gracefully.
 
-## Tool precedence
-
-1. `changes` for staged listings/diffs
-2. GitHub MCP tools for repo history/metadata and workflows (list/get/create/update/search across commits, branches,
-  tags, releases, issues, PRs)
-3. Shell git via `runCommands` only when a capability is missing
-
 ## Communication Principles
 
-- Keep replies minimal: summary → plan → executed result (hashes/tags/releases/issues/PRs)
+- Keep replies minimal: summary → plan → executed result (hashes/tags/releases/issues/PRs), unless a prompt or user
+  request defines a different response format.
 
 ## Documentation Principles
 
