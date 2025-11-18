@@ -37,8 +37,6 @@ megalinter-reports/
 .vscode/*
 !.vscode/mcp.json
 .claude/
-.codacy/
-codacy.instructions.md
 .serena/
 
 # Local configuration (private/personal)
