@@ -1,36 +1,41 @@
 ---
 name: Setup UV Environment
 description: Install Python, cache uv environments, and sync dependencies for CI jobs.
+
 inputs:
   python-version:
     description: Python version to install
     required: false
     default: "3.13"
+
   uv-sync-flags:
     description: Flags passed to `uv sync`
     required: false
     default: "--all-extras"
+
   cache-key-prefix:
     description: Prefix used for caching uv environments
     required: false
     default: uv
+
   lockfile:
     description: Lockfile path hashed for cache invalidation
     required: false
     default: uv.lock
+
 runs:
   using: composite
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
       with:
         python-version: ${{ inputs.python-version }}
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7.1.3
 
     - name: Cache uv environments
-      uses: actions/cache@v4
+      uses: actions/cache@v0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: |
           ~/.cache/uv
