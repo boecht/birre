@@ -1,4 +1,5 @@
 ---
+name: selftest
 description: Run BiRRe selftest and summarize diagnostics
 agent: agent
 tools: ['runCommands']

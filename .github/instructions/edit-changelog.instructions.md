@@ -1,4 +1,6 @@
 ---
+name: Changelog-Instructions
+description: This is the authoritative guidance for editing CHANGELOG.md
 applyTo: 'CHANGELOG.md'
 ---
 # CHANGELOG Standards for BiRRe (Authoring Instructions)

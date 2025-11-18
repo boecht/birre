@@ -1,4 +1,6 @@
 ---
+name: Python-Coding-Standards
+description: Guidelines and best practices for writing Python code in the BiRRe project
 applyTo: 'src/**/*.py'
 ---
 When creating or editing Python code in `src/`:

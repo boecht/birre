@@ -1,5 +1,7 @@
 ---
+name: changelog
 description: Draft and insert a CHANGELOG entry from recent changes
+argument-hint: Create CHANGELOG entry, provide version (4.0.0-alpha.3) and/or date (YYYY-MM-DD)
 agent: git
 tools: [
   'edit/editFiles',
@@ -19,7 +21,6 @@ tools: [
   'github/github-mcp-server/list_tags',
   'github/github-mcp-server/pull_request_read',
   'github/github-mcp-server/search_pull_requests',
-  'think',
   'changes',
   'todos'
 ]

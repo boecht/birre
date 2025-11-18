@@ -1,13 +1,20 @@
 ---
+name: release
 description: Prep a release from a dev branch with an active PR
+argument-hint: Prepare current dev branch for release with minimal interaction, provide next_version
 agent: git
 tools: [
   'changes',
-  'github/github-mcp-server/push_files',
-  'github/github-mcp-server/list_commits',
   'github/github-mcp-server/get_commit',
+  'github/github-mcp-server/get_latest_release',
+  'github/github-mcp-server/get_release_by_tag',
+  'github/github-mcp-server/get_tag',
+  'github/github-mcp-server/list_branches',
+  'github/github-mcp-server/list_commits',
+  'github/github-mcp-server/list_releases',
+  'github/github-mcp-server/list_tags',
+  'github/github-mcp-server/push_files',
   'runCommands'
-]
 ---
 
 ## Goal

@@ -1,5 +1,7 @@
 ---
+name: birre-mcp
 description: "BiRRe QA mode for tool validation and demonstration"
+
 tools: ["fetch", "BiRRe-normal/*", "BiRRe-risk_manager/*"]
 ---
 
