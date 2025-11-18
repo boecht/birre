@@ -1,6 +1,6 @@
 ---
 description: Fix all current SonarQube findings and Problems
-mode: gpt-5-beast-mode
+agent: gpt-5-beast-mode
 model: GPT-5 (copilot)
 tools: [
   'edit/editFiles',            # Apply code changes

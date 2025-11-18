@@ -1,6 +1,6 @@
 ---
 description: Draft and insert a CHANGELOG entry from recent changes
-mode: git
+agent: git
 tools: [
   'edit/editFiles',
   'runCommands',

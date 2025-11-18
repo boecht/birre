@@ -1,6 +1,6 @@
 ---
 description: Prep a release from a dev branch with an active PR
-mode: git
+agent: git
 tools: [
   'changes',
   'github/github-mcp-server/push_files',

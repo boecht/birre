@@ -1,6 +1,6 @@
 ---
 description: Commit staged changes, grouped logically
-mode: git
+agent: git
 model: GPT-5 mini (copilot)
 tools: [
   'github/github-mcp-server/get_commit',
