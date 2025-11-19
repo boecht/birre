@@ -67,19 +67,20 @@ anywhere.
 ## Quick start
 
 1. Export your BitSight API key.
-2. Start the MCP server with uvx (runs directly from GitHub):
+2. Start the MCP server with uvx (install-free PyPI run):
 
     ```bash
     export BITSIGHT_API_KEY="your-bitsight-api-key"
-    uvx --from git+https://github.com/boecht/birre birre
+    uvx birre
     ```
 
 3. Point your MCP-compatible client/LLM at the server endpoint. Start with `company_search` to obtain
     GUIDs, then call `get_company_rating` or run the risk-manager workflows.
 4. Use `--help` for every available command, subcommand, and option.
 
-To work from a local copy instead, run `git clone …` followed by `uv run birre`. **The rest of this README assumes a
-local checkout.**
+**The rest of this README assumes a local checkout:**
+Create a local copy with `git clone https://github.com/boecht/birre`,
+then start with `uv run birre` in the BiRRe directory.
 
 ### Configuration
 
