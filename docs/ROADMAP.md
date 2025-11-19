@@ -1,28 +1,23 @@
 # BiRRe Roadmap
 
-**Last updated**: 2025-10-28
+**Last updated**: 2025-11-19
 
 ## Released Versions
 
-### 4.0.0-beta.1 — Structural Hardening & Developer Ergonomics (current pre-release)
+### 4.0.0 — Structural Hardening & Developer Ergonomics (released 2025-11-19)
 
-- Context modes refined with automatic folder placement and bulk company request workflow improvements
-- Subscription and request helpers reduce duplication and improve reliability
-- Offline selftest replay samples enable diagnostics without network connectivity
-- SonarQube remediation prompt and MegaLinter local runner improve contributor experience
-- Security hardening of CI workflows (least privilege, StepSecurity best-practices)
-- **Breaking:** Python 3.13+ requirement reaffirmed (asyncio stability, error clarity)
-
-### 4.0.0-alpha.2 — Quality & Security Infrastructure (previous pre-release)
-
-- Strict type checking with pyright catches errors before runtime
-- Property-based testing with Hypothesis for edge case discovery
-- Performance benchmarks establish regression tracking baselines
-- Cross-platform CI validates Windows, macOS, and Linux compatibility
-- Sigstore release signing for cryptographic verification
-- SBOM generation for supply chain transparency
-- Comprehensive branch protection and security scanning
-- **Breaking:** Python 3.13+ required (modern async, type inference)
+- **CLI & workflows:** Bulk company requests via CSV (deduped, BitSight v2 upload), automatic folder placement,
+  enriched interactive search output, and typed CLI inputs streamline everyday operator flows.
+- **Diagnostics & selftest:** Offline replay samples, standardized `--offline/--online-only` switches, clearer
+  runtime context logging, and CLI version detection keep troubleshooting reliable even without BitSight access.
+- **Reliability & performance:** Simplified async/sync bridge, deep diagnostics refactors, property-based tests,
+  benchmarks, and ≥90% Wave A coverage hold regressions in check while surfacing performance baselines.
+- **Developer experience:** Repository-wide pyright adoption (mypy removed), stricter Protocol/type coverage,
+  MegaLinter local runner, ruff auto-fix guidance, and richer risk-manager tool docs reduce contributor friction.
+- **Security & supply chain:** Sigstore signing, SBOM generation, dependency review, Scorecard, StepSecurity
+  guardrails, and least-privilege workflow permissions provide verifiable releases; Dependabot keeps CI current.
+- **Breaking:** Require Python 3.13+ across all commands (up from 3.11+), tighten event-loop handling, and enforce
+  pyright-based typing to unlock the new diagnostics/runtime stack.
 
 ### 3.0.0 — Context-Aware Toolsets (latest stable)
 
@@ -54,31 +49,43 @@
 
 ## Upcoming Roadmap
 
-### 4.0.0 — Structural Hardening & Developer Ergonomics (planned)
+### 5.0.0 — Cached Insights & Report Delivery (next major)
 
-- Lock in strict typing, property-based tests, and benchmark suites as release criteria.
-- Expand cross-platform CI coverage and surface performance telemetry from new benchmarks.
-- Harden release/security workflows (Sigstore signing, SBOMs, dependency review, branch protection).
-- Finish CLI/diagnostics refactors, logging safeguards, and prompt documentation for contributors.
+- Persist recent rating payloads and BitSight artefacts locally to reduce redundant API calls and create deterministic
+  exports.
+- Respect BitSight expiry semantics, emit cache-hit telemetry, and allow CLI/MCP clients to reuse cached payloads
+  when exporting reports.
+- Provide multiple report delivery mechanisms: structured JSON, PDF passthrough, and optional email/file-share
+  integration for operators.
+- Introduce governance-aware configuration (retention periods, encryption at rest) to keep cached data compliant.
 
-### 5.0.0 — Caching & Company Reports (planned)
+### 6.0.0 — Multi-Tenant Service & Advanced Observability (future major)
 
-- Persist recent rating payloads and BitSight report artefacts to reduce redundant API calls.
-- Respect expiry windows, surface cache hits/misses, and reuse cached assets when exporting reports.
-- Provide transport options for BitSight PDF reports (direct response, email, or configured file share).
+- Promote BiRRe to a shared service with authentication, workload isolation, and quota enforcement across tenants.
+- Add service discovery plus connection pooling so MCP clients can route to dedicated BiRRe instances when required.
+- Provide first-class observability (structured metrics, health/readiness endpoints, error tracking integrations)
+  tuned for SRE workflows.
+- Expand schema refresh automation to keep packaged BitSight specs aligned with upstream releases.
 
-### 6.0.0 — Multi-Tenant Service (planned)
+### Future Concepts (post-6.x exploration)
 
-- Promote BiRRe to a shared service with authentication, concurrency controls, and optional service discovery.
-- Enforce per-tenant quota handling and structured error reporting.
+- SDK + REST surface (INT-001/002) for non-MCP consumers seeking BiRRe’s business logic without the MCP
+  transport.
+- Distribution improvements (Docker/installer targets) for self-hosted deployments that need reproducible
+  environments.
+- Portfolio management and proactive alerting layers once caching + multi-tenant foundations mature.
 
 ## Ongoing Initiatives
 
-- **CI automation:** Integrate the offline regression suite into continuous integration, and define
-  how/when to run the optional online smoke tests.
-- **Observability:** Continue improving subscription lifecycle logging and diagnostics for
-  production deployments.
-- **Schema refresh cadence:** Periodically update the packaged BitSight schemas
-  (`birre.resources/apis`) as the upstream APIs evolve.
-- **Tooling ergonomics:** Expand documentation (CLI guide, architecture notes) and keep
-  `config`/`selftest` flows aligned with user expectations.
+These efforts stay active every release cycle and ensure BiRRe’s operational posture keeps pace with users’ needs.
+
+- **CI automation:** Keep offline regression + pyright + security scans in PR validation, and continuously verify the
+  release automation/smoke-test paths remain green.
+- **Distribution:** Maintain the trusted-publisher PyPI pipeline and signed artifact verification flow while expanding
+  installer parity (Docker, Homebrew, winget) as new platforms come online.
+- **Observability:** Continue improving subscription lifecycle logging and diagnostics while broadening metrics and
+  error-tracking coverage as new tooling ships.
+- **Schema refresh cadence:** Periodically update the packaged BitSight schemas (`birre.resources/apis`) as upstream
+  APIs evolve.
+- **Tooling ergonomics:** Expand documentation (CLI guide, architecture notes) and keep `config`/`selftest` flows
+  aligned with contributor expectations.
