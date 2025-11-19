@@ -20,6 +20,7 @@ jobs:
       contents: read
       statuses: write # for GITHUB_STATUS_REPORTER in MegaLinter to post/update commit statuses
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      pull-requests: write # Allow posting summaries as PR comments
       id-token: write # for step-security/harden-runner to fetch OIDC token
     secrets:
       REUSABLE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
