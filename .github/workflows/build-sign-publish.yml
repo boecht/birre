@@ -31,6 +31,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # for step-security/harden-runner to fetch OIDC token
+      pull-requests: write # Allow posting summaries as PR comments
     secrets:
       BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
