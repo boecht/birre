@@ -1,28 +1,28 @@
 ---
+name: fix-sonarqube-findings
 description: Fix all current SonarQube findings and Problems
-mode: gpt-5-beast-mode
+agent: gpt-5-beast-mode
 model: GPT-5 (copilot)
 tools: [
-  'edit/editFiles',            # Apply code changes
-  'edit/createFile',           # Extract constants / helpers into new file if beneficial
-  'edit/createDirectory',      # Create new package folder if logically grouping shared constants (avoid unless needed)
-  'search',                    # Locate patterns/usages across repo
-  'usages',                    # Find symbol references to ensure complete replacement/refactor
-  'problems',                  # Retrieve IDE Problems (lint/type) issues
-  'sonarqube/analyze_code_snippet',           # Generic snippet analysis
-  'sonarsource.sonarlint-vscode/sonarqube_analyzeFile', # Precise file re-analysis after edits
-  'sonarsource.sonarlint-vscode/sonarqube_getPotentialSecurityIssues', # Direct listing of security hotspots
-  'sonarsource.sonarlint-vscode/sonarqube_excludeFiles', # (Use only for justified false positives; last resort)
-  'sonarsource.sonarlint-vscode/sonarqube_setUpConnectedMode', # (If connection/setup required before analysis)
-  'sonarqube/show_rule',       # Fetch rule metadata for context-driven fixes
-  'runTests',                  # Run unit/integration tests to prevent regressions
-  'changes',                   # Inspect working tree diff to keep fix batches small & reviewable
-  'think',                     # Deep reasoning for complex or ambiguous fixes
-  'todos',                     # Structured task management
-  'fetch',                     # Pull authoritative external best-practice references (HTTPS enforcement, etc.)
-  'runCommands',               # Execute auxiliary commands (git status, grep, formatting) when needed
-  'testFailure'                # Inspect failing test details rapidly if regressions appear
-]
+  'changes',
+  'crash/*',
+  'edit/editFiles',
+  'edit/createFile',
+  'edit/createDirectory',
+  'fetch',
+  'problems',
+  'runCommands',
+  'runSubagent',
+  'runTests',
+  'search',
+  'sonarqube/analyze_code_snippet',
+  'sonarsource.sonarlint-vscode/sonarqube_analyzeFile',
+  'sonarsource.sonarlint-vscode/sonarqube_excludeFiles',
+  'sonarsource.sonarlint-vscode/sonarqube_getPotentialSecurityIssues',
+  'testFailure',
+  'todos',
+  'upstash/context7/*',
+  'usages',
 ---
 
 ## Objective

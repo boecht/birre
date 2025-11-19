@@ -1,0 +1,197 @@
+---
+name: MegaLinter
+
+"on":
+  schedule:
+    - cron: "16 8 * * 1"
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_call:
+    secrets:
+      REUSABLE_GITHUB_TOKEN:
+        description: Token used for MegaLinter reporters and API calls.
+        required: true
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      statuses: write # for GITHUB_STATUS_REPORTER in MegaLinter to post/update commit statuses
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      id-token: write # for step-security/harden-runner to fetch OIDC token
+
+    outputs:
+      status: ${{ steps.prepare-outputs.outputs.status }}
+      snippet: ${{ steps.prepare-outputs.outputs.snippet }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Ensure artifacts directory exists
+        run: |
+          mkdir -p artifacts
+
+      - name: MegaLinter
+        id: megalinter
+        uses: oxsecurity/megalinter/flavors/python@62c799d895af9bcbca5eacfebca29d527f125a57 # v9.1.0
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Upload MegaLinter reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: megalinter-reports
+          path: megalinter-reports
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: sbom-artifacts
+          path: |
+            artifacts/sbom-cyclonedx.json
+            artifacts/sbom-spdx.json
+          retention-days: 15
+
+      - name: Upload SARIF report (if generated)
+        if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
+        with:
+          sarif_file: megalinter-reports/megalinter-report.sarif
+          category: megalinter
+
+      - name: Validate SBOM artifacts
+        if: always()
+        shell: bash
+        run: |
+          for f in artifacts/sbom-cyclonedx.json artifacts/sbom-spdx.json; do
+            if [ ! -s "$f" ]; then
+              echo "SBOM validation failed: $f missing or empty" >&2
+              exit 1
+            fi
+            echo "Validated SBOM file: $f ($(wc -c < "$f") bytes)"
+          done
+
+      - name: Prepare outputs for summary job
+        id: prepare-outputs
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ "${{ steps.megalinter.outcome }}" != "success" ]; then
+            status=1
+          fi
+
+          snippet=""
+          if [ -f "megalinter-reports/mega-linter.log" ]; then
+            snippet="$(tail -n 200 megalinter-reports/mega-linter.log || true)"
+          fi
+
+          {
+            echo 'snippet<<EOF'
+            printf '%s\n' "$snippet"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if lint failed
+        if: steps.megalinter.outcome != 'success'
+        run: exit 1
+
+  summary:
+    name: Lint Summary
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    needs: lint
+
+    permissions:
+      contents: read
+      pull-requests: write # Allow posting summaries as PR comments
+      id-token: write # for step-security/harden-runner to fetch OIDC token
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Find existing summary comment
+        id: find-comment
+        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "## MegaLinter Results"
+
+      - name: Prepare body
+        id: body
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          LINT_SNIPPET: ${{ needs.lint.outputs.snippet }}
+        run: |
+          comment_file=$(mktemp)
+
+          if [ "$LINT_RESULT" != 'success' ]; then
+            {
+              echo '## MegaLinter Results'
+              echo
+              echo "Lint status: $LINT_RESULT"
+              if [ -n "$LINT_SNIPPET" ]; then
+                echo
+                echo '```'
+                printf '%s\n' "$LINT_SNIPPET"
+                echo '```'
+              else
+                echo 'See workflow logs for details.'
+              fi
+            } > "$comment_file"
+          fi
+
+          if [ -s "$comment_file" ]; then
+            printf 'body<<EOF\n%s\nEOF\n' "$(cat "$comment_file")" >> "$GITHUB_OUTPUT"
+          fi
+
+          rm -f "$comment_file"
+
+      - name: Create or update summary comment
+        if: steps.body.outputs.body != ''
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          body: ${{ steps.body.outputs.body }}
+          edit-mode: replace
+
+      - name: Delete summary comment when clean
+        if: ${{ steps.find-comment.outputs.comment-id != '' && needs.lint.result == 'success' }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.find-comment.outputs.comment-id }}
+            })
+
+      - name: Emit job summary
+        shell: bash
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+        run: |
+          {
+            echo "## MegaLinter Results"
+            echo "Lint status: $LINT_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"

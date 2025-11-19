@@ -1,6 +1,8 @@
 ---
+name: GitHub
 description: "Interact with Git"
 tools: [
+  'crash/*',
   'edit/editFiles',
   "search",
   "runCommands",
@@ -32,7 +34,6 @@ tools: [
   "github/github-mcp-server/update_pull_request",
   "github/github-mcp-server/update_pull_request_branch",
   "usages",
-  "think",
   "changes",
   "todos"
 ]

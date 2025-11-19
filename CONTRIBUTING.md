@@ -136,33 +136,38 @@ file-scoped guidance during code changes.
 
 ### Testing
 
-Project setup (`uv sync`) takes care of dependencies, such as the correct python version, and fastmcp.
-A BitSight API key is expected via either `BITSIGHT_API_KEY` or `config.local.toml` under `[bitsight].api_key`.
-With either configured, it is safe to run online tests.
+Project setup (`uv sync`) installs Python 3.13, FastMCP, and all dev dependencies. Provide a BitSight key through
+`BITSIGHT_API_KEY` or `[bitsight].api_key` in `config.local.toml` when running online suites.
 
-- **Write tests** for all new features and bug fixes
-- **Offline tests** (pytest marker: `@pytest.mark.offline`) for unit tests
-- **Online tests** (pytest marker: `@pytest.mark.online`) for integration tests requiring API access
-- **Maintain coverage**: Aim for 70%+ coverage for new code
+#### Quick MCP selftest
 
-Run tests:
+Before diving into pytest, confirm your environment with the built-in diagnostics (mirrors the `run` startup flow):
 
 ```bash
-# Full suite (recommended; online tests skip automatically if no API key)
+uv run birre selftest --offline   # configuration/logging checks only
+uv run birre selftest             # full staging selftest (requires BitSight key)
+```
+
+#### Pytest suites
+
+- **Write tests** for every new feature or bug fix.
+- **Offline tests** (`pytest --offline`) cover unit logic without network access.
+- **Online tests** (`pytest --online-only`) hit BitSight staging; skipped automatically when no key is present.
+- **Coverage**: aim for ≥70% on net-new code; Wave A modules already sit ≥90% line coverage.
+
+Common commands:
+
+```bash
+# Full suite (offline + online where possible)
 uv run pytest
 
-# Specific test file
-uv run pytest tests/unit/test_your_feature.py
-
-# Offline only / online only convenience flags
+# Offline only / online only
 uv run pytest --offline
 uv run pytest --online-only
 
-# With coverage (full suite)
+# Specific test file or coverage-focused runs
+uv run pytest tests/unit/test_your_feature.py
 uv run pytest --cov=src/birre --cov-branch --cov-report=term
-
-# All online tests (network; assumes API key available)
-uv run pytest --online-only
 ```
 
 ## Commit Message Guidelines

@@ -1,26 +1,19 @@
 ---
 name: Cross-Platform Testing
 
-permissions:
-  contents: read
-
 "on":
   pull_request:
-    branches:
-      - main
-      - "release/*"
-      - "v*"
   push:
-    branches:
-      - main
-      - "release/*"
-      - "v*"
   workflow_dispatch:
 
 jobs:
   test-matrix:
     name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+      id-token: write # for step-security/harden-runner to fetch OIDC token
 
     strategy:
       fail-fast: false # Continue testing other platforms even if one fails

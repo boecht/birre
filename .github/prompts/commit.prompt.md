@@ -1,11 +1,12 @@
 ---
-description: Commit staged changes, grouped logically
-mode: git
+name: commit
+description: Create one or more commits from the currently staged changes
+argument-hint: Commit staged changes, grouped logically
+agent: git
 model: GPT-5 mini (copilot)
 tools: [
   'github/github-mcp-server/get_commit',
   'github/github-mcp-server/list_commits',
-  'github/github-mcp-server/push_files',
   'runCommands'
 ]
 ---
