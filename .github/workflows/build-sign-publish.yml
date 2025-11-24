@@ -20,7 +20,6 @@ jobs:
     name: MegaLinter
     uses: ./.github/workflows/megalinter.yml
     permissions:
-      contents: read
       statuses: write # for GITHUB_STATUS_REPORTER in MegaLinter to post/update commit statuses
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
       pull-requests: write # Allow posting summaries as PR comments
@@ -32,7 +31,6 @@ jobs:
     name: Tests & Coverage
     uses: ./.github/workflows/tests.yml
     permissions:
-      contents: read
       id-token: write # for step-security/harden-runner to fetch OIDC token
       pull-requests: write # Allow posting summaries as PR comments
     secrets:
@@ -45,7 +43,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
       id-token: write # for step-security/harden-runner to fetch OIDC token
 
     steps:
@@ -97,7 +94,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
       id-token: write # for step-security/harden-runner to fetch OIDC token
 
     steps:
@@ -199,7 +195,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
       id-token: write # for step-security/harden-runner to fetch OIDC token
 
     environment:
