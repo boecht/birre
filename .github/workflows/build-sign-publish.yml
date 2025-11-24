@@ -12,6 +12,9 @@ name: Build, Sign & Publish
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: MegaLinter

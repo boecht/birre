@@ -9,6 +9,9 @@ name: Tests & Coverage
       CODECOV_TOKEN:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Tests & Coverage

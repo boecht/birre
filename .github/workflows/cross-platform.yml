@@ -6,6 +6,9 @@ name: Cross-Platform Testing
   push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-matrix:
     name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})

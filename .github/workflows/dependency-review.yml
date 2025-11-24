@@ -5,6 +5,9 @@ name: 'Dependency review'
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   dependency-review:
     name: Dependency Review
