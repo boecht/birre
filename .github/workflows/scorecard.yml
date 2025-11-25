@@ -9,6 +9,9 @@ name: OpenSSF Scorecard report
     branches: ["main"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   analysis:
     name: Scorecard analysis
@@ -16,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
       pull-requests: read
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
       id-token: write # for step-security/harden-runner to fetch OIDC token

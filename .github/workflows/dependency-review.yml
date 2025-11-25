@@ -5,13 +5,15 @@ name: 'Dependency review'
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
       pull-requests: write # Required for using the `comment-summary-in-pr` option
       id-token: write # for step-security/harden-runner to fetch OIDC token
 

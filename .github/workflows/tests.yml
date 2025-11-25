@@ -9,13 +9,15 @@ name: Tests & Coverage
       CODECOV_TOKEN:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Tests & Coverage
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
       id-token: write # for step-security/harden-runner to fetch OIDC token
 
     outputs:
@@ -154,7 +156,6 @@ jobs:
     needs: tests
 
     permissions:
-      contents: read
       pull-requests: write # Allow posting summaries as PR comments
       id-token: write # for step-security/harden-runner to fetch OIDC token
 
