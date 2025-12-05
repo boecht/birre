@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
         with:
           egress-policy: audit
 
@@ -46,7 +46,7 @@ jobs:
 
       - name: MegaLinter
         id: megalinter
-        uses: oxsecurity/megalinter/flavors/python@62c799d895af9bcbca5eacfebca29d527f125a57 # v9.1.0
+        uses: oxsecurity/megalinter/flavors/python@55a59b24a441e0e1943080d4a512d827710d4a9d # v9.2.0
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload SARIF report (if generated)
         if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
-        uses: github/codeql-action/upload-sarif@fdbfb4d2750291e159f0156def62b853c2798ca2 # v4.31.5
+        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           sarif_file: megalinter-reports/megalinter-report.sarif
           category: megalinter
@@ -124,7 +124,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
         with:
           egress-policy: audit
 
