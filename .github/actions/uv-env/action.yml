@@ -32,14 +32,12 @@ runs:
         python-version: ${{ inputs.python-version }}
 
     - name: Install uv
-      uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
+      uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
 
     - name: Cache uv environments
       uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
       with:
-        path: |
-          ~/.cache/uv
-          .venv
+        path: ~/.cache/uv
         key: ${{ runner.os }}-${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.lockfile) }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.cache-key-prefix }}-
