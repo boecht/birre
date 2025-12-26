@@ -1,4 +1,3 @@
----
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -7,6 +6,14 @@ updates:
       interval: "daily"
     labels:
       - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "pip"
     directory: "/"
@@ -15,7 +22,22 @@ updates:
       day: "monday"
       time: "04:00"
       timezone: "UTC"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     rebase-strategy: "auto"
     labels:
       - "dependencies"
+      - "python"
+    allow:
+      - dependency-type: "direct"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Separate security updates
+      python-security:
+        dependency-type: "production"
+        update-types:
+          - "patch"
