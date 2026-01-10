@@ -287,14 +287,14 @@ Assistant: Perform search checks; if absent, call `request_company`; report subm
 
 ## Minimal Turn Logic Summary (Cheat Sheet)
 
-| Intent                                 | Step 1                                                      | Step 2                                      | Step 3                     |
-| -------------------------------------- | ----------------------------------------------------------- | ------------------------------------------- | -------------------------- |
-| Rating (domain)                        | company_search(domain)                                      | get_company_rating(guid)                    | Summarize                  |
-| Rating (name, ambiguous, risk_manager) | company_search_interactive(name)                            | ask user select GUID                        | get_company_rating(guid)   |
-| Bulk subscribe                         | manage_subscriptions(subscribe, guids, folder?, dry_run?)   | summarize                                   | confirm/apply (if dry-run) |
-| Bulk unsubscribe                       | manage_subscriptions(unsubscribe, guids, folder?, dry_run?) | summarize                                   | confirm/apply              |
-| Bulk unsubscribe (>1 GUID safety)     | announce planned list + ask confirmation                    | wait for `confirm unsubscribe` or affirmative | manage_subscriptions(unsubscribe, ...) |
-| Onboarding                             | company_search(domain each)                                 | request_company(domains, folder?, dry_run?) | report outcome             |
+| Intent                                 | Step 1                                                      | Step 2                                        | Step 3                                 |
+| -------------------------------------- | ----------------------------------------------------------- | --------------------------------------------- | -------------------------------------- |
+| Rating (domain)                        | company_search(domain)                                      | get_company_rating(guid)                      | Summarize                              |
+| Rating (name, ambiguous, risk_manager) | company_search_interactive(name)                            | ask user select GUID                          | get_company_rating(guid)               |
+| Bulk subscribe                         | manage_subscriptions(subscribe, guids, folder?, dry_run?)   | summarize                                     | confirm/apply (if dry-run)             |
+| Bulk unsubscribe                       | manage_subscriptions(unsubscribe, guids, folder?, dry_run?) | summarize                                     | confirm/apply                          |
+| Bulk unsubscribe (>1 GUID safety)      | announce planned list + ask confirmation                    | wait for `confirm unsubscribe` or affirmative | manage_subscriptions(unsubscribe, ...) |
+| Onboarding                             | company_search(domain each)                                 | request_company(domains, folder?, dry_run?)   | report outcome                         |
 
 ---
 

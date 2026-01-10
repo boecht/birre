@@ -22,7 +22,7 @@ tools: [
   'testFailure',
   'todos',
   'upstash/context7/*',
-  'usages',
+  'usages'
 ---
 
 ## Objective
@@ -44,11 +44,11 @@ targeted files. Maintain functional and test integrity while applying minimally 
 
 ## Issue Categories & Typical Fixes
 
-| Category | Source(s) | Fix Strategy |
-|----------|-----------|--------------|
-| Insecure protocol (http→https) | Sonar | Replace with https if endpoint supports it (most public domains). Canonicalize duplicated literals simultaneously. |
-| Duplicate string literals | Problems | Introduce a module-level constant (ALL_CAPS) or reuse existing constants; avoid over-abstraction. |
-| Other (if discovered) | Both | Apply least intrusive change preserving semantics, with docstring/comment only when intent could be unclear. |
+| Category                       | Source(s) | Fix Strategy                                                                                                       |
+|--------------------------------|-----------|--------------------------------------------------------------------------------------------------------------------|
+| Insecure protocol (http→https) | Sonar     | Replace with https if endpoint supports it (most public domains). Canonicalize duplicated literals simultaneously. |
+| Duplicate string literals      | Problems  | Introduce a module-level constant (ALL_CAPS) or reuse existing constants; avoid over-abstraction.                  |
+| Other (if discovered)          | Both      | Apply least intrusive change preserving semantics, with docstring/comment only when intent could be unclear.       |
 
 ## Process
 
