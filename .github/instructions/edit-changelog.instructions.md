@@ -92,14 +92,14 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 
 ### When to Use Each Category
 
-| Category | Use For | Don’t Use For |
-|---|---|---|
-| Changed | Modified behavior, improved performance | Internal code changes |
-| Added | New tools, commands, options, capabilities | Internal utilities |
-| Deprecated | Features marked for removal (with timeline) | Removed features |
-| Removed | Deleted features, dropped support, removed APIs | Code cleanup |
-| Fixed | Bug fixes, error corrections, improved messages | Quality improvements |
-| Security | Vulnerability patches, dependency updates | General improvements |
+| Category   | Use For                                         | Don’t Use For         |
+|------------|-------------------------------------------------|-----------------------|
+| Changed    | Modified behavior, improved performance         | Internal code changes |
+| Added      | New tools, commands, options, capabilities      | Internal utilities    |
+| Deprecated | Features marked for removal (with timeline)     | Removed features      |
+| Removed    | Deleted features, dropped support, removed APIs | Code cleanup          |
+| Fixed      | Bug fixes, error corrections, improved messages | Quality improvements  |
+| Security   | Vulnerability patches, dependency updates       | General improvements  |
 
 ## Writing Style
 
