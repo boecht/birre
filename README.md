@@ -100,9 +100,9 @@ Switch contexts via `--context`, `BIRRE_CONTEXT`, or `[runtime].context`. Tool n
 
 ### Shared tools (`standard` + `risk_manager`)
 
-| Tool                   | Inputs                                      | Description |
-|------------------------|---------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `company_search`       | Company `name` (fuzzy) or `domain` (exact). | Returns the matches (**GUID**, name, domain, count of eligible companies).                                                                                                        |
+| Tool                   | Inputs                                      | Description                                                                                                                                                                   |
+|------------------------|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `company_search`       | Company `name` (fuzzy) or `domain` (exact). | Returns the matches (**GUID**, name, domain, count of eligible companies).                                                                                                    |
 | `get_company_rating`   | Company `GUID`.                             | Compiles a rating payload: current value/color, 8‑week and 1‑year trends, prioritized findings, and the rating legend. (automatically subscribes and unsubscribes, if needed) |
 
 ### `risk_manager`-only tools
@@ -110,7 +110,7 @@ Switch contexts via `--context`, `BIRRE_CONTEXT`, or `[runtime].context`. Tool n
 | Tool                         | Inputs | Description |
 |------------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `company_search_interactive` | `name` or `domain` (same as `company_search`). | Enriches search result with current rating, number of employees, subscription state, and more) plus the same info about the parent company.                                                                                                  |
-| `manage_subscriptions`       | `action` (`add`/`delete`), list of `GUIDs`, optional `folder`, `dry_run`. | Validates intent, resolves/creates folders for adds, then executes subscription changes. Returns either a dry-run preview or applied summary (added/deleted/errors, folder metadata).                      |
+| `manage_subscriptions`       | `action` (`add`/`delete`), list of `GUIDs`, optional `folder`, `dry_run`. | Validates intent, resolves/creates folders for adds, then executes subscription changes. Returns either a dry-run preview or applied summary (added/deleted/errors, folder metadata).                             |
 | `request_company`            | Comma-separated `domains` (max 255), optional `folder`, `dry_run`.        | Deduplicates submissions, reports already-requested domains, and submits BitSight bulk onboarding CSVs when available (legacy fallback otherwise). Includes a per-domain success/failure summary and folder info. |
 
 ## Self-test
