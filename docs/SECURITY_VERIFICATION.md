@@ -159,7 +159,8 @@ git rev-parse vX.Y.Z
 
 # Verify bundle references correct commit
 jq -r '.verificationMaterial.x509CertificateChain.certificates[0]' \
-  birre-X.Y.Z.tar.gz.sigstore.json | base64 -d | openssl x509 -text | grep -A1 "Subject Alternative Name"
+  birre-X.Y.Z.tar.gz.sigstore.json | base64 -d | openssl x509 -text \
+  | grep -A1 "Subject Alternative Name"
 ```
 
 ### Check Transparency Log Entry
