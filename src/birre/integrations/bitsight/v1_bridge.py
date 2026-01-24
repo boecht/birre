@@ -104,6 +104,7 @@ def _prepare_fastmcp_context(api_server: FastMCP) -> None:
         except Exception:
             # Ignore objects that don't allow setting attributes (e.g. __slots__).
             pass
+
     if not hasattr(api_server, "_worker"):
         try:
             setattr(api_server, "_worker", None)
