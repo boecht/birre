@@ -1493,8 +1493,7 @@ def _request_company_dry_run_response(
     if pending_folder_reason:
         guidance = RequestGuidance(
             next_steps=pending_folder_reason,
-            confirmation="Folder not created during dry run; \
-                submission would create or require it.",
+            confirmation="Folder not created during dry run;                 submission would create or require it.",
         )
     return RequestCompanyResponse(
         status="dry_run",
@@ -1980,8 +1979,7 @@ def _manage_subscriptions_dry_run_response(
 ) -> dict[str, Any]:
     guidance = ManageSubscriptionsGuidance(
         confirmation=(
-            "Review the payload with the human operator. \
-                Re-run with dry_run=false to apply changes."
+            "Review the payload with the human operator.                 Re-run with dry_run=false to apply changes."
         )
     )
     if pending_folder_reason:
@@ -2128,7 +2126,7 @@ def register_manage_subscriptions_tool(
     async def manage_subscriptions(
         ctx: Context,
         action: str,
-        guids: Sequence[str],
+        guids: str | list[str],
         *,
         folder: str | None = None,
         dry_run: bool = False,
@@ -2165,12 +2163,12 @@ def register_manage_subscriptions_tool(
             company_search_interactive.
 
         Example
-        >>> manage_subscriptions(action=\"add\", guids=[\"guid-1\"], folder=\"Ops\")
+        >>> manage_subscriptions(action="add", guids=["guid-1"], folder="Ops")
         {
-            \"status\": \"applied\",
-            \"action\": \"add\",
-            \"summary\": {\"added\": [\"guid-1\"], \"deleted\": [], \"errors\": []},
-            \"guidance\": {\"next_steps\": \"Run get_company_rating for guid-1\"}
+            "status": "applied",
+            "action": "add",
+            "summary": {"added": ["guid-1"], "deleted": [], "errors": []},
+            "guidance": {"next_steps": "Run get_company_rating for guid-1"}
         }
         """
 
