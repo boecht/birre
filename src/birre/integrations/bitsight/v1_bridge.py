@@ -7,6 +7,7 @@ import logging
 import ssl
 import traceback
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -99,18 +100,12 @@ def _prepare_fastmcp_context(api_server: FastMCP) -> None:
     # Our unit tests use lightweight server stubs, so ensure the private
     # attributes exist to keep Context happy.
     if not hasattr(api_server, "_docket"):
-        try:
+        with suppress(AttributeError, TypeError):
             setattr(api_server, "_docket", getattr(api_server, "docket", None))
-        except Exception:
-            # Ignore objects that don't allow setting attributes (e.g. __slots__).
-            pass
 
     if not hasattr(api_server, "_worker"):
-        try:
+        with suppress(AttributeError, TypeError):
             setattr(api_server, "_worker", None)
-        except Exception:
-            # Ignore objects that don't allow setting attributes (e.g. __slots__).
-            pass
 
 
 async def call_openapi_tool(
