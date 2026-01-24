@@ -27,6 +27,8 @@ class _StubContext:
 
 
 class _FailingServer:
+    docket = None  # Required by FastMCP 2.14 Context
+
     async def _call_tool_middleware(self, tool_name: str, params: dict[str, Any]):
         await asyncio.sleep(0)
         request = httpx.Request(

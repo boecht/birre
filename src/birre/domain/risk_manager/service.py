@@ -2128,7 +2128,7 @@ def register_manage_subscriptions_tool(
     async def manage_subscriptions(
         ctx: Context,
         action: str,
-        guids: Sequence[str],
+        guids: str | list[str],
         *,
         folder: str | None = None,
         dry_run: bool = False,
@@ -2165,12 +2165,12 @@ def register_manage_subscriptions_tool(
             company_search_interactive.
 
         Example
-        >>> manage_subscriptions(action=\"add\", guids=[\"guid-1\"], folder=\"Ops\")
+        >>> manage_subscriptions(action="add", guids=["guid-1"], folder="Ops")
         {
-            \"status\": \"applied\",
-            \"action\": \"add\",
-            \"summary\": {\"added\": [\"guid-1\"], \"deleted\": [], \"errors\": []},
-            \"guidance\": {\"next_steps\": \"Run get_company_rating for guid-1\"}
+            "status": "applied",
+            "action": "add",
+            "summary": {"added": ["guid-1"], "deleted": [], "errors": []},
+            "guidance": {"next_steps": "Run get_company_rating for guid-1"}
         }
         """
 

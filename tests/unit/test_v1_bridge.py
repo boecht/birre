@@ -42,6 +42,51 @@ def _ctx_spy():
     return _Ctx(), calls
 
 
+def _patch_context(
+    monkeypatch: pytest.MonkeyPatch,
+    ctx: Any,
+) -> None:
+    class _CtxCM:
+        docket = None  # Required by FastMCP 2.14 Context
+
+        def __init__(self, _):  # noqa: D401
+            pass  # Minimal context manager wrapper for testing
+
+        async def __aenter__(self):
+            return ctx
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(v1, "Context", _CtxCM)
+
+
+def test_prepare_fastmcp_context_sets_private_attrs() -> None:
+    class _API:
+        docket = "docket"
+
+    api = _API()
+    v1._prepare_fastmcp_context(api)
+
+    assert getattr(api, "_docket") == "docket"
+    assert getattr(api, "_worker") is None
+
+
+def test_prepare_fastmcp_context_ignores_unsettable_attrs() -> None:
+    class _API:
+        __slots__ = ("docket",)
+
+        def __init__(self) -> None:
+            self.docket = "docket"
+
+    api = _API()
+
+    v1._prepare_fastmcp_context(api)
+
+    assert not hasattr(api, "_docket")
+    assert not hasattr(api, "_worker")
+
+
 @pytest.mark.asyncio
 async def test_call_openapi_tool_normalizes_structured_and_json_text(
     monkeypatch: pytest.MonkeyPatch,
@@ -67,17 +112,7 @@ async def test_call_openapi_tool_normalizes_structured_and_json_text(
     ctx, _ = _ctx_spy()
 
     # Patch Context symbol used inside module to be a passthrough async CM
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     # 1) structured
     out1 = await v1.call_openapi_tool(
@@ -112,17 +147,7 @@ async def test_call_openapi_tool_unstructured_returns_raw_with_warnings(
     api = _API()
     ctx, _ = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     out = await v1.call_openapi_tool(
         api,
@@ -154,17 +179,7 @@ async def test_parse_text_content_invalid_json_logs_warning(
     api = _API()
     ctx, _ = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     out = await v1.call_openapi_tool(
         api,
@@ -216,17 +231,7 @@ async def test_call_openapi_tool_http_status_error_propagates(
 ) -> None:
     ctx, _ = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     # Prepare a fake HTTP error
     req = httpx.Request("GET", "https://example.com/x")
@@ -351,17 +356,7 @@ async def test_request_error_without_mapping_propagates(
     api = _API()
     ctx, _ = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
     monkeypatch.setattr(v1, "classify_request_error", lambda *a, **k: None)
 
     with pytest.raises(httpx.RequestError):
@@ -389,17 +384,7 @@ async def test_content_without_text_returns_raw_and_warns(
     api = _API()
     ctx, calls = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     raw = await v1.call_openapi_tool(
         api,
@@ -431,17 +416,7 @@ async def test_params_filtering_is_applied(monkeypatch: pytest.MonkeyPatch) -> N
     api = _API()
     ctx, _ = _ctx_spy()
 
-    class _CtxCM:
-        def __init__(self, _):  # noqa: D401
-            pass  # Minimal context manager wrapper for testing
-
-        async def __aenter__(self):
-            return ctx
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    monkeypatch.setattr(v1, "Context", _CtxCM)
+    _patch_context(monkeypatch, ctx)
 
     out = await v1.call_openapi_tool(
         api,

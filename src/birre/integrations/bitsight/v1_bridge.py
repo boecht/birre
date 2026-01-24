@@ -7,6 +7,7 @@ import logging
 import ssl
 import traceback
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -94,6 +95,19 @@ def _log_tls_error(
         logger.error(f"Hint: {hint}", **log_fields)
 
 
+def _prepare_fastmcp_context(api_server: FastMCP) -> None:
+    # FastMCP 2.14+ Context uses internal attributes (server._docket, _worker).
+    # Our unit tests use lightweight server stubs, so ensure the private
+    # attributes exist to keep Context happy.
+    if not hasattr(api_server, "_docket"):
+        with suppress(AttributeError, TypeError):
+            setattr(api_server, "_docket", getattr(api_server, "docket", None))
+
+    if not hasattr(api_server, "_worker"):
+        with suppress(AttributeError, TypeError):
+            setattr(api_server, "_worker", None)
+
+
 async def call_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
@@ -114,6 +128,8 @@ async def call_openapi_tool(
     filtered_params = filter_none(params)
 
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
+
+    _prepare_fastmcp_context(api_server)
 
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
