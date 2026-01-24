@@ -4,7 +4,7 @@ import io
 import logging
 import sys
 import uuid
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping, Sequence
 from logging.handlers import RotatingFileHandler
 from typing import Any, cast
 
