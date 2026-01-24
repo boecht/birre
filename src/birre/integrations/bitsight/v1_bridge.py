@@ -115,6 +115,16 @@ async def call_openapi_tool(
 
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
 
+    # FastMCP 2.14 Context uses an internal attribute (server._docket). Our unit
+    # tests use lightweight server stubs that only expose `docket`, so ensure the
+    # private attribute exists to keep Context happy.
+    if not hasattr(api_server, "_docket"):
+        try:
+            setattr(api_server, "_docket", getattr(api_server, "docket", None))
+        except Exception:
+            # Ignore objects that don't allow setting attributes (e.g. __slots__).
+            pass
+
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
         async with Context(api_server):
