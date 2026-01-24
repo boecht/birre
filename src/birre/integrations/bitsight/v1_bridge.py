@@ -94,6 +94,24 @@ def _log_tls_error(
         logger.error(f"Hint: {hint}", **log_fields)
 
 
+def _prepare_fastmcp_context(api_server: FastMCP) -> None:
+    # FastMCP 2.14+ Context uses internal attributes (server._docket, _worker).
+    # Our unit tests use lightweight server stubs, so ensure the private
+    # attributes exist to keep Context happy.
+    if not hasattr(api_server, "_docket"):
+        try:
+            setattr(api_server, "_docket", getattr(api_server, "docket", None))
+        except Exception:
+            # Ignore objects that don't allow setting attributes (e.g. __slots__).
+            pass
+    if not hasattr(api_server, "_worker"):
+        try:
+            setattr(api_server, "_worker", None)
+        except Exception:
+            # Ignore objects that don't allow setting attributes (e.g. __slots__).
+            pass
+
+
 async def call_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
@@ -115,15 +133,7 @@ async def call_openapi_tool(
 
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
 
-    # FastMCP 2.14 Context uses an internal attribute (server._docket). Our unit
-    # tests use lightweight server stubs that only expose `docket`, so ensure the
-    # private attribute exists to keep Context happy.
-    if not hasattr(api_server, "_docket"):
-        try:
-            setattr(api_server, "_docket", getattr(api_server, "docket", None))
-        except Exception:
-            # Ignore objects that don't allow setting attributes (e.g. __slots__).
-            pass
+    _prepare_fastmcp_context(api_server)
 
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
