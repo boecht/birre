@@ -40,7 +40,7 @@ classifiers = [
 ]
 dependencies = [
   "dynaconf>=3.2.3,<4",
-  "fastmcp>=2.13.0,<3",
+  "fastmcp>=3,<4",
   "httpx>=0.24.0,<0.29",
   "openapi-spec-validator>=0.7.1,<0.8",
   "prance>=23.6.7",
