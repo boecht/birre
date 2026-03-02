@@ -34,9 +34,18 @@ def _server_with_tools() -> SimpleNamespace:
         "manage_subscriptions": object(),
         "request_company": object(),
     }
-    server = SimpleNamespace(tools=tools)
-    for name, tool in tools.items():
-        setattr(server, name, tool)
+
+    class _Tool:
+        def __init__(self, name, obj):
+            self.name = name
+            self.fn = obj
+
+    tool_list = [_Tool(n, o) for n, o in tools.items()]
+
+    async def _list_tools():
+        return tool_list
+
+    server = SimpleNamespace(list_tools=_list_tools)
     return server
 
 

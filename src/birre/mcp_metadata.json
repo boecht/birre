@@ -1,11 +1,15 @@
 {
   "name": "BiRRe",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "BitSight Rating Retriever - MCP server for BitSight security ratings",
   "author": "boecht",
   "license": "Unlicense",
   "homepage": "https://github.com/boecht/birre",
-  "categories": ["security", "risk-management", "data-retrieval"],
+  "categories": [
+    "security",
+    "risk-management",
+    "data-retrieval"
+  ],
   "mcp": {
     "protocol_version": "1.0",
     "capabilities": {

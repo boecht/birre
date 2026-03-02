@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "BiRRe"
-version = "4.0.0"
+version = "4.1.0"
 description = "Model Context Protocol server for BitSight security ratings"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -40,7 +40,7 @@ classifiers = [
 ]
 dependencies = [
   "dynaconf>=3.2.3,<4",
-  "fastmcp>=2.13.0,<4",
+  "fastmcp>=3.0.2,<4",
   "httpx>=0.24.0,<0.29",
   "openapi-spec-validator>=0.8,<0.9",
   "prance>=23.6.7",

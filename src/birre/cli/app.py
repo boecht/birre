@@ -8,20 +8,14 @@ import typer
 from rich.console import Console
 from rich.text import Text
 
-from birre._fastmcp_env import enable_new_openapi_parser
-
-# FastMCP checks this flag during import time, so ensure it is enabled before
-# importing any modules that depend on FastMCP.
-enable_new_openapi_parser()
-
-from birre.application.diagnostics import (  # noqa: E402
+from birre.application.diagnostics import (
     EXPECTED_TOOLS_BY_CONTEXT as _DIAGNOSTIC_EXPECTED_TOOLS,
 )
-from birre.cli.commands import config as config_command  # noqa: E402
-from birre.cli.commands import logs as logs_command  # noqa: E402
-from birre.cli.commands import run as run_command  # noqa: E402
-from birre.cli.commands import selftest as selftest_command  # noqa: E402
-from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL  # noqa: E402
+from birre.cli.commands import config as config_command
+from birre.cli.commands import logs as logs_command
+from birre.cli.commands import run as run_command
+from birre.cli.commands import selftest as selftest_command
+from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 

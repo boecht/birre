@@ -77,16 +77,51 @@ def test_invoke_tool_supports_kwargs_and_params_fallback() -> None:
 
 
 def test_discover_and_collect_tools() -> None:
-    server = SimpleNamespace(
-        tools={"a": object()},
-        get_tools=lambda: {"b": object()},
-        company_search=object(),
-    )
-    names = dx.discover_context_tools(server)
-    assert {"a", "b"}.issubset(names)
-    tool_map = dx.collect_tool_map(server)
-    # Should include explicit attribute fallback
-    assert set(tool_map.keys()) >= {"a", "b", "company_search"}
+    class _Tool:
+        def __init__(self, name):
+            self.name = name
+
+    class _Server:
+        def __init__(self):
+            self._called = False
+
+        async def list_tools(self):
+            self._called = True
+            return [_Tool("a"), _Tool("b")]
+
+    server = _Server()
+    names = dx.discover_context_tools(server, run_sync=_run_sync)
+    assert server._called, "list_tools must be invoked"
+    assert names == {"a", "b"}
+
+    server2 = _Server()
+    tool_map = dx.collect_tool_map(server2, run_sync=_run_sync)
+    assert server2._called, "list_tools must be invoked for collect_tool_map"
+    assert set(tool_map.keys()) == {"a", "b"}
+    # Verify tool objects are mapped correctly by name
+    assert tool_map["a"].name == "a"
+    assert tool_map["b"].name == "b"
+
+
+def test_list_server_tools_returns_empty_without_list_tools() -> None:
+    """Servers without list_tools() return an empty list (no AttributeError)."""
+    from types import SimpleNamespace
+
+    bare = SimpleNamespace()
+    assert dx._list_server_tools(bare, run_sync=_run_sync) == []  # type: ignore[attr-defined]
+
+
+def test_discover_context_tools_ignores_nameless_entries() -> None:
+    """Tools without a .name attribute are silently excluded."""
+
+    class _Server:
+        async def list_tools(self):
+            return [SimpleNamespace(name="ok"), object(), SimpleNamespace(name=123)]
+
+    from types import SimpleNamespace
+
+    names = dx.discover_context_tools(_Server(), run_sync=_run_sync)
+    assert names == {"ok"}
 
 
 def test_validate_positive() -> None:
@@ -144,9 +179,9 @@ def test_check_required_and_optional_tool_paths() -> None:
 
 def test_aggregate_tool_outcomes_offline_and_merge() -> None:
     tools = frozenset({"a", "b"})
-    agg = dx.aggregate_tool_outcomes(
+    agg = dx.aggregate_tool_outcomes(  # type: ignore[list-item]
         tools, [], offline_mode=True, offline_missing=["a"]
-    )  # type: ignore[list-item]
+    )
     assert agg["a"]["status"] == "fail" and agg["b"]["status"] == "warning"
 
     attempts = [
@@ -160,9 +195,7 @@ def test_aggregate_tool_outcomes_offline_and_merge() -> None:
 def test_classify_and_summarize_failure() -> None:
     f = dx.DiagnosticFailure(tool="t", stage="s", message="TLS handshake error")
     assert dx.classify_failure(f) in (None, "tls")
-    f2 = dx.DiagnosticFailure(
-        tool="t", stage="s", message="x", exception=ssl.SSLError("boom")
-    )
+    f2 = dx.DiagnosticFailure(tool="t", stage="s", message="x", exception=ssl.SSLError("boom"))
     assert dx.classify_failure(f2) == "tls"
     f3 = dx.DiagnosticFailure(
         tool="t",
@@ -183,11 +216,15 @@ def test_classify_and_summarize_failure() -> None:
     assert s["tool"] == "t" and "error" in s
 
 
-def test_discover_context_tools_handles_async_get_tools():
-    class AsyncServer(SimpleNamespace):
-        async def get_tools(self):
+def test_discover_context_tools_handles_async_list_tools():
+    class _Tool:
+        def __init__(self, name):
+            self.name = name
+
+    class AsyncServer:
+        async def list_tools(self):
             await asyncio.sleep(0)
-            return {"beta": object()}
+            return [_Tool("beta")]
 
     names = dx.discover_context_tools(AsyncServer(), run_sync=_run_sync)
     assert "beta" in names

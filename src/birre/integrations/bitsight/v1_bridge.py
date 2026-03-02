@@ -7,7 +7,6 @@ import logging
 import ssl
 import traceback
 from collections.abc import Iterable, Mapping
-from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -31,9 +30,7 @@ def filter_none(params: Mapping[str, Any]) -> dict[str, Any]:
     return filtered
 
 
-async def _parse_text_content(
-    text: str, tool_name: str, ctx: Context, logger: BoundLogger
-) -> Any:
+async def _parse_text_content(text: str, tool_name: str, ctx: Context, logger: BoundLogger) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -62,9 +59,7 @@ async def _normalize_tool_result(
         if text is not None:
             return await _parse_text_content(text, tool_name, ctx, logger)
 
-    await ctx.warning(
-        f"FastMCP tool '{tool_name}' returned no structured data; passing raw result"
-    )
+    await ctx.warning(f"FastMCP tool '{tool_name}' returned no structured data; passing raw result")
     logger.warning(
         "FastMCP tool returned unstructured payload; returning raw result",
         tool=tool_name,
@@ -83,9 +78,7 @@ def _log_tls_error(
     summary = getattr(mapped_error, "summary", str(mapped_error))
     logger.error(summary, **log_fields)
     if debug_enabled:
-        trace_text = "".join(
-            traceback.format_exception(type(exc), exc, exc.__traceback__)
-        )
+        trace_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         logger.debug(
             "TLS handshake traceback",
             trace=trace_text,
@@ -93,19 +86,6 @@ def _log_tls_error(
         )
     for hint in mapped_error.hints:
         logger.error(f"Hint: {hint}", **log_fields)
-
-
-def _prepare_fastmcp_context(api_server: FastMCP) -> None:
-    # FastMCP 2.14+ Context uses internal attributes (server._docket, _worker).
-    # Our unit tests use lightweight server stubs, so ensure the private
-    # attributes exist to keep Context happy.
-    if not hasattr(api_server, "_docket"):
-        with suppress(AttributeError, TypeError):
-            setattr(api_server, "_docket", getattr(api_server, "docket", None))
-
-    if not hasattr(api_server, "_worker"):
-        with suppress(AttributeError, TypeError):
-            setattr(api_server, "_worker", None)
 
 
 async def call_openapi_tool(
@@ -129,19 +109,14 @@ async def call_openapi_tool(
 
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
 
-    _prepare_fastmcp_context(api_server)
-
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
-        async with Context(api_server):
-            tool_result = await api_server._call_tool_middleware(
-                resolved_tool_name,
-                filtered_params,
-            )
-
-        return await _normalize_tool_result(
-            tool_result, resolved_tool_name, ctx, logger
+        tool_result = await api_server.call_tool(
+            resolved_tool_name,
+            filtered_params,
         )
+
+        return await _normalize_tool_result(tool_result, resolved_tool_name, ctx, logger)
     except httpx.HTTPStatusError as exc:
         await ctx.error(
             f"FastMCP tool '{resolved_tool_name}' returned HTTP {exc.response.status_code}: {exc}"
@@ -265,9 +240,9 @@ async def _call_company_request_bulk(
         if value:
             extra_fields[key] = value
 
-    client = getattr(api_server, "_client", None)
+    client = getattr(api_server, "_http_client", None) or getattr(api_server, "_client", None)
     if client is None:
-        raise RuntimeError("FastMCP v2 server is missing HTTP client")
+        raise RuntimeError("FastMCP server is missing HTTP client (_http_client/_client not set)")
 
     timeout = getattr(api_server, "_timeout", None)
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
@@ -317,9 +292,7 @@ async def _call_company_request_bulk(
         await ctx.error(mapped.user_message)
         raise mapped from exc
     except Exception as exc:  # pragma: no cover - diagnostic fallback
-        await ctx.error(
-            f"FastMCP tool 'createCompanyRequestBulk' execution failed: {exc}"
-        )
+        await ctx.error(f"FastMCP tool 'createCompanyRequestBulk' execution failed: {exc}")
         logger.error(
             "FastMCP tool execution failed",
             tool="createCompanyRequestBulk",
