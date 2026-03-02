@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 import httpx
 
@@ -14,7 +14,7 @@ _TLS_INTERCEPT_MARKERS: tuple[str, ...] = (
 )
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Domain error codes."""
 
     TLS_CERT_CHAIN_INTERCEPTED = "TLS_CERT_CHAIN_INTERCEPTED"
@@ -114,9 +114,7 @@ def _coerce_operation_from_request(request: httpx.Request | None) -> tuple[str, 
         return "UNKNOWN", "unknown"
     method = request.method or "UNKNOWN"
     path = (
-        request.url.raw_path.decode("utf-8", "ignore")
-        if request.url.raw_path
-        else request.url.path
+        request.url.raw_path.decode("utf-8", "ignore") if request.url.raw_path else request.url.path
     )
     if not path:
         path = "/"
