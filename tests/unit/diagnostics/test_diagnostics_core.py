@@ -77,16 +77,19 @@ def test_invoke_tool_supports_kwargs_and_params_fallback() -> None:
 
 
 def test_discover_and_collect_tools() -> None:
-    server = SimpleNamespace(
-        tools={"a": object()},
-        get_tools=lambda: {"b": object()},
-        company_search=object(),
-    )
-    names = dx.discover_context_tools(server)
+    class _Tool:
+        def __init__(self, name):
+            self.name = name
+
+    class _Server:
+        async def list_tools(self):
+            return [_Tool("a"), _Tool("b")]
+
+    server = _Server()
+    names = dx.discover_context_tools(server, run_sync=_run_sync)
     assert {"a", "b"}.issubset(names)
-    tool_map = dx.collect_tool_map(server)
-    # Should include explicit attribute fallback
-    assert set(tool_map.keys()) >= {"a", "b", "company_search"}
+    tool_map = dx.collect_tool_map(server, run_sync=_run_sync)
+    assert set(tool_map.keys()) >= {"a", "b"}
 
 
 def test_validate_positive() -> None:
@@ -144,9 +147,7 @@ def test_check_required_and_optional_tool_paths() -> None:
 
 def test_aggregate_tool_outcomes_offline_and_merge() -> None:
     tools = frozenset({"a", "b"})
-    agg = dx.aggregate_tool_outcomes(
-        tools, [], offline_mode=True, offline_missing=["a"]
-    )  # type: ignore[list-item]
+    agg = dx.aggregate_tool_outcomes(tools, [], offline_mode=True, offline_missing=["a"])  # type: ignore[list-item]
     assert agg["a"]["status"] == "fail" and agg["b"]["status"] == "warning"
 
     attempts = [
@@ -160,9 +161,7 @@ def test_aggregate_tool_outcomes_offline_and_merge() -> None:
 def test_classify_and_summarize_failure() -> None:
     f = dx.DiagnosticFailure(tool="t", stage="s", message="TLS handshake error")
     assert dx.classify_failure(f) in (None, "tls")
-    f2 = dx.DiagnosticFailure(
-        tool="t", stage="s", message="x", exception=ssl.SSLError("boom")
-    )
+    f2 = dx.DiagnosticFailure(tool="t", stage="s", message="x", exception=ssl.SSLError("boom"))
     assert dx.classify_failure(f2) == "tls"
     f3 = dx.DiagnosticFailure(
         tool="t",
@@ -183,11 +182,15 @@ def test_classify_and_summarize_failure() -> None:
     assert s["tool"] == "t" and "error" in s
 
 
-def test_discover_context_tools_handles_async_get_tools():
-    class AsyncServer(SimpleNamespace):
-        async def get_tools(self):
+def test_discover_context_tools_handles_async_list_tools():
+    class _Tool:
+        def __init__(self, name):
+            self.name = name
+
+    class AsyncServer:
+        async def list_tools(self):
             await asyncio.sleep(0)
-            return {"beta": object()}
+            return [_Tool("beta")]
 
     names = dx.discover_context_tools(AsyncServer(), run_sync=_run_sync)
     assert "beta" in names

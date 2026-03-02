@@ -14,9 +14,7 @@ def test_infection_narrative_preference() -> None:
 
     # Without family, append description
     details2 = {"infection": {"description": "note"}}
-    out2 = s._apply_infection_narrative_preference(
-        "Base", "botnet_infections", details2
-    )
+    out2 = s._apply_infection_narrative_preference("Base", "botnet_infections", details2)
     assert out2.endswith("note")
 
 
@@ -45,7 +43,7 @@ async def test_extract_results_and_fetch_findings_paths() -> None:
     assert out == []
 
     # _fetch_and_normalize_findings: non-dict raw -> ([], False)
-    def _call(tool: str, ctx, params):  # noqa: ANN001
+    async def _call(tool: str, ctx, params):  # noqa: ANN001
         return 123
 
     findings, ok = await s._fetch_and_normalize_findings(
