@@ -6,12 +6,12 @@ import asyncio
 import heapq
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastmcp import Context, FastMCP
-from fastmcp.tools.tool import FunctionTool
 from pydantic import BaseModel, Field, model_validator
 
 from birre.config.settings import DEFAULT_MAX_FINDINGS, DEFAULT_RISK_VECTOR_FILTER
@@ -923,7 +923,7 @@ def register_company_rating_tool(
     default_folder: str | None = None,
     default_type: str | None = None,
     debug_enabled: bool = False,
-) -> FunctionTool:
+) -> Callable[..., Any]:
     effective_filter = (
         risk_vector_filter.strip()
         if isinstance(risk_vector_filter, str) and risk_vector_filter.strip()

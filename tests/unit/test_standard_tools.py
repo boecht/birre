@@ -59,7 +59,7 @@ async def test_company_search_requires_query() -> None:
     tool = register_company_search_tool(server, call_v1_tool, logger=logger)
     ctx = StubContext()
 
-    result = await tool.fn(ctx)  # type: ignore[attr-defined]
+    result = await tool(ctx)
     assert result == {
         "error": "At least one of 'name' or 'domain' must be provided",
     }
@@ -92,7 +92,7 @@ async def test_company_search_returns_normalized_payload() -> None:
     tool = register_company_search_tool(server, call_v1_tool, logger=logger)
     ctx = StubContext()
 
-    result = await tool.fn(ctx, name="Example")  # type: ignore[attr-defined]
+    result = await tool(ctx, name="Example")
     assert result == {
         "companies": [
             {"guid": "guid-1", "name": "Example Corp", "domain": "example.com"},
@@ -125,7 +125,7 @@ async def test_company_search_interactive_empty_result_contract() -> None:
     )
     ctx = StubContext()
 
-    result = await tool.fn(ctx, name="Example")  # type: ignore[attr-defined]
+    result = await tool(ctx, name="Example")
 
     assert result == {
         "count": 0,
@@ -222,7 +222,7 @@ async def test_get_company_rating_success_cleanup_subscription(
         fake_top_findings,
     )
 
-    result = await tool.fn(ctx, guid="guid-1")  # type: ignore[attr-defined]
+    result = await tool(ctx, guid="guid-1")
     assert result["name"] == "Example Corp"
     assert result["domain"] == "example.com"
     assert result["current_rating"]["value"] == 740
@@ -259,7 +259,7 @@ async def test_get_company_rating_subscription_failure(
         fake_create_fail,
     )
 
-    result = await tool.fn(ctx, guid="guid-err")  # type: ignore[attr-defined]
+    result = await tool(ctx, guid="guid-err")
     assert result == {"error": "no subscription"}
     assert "no subscription" in ctx.messages["error"]
 

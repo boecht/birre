@@ -188,44 +188,23 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
     assert not hasattr(server, "call_v2_tool")
 
 
-def test_schedule_tool_disablement_private_registry(monkeypatch):
-    disabled: list[str] = []
-
-    class DummyTool:
-        def __init__(self, name: str) -> None:
-            self.name = name
-            self.disabled = False
-
-        def disable(self) -> None:
-            self.disabled = True
-            disabled.append(self.name)
-
-    class DummyManager:
-        def __init__(self) -> None:
-            self._tools = {
-                "keep": DummyTool("keep"),
-                "drop": DummyTool("drop"),
-            }
+def test_schedule_tool_disablement_calls_enable():
+    """Verify _schedule_tool_disablement calls the v3 visibility API correctly."""
+    calls: list[dict] = []
 
     class DummyServer:
-        def __init__(self) -> None:
-            self._tool_manager = DummyManager()
+        def enable(self, *, names, components, only):
+            calls.append({"names": names, "components": components, "only": only})
 
     server = DummyServer()
     birre_server._schedule_tool_disablement(server, {"keep"})
 
-    assert server._tool_manager._tools["keep"].disabled is False
-    assert server._tool_manager._tools["drop"].disabled is True
-    assert disabled == ["drop"]
-
-
-def test_schedule_tool_disablement_missing_manager_logs(caplog):
-    class DummyServer:
-        pass
-
-    caplog.set_level("DEBUG")
-    birre_server._schedule_tool_disablement(DummyServer(), {"keep"})
-    assert any("tool_manager.missing" in record.message for record in caplog.records)
+    assert len(calls) == 1
+    assert calls[0] == {
+        "names": {"keep"},
+        "components": {"tool"},
+        "only": True,
+    }
 
 
 @pytest.mark.asyncio

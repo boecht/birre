@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from fastmcp import Context, FastMCP
-from fastmcp.tools.tool import FunctionTool
 from pydantic import BaseModel, Field, model_validator
 
 from birre.domain.common import CallV1Tool
@@ -110,7 +109,7 @@ def register_company_search_tool(
     call_v1_tool: CallV1Tool,
     *,
     logger: BoundLogger,
-) -> FunctionTool:
+) -> Callable[..., Any]:
     @business_server.tool(output_schema=COMPANY_SEARCH_OUTPUT_SCHEMA)
     async def company_search(
         ctx: Context, name: str | None = None, domain: str | None = None

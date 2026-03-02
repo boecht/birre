@@ -7,7 +7,6 @@ import logging
 import ssl
 import traceback
 from collections.abc import Iterable, Mapping
-from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -95,19 +94,6 @@ def _log_tls_error(
         logger.error(f"Hint: {hint}", **log_fields)
 
 
-def _prepare_fastmcp_context(api_server: FastMCP) -> None:
-    # FastMCP 2.14+ Context uses internal attributes (server._docket, _worker).
-    # Our unit tests use lightweight server stubs, so ensure the private
-    # attributes exist to keep Context happy.
-    if not hasattr(api_server, "_docket"):
-        with suppress(AttributeError, TypeError):
-            setattr(api_server, "_docket", getattr(api_server, "docket", None))
-
-    if not hasattr(api_server, "_worker"):
-        with suppress(AttributeError, TypeError):
-            setattr(api_server, "_worker", None)
-
-
 async def call_openapi_tool(
     api_server: FastMCP,
     tool_name: str,
@@ -129,15 +115,12 @@ async def call_openapi_tool(
 
     debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
 
-    _prepare_fastmcp_context(api_server)
-
     try:
         await ctx.info(f"Calling FastMCP tool '{resolved_tool_name}'")
-        async with Context(api_server):
-            tool_result = await api_server._call_tool_middleware(
-                resolved_tool_name,
-                filtered_params,
-            )
+        tool_result = await api_server.call_tool(
+            resolved_tool_name,
+            filtered_params,
+        )
 
         return await _normalize_tool_result(
             tool_result, resolved_tool_name, ctx, logger
@@ -265,7 +248,9 @@ async def _call_company_request_bulk(
         if value:
             extra_fields[key] = value
 
-    client = getattr(api_server, "_client", None)
+    client = getattr(api_server, "_http_client", None) or getattr(
+        api_server, "_client", None
+    )
     if client is None:
         raise RuntimeError("FastMCP v2 server is missing HTTP client")
 

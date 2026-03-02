@@ -6,12 +6,11 @@ import csv
 import io
 import logging
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 from fastmcp import Context, FastMCP
-from fastmcp.tools.tool import FunctionTool
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from birre.config.constants import DEFAULT_CONFIG_FILENAME
@@ -1066,7 +1065,7 @@ def register_company_search_interactive_tool(
     default_folder: str | None,
     default_type: str | None,
     max_findings: int = DEFAULT_MAX_FINDINGS,
-) -> FunctionTool:
+) -> Callable[..., Any]:
     effective_limit = max_findings if max_findings > 0 else DEFAULT_MAX_FINDINGS
 
     async def company_search_interactive(
@@ -1770,7 +1769,7 @@ def register_request_company_tool(
     logger: BoundLogger,
     default_folder: str | None,
     default_folder_guid: str | None = None,
-) -> FunctionTool:
+) -> Callable[..., Any]:
     async def request_company(
         ctx: Context,
         domains: str,
@@ -2124,7 +2123,7 @@ def register_manage_subscriptions_tool(
     default_folder: str | None,
     default_folder_guid: str | None = None,
     default_type: str | None,
-) -> FunctionTool:
+) -> Callable[..., Any]:
     async def manage_subscriptions(
         ctx: Context,
         action: str,

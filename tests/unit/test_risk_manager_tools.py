@@ -109,7 +109,7 @@ async def test_company_search_interactive_enriches_results() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(ctx, domain="acme.com")
+    result = await tool(ctx, domain="acme.com")
     assert result["count"] == 1
     entry = result["results"][0]
     assert entry["label"].startswith("Acme Holdings (")
@@ -152,7 +152,7 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
     )
 
     ctx = FakeContext()
-    dry_result = await tool.fn(ctx, action="subscribe", guids=["guid-1"], dry_run=True)
+    dry_result = await tool(ctx, action="subscribe", guids=["guid-1"], dry_run=True)
     assert dry_result["status"] == "dry_run"
     assert dry_result["payload"]["add"][0]["folder"] == ["folder-1"]
     assert dry_result["folder_guid"] == "folder-1"
@@ -160,7 +160,7 @@ async def test_manage_subscriptions_dry_run_and_apply() -> None:
     assert any(call_name == "getFolders" for call_name, _ in call_v1.calls)
     assert all(call_name != "createFolder" for call_name, _ in call_v1.calls)
 
-    applied = await tool.fn(ctx, action="subscribe", guids=["guid-1"])
+    applied = await tool(ctx, action="subscribe", guids=["guid-1"])
     assert applied["status"] == "applied"
     assert applied["summary"]["added"] == ["guid-1"]
     assert applied["folder_guid"] == "folder-1"
@@ -191,7 +191,7 @@ async def test_manage_subscriptions_dry_run_reports_missing_folder() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(
+    result = await tool(
         ctx,
         action="subscribe",
         guids=["guid-2"],
@@ -231,7 +231,7 @@ async def test_manage_subscriptions_delete_skips_folder_resolution() -> None:
     )
 
     ctx = FakeContext()
-    dry = await tool.fn(
+    dry = await tool(
         ctx,
         action="delete",
         guids=["guid-1"],
@@ -244,7 +244,7 @@ async def test_manage_subscriptions_delete_skips_folder_resolution() -> None:
     assert dry.get("folder") is None
     assert not call_v1.calls
 
-    applied = await tool.fn(
+    applied = await tool(
         ctx,
         action="delete",
         guids=["guid-1"],
@@ -306,7 +306,7 @@ async def test_request_company_filters_existing_and_submits_remaining() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(
+    result = await tool(
         ctx,
         domains="existing.example,new.example,duplicate.example,duplicate.example",
     )
@@ -362,7 +362,7 @@ async def test_request_company_dry_run_returns_preview() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(
+    result = await tool(
         ctx,
         domains="future.example",
         dry_run=True,
@@ -406,7 +406,7 @@ async def test_request_company_dry_run_reports_missing_folder() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(
+    result = await tool(
         ctx,
         domains="manual.example",
         folder="Ops",
@@ -449,7 +449,7 @@ async def test_request_company_all_existing_skips_folder_resolution() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(ctx, domains="existing.example", folder="Ops")
+    result = await tool(ctx, domains="existing.example", folder="Ops")
 
     assert result["status"] == "already_existing"
     assert result["folder_guid"] is None
@@ -483,7 +483,7 @@ async def test_request_company_auto_creates_folder_when_missing() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(ctx, domains="auto.example", folder="Operations")
+    result = await tool(ctx, domains="auto.example", folder="Operations")
 
     assert result["status"] == "submitted_v2_bulk"
     assert result["folder_guid"] == "auto-folder"
@@ -525,7 +525,7 @@ async def test_manage_subscriptions_auto_creates_folder() -> None:
     )
 
     ctx = FakeContext()
-    result = await tool.fn(
+    result = await tool(
         ctx,
         action="subscribe",
         guids=["guid-9"],

@@ -177,11 +177,15 @@ def create_v2_api_server(
     spec = _load_api_spec("bitsight.v2.schema.json")
     client = _create_client(base_url, api_key, verify=verify)
 
-    return FastMCP.from_openapi(
+    server = FastMCP.from_openapi(
         openapi_spec=spec,
         client=client,
         name="BitSight-v2-API",
     )
+    # Store the httpx client on the server so the bulk-upload bridge
+    # can issue direct HTTP requests (multipart file upload).
+    server._http_client = client  # type: ignore[attr-defined]
+    return server
 
 
 __all__ = ["create_v1_api_server", "create_v2_api_server"]

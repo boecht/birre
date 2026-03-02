@@ -1,4 +1,3 @@
-# ruff: noqa: I001  # Must import _fastmcp_env before third-party modules.
 """Assembly for the BiRRe FastMCP business server."""
 
 from __future__ import annotations
@@ -9,10 +8,7 @@ from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import Any, Protocol, TypeVar
 
-from birre import _fastmcp_env  # noqa: F401
-
 from fastmcp import FastMCP
-from fastmcp.tools.tool import FunctionTool
 
 from birre.config.settings import (
     DEFAULT_MAX_FINDINGS,
@@ -28,7 +24,7 @@ from birre.integrations.bitsight.v1_bridge import (
 )
 
 
-def register_company_rating_tool(*args: Any, **kwargs: Any) -> FunctionTool:
+def register_company_rating_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Register the company rating tool with a FastMCP server.
 
     Forwards to domain.company_rating.register_company_rating_tool.
@@ -36,7 +32,7 @@ def register_company_rating_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     return company_rating.register_company_rating_tool(*args, **kwargs)
 
 
-def register_company_search_tool(*args: Any, **kwargs: Any) -> FunctionTool:
+def register_company_search_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Register the company search tool with a FastMCP server.
 
     Forwards to domain.company_search.register_company_search_tool.
@@ -44,7 +40,7 @@ def register_company_search_tool(*args: Any, **kwargs: Any) -> FunctionTool:
     return company_search.register_company_search_tool(*args, **kwargs)
 
 
-def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> FunctionTool:
+def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Register the interactive company search tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_company_search_interactive_tool.
@@ -52,7 +48,7 @@ def register_company_search_interactive_tool(*args: Any, **kwargs: Any) -> Funct
     return risk_manager.register_company_search_interactive_tool(*args, **kwargs)
 
 
-def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> FunctionTool:
+def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Register the subscription management tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_manage_subscriptions_tool.
@@ -60,7 +56,7 @@ def register_manage_subscriptions_tool(*args: Any, **kwargs: Any) -> FunctionToo
     return risk_manager.register_manage_subscriptions_tool(*args, **kwargs)
 
 
-def register_request_company_tool(*args: Any, **kwargs: Any) -> FunctionTool:
+def register_request_company_tool(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Register the company request tool with a FastMCP server.
 
     Forwards to domain.risk_manager.register_request_company_tool.
@@ -111,9 +107,7 @@ def _resolve_max_findings(settings: RuntimeSettings) -> int:
     return DEFAULT_MAX_FINDINGS
 
 
-def _resolve_tls_verification(
-    settings: RuntimeSettings, logger: BoundLogger
-) -> bool | str:
+def _resolve_tls_verification(settings: RuntimeSettings, logger: BoundLogger) -> bool | str:
     allow_insecure_tls = bool(settings.allow_insecure_tls)
     ca_bundle_path = settings.ca_bundle_path
     verify_option: bool | str = True
@@ -148,39 +142,17 @@ def _maybe_create_v2_api_server(
 
 
 def _schedule_tool_disablement(api_server: FastMCP, keep: Iterable[str]) -> None:
-    """Disable generated FastMCP tools not exposed by BiRRe.
+    """Restrict a generated FastMCP server to only the tools BiRRe exposes.
 
-    FastMCP exposes no synchronous API for pruning tools, so we prefer the
-    manager's in-memory registry when available. If the internals are missing,
-    we fall back to a no-op and emit diagnostics instead of risking loop
-    teardown via ad-hoc asyncio usage.
+    Uses FastMCP v3's visibility API to allowlist the *keep* set and hide
+    everything else.  ``components={"tool"}`` limits the effect to tools so
+    resources and prompts (if any) remain untouched.
     """
-    tool_manager = getattr(api_server, "_tool_manager", None)
-    if tool_manager is None:
-        _tool_logger.debug("tool_manager.missing server=%r", api_server)
-        return
-
-    tools = getattr(tool_manager, "_tools", None)
-    if not isinstance(tools, dict):
-        _tool_logger.debug(
-            "tool_registry.unexpected_shape registry_type=%s",
-            type(tools).__name__,
-        )
-        return
-
-    keep_set = set(keep)
-    for name, tool in tools.items():
-        if name in keep_set:
-            continue
-        try:
-            tool.disable()
-        except Exception as exc:  # pragma: no cover - defensive
-            _tool_logger.debug(
-                "tool.disable_failed tool=%s error=%s",
-                name,
-                exc,
-            )
-            continue
+    api_server.enable(
+        names=set(keep),
+        components={"tool"},
+        only=True,
+    )
 
 
 def _configure_risk_manager_tools(
