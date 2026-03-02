@@ -82,14 +82,46 @@ def test_discover_and_collect_tools() -> None:
             self.name = name
 
     class _Server:
+        def __init__(self):
+            self._called = False
+
         async def list_tools(self):
+            self._called = True
             return [_Tool("a"), _Tool("b")]
 
     server = _Server()
     names = dx.discover_context_tools(server, run_sync=_run_sync)
-    assert {"a", "b"}.issubset(names)
-    tool_map = dx.collect_tool_map(server, run_sync=_run_sync)
-    assert set(tool_map.keys()) >= {"a", "b"}
+    assert server._called, "list_tools must be invoked"
+    assert names == {"a", "b"}
+
+    server2 = _Server()
+    tool_map = dx.collect_tool_map(server2, run_sync=_run_sync)
+    assert server2._called, "list_tools must be invoked for collect_tool_map"
+    assert set(tool_map.keys()) == {"a", "b"}
+    # Verify tool objects are mapped correctly by name
+    assert tool_map["a"].name == "a"
+    assert tool_map["b"].name == "b"
+
+
+def test_list_server_tools_returns_empty_without_list_tools() -> None:
+    """Servers without list_tools() return an empty list (no AttributeError)."""
+    from types import SimpleNamespace
+
+    bare = SimpleNamespace()
+    assert dx._list_server_tools(bare, run_sync=_run_sync) == []  # type: ignore[attr-defined]
+
+
+def test_discover_context_tools_ignores_nameless_entries() -> None:
+    """Tools without a .name attribute are silently excluded."""
+
+    class _Server:
+        async def list_tools(self):
+            return [SimpleNamespace(name="ok"), object(), SimpleNamespace(name=123)]
+
+    from types import SimpleNamespace
+
+    names = dx.discover_context_tools(_Server(), run_sync=_run_sync)
+    assert names == {"ok"}
 
 
 def test_validate_positive() -> None:

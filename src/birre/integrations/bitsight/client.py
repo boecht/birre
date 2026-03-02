@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import ssl
 from collections.abc import Iterator, Mapping, MutableMapping
 from importlib import resources
@@ -89,17 +90,43 @@ def _wrap_schema_responses(spec: Any) -> None:
                 responses[status] = replacement
 
 
-def _load_api_spec(resource_name: str) -> Any:
-    """Load an OpenAPI specification bundled with the package."""
+def _sanitize_null_properties(node: Any) -> Any:
+    """Remove ``"properties": null`` from schema nodes.
 
+    The bundled BitSight v1 schema contains ``"properties": null`` entries that
+    are invalid per OpenAPI / JSON Schema.  Since the schema is upstream content
+    we do not control, we strip these at load time so strict validation passes.
+    """
+    if isinstance(node, dict):
+        return {
+            k: _sanitize_null_properties(v)
+            for k, v in node.items()
+            if not (k == "properties" and v is None)
+        }
+    if isinstance(node, list):
+        return [_sanitize_null_properties(item) for item in node]
+    return node
+
+
+def _load_api_spec(resource_name: str) -> Any:
+    """Load an OpenAPI specification bundled with the package.
+
+    The raw JSON is sanitized (removing upstream quirks like
+    ``"properties": null``) before prance resolves and validates it.
+    """
     resource_path = resources.files("birre.resources") / "apis" / resource_name
     with resources.as_file(resource_path) as spec_path:
-        parser = ResolvingParser(
-            str(spec_path),
-            strict=True,
-            resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
-        )
-        specification = parser.specification
+        raw = json.loads(spec_path.read_text(encoding="utf-8"))
+
+    sanitized = _sanitize_null_properties(raw)
+    spec_string = json.dumps(sanitized)
+
+    parser = ResolvingParser(
+        spec_string=spec_string,
+        strict=True,
+        resolve_types=prance_resolver.RESOLVE_FILES | prance_resolver.RESOLVE_HTTP,
+    )
+    specification = parser.specification
     _wrap_schema_responses(specification)
     return specification
 
@@ -133,9 +160,7 @@ def _build_verify_option(verify: bool | str) -> bool | ssl.SSLContext:
     return verify
 
 
-def _create_client(
-    base_url: str, api_key: str, *, verify: bool | str = True
-) -> httpx.AsyncClient:
+def _create_client(base_url: str, api_key: str, *, verify: bool | str = True) -> httpx.AsyncClient:
     verify_option = _build_verify_option(verify)
 
     client_kwargs: dict[str, Any] = {

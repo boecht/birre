@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import heapq
+import inspect
 import json
 from collections import defaultdict
 from collections.abc import Callable
@@ -553,7 +554,8 @@ async def _fetch_and_normalize_findings(
     *,
     debug_enabled: bool,
 ) -> tuple[list[dict[str, Any]], bool]:
-    raw = await call_v1_tool("getCompaniesFindings", ctx, params)
+    result = call_v1_tool("getCompaniesFindings", ctx, params)
+    raw = await result if inspect.isawaitable(result) else result
     if not isinstance(raw, dict):
         return [], False
     _debug(

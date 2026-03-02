@@ -189,6 +189,14 @@ def discover_context_tools(
     *,
     run_sync: SyncRunner | None = None,
 ) -> set[str]:
+    """Return the names of all tools registered on *server*.
+
+    .. versionchanged:: 4.1.0
+        Uses the FastMCP v3 ``list_tools()`` API exclusively.  The v2
+        ``server.tools`` dict and ``get_tools()`` method are no longer
+        consulted.  Servers that do not expose ``list_tools()`` will
+        appear to have zero tools.
+    """
     tools = _list_server_tools(server, run_sync=run_sync)
     return {str(t.name) for t in tools if hasattr(t, "name") and isinstance(t.name, str)}
 
@@ -198,6 +206,14 @@ def collect_tool_map(
     *,
     run_sync: SyncRunner | None = None,
 ) -> dict[str, Any]:
+    """Build a ``{name: tool}`` mapping from all tools on *server*.
+
+    .. versionchanged:: 4.1.0
+        Uses the FastMCP v3 ``list_tools()`` API exclusively.  The v2
+        fallback that probed ``server.tools`` and injected known tool
+        names by attribute has been removed.  If ``list_tools()`` is
+        absent or returns nothing, the map will be empty.
+    """
     raw_tools = _list_server_tools(server, run_sync=run_sync)
     return {str(t.name): t for t in raw_tools if hasattr(t, "name") and isinstance(t.name, str)}
 
