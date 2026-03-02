@@ -3,6 +3,41 @@
 All notable changes to BiRRe (BitSight Rating Retriever) will be documented in this file.
 See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md) for updating guidelines.
 
+## [4.1.0] - 2026-03-02
+
+### Changed
+
+- **TOP:** **Breaking:** Migrate from FastMCP v2 to v3 — adopt `call_tool` for tool invocation,
+  `enable()`/`disable()` visibility API for tool lifecycle, and `list_tools()` for async tool discovery,
+  replacing removed `_call_tool_middleware`, `_schedule_tool_disablement`, and `server.tools` dict
+- **Breaking:** Require `fastmcp>=3.0.2,<4` — drop all v2 compatibility shims and the `_fastmcp_env` module
+- Improve diagnostic tool discovery to use FastMCP v3 async `list_tools()` API exclusively,
+  replacing the deprecated `server.tools` dict and `get_tools()` method fallbacks
+- Sanitize upstream BitSight OpenAPI schema at load time to handle invalid `"properties": null` entries
+  without modifying the bundled spec
+- Update error messages in v1 bridge to be version-agnostic for clearer debugging
+
+### Added
+
+- Add `_sanitize_null_properties` pre-processor to strip upstream schema quirks before OpenAPI validation
+- Add `_list_server_tools` helper centralising async tool enumeration for diagnostics
+- Add tests for schema sanitization, tool discovery assertions, and edge-case handling
+
+### Removed
+
+- Remove `_fastmcp_env.py` compatibility shim (no longer needed with FastMCP v3)
+- Remove `FunctionTool` imports from domain services (v3 auto-generates tool wrappers)
+- Remove v2 `_call_tool_middleware` and `_schedule_tool_disablement` patterns from server module
+- Remove fallback tool discovery via `server.tools` dict, `get_tools()`, and attribute probing
+
+### Fixed
+
+- Fix unawaited coroutine in `_fetch_and_normalize_findings` where `call_v1_tool` result was not
+  properly awaited, causing findings to silently return empty — restore defensive conditional await
+  via `inspect.isawaitable`
+- Fix selftest reporting all tools as "not registered" after FastMCP v3 upgrade by migrating tool
+  discovery to `list_tools()` API
+
 ## [4.0.0] - 2025-11-19
 
 ### Changed
@@ -168,6 +203,7 @@ See [Changelog Instructions](.github/instructions/edit-changelog.instructions.md
 - Add basic startup diagnostics
 - Add configuration via environment variables and config files
 
+[4.1.0]: https://github.com/boecht/birre/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/boecht/birre/compare/v3.2.0...v4.0.0
 [3.2.0]: https://github.com/boecht/birre/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/boecht/birre/compare/v3.0.0...v3.1.0

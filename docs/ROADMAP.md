@@ -1,8 +1,18 @@
 # BiRRe Roadmap
 
-**Last updated**: 2025-11-19
+**Last updated**: 2026-03-02
 
 ## Released Versions
+
+### 4.1.0 — FastMCP v3 Migration (released 2026-03-02)
+
+- **Framework upgrade:** Migrate from FastMCP v2 to v3, adopting `call_tool`, `enable()`/`disable()`
+  visibility API, and async `list_tools()` for tool discovery and lifecycle management.
+- **Schema resilience:** Sanitize upstream BitSight OpenAPI schemas at load time, stripping invalid
+  `"properties": null` entries without modifying bundled spec files.
+- **Diagnostics:** Rewrite tool discovery to use the v3 `list_tools()` API exclusively, removing
+  all v2 attribute-probing fallbacks for a cleaner, more predictable diagnostic pipeline.
+- **Breaking:** Require `fastmcp>=3.0.2` — v2 compatibility shims and `_fastmcp_env` module removed.
 
 ### 4.0.0 — Structural Hardening & Developer Ergonomics (released 2025-11-19)
 

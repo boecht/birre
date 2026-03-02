@@ -58,9 +58,9 @@ Selected BitSight API Tools kept enabled
 BitSight REST APIs (v1: 383 endpoints, v2: 20 complementary endpoints)
 ```
 
-### FastMCP Tool Filtering Implementation
+### FastMCP Tool Visibility (v3)
 
-The server uses FastMCP's tool disabling feature as documented at <https://gofastmcp.com/servers/tools#disable-tools>.
+The server uses FastMCP v3's `enable()`/`disable()` visibility API as documented at <https://gofastmcp.com/servers/tools#disable-tools>.
 
 **Core Pattern**:
 
@@ -68,9 +68,9 @@ The server uses FastMCP's tool disabling feature as documented at <https://gofas
 # Generate API tools from OpenAPI specification
 server = FastMCP.from_openapi(openapi_spec=v1_spec, client=v1_client, name="BiRRe")
 
-# Disable all auto-generated API tools for client visibility
-api_tools = await server.get_tools()
-for tool_name, tool in api_tools.items():
+# Discover all auto-generated API tools and hide them from clients
+api_tools = await server.list_tools()
+for tool in api_tools:
     tool.disable()  # Hidden from list_tools(), accessible via call_tool()
 
 # Add business logic tools
@@ -82,8 +82,9 @@ async def company_search(ctx, name=None, domain=None):
 
 **Technical Details**:
 
-- `tool.disable()` removes tools from MCP `list_tools` responses
+- `tool.disable()` removes tools from MCP `list_tools()` responses
 - Disabled tools remain callable through `server.call_tool()` for internal use
+- `server.list_tools()` is async and returns a list of tool objects with `.name` attributes
 - Business tools can orchestrate multiple API calls transparently
 - Maintains full type safety and validation from OpenAPI schemas
 
