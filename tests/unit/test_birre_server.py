@@ -171,7 +171,7 @@ async def test_create_birre_server_standard_context(monkeypatch, logger):
 
     assert recorded_calls["rating"]["risk_vector_filter"] == DEFAULT_RISK_VECTOR_FILTER
     assert recorded_calls["rating"]["max_findings"] == DEFAULT_MAX_FINDINGS
-    assert recorded_calls["rating"]["default_folder"] == "/tmp/subscriptions"
+    assert recorded_calls["rating"]["default_folder"] == "/tmp/subscriptions"  # noqa: S108
     assert recorded_calls["rating"]["default_type"] == "managed"
     assert recorded_calls["rating"]["debug_enabled"] is False
     assert "call_v1_tool" in recorded_calls["search"]

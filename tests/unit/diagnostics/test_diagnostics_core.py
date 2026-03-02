@@ -179,7 +179,9 @@ def test_check_required_and_optional_tool_paths() -> None:
 
 def test_aggregate_tool_outcomes_offline_and_merge() -> None:
     tools = frozenset({"a", "b"})
-    agg = dx.aggregate_tool_outcomes(tools, [], offline_mode=True, offline_missing=["a"])  # type: ignore[list-item]
+    agg = dx.aggregate_tool_outcomes(  # type: ignore[list-item]
+        tools, [], offline_mode=True, offline_missing=["a"]
+    )
     assert agg["a"]["status"] == "fail" and agg["b"]["status"] == "warning"
 
     attempts = [
