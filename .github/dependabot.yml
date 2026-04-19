@@ -4,7 +4,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
     labels:
       - "dependencies"
       - "github-actions"
@@ -15,21 +16,19 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      github-actions-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "04:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    rebase-strategy: "auto"
     labels:
       - "dependencies"
       - "python"
-    allow:
-      - dependency-type: "direct"
     groups:
       python-dependencies:
         patterns:
@@ -37,8 +36,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      # Separate security updates
       python-security:
-        dependency-type: "production"
-        update-types:
-          - "patch"
+        applies-to: "security-updates"
+        patterns:
+          - "*"
