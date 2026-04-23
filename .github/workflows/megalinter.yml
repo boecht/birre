@@ -40,6 +40,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
+        with:
+          uv-sync-flags: "--all-extras --frozen --no-install-project"
+          cache-key-prefix: megalinter
+
       - name: Ensure artifacts directory exists
         run: |
           mkdir -p artifacts
