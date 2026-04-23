@@ -50,10 +50,6 @@ MARKDOWN_MARKDOWNLINT_DISABLE_ERRORS: false
 # Pyright strict typing config via pyproject
 PYTHON_PYRIGHT_CLI_LINT_MODE: project
 PYTHON_PYRIGHT_CONFIG_FILE: pyproject.toml
-PYTHON_PYRIGHT_PRE_COMMANDS:
-  - command: uv sync --frozen --no-install-project
-    cwd: workspace
-    run_before_linters: true
 
 # Python Ruff (lint) uses pyproject.toml config; ensure formatting style is ruff
 PYTHON_DEFAULT_STYLE: ruff
