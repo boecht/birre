@@ -7,7 +7,7 @@ name = "BiRRe"
 version = "4.1.0"
 description = "Model Context Protocol server for BitSight security ratings"
 readme = "README.md"
-requires-python = ">=3.14.4"
+requires-python = ">=3.14.6"
 license = "Unlicense"
 license-files = ["LICENSE"]
 authors = [{ name = "boecht" }]
@@ -39,23 +39,23 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "dynaconf>=3.2.13,<4",
-  "fastmcp>=3.2.4,<4",
+  "dynaconf>=3.3.2,<4",
+  "fastmcp>=3.4.2,<4",
   "httpx>=0.28.1,<0.29",
-  "openapi-spec-validator>=0.8.4,<0.10",
+  "openapi-spec-validator>=0.9.0,<0.10",
   "prance>=25.4.8.0",
-  "pydantic>=2.13.3,<3",
+  "pydantic>=2.13.4,<3",
   "python-dotenv>=1.2.2,<2",
   "rich>=15.0.0",
   "structlog>=26.1.0",
-  "typer>=0.24.2",
-  "typing_extensions>=4.15.0",
+  "typer>=0.26.8",
+  "typing_extensions>=4.16.0",
 ]
 
 [project.optional-dependencies]
 pytest-dependencies = [
-  "pytest>=9.0.3",
-  "pytest-asyncio>=1.3.0",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
   "pytest-cov>=7.1.0",
   "pytest-mock>=3.15.1",
 ]
@@ -72,15 +72,15 @@ birre = "birre:create_birre_server"
 [dependency-groups]
 dev = [
   "cyclonedx-bom>=7.3.0",
-  "hypothesis>=6.152.1",
-  "pytest>=9.0.3",
-  "pytest-asyncio>=1.3.0",
+  "hypothesis>=6.155.7",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
   "pytest-benchmark>=5.2.3",
   "pytest-cov>=7.1.0",
   "pytest-mock>=3.15.1",
-  "ruff>=0.15.11",
-  "pyright>=1.1.409",
-  "types-pyyaml>=6.0.12.20260408",
+  "ruff>=0.15.20",
+  "pyright>=1.1.411",
+  "types-pyyaml>=6.0.12.20260518",
 ]
 
 [tool.pyright]
