@@ -41,5 +41,5 @@ repos:
               -e HOME=/tmp \
               -e RUN_LOCAL=true \
               -e MEGALINTER_CONFIG=.mega-linter.local.yml \
-              ghcr.io/oxsecurity/megalinter-python:v9.1.0
+              ghcr.io/oxsecurity/megalinter-python:v9.6.0
         pass_filenames: false

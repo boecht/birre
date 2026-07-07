@@ -61,13 +61,13 @@ jobs:
         shell: bash
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
-          RUN_ONLINE_TESTS: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.run_online_tests }}
+          RUN_ONLINE_TESTS: ${{ inputs.run_online_tests }}
         run: |
           set -o pipefail
           status=0
           if [[ "${RUN_ONLINE_TESTS}" == "true" ]]; then
             if [[ -z "${BITSIGHT_API_KEY}" ]]; then
-              echo "::error::run_online_tests was selected, but BITSIGHT_API_KEY is not configured."
+              echo "::error::run_online_tests selected, but BITSIGHT_API_KEY is missing."
               exit 1
             fi
             MODE="online+offline"

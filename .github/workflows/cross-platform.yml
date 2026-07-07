@@ -22,18 +22,12 @@ permissions:
   contents: read
 
 jobs:
-  test-matrix:
-    name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-    runs-on: ${{ matrix.os }}
+  test-ubuntu:
+    name: Test on ubuntu-latest (Python 3.14)
+    runs-on: ubuntu-latest
 
     permissions:
       id-token: write # for step-security/harden-runner to fetch OIDC token
-
-    strategy:
-      fail-fast: false # Continue testing other platforms even if one fails
-      matrix:
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["ubuntu-latest"{0}{1}]', inputs.include_windows && ',"windows-latest"' || '', inputs.include_macos && ',"macos-latest"' || '') || '["ubuntu-latest"]') }}
-        python-version: ["3.14"]
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -47,19 +41,18 @@ jobs:
       - name: Prepare Python environment
         uses: ./.github/actions/uv-env
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14"
           cache-key-prefix: matrix
 
       - name: Run tests (offline)
-        if: runner.os != 'Windows'
         shell: bash
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
-          RUN_ONLINE_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_online_tests }}
+          RUN_ONLINE_TESTS: ${{ inputs.run_online_tests }}
         run: |
           if [[ "${RUN_ONLINE_TESTS}" == "true" ]]; then
             if [[ -z "${BITSIGHT_API_KEY}" ]]; then
-              echo "::error::run_online_tests was selected, but BITSIGHT_API_KEY is not configured."
+              echo "::error::run_online_tests selected, but BITSIGHT_API_KEY is missing."
               exit 1
             fi
             uv run pytest --verbose
@@ -67,16 +60,54 @@ jobs:
             uv run pytest --offline --verbose
           fi
 
+      - name: Test config file discovery
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test CLI entrypoint
+        shell: bash
+        run: |
+          uv run birre --help
+
+  test-windows:
+    name: Test on windows-latest (Python 3.14)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_windows }}
+    runs-on: windows-latest
+
+    permissions:
+      id-token: write # for step-security/harden-runner to fetch OIDC token
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
+        with:
+          python-version: "3.14"
+          cache-key-prefix: matrix
+
       - name: Run tests (offline, Windows)
-        if: runner.os == 'Windows'
         shell: pwsh
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
-          RUN_ONLINE_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_online_tests }}
+          RUN_ONLINE_TESTS: ${{ inputs.run_online_tests }}
         run: |
           if ($Env:RUN_ONLINE_TESTS -eq 'true') {
             if (-not $Env:BITSIGHT_API_KEY) {
-              Write-Error 'run_online_tests was selected, but BITSIGHT_API_KEY is not configured.'
+              Write-Error 'run_online_tests selected, but BITSIGHT_API_KEY is missing.'
               exit 1
             }
             uv run pytest --verbose
@@ -85,20 +116,7 @@ jobs:
             uv run pytest --offline --verbose
           }
 
-      - name: Test config file discovery (Unix-style paths)
-        if: runner.os != 'Windows'
-        run: |
-          uv run python -c "
-          from birre.config import load_settings
-          from pathlib import Path
-          config_path = Path.cwd() / 'config.toml'
-          print(f'Config path: {config_path}')
-          config = load_settings()
-          print('Config loaded successfully')
-          "
-
-      - name: Test config file discovery (Windows-style paths)
-        if: runner.os == 'Windows'
+      - name: Test config file discovery
         shell: pwsh
         run: |
           uv run python -c "
@@ -110,14 +128,62 @@ jobs:
           print('Config loaded successfully')
           "
 
-      - name: Test CLI entrypoint (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Test CLI entrypoint
+        shell: pwsh
         run: |
           uv run birre --help
 
-      - name: Test CLI entrypoint (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+  test-macos:
+    name: Test on macos-latest (Python 3.14)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_macos }}
+    runs-on: macos-latest
+
+    permissions:
+      id-token: write # for step-security/harden-runner to fetch OIDC token
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Prepare Python environment
+        uses: ./.github/actions/uv-env
+        with:
+          python-version: "3.14"
+          cache-key-prefix: matrix
+
+      - name: Run tests (offline)
+        shell: bash
+        env:
+          BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+          RUN_ONLINE_TESTS: ${{ inputs.run_online_tests }}
+        run: |
+          if [[ "${RUN_ONLINE_TESTS}" == "true" ]]; then
+            if [[ -z "${BITSIGHT_API_KEY}" ]]; then
+              echo "::error::run_online_tests selected, but BITSIGHT_API_KEY is missing."
+              exit 1
+            fi
+            uv run pytest --verbose
+          else
+            uv run pytest --offline --verbose
+          fi
+
+      - name: Test config file discovery
+        run: |
+          uv run python -c "
+          from birre.config import load_settings
+          from pathlib import Path
+          config_path = Path.cwd() / 'config.toml'
+          print(f'Config path: {config_path}')
+          config = load_settings()
+          print('Config loaded successfully')
+          "
+
+      - name: Test CLI entrypoint
+        shell: bash
         run: |
           uv run birre --help
