@@ -4,10 +4,20 @@ name: Tests & Coverage
 "on":
   pull_request:
   workflow_call:
+    inputs:
+      run_online_tests:
+        description: "Run live BitSight tests; may mutate subscriptions; requires BITSIGHT_API_KEY"
+        type: boolean
+        default: false
     secrets:
       BITSIGHT_API_KEY:
       CODECOV_TOKEN:
   workflow_dispatch:
+    inputs:
+      run_online_tests:
+        description: "Run live BitSight tests; may mutate subscriptions; uses the repository secret"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,10 +61,15 @@ jobs:
         shell: bash
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+          RUN_ONLINE_TESTS: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.run_online_tests }}
         run: |
           set -o pipefail
           status=0
-          if [ -n "${BITSIGHT_API_KEY}" ]; then
+          if [[ "${RUN_ONLINE_TESTS}" == "true" ]]; then
+            if [[ -z "${BITSIGHT_API_KEY}" ]]; then
+              echo "::error::run_online_tests was selected, but BITSIGHT_API_KEY is not configured."
+              exit 1
+            fi
             MODE="online+offline"
             CMD="uv run pytest \
               --cov=src/birre \

@@ -3,8 +3,20 @@ name: Cross-Platform Testing
 
 "on":
   pull_request:
-  push:
   workflow_dispatch:
+    inputs:
+      include_windows:
+        description: "Also test on windows-latest"
+        type: boolean
+        default: false
+      include_macos:
+        description: "Also test on macos-latest"
+        type: boolean
+        default: false
+      run_online_tests:
+        description: "Run live BitSight tests; may mutate subscriptions; uses the repository secret"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,8 +32,8 @@ jobs:
     strategy:
       fail-fast: false # Continue testing other platforms even if one fails
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.13", "3.14"]
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["ubuntu-latest"{0}{1}]', inputs.include_windows && ',"windows-latest"' || '', inputs.include_macos && ',"macos-latest"' || '') || '["ubuntu-latest"]') }}
+        python-version: ["3.14"]
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -38,25 +50,35 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache-key-prefix: matrix
 
-      - name: Run tests (full if API key present, else offline)
+      - name: Run tests (offline)
         if: runner.os != 'Windows'
         shell: bash
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+          RUN_ONLINE_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_online_tests }}
         run: |
-          if [ -n "${BITSIGHT_API_KEY}" ]; then
+          if [[ "${RUN_ONLINE_TESTS}" == "true" ]]; then
+            if [[ -z "${BITSIGHT_API_KEY}" ]]; then
+              echo "::error::run_online_tests was selected, but BITSIGHT_API_KEY is not configured."
+              exit 1
+            fi
             uv run pytest --verbose
           else
             uv run pytest --offline --verbose
           fi
 
-      - name: Run tests (Windows)
+      - name: Run tests (offline, Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           BITSIGHT_API_KEY: ${{ secrets.BITSIGHT_API_KEY }}
+          RUN_ONLINE_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_online_tests }}
         run: |
-          if ($Env:BITSIGHT_API_KEY) {
+          if ($Env:RUN_ONLINE_TESTS -eq 'true') {
+            if (-not $Env:BITSIGHT_API_KEY) {
+              Write-Error 'run_online_tests was selected, but BITSIGHT_API_KEY is not configured.'
+              exit 1
+            }
             uv run pytest --verbose
           }
           else {
