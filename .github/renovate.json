@@ -49,6 +49,30 @@
       "automerge": true
     },
     {
+      "description": "Group all non-major pre-commit hook updates",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "pre-commit hooks",
+      "automerge": true
+    },
+    {
+      "description": "Group MegaLinter image updates with pre-commit hooks",
+      "matchPackageNames": [
+        "ghcr.io/oxsecurity/megalinter-python"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "pre-commit hooks",
+      "automerge": true
+    },
+    {
       "description": "Major version bumps get individual PRs",
       "matchUpdateTypes": [
         "major"
