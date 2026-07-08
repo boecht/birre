@@ -48,3 +48,25 @@ megalinter-reports/
 # Project planning and tracking (temporary, not for commit)
 .project-notes/
 scripts/
+
+# --- OwlBear managed paths ---
+
+# Scratch / ad-hoc workspace
+.owlbear/scratch/*
+!.owlbear/scratch/.gitkeep
+!.owlbear/scratch/.instructions.md
+
+# Brief drafts (transient template directory)
+.owlbear/briefs/draft-new/
+
+# Knowledge and memory databases
+.owlbear/knowledge/*.db
+.owlbear/knowledge/vectors/
+.owlbear/memory/*.db
+
+# Lock files (transient runtime artifacts)
+.owlbear/kanban/.activity.lock
+.owlbear/kanban/.next_id.lock
+.owlbear/kanban/tasks/.*.lock
+.owlbear/kanban/archive/.*.lock
+.owlbear/kanban/activity.jsonl
