@@ -1,0 +1,16 @@
+{
+  "ignores": [
+    ".owlbear/doc-index.md",
+    ".owlbear/briefs/**",
+    ".owlbear/hooks/**",
+    ".owlbear/kanban/archive/**",
+    ".owlbear/kanban/decisions/**",
+    ".owlbear/kanban/tasks/**",
+    ".owlbear/research/**",
+    ".owlbear/memory/**",
+    ".owlbear/sources/**",
+    ".venv/**",
+    "node_modules/**",
+    "**/*.excalidraw"
+  ]
+}

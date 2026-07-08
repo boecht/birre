@@ -1,0 +1,9 @@
+# Enforce LF line endings everywhere (prevents CRLF on Windows checkouts)
+* text=auto eol=lf
+
+# Binary files — do not normalize
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.zip binary

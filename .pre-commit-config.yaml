@@ -1,21 +1,28 @@
 ---
-# Install Git hooks so commits run hooks automatically:
-#   pre-commit install
+# Pre-commit config aligned with CI.
 #
-# Manually run hooks on STAGED* files:
-#   pre-commit run
+# Commands:
+#   uv run lint       Staged files, default hooks (= git commit)
+#   uv run lint-all   All files, default hooks
+#   uv run megalint   Manual MegaLinter parity check, all files
 #
-# Manually run hooks on CHANGED* files:
-#   git diff --name-only -z | xargs -0 pre-commit run --files
-#
-# Manually run hooks on ALL files:
-#   pre-commit run --all-files
-#
-# *Some hooks run repo-wide either way.
-#
-# To enable ruff fixing on manual run or pre-commit, see .mega-linter.local.yml
-#
+# Auto-fix on commit: ruff (lint + format), trailing-whitespace,
+# end-of-file-fixer, markdownlint. Everything else is check-only.
+
+# Keep aligned with .mega-linter.yml FILTER_REGEX_EXCLUDE and
+# ADDITIONAL_EXCLUDED_DIRECTORIES.
+exclude: |
+  (?x)^(
+    docs/apis/
+    |src/birre/resources/apis/
+    |\.owlbear/
+    |\.venv/
+    |dist/
+    |node_modules/
+    |megalinter-reports/
+  )
 repos:
+  # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -23,23 +30,69 @@ repos:
         exclude: "^docs/apis/"
       - id: end-of-file-fixer
         exclude: "^docs/apis/"
+      - id: check-yaml
+      - id: check-json
       - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
 
+  # Python, matching CI PYTHON_RUFF and PYTHON_RUFF_FORMAT
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+  # YAML, matching CI YAML_YAMLLINT
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--strict]
+
+  # GitHub Actions, matching CI ACTION_ACTIONLINT
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  # Markdown, matching CI MARKDOWN_MARKDOWNLINT
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.0
+    hooks:
+      - id: markdownlint-cli2
+        args: [--fix]
+
+  # EditorConfig, matching CI EDITORCONFIG_EDITORCONFIG_CHECKER
+  - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
+    rev: "3.6.1"
+    hooks:
+      - id: editorconfig-checker
+        args: [-disable-indent-size]
+
+  # MegaLinter, manual-only full parity check
   - repo: local
     hooks:
-      - id: mega-linter
-        name: run MegaLinter (Docker)
+      - id: megalinter
+        name: MegaLinter (full parity)
         entry: bash
         language: system
         args:
           - -lc
           - |
             docker run --rm \
+              --platform linux/amd64 \
               --user "$(id -u):$(id -g)" \
               -v "$PWD:/tmp/lint" \
               -w /tmp/lint \
               -e HOME=/tmp \
               -e RUN_LOCAL=true \
               -e MEGALINTER_CONFIG=.mega-linter.local.yml \
+              -e APPLY_FIXES=none \
+              -e UPDATED_SOURCES_REPORTER=false \
+              -e LOG_LEVEL=INFO \
+              -e VALIDATE_ALL_CODEBASE=true \
               ghcr.io/oxsecurity/megalinter-python:v9.6.0
         pass_filenames: false
+        always_run: true
+        stages: [manual]
