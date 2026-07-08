@@ -113,9 +113,7 @@ def build_invocation(
         runtime=RuntimeOverrides(
             context=normalized_context,
             debug=runtime_inputs.debug,
-            risk_vector_filter=cli_options.clean_string(
-                runtime_inputs.risk_vector_filter
-            ),
+            risk_vector_filter=cli_options.clean_string(runtime_inputs.risk_vector_filter),
             max_findings=normalized_max_findings,
             skip_startup_checks=runtime_inputs.skip_startup_checks,
         ),

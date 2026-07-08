@@ -95,7 +95,6 @@ async def test_call_openapi_tool_unstructured_returns_raw_with_warnings(
     api = _API()
     ctx, _ = _ctx_spy()
 
-
     out = await v1.call_openapi_tool(
         api,
         "tool",
@@ -119,13 +118,10 @@ async def test_parse_text_content_invalid_json_logs_warning(
     class _API:
         async def call_tool(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
             await asyncio.sleep(0)
-            return SimpleNamespace(
-                structured_content=None, content=[SimpleNamespace(text="{bad}")]
-            )
+            return SimpleNamespace(structured_content=None, content=[SimpleNamespace(text="{bad}")])
 
     api = _API()
     ctx, _ = _ctx_spy()
-
 
     out = await v1.call_openapi_tool(
         api,
@@ -176,7 +172,6 @@ async def test_call_openapi_tool_http_status_error_propagates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ctx, _ = _ctx_spy()
-
 
     # Prepare a fake HTTP error
     req = httpx.Request("GET", "https://example.com/x")
@@ -294,9 +289,7 @@ async def test_request_error_without_mapping_propagates(
     class _API:
         async def call_tool(self, *_: Any, **__: Any) -> Any:  # noqa: ANN001
             await asyncio.sleep(0)
-            raise httpx.RequestError(
-                "boom", request=httpx.Request("GET", "https://e/x")
-            )
+            raise httpx.RequestError("boom", request=httpx.Request("GET", "https://e/x"))
 
     api = _API()
     ctx, _ = _ctx_spy()
@@ -328,7 +321,6 @@ async def test_content_without_text_returns_raw_and_warns(
     api = _API()
     ctx, calls = _ctx_spy()
 
-
     raw = await v1.call_openapi_tool(
         api,
         "tool",
@@ -358,7 +350,6 @@ async def test_params_filtering_is_applied(monkeypatch: pytest.MonkeyPatch) -> N
 
     api = _API()
     ctx, _ = _ctx_spy()
-
 
     out = await v1.call_openapi_tool(
         api,

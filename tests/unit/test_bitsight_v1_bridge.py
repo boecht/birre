@@ -58,16 +58,12 @@ async def test_normalize_tool_result_prefers_structured() -> None:
     class TextResult:
         content = [SimpleNamespace(text=json.dumps({"foo": "bar"}))]
 
-    normalized_text = await bridge._normalize_tool_result(
-        TextResult(), "tool", ctx, logger
-    )
+    normalized_text = await bridge._normalize_tool_result(TextResult(), "tool", ctx, logger)
     assert normalized_text == {"foo": "bar"}
 
 
 class DummyResponse:
-    def __init__(
-        self, json_value: dict[str, Any] | None = None, text: str = "text"
-    ) -> None:
+    def __init__(self, json_value: dict[str, Any] | None = None, text: str = "text") -> None:
         self._json_value = json_value
         self.text = text
 
@@ -85,9 +81,7 @@ class DummyClient:
         self.response = response
         self.captured: list[tuple[str, dict[str, Any]]] = []
 
-    async def post(
-        self, path: str, data: Any, files: Any, **kwargs: Any
-    ) -> DummyResponse:
+    async def post(self, path: str, data: Any, files: Any, **kwargs: Any) -> DummyResponse:
         """Minimal async stub matching only the parameters used by code under test.
 
             Introduces a trivial await to satisfy async function linting without impacting behavior.
@@ -101,9 +95,7 @@ class DummyClient:
         return self.response
 
 
-def _make_api_stub(
-    response: DummyResponse, timeout: float | None = None
-) -> SimpleNamespace:
+def _make_api_stub(response: DummyResponse, timeout: float | None = None) -> SimpleNamespace:
     client = DummyClient(response)
     return SimpleNamespace(_client=client, _timeout=timeout)
 

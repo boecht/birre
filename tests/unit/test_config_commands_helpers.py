@@ -88,15 +88,10 @@ def test_determine_source_label_priority_overrides() -> None:
     env_labels = {LOGGING_FILE_KEY: "ENV (BIRRE_LOG_FILE)"}
     config_entries = {"runtime.debug": (True, "local.toml")}
     assert (
-        _determine_source_label(
-            LOGGING_LEVEL_KEY, cli_labels, env_labels, config_entries
-        )
-        == "CLI"
+        _determine_source_label(LOGGING_LEVEL_KEY, cli_labels, env_labels, config_entries) == "CLI"
     )
     assert (
-        _determine_source_label(
-            LOGGING_FILE_KEY, cli_labels, env_labels, config_entries
-        )
+        _determine_source_label(LOGGING_FILE_KEY, cli_labels, env_labels, config_entries)
         == "ENV (BIRRE_LOG_FILE)"
     )
     assert _determine_source_label(

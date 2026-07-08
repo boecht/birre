@@ -21,9 +21,7 @@ class FolderResolutionResult:
     error: str | None = None
 
 
-async def _fetch_folders(
-    call_v1_tool: CallV1Tool, ctx: Context
-) -> list[dict[str, Any]]:
+async def _fetch_folders(call_v1_tool: CallV1Tool, ctx: Context) -> list[dict[str, Any]]:
     raw = await call_v1_tool("getFolders", ctx, {})
     iterable: list[Any]
     if isinstance(raw, list):

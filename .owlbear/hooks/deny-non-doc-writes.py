@@ -42,9 +42,7 @@ def _extract_paths(tool_input: object) -> list[str]:
     patch_input = tool_input.get("input")
     if isinstance(patch_input, str):
         for line in patch_input.splitlines():
-            if line.startswith(
-                ("*** Update File: ", "*** Add File: ", "*** Delete File: ")
-            ):
+            if line.startswith(("*** Update File: ", "*** Add File: ", "*** Delete File: ")):
                 path = line.split(": ", 1)[1].strip()
                 if path:
                     paths.append(path)

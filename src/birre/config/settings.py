@@ -214,9 +214,7 @@ def _default_settings_files(
 
     if selected_path is not None:
         config_file = selected_path
-        local_file = config_file.with_name(
-            f"{config_file.stem}.local{config_file.suffix}"
-        )
+        local_file = config_file.with_name(f"{config_file.stem}.local{config_file.suffix}")
         files: list[str] = []
         if config_file.exists():
             files.append(str(config_file))
@@ -301,16 +299,12 @@ def _apply_subscription_inputs(
         return
 
     if subscription_inputs.folder is not None:
-        settings.set(
-            BITSIGHT_SUBSCRIPTION_FOLDER_KEY, subscription_inputs.folder.strip()
-        )
+        settings.set(BITSIGHT_SUBSCRIPTION_FOLDER_KEY, subscription_inputs.folder.strip())
     if subscription_inputs.type is not None:
         settings.set(BITSIGHT_SUBSCRIPTION_TYPE_KEY, subscription_inputs.type.strip())
 
 
-def _apply_runtime_inputs(
-    settings: Dynaconf, runtime_inputs: RuntimeInputs | None
-) -> None:
+def _apply_runtime_inputs(settings: Dynaconf, runtime_inputs: RuntimeInputs | None) -> None:
     if runtime_inputs is None:
         return
 
@@ -319,15 +313,11 @@ def _apply_runtime_inputs(
     if runtime_inputs.debug is not None:
         settings.set(RUNTIME_DEBUG_KEY, runtime_inputs.debug)
     if runtime_inputs.risk_vector_filter is not None:
-        settings.set(
-            ROLE_RISK_VECTOR_FILTER_KEY, runtime_inputs.risk_vector_filter.strip()
-        )
+        settings.set(ROLE_RISK_VECTOR_FILTER_KEY, runtime_inputs.risk_vector_filter.strip())
     if runtime_inputs.max_findings is not None:
         settings.set(ROLE_MAX_FINDINGS_KEY, runtime_inputs.max_findings)
     if runtime_inputs.skip_startup_checks is not None:
-        settings.set(
-            RUNTIME_SKIP_STARTUP_CHECKS_KEY, runtime_inputs.skip_startup_checks
-        )
+        settings.set(RUNTIME_SKIP_STARTUP_CHECKS_KEY, runtime_inputs.skip_startup_checks)
 
 
 def _apply_tls_inputs(settings: Dynaconf, tls_inputs: TlsInputs | None) -> None:
@@ -340,9 +330,7 @@ def _apply_tls_inputs(settings: Dynaconf, tls_inputs: TlsInputs | None) -> None:
         settings.set(RUNTIME_CA_BUNDLE_PATH_KEY, tls_inputs.ca_bundle_path.strip())
 
 
-def _apply_logging_inputs(
-    settings: Dynaconf, logging_inputs: LoggingInputs | None
-) -> None:
+def _apply_logging_inputs(settings: Dynaconf, logging_inputs: LoggingInputs | None) -> None:
     if logging_inputs is None:
         return
 
@@ -429,9 +417,7 @@ def _resolve_context(settings: Dynaconf, warnings: list[str]) -> str:
     raw_context = _coerce_str(settings.get(ROLE_CONTEXT_KEY)) or "standard"
     normalized = raw_context.lower()
     if normalized not in _ALLOWED_CONTEXTS:
-        warnings.append(
-            f"Unknown context '{raw_context}' requested; defaulting to 'standard'"
-        )
+        warnings.append(f"Unknown context '{raw_context}' requested; defaulting to 'standard'")
         return "standard"
     return normalized
 
@@ -440,9 +426,7 @@ def _resolve_risk_vector_filter(settings: Dynaconf, warnings: list[str]) -> str:
     raw_filter = settings.get(ROLE_RISK_VECTOR_FILTER_KEY)
     normalized = _coerce_str(raw_filter)
     if not normalized:
-        warnings.append(
-            "Empty risk_vector_filter override; falling back to default configuration"
-        )
+        warnings.append("Empty risk_vector_filter override; falling back to default configuration")
         return DEFAULT_RISK_VECTOR_FILTER
     return normalized
 
@@ -477,24 +461,16 @@ def runtime_from_settings(settings: Dynaconf) -> RuntimeSettings:
     if not api_key:
         raise ValueError("BITSIGHT_API_KEY is required (config/env/CLI)")
 
-    subscription_folder = _resolve_subscription_value(
-        settings, BITSIGHT_SUBSCRIPTION_FOLDER_KEY
-    )
-    subscription_type = _resolve_subscription_value(
-        settings, BITSIGHT_SUBSCRIPTION_TYPE_KEY
-    )
+    subscription_folder = _resolve_subscription_value(settings, BITSIGHT_SUBSCRIPTION_FOLDER_KEY)
+    subscription_type = _resolve_subscription_value(settings, BITSIGHT_SUBSCRIPTION_TYPE_KEY)
 
     context = _resolve_context(settings, warnings)
     risk_vector_filter = _resolve_risk_vector_filter(settings, warnings)
     max_findings = _resolve_max_findings(settings, warnings)
 
-    skip_startup_checks = _resolve_bool(
-        settings, RUNTIME_SKIP_STARTUP_CHECKS_KEY, default=False
-    )
+    skip_startup_checks = _resolve_bool(settings, RUNTIME_SKIP_STARTUP_CHECKS_KEY, default=False)
     debug_enabled = _resolve_bool(settings, RUNTIME_DEBUG_KEY, default=False)
-    allow_insecure_tls = _resolve_bool(
-        settings, RUNTIME_ALLOW_INSECURE_TLS_KEY, default=False
-    )
+    allow_insecure_tls = _resolve_bool(settings, RUNTIME_ALLOW_INSECURE_TLS_KEY, default=False)
     ca_bundle_path = _coerce_str(settings.get(RUNTIME_CA_BUNDLE_PATH_KEY))
 
     if allow_insecure_tls and ca_bundle_path:
@@ -525,9 +501,7 @@ def logging_from_settings(settings: Dynaconf) -> LoggingSettings:
     """Extract logging configuration from Dynaconf."""
 
     level_value = _coerce_str(settings.get(LOGGING_LEVEL_KEY)) or DEFAULT_LOG_LEVEL
-    format_value = (
-        _coerce_str(settings.get(LOGGING_FORMAT_KEY)) or DEFAULT_LOG_FORMAT
-    ).lower()
+    format_value = (_coerce_str(settings.get(LOGGING_FORMAT_KEY)) or DEFAULT_LOG_FORMAT).lower()
     if format_value not in {LOG_FORMAT_TEXT, LOG_FORMAT_JSON}:
         raise ValueError(f"Unsupported log format: {format_value}")
 

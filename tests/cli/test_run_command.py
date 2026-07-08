@@ -31,16 +31,12 @@ def test_run_handles_birre_error_and_online_false(tmp_path: Path) -> None:
             return_value=MagicMock(name="logger"),
         ),
         patch("birre.cli.commands.run.run_offline_checks", return_value=True),
-        patch(
-            "birre.cli.commands.run.run_online_checks", side_effect=Exception("boom")
-        ),
+        patch("birre.cli.commands.run.run_online_checks", side_effect=Exception("boom")),
     ):
         # When run_online_checks raises a plain Exception,
         # typer.Exit should bubble with code 1 via except BirreError? (not caught)
         # We safely assert exit_code != 0 as a safeguard for error branch execution
-        result = runner.invoke(
-            importlib.import_module("birre.cli.app").app, ["run"], color=False
-        )
+        result = runner.invoke(importlib.import_module("birre.cli.app").app, ["run"], color=False)
         assert result.exit_code != 0
 
     # online_ok False path
@@ -56,9 +52,7 @@ def test_run_handles_birre_error_and_online_false(tmp_path: Path) -> None:
         patch("birre.cli.commands.run.run_offline_checks", return_value=True),
         patch("birre.cli.commands.run.run_online_checks", return_value=False),
     ):
-        result = runner.invoke(
-            importlib.import_module("birre.cli.app").app, ["run"], color=False
-        )
+        result = runner.invoke(importlib.import_module("birre.cli.app").app, ["run"], color=False)
         assert result.exit_code == 1
 
 
@@ -110,9 +104,7 @@ def test_run_keyboard_interrupt_and_profiling(tmp_path: Path) -> None:
             return_value=_Server(raise_keyboard=True),
         ),
     ):
-        result = runner.invoke(
-            importlib.import_module("birre.cli.app").app, ["run"], color=False
-        )
+        result = runner.invoke(importlib.import_module("birre.cli.app").app, ["run"], color=False)
         assert result.exit_code == 0
 
 
@@ -136,9 +128,7 @@ def test_run_happy_path_without_profile(tmp_path: Path) -> None:
         patch("birre.cli.commands.run.run_online_checks", return_value=True),
         patch("birre.cli.commands.run.prepare_server", return_value=_Server()),
     ):
-        result = runner.invoke(
-            importlib.import_module("birre.cli.app").app, ["run"], color=False
-        )
+        result = runner.invoke(importlib.import_module("birre.cli.app").app, ["run"], color=False)
         assert result.exit_code == 0
 
 
@@ -159,7 +149,5 @@ def test_run_online_checks_domain_error(tmp_path: Path) -> None:
         patch("birre.cli.commands.run.run_offline_checks", return_value=True),
         patch("birre.cli.commands.run.run_online_checks", side_effect=err),
     ):
-        result = runner.invoke(
-            importlib.import_module("birre.cli.app").app, ["run"], color=False
-        )
+        result = runner.invoke(importlib.import_module("birre.cli.app").app, ["run"], color=False)
         assert result.exit_code == 1

@@ -166,10 +166,7 @@ async def test_assemble_top_findings_section_indexes_and_policy(
     )  # type: ignore[arg-type]
     assert payload["count"] == 3
     assert payload["policy"]["max_items"] == 5
-    assert all(
-        isinstance(x.get("top"), int) and 1 <= x["top"] <= 5
-        for x in payload["findings"]
-    )
+    assert all(isinstance(x.get("top"), int) and 1 <= x["top"] <= 5 for x in payload["findings"])
 
 
 def test_normalize_top_finding_limit_and_unavailable_payload() -> None:
