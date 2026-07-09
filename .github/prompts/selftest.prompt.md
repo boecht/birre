@@ -2,7 +2,7 @@
 name: selftest
 description: Run BiRRe selftest and summarize diagnostics
 agent: agent
-tools: ['runCommands']
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/terminalSelection, read/terminalLastCommand]
 ---
 
 ## Goal

@@ -55,9 +55,6 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 
 ### Documentation Principles
 
-- **Code Comments (implementation-facing)**
-  - See [Python Style Instructions](instructions/edit-python.instructions.md) for editing-time guidance.
-
 ## 3. Standard Workflow
 
 ### Development Approach

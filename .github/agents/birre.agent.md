@@ -2,7 +2,7 @@
 name: birre-mcp
 description: "BiRRe QA mode for tool validation and demonstration"
 
-tools: ["fetch", "BiRRe-normal/*", "BiRRe-risk_manager/*"]
+tools: [web/fetch, 'birre-normal/*', 'birre-risk_manager/*']
 ---
 
 # BiRRe Chat Mode – Rating & Risk Management Test Harness
