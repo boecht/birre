@@ -21,6 +21,37 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
 
 ## 2. Core Principles
 
+### Ponytail principles
+
+You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.
+
+Before writing any code, stop at the first rung that holds:
+
+1. Does this need to be built at all? (YAGNI)
+2. Does it already exist in this codebase? Reuse the helper, util, or pattern that's already here, don't re-write it.
+3. Does the standard library already do this? Use it.
+4. Does a native platform feature cover it? Use it.
+5. Does an already-installed dependency solve it? Use it.
+6. Can this be one line? Make it one line.
+7. Only then: write the minimum code that works.
+
+The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb.
+
+Bug fix = root cause, not symptom: a report names a symptom. Grep every caller of the function you touch and fix the shared function once — one guard there is a smaller diff than one per caller, and patching only the path the ticket names leaves a sibling caller still broken.
+
+Rules:
+
+- No abstractions that weren't explicitly requested.
+- No new dependency if it can be avoided.
+- No boilerplate nobody asked for.
+- Deletion over addition. Boring over clever. Fewest files possible.
+- Shortest working diff wins, but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
+- Question complex requests: "Do you actually need X, or does Y cover it?"
+- Pick the edge-case-correct option when two stdlib approaches are the same size, lazy means less code, not the flimsier algorithm.
+- Mark intentional simplifications with a `ponytail:` comment. If the shortcut has a known ceiling (global lock, O(n²) scan, naive heuristic), the comment names the ceiling and the upgrade path.
+
+Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
+
 ### Project Principles
 
 1. **Ground every statement in current evidence.**
@@ -52,8 +83,6 @@ section 3 for day-to-day execution, and section 5 for the commands you will run 
     - Example:
       - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
       - ✅ "Enhanced reliability through simplified error handling"
-
-### Documentation Principles
 
 ## 3. Standard Workflow
 
@@ -170,49 +199,3 @@ or local config. With either configured, it is safe—and recommended—to run o
   ```bash
   timeout 15s uv run birre || echo "✅ Server test completed"
   ```
-
-## 6. Model-Specific Addenda
-
-### Claude-Specific Requirements
-
-**If you are powered by Anthropic's Claude model, follow these mandatory requirements:**
-
-#### CRASH Tool Usage
-
-Use the CRASH tool (structured reasoning) for all multi-step tasks, including:
-
-- Tasks requiring clarifying questions to the user
-- Multi-step analysis, review, or planning tasks
-- Code refactoring or architectural changes
-- Bug investigation and fixes (beyond trivial typos)
-- Feature implementation requiring multiple components
-- Documentation updates (even single files with multiple sections)
-- Version migrations or dependency updates
-
-**Workflow**: Plan (step 1-2) → Execute one step at a time (step 3-N) → Final QA (last step)
-
-**CRASH Features to Leverage**:
-
-- Use `revises_step` to correct mistakes in earlier reasoning
-- Use `branch_from` to explore alternative approaches
-- Track `confidence` and `uncertainty_notes` when facing ambiguous situations
-
-**If CRASH tool is unavailable**: Refuse to proceed on multi-step tasks
-Ask the user to install the CRASH MCP server from <https://github.com/nikkoxgonzales/crash-mcp>
-
-#### Mandatory QA Step
-
-Every task must end with a QA review that compares all work to the initial task:
-
-1. **Restate original task**: What did the user ask for?
-2. **List file changes**: For each modified file, explain how the change serves the original task
-3. **Identify misalignment**: Call out any changes that don't directly serve the task objective
-4. **Reflect on alignment**: Does the complete set of changes accomplish what was requested?
-  Are there gaps or overreach?
-5. **Verify changes**: Read back edited content to confirm correctness
-
-## 7. Appendix
-
-### FastMCP Resources
-
-- FastMCP framework documentation: <https://gofastmcp.com/servers/server>
