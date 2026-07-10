@@ -114,6 +114,19 @@ def test_environment_overrides_take_precedence(
     )
 
 
+def test_security_analyst_context_is_supported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / DEFAULT_CONFIG_FILENAME
+    _write_base_config(config_path)
+    monkeypatch.setenv("BIRRE_CONTEXT", "security_analyst")
+
+    runtime = runtime_from_settings(load_settings(str(config_path)))
+
+    assert runtime.context == "security_analyst"
+    assert runtime.warnings == ()
+
+
 def test_cli_overrides_supersede_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

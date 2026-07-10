@@ -70,3 +70,44 @@ The agent should not invent classification, lifecycle transitions, or closure el
 ## Confidence
 
 0.82. The core distinction is strong: BiRRe must own trustworthy BitSight-derived facts and deterministic action proposals; durable queue/work-item ownership is only justified by explicit recovery and idempotency guarantees. The main uncertainty is the real alert payload and whether the existing trigger already provides durable delivery semantics.
+
+## 2026-07-09 Module 1 First-Principles Check
+
+### Irreducible Job
+
+Given a trusted lower-bound date, retrieve every BitSight v2 alert at or after that date, preserve enough provenance to re-fetch or audit it, and emit deterministic normalized records for later workflow stages.
+
+This is source intake plus normalization, not the whole alert workflow. Jira lookup, prioritization, v1 enrichment, ticket mutation, closure logic, and reporting are downstream.
+
+### Load-Bearing Assumptions
+
+- `alert_date_gte` may not mean ingestion time or last update time; the workflow must verify what operational event it filters.
+- `expand=details` may not include every later priority input, so intake should preserve raw/source details rather than flattening lossy fields too early.
+- v2 alert `guid` must be verified as durable across repeated pulls before it becomes the correlation key.
+- Pagination correctness matters: duplicate handling within a run is part of intake, not optional cleanup.
+
+### Necessary State
+
+- Input lower-bound date and exact API query used.
+- Alert source ID or explicit fallback identity rule.
+- Alert date and other source timestamps available.
+- Company identifiers needed for later v1 enrichment.
+- Source API version, endpoint, query parameters, pagination provenance, and raw/source detail.
+- Duplicate suppression within one run.
+
+### Convenient But Later
+
+- Persistent cursor storage.
+- Jira issue keys and ticket lifecycle state.
+- Priority classification and v1 enrichment results.
+- Human-readable reporting text.
+
+### Confidence
+
+0.82. The first module is well chosen if it is kept to reliable v2 intake and loss-aware normalization; the two riskiest claims are date semantics and stable alert identity.
+
+### User Refinement
+
+Company GUID should be the primary subject identity for Jira because the company is what the ticket tracks; the alert is the trigger that causes the system to inspect the company. This shifts the first module from pure alert intake to alert-triggered company intake/enrichment, while preserving alert GUID as provenance and duplicate-control data.
+
+The missing web-GUI rating-drop/finding-result details are a separate evidence gap. Do not assume alert endpoints contain that data until the API source is identified.

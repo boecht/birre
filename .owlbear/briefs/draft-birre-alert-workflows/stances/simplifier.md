@@ -44,3 +44,43 @@ What remains after this slice: an agent or runner still splits the returned batc
 ## Confidence
 
 0.84. The strongest simplification is delaying the internal queue, because it adds state-machine infrastructure before the core BitSight workflow value is validated. Direct Jira later is plausible and simpler than a generic abstraction, but the minimum local-state requirement must be tested before ruling out all storage.
+
+## 2026-07-09 Module 1 Scope Challenge
+
+### Preserved Expectation
+
+The first roadmap module should ingest BitSight v2 alerts since a caller-supplied date, page through results, expand details, and return normalized alert records with stable IDs and source metadata. It should stop at intake: no Jira mutation, no v1 enrichment, and no final priority classification.
+
+### Simplify Now
+
+- Use one required input: `since_date`, mapped to `alert_date_gte`.
+- Use one upstream call shape first: `GET /v2/alerts?alert_date_gte=...&expand=details`, with pagination.
+- Return one normalized output shape with stable alert identity, BitSight source reference, alert dates, source metadata, and traceable raw/source provenance.
+- Extend v2 exposure only for the alert operation needed by this module.
+
+### Delay Until Proven Necessary
+
+- Jira lookup, creation, update, transitions, labels, and comments.
+- Final priority classification.
+- v1 company enrichment.
+- Cross-run cursor persistence.
+- Generic v2 ingestion framework.
+
+### Minimal First Useful Slice
+
+Add or define a v2 alert intake boundary that validates request construction, pagination, output normalization, ID stability, and duplicate handling within one run.
+
+### Assumptions To Validate
+
+- `alert_date_gte` is the right inclusive lower-bound filter for the workflow.
+- `expand=details` returns enough source detail for later workflow stages without additional per-alert calls.
+- v2 alert `guid` is stable enough for downstream correlation.
+- Existing v2 allowlisting can be extended surgically for alerts.
+
+### Confidence
+
+0.82. The scope is sound if it stays as intake plus normalization and does not pull in Jira, enrichment, or classification early.
+
+### User Refinement
+
+The first module may include v1 company enrichment because the existing company-info path already provides the ticket fields. This remains within the simplified boundary if it is treated as deterministic enrichment of the alert batch, not as priority classification or Jira workflow ownership.

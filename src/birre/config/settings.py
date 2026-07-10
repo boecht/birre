@@ -38,7 +38,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_MAX_BYTES = 10_000_000
 DEFAULT_BACKUP_COUNT = 5
 
-_ALLOWED_CONTEXTS = {"standard", "risk_manager"}
+_ALLOWED_CONTEXTS = {"standard", "risk_manager", "security_analyst"}
 _TRUTHY = {"1", "true", "yes", "on"}
 _FALSY = {"0", "false", "no", "off"}
 
