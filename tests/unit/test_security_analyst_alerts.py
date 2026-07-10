@@ -1,0 +1,217 @@
+import pytest
+
+from birre.domain.security_analyst.alerts import (
+    enrich_company_groups,
+    fetch_v2_alert_pages,
+    group_alert_triggers_by_company,
+    normalize_alert_trigger,
+)
+from birre.domain.security_analyst.request import build_alert_workflow_request
+
+
+@pytest.mark.asyncio
+async def test_fetch_v2_alert_pages_paginates_with_filters_and_details() -> None:
+    calls: list[dict[str, object]] = []
+
+    async def call_v2_tool(_name: str, _ctx: object, params: dict[str, object]) -> object:
+        calls.append(params)
+        return {
+            "results": [{"guid": str(len(calls))}],
+            "links": {"next": "next"} if len(calls) == 1 else {},
+        }
+
+    result = await fetch_v2_alert_pages(
+        call_v2_tool,
+        None,
+        build_alert_workflow_request(alert_date_gte="2026-07-01", page_size=50, max_pages=2),
+        severity="high",
+        alert_type="rating",
+        folder_guid="folder-1",
+    )
+
+    assert len(result["pages"]) == 2
+    assert calls[0] == {
+        "limit": 50,
+        "offset": 0,
+        "expand": "details",
+        "alert_date_gte": "2026-07-01",
+        "severity": "high",
+        "alert_type": "rating",
+        "folder_guid": "folder-1",
+    }
+    assert calls[1]["offset"] == 50
+
+
+@pytest.mark.asyncio
+async def test_fetch_v2_alert_pages_reports_cap_and_rejects_invalid_results() -> None:
+    async def capped_call(_name: str, _ctx: object, _params: dict[str, object]) -> object:
+        return {"results": [], "next": "next"}
+
+    result = await fetch_v2_alert_pages(
+        capped_call,
+        None,
+        build_alert_workflow_request(max_pages=1),
+    )
+    assert result["metadata"]["warnings"] == ["alert_page_cap_reached"]
+
+    async def invalid_call(_name: str, _ctx: object, _params: dict[str, object]) -> object:
+        return {"results": {}}
+
+    with pytest.raises(ValueError, match="results"):
+        await fetch_v2_alert_pages(
+            invalid_call,
+            None,
+            build_alert_workflow_request(max_pages=1),
+        )
+
+
+def test_normalize_alert_trigger_preserves_alert_and_source_fields() -> None:
+    details = {"finding": {"name": "Rating change", "values": [1, 2]}}
+    alert = {
+        "guid": "alert-1",
+        "company_guid": "company-1",
+        "company_name": "Acme",
+        "alert_type": "rating",
+        "alert_date": "2026-07-01",
+        "start_date": "2026-06-30",
+        "severity": "high",
+        "trigger": "Rating changed",
+        "folder_guid": "folder-1",
+        "alert_set_guid": "set-1",
+        "details": details,
+    }
+    page_metadata = {
+        "endpoint": "getAlerts",
+        "query": {"offset": 50},
+        "page_index": 1,
+        "offset": 50,
+    }
+
+    result = normalize_alert_trigger(alert, page_metadata)
+
+    assert result["alert_guid"] == "alert-1"
+    assert result["company_guid"] == "company-1"
+    assert result["alert_date"] == "2026-07-01"
+    assert result["severity"] == "high"
+    assert result["trigger"] == "Rating changed"
+    assert result["folder_context"] == {
+        "folder_guid": "folder-1",
+        "alert_set_guid": "set-1",
+    }
+    assert result["details"] == details
+    assert result["raw_alert"] == alert
+    assert result["source_metadata"] == page_metadata
+    assert result["enrichable"] is True
+    assert result["warnings"] == []
+
+
+def test_normalize_alert_trigger_marks_missing_company_as_non_enrichable() -> None:
+    result = normalize_alert_trigger({"guid": "alert-2"}, {})
+
+    assert result["enrichable"] is False
+    assert result["warnings"] == ["company_guid_missing_anomaly"]
+
+
+def test_group_alert_triggers_by_company_preserves_alert_provenance() -> None:
+    triggers = [
+        {"company_guid": "c-1", "alert_guid": "a-1", "enrichable": True},
+        {"company_guid": "c-1", "alert_guid": "a-2", "enrichable": True},
+        {"company_guid": "c-2", "alert_guid": "a-3", "enrichable": True},
+    ]
+
+    result = group_alert_triggers_by_company(triggers, max_companies=2)
+
+    assert set(result["groups"]) == {"c-1", "c-2"}
+    assert [trigger["alert_guid"] for trigger in result["groups"]["c-1"]["triggers"]] == [
+        "a-1",
+        "a-2",
+    ]
+    assert result["metadata"]["warnings"] == []
+
+
+def test_group_alert_triggers_by_company_applies_cap_and_preserves_warnings() -> None:
+    triggers = [
+        {"company_guid": "c-1", "alert_guid": "a-1", "enrichable": True},
+        {"company_guid": "c-2", "alert_guid": "a-2", "enrichable": True},
+        {
+            "company_guid": None,
+            "alert_guid": "a-3",
+            "enrichable": False,
+            "warnings": ["company_guid_missing_anomaly"],
+        },
+    ]
+
+    result = group_alert_triggers_by_company(triggers, max_companies=1)
+
+    assert set(result["groups"]) == {"c-1"}
+    assert result["metadata"]["warnings"] == [
+        "company_cap_reached",
+        "company_guid_missing_anomaly",
+    ]
+
+
+def test_group_alert_triggers_by_company_returns_empty_result() -> None:
+    assert group_alert_triggers_by_company([], max_companies=1) == {
+        "groups": {},
+        "metadata": {"warnings": []},
+    }
+
+
+@pytest.mark.asyncio
+async def test_enrich_company_groups_fetches_distinct_companies_and_fields() -> None:
+    calls: list[str] = []
+
+    async def fetch_company(guid: str) -> dict[str, object]:
+        calls.append(guid)
+        return {
+            "name": f"Company {guid}",
+            "primary_domain": f"{guid}.example.com",
+            "current_rating": 740,
+            "ratings": [{"rating": 740}],
+        }
+
+    grouped = group_alert_triggers_by_company(
+        [
+            {"company_guid": "c-1", "alert_guid": "a-1", "enrichable": True},
+            {"company_guid": "c-1", "alert_guid": "a-2", "enrichable": True},
+            {"company_guid": "c-2", "alert_guid": "a-3", "enrichable": True},
+        ],
+        max_companies=2,
+    )
+
+    result = await enrich_company_groups(grouped, fetch_company)
+
+    assert calls == ["c-1", "c-2"]
+    assert result["groups"]["c-1"]["name"] == "Company c-1"
+    assert result["groups"]["c-1"]["primary_domain"] == "c-1.example.com"
+    assert result["groups"]["c-1"]["current_rating"] == 740
+    assert result["groups"]["c-1"]["ratings"] == [{"rating": 740}]
+
+
+@pytest.mark.asyncio
+async def test_enrich_company_groups_preserves_triggers_and_reports_failure() -> None:
+    async def fetch_company(guid: str) -> object:
+        if guid == "c-1":
+            raise RuntimeError("unavailable")
+        return {"name": "Company 2"}
+
+    grouped = group_alert_triggers_by_company(
+        [
+            {"company_guid": "c-1", "alert_guid": "a-1", "enrichable": True},
+            {"company_guid": "c-1", "alert_guid": "a-2", "enrichable": True},
+            {"company_guid": "c-1", "alert_guid": "a-3", "enrichable": True},
+        ],
+        max_companies=1,
+    )
+
+    result = await enrich_company_groups(grouped, fetch_company)
+    failed = result["groups"]["c-1"]
+
+    assert failed["enrichment_status"] == "failed"
+    assert failed["enrichment_warnings"] == ["company_enrichment_failed"]
+    assert result["metadata"]["warnings"] == ["company_enrichment_failed"]
+    assert [trigger["alert_guid"] for trigger in failed["triggers"]] == [
+        "a-1",
+        "a-2",
+        "a-3",
+    ]
