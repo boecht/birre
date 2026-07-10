@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 
+import typer
 from typer.testing import CliRunner
 
 app_mod = importlib.import_module("birre.cli.app")
@@ -90,3 +92,46 @@ def test_version_pyproject_unknown(tmp_path: Path, monkeypatch) -> None:  # noqa
     runner = CliRunner()
     result = runner.invoke(app_mod.app, ["version"], color=False)
     assert result.exit_code == 0 and result.stdout.strip() == "unknown"
+
+
+def test_security_analyst_alerts_writes_injected_runner_json() -> None:
+    from birre.cli.commands.security_analyst import register
+
+    app = typer.Typer()
+    register(
+        app,
+        workflow_runner=lambda **options: {
+            "action_items": [options],
+            "metadata": {"warnings": []},
+        },
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "--alert-date-gte",
+            "2026-01-01",
+            "--page-size",
+            "25",
+            "--max-returned-priority",
+            "3",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["action_items"][0]["alert_date_gte"] == "2026-01-01"
+    assert payload["action_items"][0]["page_size"] == 25
+    assert payload["metadata"] == {"warnings": []}
+
+
+def test_security_analyst_alerts_rejects_zero_page_size() -> None:
+    from birre.cli.commands.security_analyst import register
+
+    app = typer.Typer()
+    register(app, workflow_runner=lambda **_: {})
+
+    result = CliRunner().invoke(app, ["--page-size", "0"])
+
+    assert result.exit_code != 0
+    assert "page_size" in result.stderr

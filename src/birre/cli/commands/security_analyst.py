@@ -67,9 +67,7 @@ def register(
             ("max_companies", max_companies),
         ):
             if value <= 0:
-                raise typer.BadParameter(
-                    f"{name} must be greater than zero", param_hint=name
-                )
+                raise typer.BadParameter(f"{name} must be greater than zero", param_hint=name)
         if max_returned_priority < 0:
             raise typer.BadParameter(
                 "max_returned_priority must not be negative",
