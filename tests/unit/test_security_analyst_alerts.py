@@ -8,6 +8,7 @@ from birre.domain.security_analyst.alerts import (
 )
 from birre.domain.security_analyst.movement import derive_rating_movement
 from birre.domain.security_analyst.request import build_alert_workflow_request
+from birre.domain.security_analyst.workflow import run_alert_workflow_action_payload
 
 
 def test_derive_rating_movement_prefers_larger_alert_rating_drop() -> None:
@@ -33,6 +34,40 @@ def test_derive_rating_movement_uses_category_rating_map() -> None:
 
 def test_derive_rating_movement_warns_when_no_drop_exists() -> None:
     assert derive_rating_movement({}) == {"warning": "rating_movement_missing"}
+
+
+@pytest.mark.asyncio
+async def test_run_alert_workflow_returns_action_payload_and_all_warning_metadata() -> None:
+    async def call_v2_tool(_name: str, _ctx: object, _params: dict[str, object]) -> object:
+        return {
+            "results": [
+                {
+                    "guid": "alert-1",
+                    "company_guid": "company-1",
+                    "alert_type": "web application security",
+                },
+                {"guid": "alert-missing-company"},
+            ],
+            "next": "next-page",
+        }
+
+    async def fetch_company(_guid: str) -> object:
+        raise RuntimeError("unavailable")
+
+    result = await run_alert_workflow_action_payload(
+        call_v2_tool,
+        fetch_company,
+        max_pages=1,
+    )
+
+    assert result["action_items"][0]["company_guid"] == "company-1"
+    assert set(result["metadata"]["warnings"]) == {
+        "alert_page_cap_reached",
+        "company_guid_missing_anomaly",
+        "company_enrichment_failed",
+        "rating_movement_missing",
+        "category_ambiguous",
+    }
 
 
 @pytest.mark.asyncio
