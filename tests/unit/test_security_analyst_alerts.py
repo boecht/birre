@@ -6,7 +6,33 @@ from birre.domain.security_analyst.alerts import (
     group_alert_triggers_by_company,
     normalize_alert_trigger,
 )
+from birre.domain.security_analyst.movement import derive_rating_movement
 from birre.domain.security_analyst.request import build_alert_workflow_request
+
+
+def test_derive_rating_movement_prefers_larger_alert_rating_drop() -> None:
+    assert derive_rating_movement(
+        {"rating_before": 800, "rating_after": 700},
+        [{"rating": 800}, {"rating": 680}],
+    ) == {"drop": 120.0, "source": "company_history"}
+
+
+def test_derive_rating_movement_uses_alert_rating_when_larger() -> None:
+    assert derive_rating_movement(
+        {"rating_before": 800, "rating_after": 700},
+        [{"rating": 800}, {"rating": 750}],
+    ) == {"drop": 100.0, "source": "alert_rating"}
+
+
+def test_derive_rating_movement_uses_category_rating_map() -> None:
+    assert derive_rating_movement(
+        {"category_before": "A", "category_after": "C"},
+        category_rating_map={"A": 900, "C": 600},
+    ) == {"drop": 50.0, "source": "alert_category"}
+
+
+def test_derive_rating_movement_warns_when_no_drop_exists() -> None:
+    assert derive_rating_movement({}) == {"warning": "rating_movement_missing"}
 
 
 @pytest.mark.asyncio
