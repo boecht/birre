@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
+import typer
+from typer.testing import CliRunner
 
 from birre.domain.security_analyst.workflow import run_alert_workflow_action_payload
 
@@ -40,3 +43,30 @@ async def test_alert_workflow_builds_payload_and_propagates_stage_warnings() -> 
         "rating_movement_missing",
         "category_ambiguous",
     }
+
+
+def test_injected_cli_runner_needs_no_jira_or_durable_state_client() -> None:
+    from birre.cli.commands.security_analyst import register
+
+    runner_calls: list[dict[str, object]] = []
+    app = typer.Typer()
+    register(
+        app,
+        workflow_runner=lambda **options: (
+            runner_calls.append(options) or {"action_items": [], "metadata": {"warnings": []}}
+        ),
+    )
+
+    result = CliRunner().invoke(app, ["--page-size", "25"])
+
+    assert result.exit_code == 0
+    assert runner_calls == [
+        {
+            "alert_date_gte": None,
+            "page_size": 25,
+            "max_pages": 10,
+            "max_companies": 100,
+            "max_returned_priority": 4,
+        }
+    ]
+    assert json.loads(result.stdout) == {"action_items": [], "metadata": {"warnings": []}}
