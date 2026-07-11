@@ -82,9 +82,7 @@ def build_jira_action_payload(
 
     grouped_metadata = grouped.get("metadata", {})
     metadata_warnings = (
-        list(grouped_metadata.get("warnings", []))
-        if isinstance(grouped_metadata, Mapping)
-        else []
+        list(grouped_metadata.get("warnings", [])) if isinstance(grouped_metadata, Mapping) else []
     )
     for warning in warnings:
         if warning not in metadata_warnings:
@@ -132,12 +130,8 @@ def build_jira_action_payload(
                     "rating_before": rating_before,
                     "rating_after": rating_after,
                     "rating_drop": rating_drop,
-                    "movement_source": candidate.get(
-                        "movement_source", movement.get("source")
-                    ),
-                    "current_rating": candidate.get(
-                        "current_rating", group.get("current_rating")
-                    ),
+                    "movement_source": candidate.get("movement_source", movement.get("source")),
+                    "current_rating": candidate.get("current_rating", group.get("current_rating")),
                 },
             }
         )

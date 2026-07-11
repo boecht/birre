@@ -63,8 +63,6 @@ def build_alert_workflow_request(
     )
 
 
-def resolve_supplier_criticality(
-    supplier_criticality: Mapping[str, int], company_guid: str
-) -> int:
+def resolve_supplier_criticality(supplier_criticality: Mapping[str, int], company_guid: str) -> int:
     """Return the configured criticality for a GUID, or the neutral default."""
     return supplier_criticality.get(company_guid, DEFAULT_SUPPLIER_CRITICALITY)
