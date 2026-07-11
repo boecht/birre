@@ -28,6 +28,18 @@
 - In the user-provided response shape, `trigger` is already the human risk-vector label and matches `details.risk_vector`; `alert_type` remains the envelope enum `RISK_CATEGORY`.
 - The response confirms the one-day event distinction: `alert_date` is 2026-07-09 while `start_date` is 2026-07-08 in the shown sample.
 - An authorization value appeared in the manually shared request. It was not copied into project artifacts, decoded, or reused. Future live calls should continue to rely only on locally configured credentials.
+- User-authorized direct read-only calls using the locally configured credential sampled three documented envelope types from 2026-07-01 with `expand=details` and a three-record limit per type. Only non-identifying aggregate and field-shape evidence was emitted.
+- `RISK_CATEGORY` reported 239 matches and a next page. All three sampled records used detail keys `start_grade`, `end_grade`, `threshold_grade`, and `risk_vector`; observed human labels included Web Application Security and Patching Cadence.
+- `RATING_THRESHOLD` reported 43 matches and a next page. All three sampled records used detail keys `start_rating`, `end_rating`, and `rating_threshold`; the human trigger was Threshold.
+- `PERCENT_CHANGE` reported 847 matches and a next page. All three sampled records used detail keys `start_rating`, `end_rating`, and `rating_change_pct`; the human trigger was Percent Change.
+- The bundled OpenAPI enum includes `PERCENT_CHANGE` but omits `RATING_CHANGE`; production nevertheless accepts `alert_type=RATING_CHANGE` and returns that envelope. The bundled schema is therefore incomplete or stale relative to production and cannot be the sole authority for supported alert types.
+- The sampled `RISK_CATEGORY` and `RATING_THRESHOLD` records had `alert_date` 2026-07-09 and `start_date` 2026-07-08. The sampled `PERCENT_CHANGE` records had `alert_date` 2026-07-07 and `start_date` 2026-07-06.
+- A direct `RATING_CHANGE` query from 2026-07-01 reported 13 matches and a next page. Five sampled records consistently used `start_rating` and `end_rating`, with `trigger=RATING_CHANGE`.
+- The first 100 unfiltered alerts from the same lower-bound window reported 1,179 total matches and contained 81 `RISK_CATEGORY`, 8 `RATING_CHANGE`, and 11 `RATING_THRESHOLD` records. This first-page distribution does not establish the complete type set; the separately filtered `PERCENT_CHANGE` query proves that type also exists in the window.
+- Alert movement is polymorphic by envelope: `RISK_CATEGORY` carries grade movement; `RATING_CHANGE` carries rating endpoints; `RATING_THRESHOLD` carries rating endpoints plus threshold; `PERCENT_CHANGE` carries rating endpoints plus percentage change.
+- `prozess.htm` defines incoming score changes and findings as inputs to operator assessment. Its priority matrix combines partner tier, exhaustive Annex A event category, score correction, and expert correction factor; the operator's expert judgment sets final priority.
+- `operative_043905.html` defines score drops of at least 20 points and threshold crossings as assessment triggers, except when caused exclusively by Annex A `N/A` categories. Annex A `-1` and `0` categories also independently trigger assessment.
+- The operative ticket table is explicitly non-normative and uses date, score change, category/type, action, and link as adaptable evidence fields.
 
 ## Candidate Implications
 
@@ -43,6 +55,9 @@
 - The simplification check recommends separating access-wiring defects from schema evidence while sequencing them into one bounded correctness proof; finding correlation, Jira integration, exhaustive historical analysis, and later lifecycle work remain follow-ups.
 - The first-principles check distinguishes immutable alert evidence from long-lived company watches and Jira lifecycle state. Alert movement can justify timeline evidence, but does not by itself prove causality, ownership, remediation state, or that every event warrants a ticket.
 - The expectation-fidelity check rejected the earlier single-follow-up framing because several correctness defects are non-substitutable. Real-schema repair must not replace the larger promise of correct Jira-action data and eventual live Jira results.
+- Sample acquisition can remain simple: make bounded direct API calls, retain sanitized structurally faithful examples, and state the observed coverage. No separate candidate/certified fixture lifecycle is justified.
+- Production observations override contradictory bundled-schema assumptions, while the bundled schema remains useful for initial query and field hypotheses.
+- Rating-only alerts do not need an invented risk-vector category to enter assessment. They can carry a provisional partial priority calculation until exhaustive Annex A classification or operator judgment supplies the missing category component.
 
 ## Open Research Questions
 
