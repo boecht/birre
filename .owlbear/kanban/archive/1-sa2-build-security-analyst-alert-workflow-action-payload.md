@@ -1,10 +1,10 @@
 ---
 id: 1
 title: 'SA2: Build security analyst alert workflow action payload'
-status: shape
+status: archived
 priority: high
 created: 2026-07-10T11:47:47.085533+02:00
-updated: 2026-07-10T11:49:32.825003+02:00
+updated: 2026-07-10T19:17:43.987815+02:00
 tags:
   - ideation-handoff
   - security-analyst
@@ -30,7 +30,7 @@ proof_bundle: critical
 blocked: false
 block_reason:
 claimed_at:
-archival_reason:
+archival_reason: completed
 archival_refs: []
 ---
 Brief: `.owlbear/briefs/draft-birre-alert-workflows/brief.md`
@@ -70,3 +70,15 @@ Build the first deterministic BiRRe security-analyst workflow for alert-driven c
 
 ## Supersedes
 Tasks #13 through #25 are superseded by this replacement shape and will be archived with archival reason `dropped`.
+
+[[2026-07-10T19:17:43+02:00]]
+## Collect Notes
+- Classification: aggregate parent; the task has an explicit Brief-backed scope, named child set #2 through #13, aggregate acceptance criteria, and a dependency gate on consolidation task #13.
+- Aggregate intent source: `Brief: .owlbear/briefs/draft-birre-alert-workflows/brief.md`, parent `## Scope`, `## Shape Notes`, and AC-1 through AC-5 define deterministic structured Jira-action output while excluding direct Jira writes, durable queue/cursor state, management summaries, closure automation, and normal MCP-tool-first exposure.
+- Child coverage: `list_tasks(parent=1)` returned no active results because the children are archived; direct ID lookup confirmed tasks #2 through #13 all have `parent: 1` and archival reason `completed`.
+- Parent dependency gate: parent #1 depends on #13. Consolidation #13 is archived `completed`, reported `dep_status: ok` before archival, and depended on every implementation child #2 through #12.
+- Child completion/archive summary: all twelve declared children #2 through #13 are archived as `completed`; #13 Collect Notes confirm its dependency fan-in was complete.
+- Completion evidence: #13 `## Verify Notes` records final verifier-challenger pass, 6 focused fixture tests passing, Ruff and formatting checks clean, structured Jira-action API/CLI fields proven, and no Jira or durable-state effects.
+- Residual decisions: no pending request, block, unresolved Required Follow-up, or residual decision state found.
+- Aggregate evidence: the shaped workflow contract is covered end to end through deterministic v2 alert intake, v1 enrichment, movement and priority branches, filtering, structured payload construction, API runner, and CLI JSON output; explicit non-goals remain absent according to accepted verifier evidence.
+- Rationale: the Brief-backed parent promise, complete child set, dependency gate, consolidation proof, and decision closure all satisfy archive readiness; archive as `completed`.

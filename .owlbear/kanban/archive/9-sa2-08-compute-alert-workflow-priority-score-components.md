@@ -1,10 +1,10 @@
 ---
 id: 9
 title: 'SA2-08: Compute alert workflow priority score components'
-status: shape
+status: archived
 priority: medium
 created: 2026-07-10T11:48:53.927750+02:00
-updated: 2026-07-10T11:48:53.927750+02:00
+updated: 2026-07-10T18:20:00.050735+02:00
 tags:
   - security-analyst
   - alert-workflow
@@ -40,7 +40,7 @@ proof_bundle: behavioral
 blocked: false
 block_reason:
 claimed_at:
-archival_reason:
+archival_reason: completed
 archival_refs: []
 ---
 Brief: `.owlbear/briefs/draft-birre-alert-workflows/brief.md`
@@ -66,3 +66,28 @@ Depends on #8 for rating movement evidence.
 - Scope decision: keep point calculations pure and exhaustive before filtering consumes the result.
 - Challenger result: proceed for keeping scoring separate from filtering.
 - Verification focus: pure unit tests for each point function and priority mapping.
+
+[[2026-07-10T18:17:52+02:00]]
+## Builder Notes
+- Files changed: `src/birre/domain/security_analyst/priority.py`, `src/birre/domain/security_analyst/__init__.py`, `tests/unit/test_security_analyst_priority.py`.
+- Implemented pure scoring helpers for supplier criticality, event category (including `out_of_scope` metadata), rating drops, human factor, and total-to-priority mapping.
+- Proof selected: behavioral unit coverage for all AC branches and threshold boundaries.
+- Commands run: `uv run pytest tests/unit/test_security_analyst_priority.py` (43 passed); `uv run ruff check src/birre/domain/security_analyst/priority.py src/birre/domain/security_analyst/__init__.py tests/unit/test_security_analyst_priority.py` (all checks passed); `uv run pytest tests/unit/test_security_analyst_alerts.py tests/unit/test_security_analyst_request.py` (17 passed); `git diff --check` (clean).
+- Builder-challenger result: pass; confirmed AC-1 through AC-9 and no concrete blocker.
+- Follow-up risk: event category intentionally returns a structured mapping so downstream filtering can consume both points and `out_of_scope`; web application security remains the specified 3-point category.
+
+[[2026-07-10T18:19:44+02:00]]
+## Verify Notes
+- Evidence reviewed: `src/birre/domain/security_analyst/priority.py`, `src/birre/domain/security_analyst/__init__.py`, and `tests/unit/test_security_analyst_priority.py`; live task state confirmed `verify`, claimed, and dependency-satisfied.
+- Checks run: `uv run pytest tests/unit/test_security_analyst_priority.py` (43 passed); `uv run ruff check src/birre/domain/security_analyst/priority.py src/birre/domain/security_analyst/__init__.py tests/unit/test_security_analyst_priority.py` (all checks passed); path-scoped `git diff --check` (clean).
+- Findings: AC-1 through AC-9 are implemented and directly covered, including threshold boundaries and out-of-scope category metadata. No local patch was required; no scope drift or unresolved acceptance criteria found.
+- Verifier-challenger result: pass. Initial challenge reported a stale `build` state, disproven by live `show_task(9)`; second challenge confirmed the task is in `verify` and approved PASS.
+- Final route: advance to `collect`.
+
+[[2026-07-10T18:20:00+02:00]]
+## Collect Notes
+- Classification: leaf. Task #9 has no child tasks, no aggregate or EPIC title/tag, and no aggregate intent section.
+- Verification evidence: existing `## Verify Notes` records verifier PASS and verifier-challenger pass; focused priority unit tests passed (43 tests), Ruff passed, and `git diff --check` was clean. AC-1 through AC-9 were explicitly covered, including threshold boundaries and out-of-scope category metadata.
+- Dependency gate: dependency #8 is archived with archival reason `completed`; task #9 dependency status was satisfied before claim.
+- Decision and follow-up checks: no pending decision requests for task #9; no unresolved Required Follow-up is present in the task record.
+- Archive rationale: implementation and proof are complete, acceptance criteria are verified, and no residual decision state remains. Archived mechanically without re-reviewing implementation details.

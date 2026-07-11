@@ -1,10 +1,10 @@
 ---
 id: 2
 title: 'SA2-01: Define alert workflow request and cap contract'
-status: shape
+status: archived
 priority: high
 created: 2026-07-10T11:47:55.031140+02:00
-updated: 2026-07-10T11:47:55.031140+02:00
+updated: 2026-07-10T17:50:58.405987+02:00
 tags:
   - security-analyst
   - alert-workflow
@@ -30,7 +30,7 @@ proof_bundle: behavioral
 blocked: false
 block_reason:
 claimed_at:
-archival_reason:
+archival_reason: completed
 archival_refs: []
 ---
 Brief: `.owlbear/briefs/draft-birre-alert-workflows/brief.md`
@@ -55,3 +55,47 @@ None.
 - Scope decision: keep pure request/config modeling separate from server context wiring.
 - Challenger result: proceed after accepting the challenger request to preserve the split from context wiring.
 - Verification focus: direct unit tests for request construction and supplier criticality fallback behavior.
+
+[[2026-07-10T17:44:38+02:00]]
+## Builder Notes
+
+Implemented the alert workflow request contract in `src/birre/domain/security_analyst/request.py` and exported it from `src/birre/domain/security_analyst/__init__.py`. Added focused behavioral coverage in `tests/unit/test_security_analyst_request.py`.
+
+Proof selected: behavioral unit tests plus focused lint and import smoke check.
+
+Commands run:
+- `uv run pytest tests/unit/test_security_analyst_request.py` -> 4 passed
+- `uv run ruff check src/birre/domain/security_analyst/__init__.py src/birre/domain/security_analyst/request.py tests/unit/test_security_analyst_request.py` -> All checks passed
+- `uv run python -c "from birre.domain.security_analyst import AlertWorkflowRequest, build_alert_workflow_request, resolve_supplier_criticality; print(AlertWorkflowRequest.__name__)"` -> imported successfully
+
+Builder-challenger result: pass; no concrete blockers found.
+
+Follow-up risk: broader workflow integration and server wiring are intentionally outside task 2 scope.
+
+[[2026-07-10T17:50:41+02:00]]
+## Verify Notes
+
+Evidence reviewed:
+- `src/birre/domain/security_analyst/request.py` defines the frozen request contract, explicit defaults, cap validation, GUID-keyed supplier criticality, and missing-GUID fallback.
+- `src/birre/domain/security_analyst/__init__.py` exports the public request helpers.
+- `tests/unit/test_security_analyst_request.py` covers all five acceptance criteria.
+
+Checks run:
+- `uv run pytest tests/unit/test_security_analyst_request.py` -> 4 passed.
+- `uv run ruff check src/birre/domain/security_analyst/__init__.py src/birre/domain/security_analyst/request.py tests/unit/test_security_analyst_request.py` -> All checks passed.
+- Public import/default/fallback smoke check -> imported successfully; assertions passed.
+- `uv run pyright src/birre/domain/security_analyst/request.py src/birre/domain/security_analyst/__init__.py` -> 0 errors, 0 warnings, 0 informations.
+
+Findings: No defects or unresolved acceptance criteria. No patch applied. Scope remains limited to pure request/config modeling and focused tests; workflow integration and server wiring are correctly outside this task.
+
+Verifier-challenger result: pass. It confirmed AC satisfaction, sufficient proof, and no scope drift.
+
+Final route: PASS -> collect.
+
+[[2026-07-10T17:50:58+02:00]]
+## Collect Notes
+
+- Classification: leaf. Task has no child tasks; parent linkage to #1 does not make this task aggregate.
+- Verification evidence: `## Verify Notes` is present with PASS route, all five ACs covered, focused unit tests (4 passed), Ruff clean, import/default/fallback smoke check passed, Pyright clean, and verifier-challenger pass.
+- Decision/follow-up state: no pending decision requests for task #2; no unresolved Required Follow-up section found.
+- Archive rationale: leaf verification is complete and closure evidence is sufficient; archive as completed.
