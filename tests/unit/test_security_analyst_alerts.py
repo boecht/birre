@@ -7,6 +7,7 @@ from birre.domain.security_analyst.alerts import (
     normalize_alert_trigger,
 )
 from birre.domain.security_analyst.movement import derive_rating_movement
+from birre.domain.security_analyst.priority import filter_action_candidates
 from birre.domain.security_analyst.request import build_alert_workflow_request
 from birre.domain.security_analyst.workflow import run_alert_workflow_action_payload
 
@@ -216,6 +217,52 @@ def test_group_alert_triggers_by_company_returns_empty_result() -> None:
         "groups": {},
         "metadata": {"warnings": []},
     }
+
+
+def test_filter_action_candidates_applies_scope_priority_and_ambiguity_rules() -> None:
+    result = filter_action_candidates(
+        [
+            {"company_guid": "c-3", "priority": 3, "category": "TLS certificates"},
+            {"company_guid": "c-4", "priority": 4, "category": "TLS certificates"},
+            {"company_guid": "c-dns", "priority": 3, "category": "DNSSEC"},
+            {
+                "company_guid": "c-web",
+                "priority": 3,
+                "category": "web application security",
+            },
+        ],
+        max_returned_priority=3,
+    )
+
+    assert [candidate["company_guid"] for candidate in result["action_candidates"]] == [
+        "c-3",
+        "c-web",
+    ]
+    assert result["action_candidates"][1]["metadata"] == {"warning": "category_ambiguous"}
+    assert result["filtered_candidates"] == [
+        {
+            "company_guid": "c-4",
+            "priority": 4,
+            "eligible": False,
+            "action_item": None,
+            "filter_reason": "priority_filtered",
+        },
+        {
+            "company_guid": "c-dns",
+            "priority": 3,
+            "eligible": False,
+            "action_item": None,
+            "filter_reason": "out_of_scope_category",
+        },
+    ]
+
+
+def test_filter_action_candidates_includes_priority_threshold() -> None:
+    result = filter_action_candidates(
+        [{"company_guid": "c-3", "priority": 3}], max_returned_priority=3
+    )
+
+    assert result["action_candidates"] == [{"company_guid": "c-3", "priority": 3, "eligible": True}]
 
 
 @pytest.mark.asyncio

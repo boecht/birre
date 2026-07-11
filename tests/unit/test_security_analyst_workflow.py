@@ -239,6 +239,12 @@ def test_fixture_cli_workflow_outputs_jira_actions_without_jira_or_state_clients
         "company-alert",
         "company-history",
     }
+    alert_item = payload["action_items"][0]
+    assert alert_item["proposed_jira_body"]["movement_source"] == "alert_rating"
+    assert alert_item["proposed_jira_body"]["rating_before"] is None
+    assert alert_item["proposed_jira_body"]["rating_after"] is None
+    assert alert_item["proposed_jira_body"]["rating_drop"] == 100
+    assert "current_rating" in alert_item["proposed_jira_body"]
     assert "groups" not in payload
 
 
