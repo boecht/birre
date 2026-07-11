@@ -9,7 +9,7 @@ strongly typed BitSight workflows to MCP clients. It supports the standard and
 ## 2. Directory Structure
 
 | Path | Purpose |
-|------|---------|
+| ------ | --------- |
 | `src/birre/` | Application source, runtime contexts, CLI, and BitSight API clients |
 | `src/birre/domain/` | Domain workflows and business rules |
 | `tests/unit/` | Unit tests |
@@ -21,7 +21,7 @@ strongly typed BitSight workflows to MCP clients. It supports the standard and
 ## 3. Tech Stack
 
 | Component | Technology | Notes |
-|------|------------|-------|
+| ------ | ------------ | ------- |
 | Language | Python 3.14+ | Managed with `uv` |
 | MCP server | FastMCP 3 | Entrypoint: `birre:create_birre_server` |
 | CLI | Typer | Entrypoint: `uv run birre` |
@@ -38,13 +38,16 @@ Prefer the smallest correct change after tracing the real control path:
 2. Fix defects at their shared root cause; inspect callers before patching a named symptom.
 3. Avoid unrequested abstractions, dependencies, boilerplate, and unrelated refactors.
 4. Choose the edge-case-correct option when solutions are similarly small.
-5. Leave proportional runnable proof for non-trivial logic. A `ponytail:` comment marks an intentional simplification and its known ceiling.
+5. Leave proportional runnable proof for non-trivial logic. A `ponytail:` comment marks an intentional simplification
+   and its known ceiling.
 
 ### Domain Boundaries
 
-- Preserve BitSight trust boundaries: validate external input and prevent unintended subscription, onboarding, or data-changing operations.
+- Preserve BitSight trust boundaries: validate external input and prevent unintended subscription, onboarding,
+  or data-changing operations.
 - Prefer the existing typed API clients and domain workflows over direct ad hoc HTTP calls.
-- Documentation and changelog entries describe user impact; follow `.github/instructions/edit-changelog.instructions.md` when editing `CHANGELOG.md`.
+- Documentation and changelog entries describe user impact; follow
+  `.github/instructions/edit-changelog.instructions.md` when editing `CHANGELOG.md`.
 
 Shared agent lifecycle, memory, commits, Kanban, communication, and escalation rules are owned by OwlBear skills and instructions.
 
