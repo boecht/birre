@@ -14,6 +14,7 @@ var/
 
 # Build artifacts
 build/
+_cache
 dist/
 sdist/
 wheels/
@@ -23,31 +24,64 @@ downloads/
 MANIFEST
 artifacts/
 
+# Databases
+*.db-shm
+*.db-wal
+
 # Testing and coverage
 .*cache
 .coverage
+.coverage.*
 coverage.json
 coverage.xml
 htmlcov/
 .hypothesis/
 .benchmarks/
 megalinter-reports/
+test-results/
+playwright-report/
 
 # IDE and editor
 .vscode/*
 !.vscode/mcp.json
+#!.vscode/settings.json
 .claude/
 .serena/
 
-# Local configuration (private/personal)
+# OS artifacts
+.DS_Store
+
+# Secrets - NEVER commit
+.env
+.env.*
+!.env.example
+*.secret
 *.local.toml
 
 # Logs
 *.log
 
-# Project planning and tracking (temporary, not for commit)
-.project-notes/
-scripts/
+# Scratch / ad-hoc workspace (under .owlbear/)
+.owlbear/scratch/*
+!.owlbear/scratch/.gitkeep
+!.owlbear/scratch/.instructions.md
+
+# Briefs — transient template directory (renamed to draft-{name}/ at M1)
+.owlbear/briefs/draft-new/
+
+# Agent scratch/tmp output (quality-runner, coverage runs)
+serve/.tmp-*
+serve/cockpit/web/.owlbear-scratch-*
+serve/cockpit/web/.owlbear/
+
+# Temp test/debug output
+*_output.txt
+*_result.txt
+*_err.txt
+*_out.txt
+*_test.txt
+*_run.txt
+*_run2.txt
 
 # --- OwlBear managed paths ---
 
