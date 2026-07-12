@@ -68,9 +68,7 @@ def main() -> None:  # noqa: PLR0911
         print("{}")
         return
 
-    commit_lines = [
-        line.strip() for line in log_result.stdout.splitlines() if line.strip()
-    ]
+    commit_lines = [line.strip() for line in log_result.stdout.splitlines() if line.strip()]
     commits_str = " | ".join(commit_lines)
 
     additional_context = f"Branch: {branch} | Commits: {commits_str}"

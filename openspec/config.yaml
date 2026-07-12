@@ -1,14 +1,13 @@
 ---
 schema: spec-driven
-context: '# --- OwlBear OpenSpec context ---
-  OpenSpec is the durable planning authority; OwlBear Kanban is the execution system.
-  The shaper reads the complete native change package before creating board tasks:
-  proposal.md carries product intent and material user decisions; specs/**/*.md carry
-  normative behavior; design.md carries evidence-grounded technical decisions; tasks.md
-  is advisory decomposition that the shaper may merge, split, reorder, or reject.
-  When /opsx:propose follows /ideate, synthesize the confirmed Refined Idea
-  Summary into durable artifacts. Never leave a load-bearing decision only in chat context.
-  # --- End OwlBear OpenSpec context ---'
+context: '# --- OwlBear OpenSpec context --- OpenSpec is the durable planning authority;
+  OwlBear Kanban is the execution system. The shaper reads the complete native change
+  package before creating board tasks: proposal.md carries product intent and material
+  user decisions; specs/**/*.md carry normative behavior; design.md carries evidence-grounded
+  technical decisions; tasks.md is advisory decomposition that the shaper may merge,
+  split, reorder, or reject. When /opsx:propose follows /ideate, synthesize the confirmed
+  Refined Idea Summary into durable artifacts. Never leave a load-bearing decision
+  only in chat context. # --- End OwlBear OpenSpec context ---'
 rules:
   proposal:
     - '[OwlBear] Preserve the user''s problem wording when it materially constrains
@@ -17,47 +16,61 @@ rules:
       observable outcome.'
     - '[OwlBear] Add Boundaries with in-scope, out-of-scope, and preserved remainder
       when scope is material.'
-    - '[OwlBear] Preserve the Expectation Signal when established: promised end state
-      in user language, concrete effects that make it worth using, any First Useful
-      Step plus what remains before the promise is fulfilled, and reductions or omissions
-      the user knowingly accepted. Never turn the First Useful Step into replacement
-      scope.'
+    - '[OwlBear] Preserve the full Product Promise: promised end state in user language
+      and the concrete behaviors, interactions, or effects that make it worth using.
+      Do not manufacture a smaller first slice during proposal generation.'
+    - '[OwlBear] If the proposal excludes or weakens an outcome the user asked for,
+      obtain explicit user agreement and record the accepted exclusion and its lost
+      value. Absence from the proposal is not agreement, and unowned omitted work
+      is not a deferral.'
     - '[OwlBear] Add Technically Done but Wrong examples for plausible outcomes that
       would miss intent.'
     - '[OwlBear] Add a Decision Register only for material user decisions, accepted
-      trade-offs, rejected directions whose rationale still constrains the change, assumptions,
-      and evidence conclusions. Record type, statement, basis, and status. Active user
-      decisions require explicit user agreement to supersede; retain supersession links.'
-    - '[OwlBear] Record project type and investment tier only when already confirmed
-      by the user or an upstream ideation artifact; do not infer either merely to fill
-      the proposal.'
+      exclusions or trade-offs, rejected directions whose rationale still constrains
+      the change, assumptions, and evidence conclusions. Record type, statement, basis,
+      and status. Active user decisions require explicit user agreement to supersede;
+      retain supersession links.'
     - '[OwlBear] Add measurable success and completion conditions when they are not
       already explicit.'
   specs:
     - '[OwlBear] Preserve OpenSpec''s capability-oriented delta format and normative
       SHALL/MUST scenarios.'
-    - '[OwlBear] Cover the normal invocation path and observable result, not only isolated
-      component behavior.'
-    - '[OwlBear] When Proposal distinguishes a First Useful Step from the remaining
-      product promise, keep the remaining promise represented as active scope or an
-      explicit accepted deferral; do not silently collapse the specification to the
-      first slice.'
+    - '[OwlBear] Cover the normal invocation path and observable result, not only
+      isolated component behavior.'
+    - '[OwlBear] Represent every active Product Promise outcome in normative behavior.
+      Omit a requested outcome only when Proposal records the user''s explicit accepted
+      exclusion; do not relabel unowned omitted work as a later phase or deferral.'
     - '[OwlBear] Include negative or boundary scenarios only when they protect a material
       product promise.'
     - '[OwlBear] Do not encode implementation choices or unverified external contract
       details as requirements.'
   design:
     - '[OwlBear] Ground repository-answerable claims in the repository and name controlling
-      external, generated, documented, or production authorities for load-bearing contracts.'
+      external, generated, documented, or production authorities for load-bearing
+      contracts.'
     - '[OwlBear] Distinguish observed, documented, assumed, and decided claims when
-      uncertainty affects the design; include confidence and consequence only when useful.'
+      uncertainty affects the design; include confidence and consequence only when
+      useful.'
+    - '[OwlBear] For each unresolved fact that could materially change the design,
+      record its controlling authority, evidence state, owner, consequence if wrong,
+      and the latest point at which it must be resolved.'
     - '[OwlBear] Record technical decisions with rationale and rejected alternatives
       only when the reason will matter later.'
+    - '[OwlBear] When two or more materially viable approaches remain and none dominates,
+      compare only their decision-driving differences and obtain the user''s choice
+      before finalizing the design.'
+    - '[OwlBear] Apply only relevant design lenses: structural ownership and coupling;
+      schema, validation, null handling, and silent data loss; normal user workflow,
+      errors, feedback, and discoverability; trust boundaries, privilege, exposure,
+      and blast radius. Retain only material conclusions.'
+    - '[OwlBear] For consequential or ambiguous designs, seek one independent adversarial
+      review when available. Classify findings before accepting them and preserve
+      only material, evidence-backed conclusions or unresolved challenges.'
     - '[OwlBear] Identify each load-bearing product invariant, its normal assembled
       proof boundary, and any lower dependency that may be replaced without bypassing
       that boundary.'
-    - '[OwlBear] If design work changes product intent or an active user decision, update
-      proposal.md before continuing.'
+    - '[OwlBear] If design work changes product intent or an active user decision,
+      update proposal.md before continuing.'
   tasks:
     - '[OwlBear] Treat tasks.md as advisory input to OwlBear shaper, not as the final
       Kanban task graph.'
@@ -67,6 +80,6 @@ rules:
       prerequisites, expected observable outcome, and proportionate proof guidance.'
     - '[OwlBear] Identify aggregate completion work without duplicating every requirement
       or design decision.'
-    - '[OwlBear] Do not add OwlBear-specific YAML, proof-bundle enums, priorities, tags,
-      or board identifiers; the shaper assigns execution metadata after validating the
-      whole package.'
+    - '[OwlBear] Do not add OwlBear-specific YAML, proof-bundle enums, priorities,
+      tags, or board identifiers; the shaper assigns execution metadata after validating
+      the whole package.'
