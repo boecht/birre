@@ -1,23 +1,14 @@
 ---
 schema: spec-driven
 context: '# --- OwlBear OpenSpec context ---
-
   OpenSpec is the durable planning authority; OwlBear Kanban is the execution system.
-
   The shaper reads the complete native change package before creating board tasks:
-
   proposal.md carries product intent and material user decisions; specs/**/*.md carry
-
   normative behavior; design.md carries evidence-grounded technical decisions; tasks.md
-
   is advisory decomposition that the shaper may merge, split, reorder, or reject.
-
   When /grill-me preceded proposal creation in the same conversation, synthesize the
-
   confirmed understanding into durable artifacts. Never leave a load-bearing decision
-
   only in chat context.
-
   # --- End OwlBear OpenSpec context ---'
 rules:
   proposal:
