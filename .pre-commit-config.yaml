@@ -4,7 +4,8 @@
 # Commands:
 #   uv run lint       Staged files, default hooks (= git commit)
 #   uv run lint-all   All files, default hooks
-#   uv run megalint   Manual MegaLinter parity check, all files
+#   uv run megalint   lint-all followed by the manual MegaLinter parity check
+#   uv run todo       Report TODO markers without failing
 #
 # Auto-fix on commit: ruff (lint + format), trailing-whitespace,
 # end-of-file-fixer, markdownlint. Everything else is check-only.

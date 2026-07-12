@@ -65,6 +65,7 @@ birre = "birre.cli.main:main"
 lint = "birre.devtools:lint"
 lint-all = "birre.devtools:lint_all"
 megalint = "birre.devtools:megalint"
+todo = "birre.devtools:todo_check"
 
 [project.urls]
 repository = "https://github.com/boecht/birre"
