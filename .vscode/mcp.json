@@ -17,7 +17,7 @@
       "command": "uv",
       "args": [
         "--project",
-        "../owlbear-dev",
+        "../owlbear",
         "run",
         "python",
         "-m",
@@ -41,7 +41,7 @@
       "command": "uv",
       "args": [
         "--project",
-        "../owlbear-dev",
+        "../owlbear",
         "run",
         "ddgs",
         "mcp"
