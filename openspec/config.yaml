@@ -1,0 +1,82 @@
+---
+schema: spec-driven
+context: '# --- OwlBear OpenSpec context ---
+
+  OpenSpec is the durable planning authority; OwlBear Kanban is the execution system.
+
+  The shaper reads the complete native change package before creating board tasks:
+
+  proposal.md carries product intent and material user decisions; specs/**/*.md carry
+
+  normative behavior; design.md carries evidence-grounded technical decisions; tasks.md
+
+  is advisory decomposition that the shaper may merge, split, reorder, or reject.
+
+  When /grill-me preceded proposal creation in the same conversation, synthesize the
+
+  confirmed understanding into durable artifacts. Never leave a load-bearing decision
+
+  only in chat context.
+
+  # --- End OwlBear OpenSpec context ---'
+rules:
+  proposal:
+    - '[OwlBear] Preserve the user''s problem wording when it materially constrains
+      interpretation.'
+    - '[OwlBear] Add a Normal Workflow section for the concrete user invocation and
+      observable outcome.'
+    - '[OwlBear] Add Boundaries with in-scope, out-of-scope, and preserved remainder
+      when scope is material.'
+    - '[OwlBear] Preserve the Expectation Signal when established: promised end state
+      in user language, concrete effects that make it worth using, any First Useful
+      Step plus what remains before the promise is fulfilled, and reductions or omissions
+      the user knowingly accepted. Never turn the First Useful Step into replacement
+      scope.'
+    - '[OwlBear] Add Technically Done but Wrong examples for plausible outcomes that
+      would miss intent.'
+    - '[OwlBear] Add a Decision Register only for material user decisions, accepted
+      trade-offs, rejected directions whose rationale still constrains the change, assumptions,
+      and evidence conclusions. Record type, statement, basis, and status. Active user
+      decisions require explicit user agreement to supersede; retain supersession links.'
+    - '[OwlBear] Record project type and investment tier only when already confirmed
+      by the user or an upstream ideation artifact; do not infer either merely to fill
+      the proposal.'
+    - '[OwlBear] Add measurable success and completion conditions when they are not
+      already explicit.'
+  specs:
+    - '[OwlBear] Preserve OpenSpec''s capability-oriented delta format and normative
+      SHALL/MUST scenarios.'
+    - '[OwlBear] Cover the normal invocation path and observable result, not only isolated
+      component behavior.'
+    - '[OwlBear] When Proposal distinguishes a First Useful Step from the remaining
+      product promise, keep the remaining promise represented as active scope or an
+      explicit accepted deferral; do not silently collapse the specification to the
+      first slice.'
+    - '[OwlBear] Include negative or boundary scenarios only when they protect a material
+      product promise.'
+    - '[OwlBear] Do not encode implementation choices or unverified external contract
+      details as requirements.'
+  design:
+    - '[OwlBear] Ground repository-answerable claims in the repository and name controlling
+      external, generated, documented, or production authorities for load-bearing contracts.'
+    - '[OwlBear] Distinguish observed, documented, assumed, and decided claims when
+      uncertainty affects the design; include confidence and consequence only when useful.'
+    - '[OwlBear] Record technical decisions with rationale and rejected alternatives
+      only when the reason will matter later.'
+    - '[OwlBear] Identify each load-bearing product invariant, its normal assembled
+      proof boundary, and any lower dependency that may be replaced without bypassing
+      that boundary.'
+    - '[OwlBear] If design work changes product intent or an active user decision, update
+      proposal.md before continuing.'
+  tasks:
+    - '[OwlBear] Treat tasks.md as advisory input to OwlBear shaper, not as the final
+      Kanban task graph.'
+    - '[OwlBear] Prefer outcome-cohesive tasks over file-level, layer-only, test-only,
+      or final wiring tasks.'
+    - '[OwlBear] For each task, name the capability requirements it advances, genuine
+      prerequisites, expected observable outcome, and proportionate proof guidance.'
+    - '[OwlBear] Identify aggregate completion work without duplicating every requirement
+      or design decision.'
+    - '[OwlBear] Do not add OwlBear-specific YAML, proof-bundle enums, priorities, tags,
+      or board identifiers; the shaper assigns execution metadata after validating the
+      whole package.'

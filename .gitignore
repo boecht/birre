@@ -70,3 +70,7 @@ scripts/
 .owlbear/kanban/tasks/.*.lock
 .owlbear/kanban/archive/.*.lock
 .owlbear/kanban/activity.jsonl
+
+# --- OwlBear OpenSpec generated commands ---
+.github/skills/openspec-*/
+.github/prompts/opsx-*.prompt.md
