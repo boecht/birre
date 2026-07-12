@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 _EVENT_CATEGORY_POINTS: Mapping[str, int] = {
@@ -81,7 +81,7 @@ def score_human_factor(factor: str | None = None) -> int:
 
 
 def filter_action_candidates(
-    candidates: list[Mapping[str, Any]], *, max_returned_priority: int
+    candidates: Sequence[Mapping[str, Any]], *, max_returned_priority: int
 ) -> dict[str, Any]:
     """Return eligible action candidates and explain excluded candidates."""
     if max_returned_priority < 0:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 from birre.domain.security_analyst.request import AlertWorkflowRequest
@@ -41,7 +41,7 @@ async def enrich_company_groups(
 
 
 def group_alert_triggers_by_company(
-    triggers: list[Mapping[str, Any]], *, max_companies: int
+    triggers: Sequence[Mapping[str, Any]], *, max_companies: int
 ) -> dict[str, Any]:
     """Group enrichable trigger records by company GUID within the company cap."""
     if max_companies <= 0:

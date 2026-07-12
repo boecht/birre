@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from birre.domain.common import CallV1Tool, CallV2Tool
+from birre.domain.common import CallV2Tool
 from birre.domain.security_analyst.alerts import (
     enrich_company_groups,
     fetch_v2_alert_pages,
@@ -74,7 +74,7 @@ def _trigger_candidate(
 
 async def run_alert_workflow_action_payload(
     call_v2_tool: CallV2Tool,
-    company_fetcher: CompanyFetcher | CallV1Tool,
+    company_fetcher: CompanyFetcher,
     ctx: Any = None,
     *,
     request: AlertWorkflowRequest | None = None,
