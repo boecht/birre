@@ -6,9 +6,8 @@ context: '# --- OwlBear OpenSpec context ---
   proposal.md carries product intent and material user decisions; specs/**/*.md carry
   normative behavior; design.md carries evidence-grounded technical decisions; tasks.md
   is advisory decomposition that the shaper may merge, split, reorder, or reject.
-  When /grill-me preceded proposal creation in the same conversation, synthesize the
-  confirmed understanding into durable artifacts. Never leave a load-bearing decision
-  only in chat context.
+  When /opsx:propose follows /ideate, synthesize the confirmed Refined Idea
+  Summary into durable artifacts. Never leave a load-bearing decision only in chat context.
   # --- End OwlBear OpenSpec context ---'
 rules:
   proposal:
