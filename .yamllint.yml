@@ -3,5 +3,7 @@
 # Line-length is disabled because editorconfig-checker already enforces
 # max_line_length from .editorconfig (with per-file-type overrides).
 extends: default
+ignore: |
+  openspec/changes/**/.openspec.yaml
 rules:
   line-length: disable
