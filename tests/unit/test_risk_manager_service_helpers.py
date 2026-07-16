@@ -48,9 +48,7 @@ def test_guid_and_search_helpers() -> None:
 
     params, term = risk_service._build_company_search_params("Acme", None)
     assert params["name"] == "Acme" and term == "Acme"
-    params_domain, term_domain = risk_service._build_company_search_params(
-        "Acme", "acme.com"
-    )
+    params_domain, term_domain = risk_service._build_company_search_params("Acme", "acme.com")
     assert params_domain["domain"] == "acme.com" and term_domain == "acme.com"
     assert "error" in risk_service._validate_company_search_inputs(None, None)
     assert risk_service._validate_company_search_inputs("Acme", None) is None
@@ -145,9 +143,7 @@ def test_candidate_extraction_and_enrichment() -> None:
     assert entry["label"].startswith("Acme")
     assert entry["rating"] == 90 and entry["subscription"]["active"] is True
 
-    enriched = risk_service._enrich_candidates(
-        candidates, {"guid-1": detail}, {"guid-1": folders}
-    )
+    enriched = risk_service._enrich_candidates(candidates, {"guid-1": detail}, {"guid-1": folders})
     assert enriched[0]["subscription"]["folders"] == folders
 
     order = risk_service._build_guid_order(candidates + [{"guid": " ", "name": "bad"}])
@@ -162,9 +158,7 @@ def test_candidate_extraction_and_enrichment() -> None:
     assert non_subscribed == ["guid-1"]
 
     assert risk_service._normalize_candidate_results({"companies": [1, 2]}) == [1, 2]
-    assert risk_service._normalize_candidate_results({"unexpected": 5}) == [
-        {"unexpected": 5}
-    ]
+    assert risk_service._normalize_candidate_results({"unexpected": 5}) == [{"unexpected": 5}]
 
 
 @pytest.mark.asyncio
@@ -173,9 +167,7 @@ async def test_bulk_subscribe_and_unsubscribe_paths() -> None:
     ctx = StubContext()
     payloads: list[dict[str, Any]] = []
 
-    async def call_success(
-        tool_name: str, _ctx: Context, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_success(tool_name: str, _ctx: Context, params: dict[str, Any]) -> dict[str, Any]:
         import asyncio
 
         await asyncio.sleep(0)
@@ -209,9 +201,7 @@ async def test_bulk_subscribe_and_unsubscribe_paths() -> None:
 
     delete_payloads: list[dict[str, Any]] = []
 
-    async def call_delete(
-        tool_name: str, _ctx: Context, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_delete(tool_name: str, _ctx: Context, params: dict[str, Any]) -> dict[str, Any]:
         import asyncio
 
         await asyncio.sleep(0)
@@ -260,27 +250,23 @@ def test_subscription_payload_and_validation_errors() -> None:
     error_payload = risk_service._manage_subscriptions_error("boom")
     assert error_payload["error"] == "boom"
 
-    action, guids, validation_error = (
-        risk_service._validate_manage_subscriptions_inputs("noop", [], default_type="t")
+    action, guids, validation_error = risk_service._validate_manage_subscriptions_inputs(
+        "noop", [], default_type="t"
     )
     assert action is None and "Unsupported" in validation_error["error"]
 
-    action, guids, validation_error = (
-        risk_service._validate_manage_subscriptions_inputs("add", [], default_type="t")
+    action, guids, validation_error = risk_service._validate_manage_subscriptions_inputs(
+        "add", [], default_type="t"
     )
     assert validation_error["error"].startswith("At least one company")
 
-    action, guids, validation_error = (
-        risk_service._validate_manage_subscriptions_inputs(
-            "add", ["g1"], default_type=None
-        )
+    action, guids, validation_error = risk_service._validate_manage_subscriptions_inputs(
+        "add", ["g1"], default_type=None
     )
     assert "Subscription type" in validation_error["error"]
 
-    action, guids, validation_error = (
-        risk_service._validate_manage_subscriptions_inputs(
-            "delete", ["g1"], default_type=None
-        )
+    action, guids, validation_error = risk_service._validate_manage_subscriptions_inputs(
+        "delete", ["g1"], default_type=None
     )
     assert action == "delete" and guids == ["g1"] and validation_error is None
 
@@ -317,9 +303,7 @@ def test_register_existing_domain_and_entries() -> None:
 async def test_partition_submitted_domains_marks_existing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_find(
-        _call_v1_tool: Any, _ctx: Any, *, logger: Any, domain: str
-    ) -> str | None:
+    async def fake_find(_call_v1_tool: Any, _ctx: Any, *, logger: Any, domain: str) -> str | None:
         import asyncio
 
         await asyncio.sleep(0)

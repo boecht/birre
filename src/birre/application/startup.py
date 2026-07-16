@@ -333,9 +333,7 @@ async def _perform_online_validations(
     if not folder_ok:
         return False, None
 
-    if not await _validate_subscription_quota(
-        call_v1_tool, ctx, subscription_type, logger
-    ):
+    if not await _validate_subscription_quota(call_v1_tool, ctx, subscription_type, logger):
         return False, folder_guid
 
     return True, folder_guid

@@ -162,9 +162,7 @@ async def test_get_company_rating_success_cleanup_subscription(
     # Patch internal helpers to isolate behaviour
     async def fake_create(*args, **kwargs):
         await asyncio.sleep(0)
-        return SimpleNamespace(
-            success=True, created=True, already_subscribed=False, message=None
-        )
+        return SimpleNamespace(success=True, created=True, already_subscribed=False, message=None)
 
     async def fake_cleanup(*args, **kwargs):
         await asyncio.sleep(0)

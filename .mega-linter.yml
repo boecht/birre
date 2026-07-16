@@ -1,18 +1,22 @@
 ---
-# Configuration file for MegaLinter
-# See all available variables at https://megalinter.io/configuration/ and in linters documentation
+# MegaLinter configuration for BiRRe
+# https://megalinter.io/configuration/
 
-# Explicit list of linters (descriptor names)
+# Explicit linter list: only checks that apply to this repository.
 ENABLE_LINTERS:
-  - ACTION_ACTIONLINT
-  - EDITORCONFIG_EDITORCONFIG_CHECKER
-  - JSON_JSONLINT
-  - MARKDOWN_MARKDOWNLINT
+  # Python
   - PYTHON_PYRIGHT
   - PYTHON_RUFF
   - PYTHON_RUFF_FORMAT
-  - REPOSITORY_SYFT
+  # Formats
+  - JSON_JSONLINT
+  - MARKDOWN_MARKDOWNLINT
   - YAML_YAMLLINT
+  # Tooling
+  - ACTION_ACTIONLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  # Repository
+  - REPOSITORY_SYFT
 
 # Linters allowed to apply fixes (safe formatting)
 APPLY_FIXES:
@@ -20,25 +24,37 @@ APPLY_FIXES:
   - PYTHON_RUFF_FORMAT
 
 # Reporters
-GITHUB_STATUS_REPORTER: true # default: false
-MARKDOWN_SUMMARY_REPORTER: true # default: false
-SARIF_REPORTER: true # default: false
+GITHUB_STATUS_REPORTER: true  # default: false
+MARKDOWN_SUMMARY_REPORTER: true  # default: false
+SARIF_REPORTER: true  # default: false
 
-# General exclude regex (applies to all linters unless overridden)
-FILTER_REGEX_EXCLUDE: (^docs/apis/|^src/birre/resources/apis/)
+# Exclude generated, archived, or local-only paths before linters see files.
+# Keep .pre-commit-config.yaml and markdownlint ignores aligned.
+FILTER_REGEX_EXCLUDE: >-
+  (\.owlbear/|docs/apis/|src/birre/resources/apis/)
+
+ADDITIONAL_EXCLUDED_DIRECTORIES:
+  - .venv
+  - .ruff_cache
+  - __pycache__
+  - dist
+  - megalinter-reports
+  - node_modules
 
 # Secured environment variables (to avoid leaking in reports)
-SECURED_ENV_VARIABLES: BITSIGHT_API_KEY
+SECURED_ENV_VARIABLES:
+  - BITSIGHT_API_KEY
 
 ############################################
-# Descriptor-specific configuration overrides
+# Linter-specific configuration
 ############################################
 
 # Actionlint: restrict scope to GitHub workflow directory explicitly
 ACTION_ACTIONLINT_FILTER_REGEX_INCLUDE: '^(\.github/workflows/.*\.ya?ml)$'
 
-# EditorConfig Checker (requires .editorconfig file at repo root)
-EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: "-f github-actions"
+# EditorConfig Checker (requires .editorconfig file at repo root).
+# Ruff handles Python indentation; this avoids false positives in docstrings.
+EDITORCONFIG_EDITORCONFIG_CHECKER_ARGUMENTS: "-f github-actions --disable-indent-size"
 
 # JSON Jsonlint
 JSON_JSONLINT_ARGUMENTS: "--quiet"
@@ -55,6 +71,8 @@ PYTHON_PYRIGHT_CONFIG_FILE: pyproject.toml
 PYTHON_DEFAULT_STYLE: ruff
 PYTHON_RUFF_CLI_LINT_MODE: project
 PYTHON_RUFF_CONFIG_FILE: pyproject.toml
+PYTHON_RUFF_FORMAT_CLI_LINT_MODE: project
+PYTHON_RUFF_FORMAT_CONFIG_FILE: pyproject.toml
 
 # Syft SBOM generation (project mode). Produces CycloneDX + SPDX JSON artifacts.
 REPOSITORY_SYFT_ARGUMENTS: >-
@@ -69,6 +87,9 @@ YAML_YAMLLINT_ARGUMENTS: "--strict"
 ############################################
 
 FLAVOR_SUGGESTIONS: false
+SECURITY_SUGGESTIONS: false
 PARALLEL: true
 SHOW_ELAPSED_TIME: true
+SHOW_SKIPPED_LINTERS: false
+PRINT_ALPACA: false
 # End of MegaLinter configuration

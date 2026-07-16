@@ -4,13 +4,9 @@ import birre.domain.company_rating.service as s
 
 
 def test_severity_category_and_numeric_extraction_variants() -> None:
-    assert s._rank_severity_category_value("severe") > s._rank_severity_category_value(
-        "low"
-    )
+    assert s._rank_severity_category_value("severe") > s._rank_severity_category_value("low")
     # Unknowns map to the lowest rank; must be <= low
-    assert s._rank_severity_category_value(
-        "unknown"
-    ) <= s._rank_severity_category_value("low")
+    assert s._rank_severity_category_value("unknown") <= s._rank_severity_category_value("low")
 
     # direct numeric
     assert s._derive_numeric_severity_score({"severity": 7}) == 7
@@ -19,12 +15,7 @@ def test_severity_category_and_numeric_extraction_variants() -> None:
     # details.grade
     assert s._derive_numeric_severity_score({"details": {"grade": 5}}) == 5
     # details.cvss.base
-    assert (
-        abs(
-            s._derive_numeric_severity_score({"details": {"cvss": {"base": 4.2}}}) - 4.2
-        )
-        < 0.01
-    )
+    assert abs(s._derive_numeric_severity_score({"details": {"cvss": {"base": 4.2}}}) - 4.2) < 0.01
     # fallback
     assert s._derive_numeric_severity_score("bad") == s.SEVERITY_SCORE_UNKNOWN
 
@@ -82,9 +73,7 @@ def test_details_text_and_label_helpers() -> None:
     details2 = {"remediations": [{"help_text": "Fix it"}]}
     assert s._find_first_remediation_text(details2) == "Fix it"
 
-    txt = s._normalize_detected_service_summary(
-        "Detected service: SSH, version 1", "Patch"
-    )
+    txt = s._normalize_detected_service_summary("Detected service: SSH, version 1", "Patch")
     assert "Patch" in txt
 
     # append hint punctuation

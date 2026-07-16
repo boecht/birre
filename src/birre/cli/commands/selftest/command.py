@@ -196,9 +196,7 @@ def _handle_selftest_exit(
     exit_code = result.exit_code()
     contexts = list(result.contexts)
     if exit_code == 1:
-        logger.critical(
-            "Health checks failed", contexts=contexts, environment=environment_label
-        )
+        logger.critical("Health checks failed", contexts=contexts, environment=environment_label)
         raise typer.Exit(code=1)
     if exit_code == 2:
         logger.warning(

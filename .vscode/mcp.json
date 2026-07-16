@@ -1,14 +1,76 @@
 {
   "servers": {
+    "ob-kanban": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--project",
+        "../owlbear",
+        "run",
+        "python",
+        "-m",
+        "owlbear_mcp_kanban"
+      ]
+    },
+    "ob-knowledge": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--project",
+        "../owlbear",
+        "run",
+        "python",
+        "-m",
+        "owlbear_mcp_knowledge"
+      ]
+    },
+    "ob-memory": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--project",
+        "../owlbear",
+        "run",
+        "python",
+        "-m",
+        "owlbear_mcp_memory"
+      ]
+    },
+    "ddgs": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--project",
+        "../owlbear",
+        "run",
+        "ddgs",
+        "mcp"
+      ]
+    },
+    "markitdown": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "markitdown-mcp"
+      ]
+    },
     "BiRRe-normal": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "birre"]
+      "args": [
+        "run",
+        "birre"
+      ]
     },
     "BiRRe-risk_manager": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "birre", "--context", "risk_manager"]
+      "args": [
+        "run",
+        "birre",
+        "--context",
+        "risk_manager"
+      ]
     }
   }
 }

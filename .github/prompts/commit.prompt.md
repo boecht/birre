@@ -2,13 +2,9 @@
 name: commit
 description: Create one or more commits from the currently staged changes
 argument-hint: Commit staged changes, grouped logically
-agent: git
+agent: agent
 model: GPT-5 mini (copilot)
-tools: [
-  'github/github-mcp-server/get_commit',
-  'github/github-mcp-server/list_commits',
-  'runCommands'
-]
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/terminalLastCommand, github/get_commit, github/list_commits]
 ---
 
 ## Goal

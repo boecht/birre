@@ -1,0 +1,142 @@
+<!--
+Working reference exported from Jira on 2026-07-11.
+
+This is discovery evidence, not an approved ticket specification. The user likes the
+time-series table and its presentation of change over time; all fields, wording,
+layout, and lifecycle behavior remain open to revision.
+-->
+<rss version="0.92">
+<channel>
+<title>Porsche Skyway Jira</title>
+<link>https://skyway.porsche.com/jira</link>
+<description>This file is an XML representation of an issue</description>
+<language>en-us</language>
+<build-info>
+<version>10.3.22</version>
+<build-number>10030022</build-number>
+<build-date>01-06-2026</build-date>
+</build-info>
+<item>
+<title>[SHIFT-8] Incident - </title>
+<link>https://skyway.porsche.com/jira/browse/SHIFT-8</link>
+<project id="68601" key="SHIFT">Third Party Security Oversight</project>
+<description><p>Test-Ticket:</p> <p>Label: Dienstags_Monitoring</p> <p>Description: Botnet Infection (Mylobot)</p> <ul> <li>Angriffsziel: Proxy-Botnet, DDoS</li> <li>Impact: Missbrauch als Proxy-Infrastruktur und DDoS-Knoten</li> </ul> <p>Assets betroffen: 1 / 169</p> <p>IP¥s: 131</p> <p><a href="https://service.bitsighttech.com/app/tprm/company/75ea0189-e55e-4122-969a-61f16edbce0b/overview/" class="external-link" target="_blank" rel="nofollow noopener">Desay SV Group</a></p> <p><a href="https://service.bitsighttech.com/app/tprm/company/75ea0189-e55e-4122-969a-61f16edbce0b/findings/?rolledup_observation_id=55EjeggT4SeXO7G7N_49wQ==&amp;last_seen_gte=2026-06-10" class="external-link" target="_blank" rel="nofollow noopener">Link Finding</a></p> <p> </p> <div class='table-wrap'> <table class='confluenceTable'><tbody> <tr> <td class='confluenceTd'>Finding</td> <td class='confluenceTd'>Datum</td> <td class='confluenceTd'>Score change</td> <td class='confluenceTd'>Rating</td> </tr> <tr> <td class='confluenceTd'>Botnet Infection</td> <td class='confluenceTd'>09.06.26</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>620</td> </tr> <tr> <td class='confluenceTd'>Botnet Infection</td> <td class='confluenceTd'>20.06.26</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>610</td> </tr> <tr> <td class='confluenceTd'>Open Ports</td> <td class='confluenceTd'>22.06.26</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>600</td> </tr> <tr> <td class='confluenceTd'>Botnet Infection</td> <td class='confluenceTd'>23.06.26.</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>590</td> </tr> <tr> <td class='confluenceTd'>Botnet Infection</td> <td class='confluenceTd'>27.06.26</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>580</td> </tr> <tr> <td class='confluenceTd'>Botnet Infection</td> <td class='confluenceTd'>30.06.26</td> <td class='confluenceTd'>-10</td> <td class='confluenceTd'>570</td> </tr> <tr> <td class='confluenceTd'>SSL Configuration</td> <td class='confluenceTd'>01.07.26</td> <td class='confluenceTd'>+10</td> <td class='confluenceTd'>580</td> </tr> </tbody></table> </div> <p> </p></description>
+<environment/>
+<key id="7250292">SHIFT-8</key>
+<summary>Incident - </summary>
+<type id="10503" iconUrl="https://skyway.porsche.com/jira/secure/viewavatar?size=xsmall&amp;avatarId=10303&amp;avatarType=issuetype">Incident</type>
+<priority id="5" iconUrl="https://skyway.porsche.com/jira/images/icons/priorities/lowest.svg">Lowest</priority>
+<status id="6" iconUrl="https://skyway.porsche.com/jira/images/icons/statuses/closed.png" description="Initiative owner is supposed to be happy, customer is happy. We are happy.">Closed</status>
+<statusCategory id="3" key="done" colorName="success"/>
+<resolution id="10000">Done</resolution>
+<assignee username="-1">Unassigned</assignee>
+<reporter username="W3BLOHK">Losse, Jakob (FDI3_EXTERN)</reporter>
+<labels>
+<label>Dinstags_Monitoring</label>
+</labels>
+<created>Tue, 7 Jul 2026 10:41:20 +0200</created>
+<updated>Tue, 7 Jul 2026 10:53:55 +0200</updated>
+<resolved>Tue, 7 Jul 2026 10:53:50 +0200</resolved>
+<due/>
+<votes>0</votes>
+<watches>1</watches>
+<comments>
+<comment id="10879254" author="JIRAUSER58619" created="Tue, 7 Jul 2026 10:50:52 +0200"><p>Test erfolgreich!Ticket wird geschlossen!</p></comment>
+</comments>
+<attachments> </attachments>
+<subtasks> </subtasks>
+<customfields>
+<customfield id="customfield_10716" key="com.atlassian.servicedesk.approvals-plugin:sd-approvals">
+<customfieldname>Approvals</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_15603" key="com.onresolve.jira.groovy.groovyrunner:scripted-field">
+<customfieldname>Count linked issues</customfieldname>
+<customfieldvalues>
+<customfieldvalue>0.0</customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_12900" key="com.atlassian.jira.plugins.jira-development-integration-plugin:devsummary">
+<customfieldname>Development</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_19600" key="com.atlassian.servicedesk:sd-request-groups">
+<customfieldname>Groups</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_10719" key="com.atlassian.servicedesk:sd-customer-organizations">
+<customfieldname>Organizations</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_10005" key="com.pyxis.greenhopper.jira:gh-lexo-rank">
+<customfieldname>Rank</customfieldname>
+<customfieldvalues>
+<customfieldvalue>2|ib71ew:</customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_10717" key="com.atlassian.servicedesk:sd-request-participants">
+<customfieldname>Request participants</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_17317" key="net.seibertmedia.agilehive.agile-hive-plugin:residual-exposure-field">
+<customfieldname>Residual Exposure</customfieldname>
+<customfieldvalues>
+<customfieldvalue> Unspecified </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_13804" key="com.atlassian.jira.plugin.system.customfieldtypes:multiuserpicker">
+<customfieldname>Responsible</customfieldname>
+<customfieldvalues>
+<customfieldvalue displayname="Losse, Jakob (FDI3_EXTERN)"><![CDATA[ W3BLOHK ]]></customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_13103" key="com.atlassian.servicedesk:sd-sla-field">
+<customfieldname>SLA</customfieldname>
+<customfieldvalues>
+<customfieldvalue data-remaining-time=""> </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_11010" key="com.atlassian.jira.plugin.system.customfieldtypes:multiuserpicker">
+<customfieldname>Stakeholder</customfieldname>
+<customfieldvalues>
+<customfieldvalue displayname="Losse, Jakob (FDI3_EXTERN)"><![CDATA[ W3BLOHK ]]></customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_14600" key="com.almworks.jira.structure:index-monitor-cf-type">
+<customfieldname>Structure Index Monitor</customfieldname>
+<customfieldvalues> </customfieldvalues>
+</customfield>
+<customfield id="customfield_10741" key="com.atlassian.servicedesk:sd-sla-field">
+<customfieldname>Time to close after resolution</customfieldname>
+<customfieldvalues>
+<customfieldvalue data-remaining-time="119:59"> 4d 23h </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_10740" key="com.atlassian.servicedesk:sd-sla-field">
+<customfieldname>Time to first response</customfieldname>
+<customfieldvalues>
+<customfieldvalue data-remaining-time="-18:18"> -2d 2h </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_10739" key="com.atlassian.servicedesk:sd-sla-field">
+<customfieldname>Time to resolution</customfieldname>
+<customfieldvalues>
+<customfieldvalue data-remaining-time="39:47"> 4d 7h </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_11408" key="com.atlassian.servicedesk:sd-sla-field">
+<customfieldname>Waiting on Customer</customfieldname>
+<customfieldvalues>
+<customfieldvalue data-remaining-time=""> </customfieldvalue>
+</customfieldvalues>
+</customfield>
+<customfield id="customfield_13200" key="com.onresolve.jira.groovy.groovyrunner:scripted-field">
+<customfieldname>lastComment</customfieldname>
+<customfieldvalues>
+<customfieldvalue><![CDATA[ Losse, Jakob (FDI3_EXTERN) - 07/Jul/2026 10:50<br><br><p>Test erfolgreich!Ticket wird geschlossen!</p> ]]></customfieldvalue>
+</customfieldvalues>
+</customfield>
+</customfields>
+</item>
+</channel>
+</rss>

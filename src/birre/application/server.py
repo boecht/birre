@@ -82,6 +82,10 @@ INSTRUCTIONS_MAP: dict[str, str] = {
         "review matches, call `manage_subscriptions` to adjust coverage, and "
         "use `request_company` when an entity is missing."
     ),
+    "security_analyst": (
+        "Security analyst persona. Use the available company and alert workflow "
+        "tools to investigate security findings."
+    ),
 }
 
 
@@ -133,7 +137,7 @@ def _maybe_create_v2_api_server(
     *,
     base_url: str | None = None,
 ) -> FastMCP | None:
-    if active_context == "risk_manager":
+    if active_context in {"risk_manager", "security_analyst"}:
         kwargs: dict[str, Any] = {"verify": verify_option}
         if base_url is not None:
             kwargs["base_url"] = base_url

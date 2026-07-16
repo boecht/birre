@@ -214,9 +214,7 @@ def test_manage_subscriptions_and_request_company_validators() -> None:
     assert ok4 is True
 
 
-def test_company_search_interactive_diagnostics_success_and_validation_warning() -> (
-    None
-):
+def test_company_search_interactive_diagnostics_success_and_validation_warning() -> None:
     logger = DummyLogger()
     summary: dict[str, Any] = {}
 
@@ -255,10 +253,7 @@ def test_company_search_interactive_diagnostics_success_and_validation_warning()
         is False
     )
     assert summary_warning["status"] == "warning"
-    assert (
-        summary_warning.get("details", {}).get("reason")
-        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
-    )
+    assert summary_warning.get("details", {}).get("reason") == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
     assert failures and failures[-1].stage == "validation"
 
 
@@ -306,10 +301,7 @@ def test_manage_subscriptions_diagnostics_success_and_invalid_payload() -> None:
         is False
     )
     assert summary_warning["status"] == "warning"
-    assert (
-        summary_warning.get("details", {}).get("reason")
-        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
-    )
+    assert summary_warning.get("details", {}).get("reason") == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
     assert failures and failures[-1].stage == "validation"
 
 
@@ -372,8 +364,5 @@ def test_request_company_diagnostics_handles_400_and_payload(monkeypatch) -> Non
         is False
     )
     assert summary_warning["status"] == "warning"
-    assert (
-        summary_warning.get("details", {}).get("reason")
-        == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
-    )
+    assert summary_warning.get("details", {}).get("reason") == dx.MSG_UNEXPECTED_PAYLOAD_STRUCTURE
     assert failures and failures[-1].stage == "validation"

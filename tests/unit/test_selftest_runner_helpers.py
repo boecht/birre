@@ -93,9 +93,7 @@ def test_update_and_categorize_failure_sets() -> None:
         tools={},
     )
     runner._update_failure_categories(report, encountered, failure_categories)
-    recoverable, unrecoverable = runner._categorize_failures(
-        encountered, failure_categories
-    )
+    recoverable, unrecoverable = runner._categorize_failures(encountered, failure_categories)
     assert "tls" in recoverable
     assert unrecoverable == []
 

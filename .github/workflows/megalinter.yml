@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      statuses: write # for GITHUB_STATUS_REPORTER in MegaLinter to post/update commit statuses
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      id-token: write # for step-security/harden-runner to fetch OIDC token
+      statuses: write  # for GITHUB_STATUS_REPORTER in MegaLinter to post/update commit statuses
+      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
+      id-token: write  # for step-security/harden-runner to fetch OIDC token
 
     outputs:
       status: ${{ steps.prepare-outputs.outputs.status }}
@@ -33,12 +33,12 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920  # v2.20.0
         with:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
 
       - name: Prepare Python environment
         uses: ./.github/actions/uv-env
@@ -52,20 +52,21 @@ jobs:
 
       - name: MegaLinter
         id: megalinter
-        uses: oxsecurity/megalinter/flavors/python@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        # v9.6.0
+        uses: oxsecurity/megalinter/flavors/python@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.REUSABLE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Upload MegaLinter reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: megalinter-reports
           path: megalinter-reports
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: sbom-artifacts
           path: |
@@ -75,7 +76,7 @@ jobs:
 
       - name: Upload SARIF report (if generated)
         if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
-        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9  # v4.37.0
         with:
           sarif_file: megalinter-reports/megalinter-report.sarif
           category: megalinter
@@ -125,18 +126,18 @@ jobs:
     needs: lint
 
     permissions:
-      pull-requests: write # Allow posting summaries as PR comments
-      id-token: write # for step-security/harden-runner to fetch OIDC token
+      pull-requests: write  # Allow posting summaries as PR comments
+      id-token: write  # for step-security/harden-runner to fetch OIDC token
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920  # v2.20.0
         with:
           egress-policy: audit
 
       - name: Find existing summary comment
         id: find-comment
-        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
+        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad  # v4.0.0
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: "github-actions[bot]"
@@ -175,7 +176,8 @@ jobs:
 
       - name: Create or update summary comment
         if: steps.body.outputs.body != ''
-        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
+        # v5.0.0
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
@@ -184,7 +186,7 @@ jobs:
 
       - name: Delete summary comment when clean
         if: ${{ steps.find-comment.outputs.comment-id != '' && needs.lint.result == 'success' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         with:
           script: |
             await github.rest.issues.deleteComment({

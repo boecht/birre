@@ -1,221 +1,69 @@
-# CoPilot Instructions
-
-This document contains the full Agent Operations Guide for BiRRe.
-
-## Agent Operations Guide
-
-This guide aligns LLM agents with BiRRe workflows. Skim section 2 for philosophy,
-section 3 for day-to-day execution, and section 5 for the commands you will run most often
-
-## 1. Orientation & Reference Docs
-
-### Quick Links
-
-- Project Overview: [README.md](../README.md)
-- Changelog: [CHANGELOG.md](../CHANGELOG.md)
-- Changelog Standards: [edit-changelog.instructions.md](instructions/edit-changelog.instructions.md)
-- Project Architecture: [ARCHITECTURE.md](../docs/ARCHITECTURE.md)
-- BitSight API v1 Reference: [bitsight.v1.overview.md](../docs/apis/bitsight.v1.overview.md)
-- BitSight API v2 Reference: [bitsight.v2.overview.md](../docs/apis/bitsight.v2.overview.md)
-- FastMCP framework: <https://gofastmcp.com/servers/server>
-
-## 2. Core Principles
-
-### Project Principles
-
-1. **Ground every statement in current evidence.**
-    - Inspect the live repo/docs/logs before forming an opinion or recommending a change
-    - Cite the exact file/line that supports your conclusion so nothing relies on memory or stale data
-
-2. **Clarify, don’t guess**
-    - Whenever something is unclear, inconsistent, or blocking the design goal, pause and
-    ask the user a precise technical question instead of assuming or defaulting
-    - Only follow a different approach if the prompt/mode explicitly demands it
-    - Apply this discipline across all stages; requirements, system design, and implementation alike
-    - Turn every ambiguity or spec gap into a targeted clarification
-    - Treat uncertainty signals like "I think", "probably", or "maybe" as red flags that require clarification
-
-3. **Build a Minimal Viable Product (MVP) for personal use first — iterate and refine only if requested.**
-    - Prioritize functionality and stability over broad compatibility
-    - Avoid premature optimization for universal use cases
-
-4. **Quality and architecture trump backwards compatibility.**
-    - Breaking changes are acceptable if they improve the codebase
-    - Remove outdated patterns immediately; do not preserve legacy code
-    - Avoid shortcuts; build the right solution once
-    - Clean, maintainable architecture outranks legacy API stability
-
-5. **Documentation focuses on user value, not internal implementation.**
-    - CHANGELOG entries describe user benefits using .github/instructions/edit-changelog.instructions.md
-    - Highlight impact (reliability, performance, UX) instead of internal codes (TD-XXX, QA-XXX)
-    - Keep technical specifics in commits and internal tracking
-    - Example:
-      - ❌ "Refactored 7 functions to reduce complexity (TD-003)"
-      - ✅ "Enhanced reliability through simplified error handling"
-
-### Documentation Principles
-
-- **Code Comments (implementation-facing)**
-  - See [Python Style Instructions](instructions/edit-python.instructions.md) for editing-time guidance.
-
-## 3. Standard Workflow
-
-### Development Approach
-
-- **Requirements Analysis**
-  - Break down tasks into clear requirements, success criteria, and constraints
-  - Evaluate feasibility with respect to FastMCP capabilities and project architecture
-  - When uncertain, ask using the structured format
-- **System Design**
-  - Identify required modules, interfaces, integrations, and resources before coding
-  - Map changes to FastMCP hybrid architecture components
-- **Implementation Strategy**
-  - Choose TDD when tests exist or are requested
-  - Otherwise implement directly, component by component, leveraging FastMCP auto-generation
-- **Quality Assurance**
-  - Check against modular design principles, FastMCP compliance, and framework guidelines
-  - Prefer targeted tests over full suite runs for speed
-
-### Development Best Practices
-
-- Think step-by-step about goals, architecture, and limitations
-- Prefer editing existing files over creating new ones
-- Verify assumptions with data; never guess
-- Run the smallest relevant tests for rapid feedback
-- Execute pertinent tests after every change to catch regressions early
-
-### Commit Practices
-
-#### When You Finish a Task
-
-1. Stage every file you changed for that task (`git add <paths>` or `git add -p`)
-2. Stop. Do not commit; wait for the user to review or adjust
-
-#### Safety and Etiquette
-
-- Never push or merge to protected branches (`main`, `release/*`) unless the user explicitly instructs you to
-- If user’s adjustments introduce conflicts or inconsistent staging, pause and clarify how to proceed before committing
-
-### Quality Assurance Checklist
-
-- Validate outputs against the original task description before finalizing
-- Confirm tests were run (or explain why they were skipped) and record outcomes
-- Ensure documentation and comments reflect any significant behaviour changes
-- Cross-check that FastMCP integration points remain consistent
-
-## 4. Communication Protocol
-
-### Messaging Guidelines
-
-- Be direct and technical; prioritize facts over tone
-- Assume core programming literacy; skip over-explaining basics
-- Flag bugs, performance issues, or maintainability risks immediately
-- State opinions as such; do not present subjective preferences as facts
-
-### Structured Clarification Requests
-
-When asking the user for clarification, follow this template:
-
-```text
-**Question X**: {Clear, specific question}
-**Options**:
-- A) {Option with trade-offs}
-- B) {Option with trade-offs}
-- C) {Additional options as needed}
-**Context**: {Relevant best practices or constraints}
-**Recommendation**: {Your recommendation with reasoning}
-```
-
-## 5. Tooling & Runtime
-
-### Environment Requirements
-
-- BiRRe requires **Python 3.13** or later. Install via uv if unavailable:
-
-  ```bash
-  uv python install 3.13
-  ```
-
-### Testing Commands
-
-uv automatically installs the correct Python version, and dependencies such as FastMCP.
-If BiRRe runs, FastMCP is present. Assume a BitSight API key is available via `BITSIGHT_API_KEY`
-or local config. With either configured, it is safe—and recommended—to run online tests.
-
-- Full suite (preferred):
-
-  ```bash
-  uv run pytest
-  ```
-
-- Offline only:
-
-  ```bash
-  uv run pytest --offline
-  ```
-
-- Online only:
-
-  ```bash
-  uv run pytest --online-only
-  ```
-
-### Server Operations
-
-- Run BiRRe locally (auto-installs dependencies):
-
-  ```bash
-  uv run birre
-  ```
-
-- FastMCP smoke test with timeout:
-
-  ```bash
-  timeout 15s uv run birre || echo "✅ Server test completed"
-  ```
-
-## 6. Model-Specific Addenda
-
-### Claude-Specific Requirements
-
-**If you are powered by Anthropic's Claude model, follow these mandatory requirements:**
-
-#### CRASH Tool Usage
-
-Use the CRASH tool (structured reasoning) for all multi-step tasks, including:
-
-- Tasks requiring clarifying questions to the user
-- Multi-step analysis, review, or planning tasks
-- Code refactoring or architectural changes
-- Bug investigation and fixes (beyond trivial typos)
-- Feature implementation requiring multiple components
-- Documentation updates (even single files with multiple sections)
-- Version migrations or dependency updates
-
-**Workflow**: Plan (step 1-2) → Execute one step at a time (step 3-N) → Final QA (last step)
-
-**CRASH Features to Leverage**:
-
-- Use `revises_step` to correct mistakes in earlier reasoning
-- Use `branch_from` to explore alternative approaches
-- Track `confidence` and `uncertainty_notes` when facing ambiguous situations
-
-**If CRASH tool is unavailable**: Refuse to proceed on multi-step tasks
-Ask the user to install the CRASH MCP server from <https://github.com/nikkoxgonzales/crash-mcp>
-
-#### Mandatory QA Step
-
-Every task must end with a QA review that compares all work to the initial task:
-
-1. **Restate original task**: What did the user ask for?
-2. **List file changes**: For each modified file, explain how the change serves the original task
-3. **Identify misalignment**: Call out any changes that don't directly serve the task objective
-4. **Reflect on alignment**: Does the complete set of changes accomplish what was requested?
-  Are there gaps or overreach?
-5. **Verify changes**: Read back edited content to confirm correctness
-
-## 7. Appendix
-
-### FastMCP Resources
-
-- FastMCP framework documentation: <https://gofastmcp.com/servers/server>
+# BiRRe - Copilot Workspace Instructions
+
+## 1. Project Identity
+
+BiRRe (BitSight Rating Retriever) is a Python FastMCP server that exposes curated,
+strongly typed BitSight workflows to MCP clients. It supports the standard and
+`risk_manager` runtime contexts, including safe subscription and onboarding workflows.
+
+## 2. Directory Structure
+
+| Path | Purpose |
+| ------ | --------- |
+| `src/birre/` | Application source, runtime contexts, CLI, and BitSight API clients |
+| `src/birre/domain/` | Domain workflows and business rules |
+| `tests/unit/` | Unit tests |
+| `tests/cli/` | CLI tests |
+| `tests/integration/` | Integration tests |
+| `docs/` | Architecture, CLI, and BitSight API reference documentation |
+| `.github/instructions/` | Project-specific file instructions |
+
+## 3. Tech Stack
+
+| Component | Technology | Notes |
+| ------ | ------------ | ------- |
+| Language | Python 3.14+ | Managed with `uv` |
+| MCP server | FastMCP 3 | Entrypoint: `birre:create_birre_server` |
+| CLI | Typer | Entrypoint: `uv run birre` |
+| Validation | pytest, Ruff, Pyright | Run focused checks for changed behavior |
+| HTTP and models | httpx, Pydantic v2 | Use existing clients and models before adding abstractions |
+
+## 4. Project Rules
+
+### Ponytail Principles
+
+Prefer the smallest correct change after tracing the real control path:
+
+1. Reuse existing code, the standard library, platform capabilities, or installed dependencies before writing new code.
+2. Fix defects at their shared root cause; inspect callers before patching a named symptom.
+3. Avoid unrequested abstractions, dependencies, boilerplate, and unrelated refactors.
+4. Choose the edge-case-correct option when solutions are similarly small.
+5. Leave proportional runnable proof for non-trivial logic. A `ponytail:` comment marks an intentional simplification
+   and its known ceiling.
+
+### Domain Boundaries
+
+- Preserve BitSight trust boundaries: validate external input and prevent unintended subscription, onboarding,
+  or data-changing operations.
+- Prefer the existing typed API clients and domain workflows over direct ad hoc HTTP calls.
+- Documentation and changelog entries describe user impact; follow
+  `.github/instructions/edit-changelog.instructions.md` when editing `CHANGELOG.md`.
+
+Shared agent lifecycle, memory, commits, Kanban, communication, and escalation rules are owned by OwlBear skills and instructions.
+
+## 5. Useful Commands
+
+- `uv run pytest` - full test suite
+- `uv run pytest --offline` - offline-only tests
+- `uv run pytest --online-only` - online-only tests when BitSight credentials are configured
+- `uv run ruff check src tests` - lint changed Python surfaces
+- `uv run pyright` - type check
+- `uv run birre` - run the local MCP server
+
+## 6. Resources
+
+- [README.md](../README.md)
+- [Architecture](../docs/ARCHITECTURE.md)
+- [CLI reference](../docs/CLI.md)
+- [BitSight API v1 reference](../docs/apis/bitsight.v1.overview.md)
+- [BitSight API v2 reference](../docs/apis/bitsight.v2.overview.md)

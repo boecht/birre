@@ -14,6 +14,7 @@ from birre.application.diagnostics import (
 from birre.cli.commands import config as config_command
 from birre.cli.commands import logs as logs_command
 from birre.cli.commands import run as run_command
+from birre.cli.commands import security_analyst as security_analyst_command
 from birre.cli.commands import selftest as selftest_command
 from birre.integrations.bitsight import DEFAULT_V1_API_BASE_URL
 
@@ -90,6 +91,7 @@ selftest_command.register(
     healthcheck_testing_v1_base_url=HEALTHCHECK_TESTING_V1_BASE_URL,
     healthcheck_production_v1_base_url=HEALTHCHECK_PRODUCTION_V1_BASE_URL,
 )
+security_analyst_command.register(app)
 
 
 @app.command(help="Show the installed BiRRe package version.")

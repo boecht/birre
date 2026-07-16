@@ -188,13 +188,9 @@ COMPANY_SEARCH_INTERACTIVE_OUTPUT_SCHEMA: dict[str, Any] = (
     CompanySearchInteractiveResponse.model_json_schema()
 )
 
-REQUEST_COMPANY_OUTPUT_SCHEMA: dict[str, Any] = (
-    RequestCompanyResponse.model_json_schema()
-)
+REQUEST_COMPANY_OUTPUT_SCHEMA: dict[str, Any] = RequestCompanyResponse.model_json_schema()
 
-MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: dict[str, Any] = (
-    ManageSubscriptionsResponse.model_json_schema()
-)
+MANAGE_SUBSCRIPTIONS_OUTPUT_SCHEMA: dict[str, Any] = ManageSubscriptionsResponse.model_json_schema()
 
 
 @dataclass
@@ -258,9 +254,7 @@ async def _fetch_company_details(
     Requires companies to be already subscribed (via bulk subscription).
     """
 
-    effective_limit = (
-        limit if isinstance(limit, int) and limit > 0 else DEFAULT_MAX_FINDINGS
-    )
+    effective_limit = limit if isinstance(limit, int) and limit > 0 else DEFAULT_MAX_FINDINGS
 
     details: dict[str, dict[str, Any]] = {}
     for guid in list(guids)[:effective_limit]:
@@ -361,9 +355,7 @@ def _find_company_in_tree(
     return None
 
 
-def _find_node_in_tree(
-    tree_node: dict[str, Any], target_guid: str
-) -> dict[str, Any] | None:
+def _find_node_in_tree(tree_node: dict[str, Any], target_guid: str) -> dict[str, Any] | None:
     """
     Recursively find a node with the given GUID in the tree.
 
@@ -450,9 +442,7 @@ async def _fetch_folder_memberships(
     except Exception as exc:  # pragma: no cover - defensive
         await ctx.warning(f"Unable to fetch folder list: {exc}")
         logger_obj = getattr(logger, "_logger", None)
-        exc_info = (
-            exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
-        )
+        exc_info = exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
         logger.warning(
             "folders.fetch_failed",
             error=str(exc),
@@ -488,16 +478,10 @@ def _build_candidate(entry: Any) -> dict[str, Any | None] | None:
     details_raw = entry.get("details")
     details: dict[str, Any] = details_raw if isinstance(details_raw, dict) else {}
     primary_domain = (
-        entry.get("primary_domain")
-        or entry.get("domain")
-        or entry.get("display_url")
-        or ""
+        entry.get("primary_domain") or entry.get("domain") or entry.get("display_url") or ""
     )
     website = (
-        entry.get("company_url")
-        or entry.get("homepage")
-        or entry.get("website")
-        or primary_domain
+        entry.get("company_url") or entry.get("homepage") or entry.get("website") or primary_domain
     )
 
     return {
@@ -543,9 +527,7 @@ def _format_result_entry(
     name = candidate.get("name") or detail.get("name") or ""
     label = f"{name} ({guid})" if guid else name
     description = (
-        candidate.get("description")
-        or detail.get("description")
-        or detail.get("shortname")
+        candidate.get("description") or detail.get("description") or detail.get("shortname")
     )
     employee_count = candidate.get("employee_count") or detail.get("people_count")
 
@@ -562,9 +544,7 @@ def _format_result_entry(
         "label": label,
         "guid": guid,
         "name": name,
-        "primary_domain": candidate.get("primary_domain")
-        or detail.get("primary_domain")
-        or "",
+        "primary_domain": candidate.get("primary_domain") or detail.get("primary_domain") or "",
         "website": candidate.get("website") or detail.get("homepage") or "",
         "description": description or "",
         "employee_count": employee_count,
@@ -574,9 +554,7 @@ def _format_result_entry(
     }
 
 
-def _validate_company_search_inputs(
-    name: str | None, domain: str | None
-) -> dict[str, str] | None:
+def _validate_company_search_inputs(name: str | None, domain: str | None) -> dict[str, str] | None:
     if name or domain:
         return None
     return {
@@ -866,9 +844,7 @@ async def _build_company_search_response(
         )
 
     truncated = len(guid_order) > defaults.limit
-    result_models = [
-        CompanyInteractiveResult.model_validate(entry) for entry in enriched
-    ]
+    result_models = [CompanyInteractiveResult.model_validate(entry) for entry in enriched]
 
     return CompanySearchInteractiveResponse(
         count=result_count,
@@ -970,9 +946,7 @@ async def _subscribe_and_fetch_parent(
 
     # Check if parent is already subscribed
     parent_node = _find_node_in_tree(tree_data, parent_guid)
-    parent_is_subscribed = (
-        parent_node.get("is_subscribed", False) if parent_node else False
-    )
+    parent_is_subscribed = parent_node.get("is_subscribed", False) if parent_node else False
 
     # Subscribe if needed
     if not parent_is_subscribed:
@@ -998,9 +972,7 @@ async def _subscribe_and_fetch_parent(
         parent_data = parent_data_map.get(parent_guid)
         return ephemeral, parent_data
     except Exception as exc:  # pragma: no cover - defensive safety
-        await ctx.warning(
-            f"Failed to fetch parent company details for {parent_guid}: {exc}"
-        )
+        await ctx.warning(f"Failed to fetch parent company details for {parent_guid}: {exc}")
         logger.warning(
             "parent_detail.fetch_failed",
             company_guid=parent_guid,
@@ -1285,9 +1257,7 @@ def _build_existing_entries(
     for domain in order:
         company_name = mapping.get(domain)
         if company_name:
-            entries.append(
-                RequestCompanyExistingEntry(domain=domain, company_name=company_name)
-            )
+            entries.append(RequestCompanyExistingEntry(domain=domain, company_name=company_name))
         else:
             entries.append(RequestCompanyExistingEntry(domain=domain))
     return entries
@@ -1384,9 +1354,7 @@ async def _find_existing_company(
     for candidate in candidates:
         primary = str(candidate.get("primary_domain") or "").lower()
         if primary == target:
-            return str(
-                candidate.get("name") or candidate.get("primary_domain") or domain
-            )
+            return str(candidate.get("name") or candidate.get("primary_domain") or domain)
         candidate_domain = str(candidate.get("domain") or "").lower()
         if candidate_domain == target:
             return str(candidate.get("name") or candidate.get("domain") or domain)
@@ -1528,9 +1496,7 @@ def _request_company_all_existing_response(
         folder_guid=folder_guid,
         folder_created=folder_created or None,
         guidance=RequestGuidance(
-            next_steps=(
-                "All provided domains already exist in BitSight or were duplicates."
-            )
+            next_steps=("All provided domains already exist in BitSight or were duplicates.")
         ),
     ).to_payload()
 
@@ -1614,8 +1580,7 @@ async def _submit_request_company_bulk(
             error=str(exc),
         )
         failed_entries = [
-            RequestCompanyFailedEntry(domain=domain, error=str(exc))
-            for domain in remaining_domains
+            RequestCompanyFailedEntry(domain=domain, error=str(exc)) for domain in remaining_domains
         ]
         return None, RequestCompanyResponse(
             error=str(exc),
@@ -1691,11 +1656,7 @@ async def _maybe_resolve_request_company_folder(
         state.selected_folder
         and state.remaining_domains
         and not state.folder_guid
-        and not (
-            default_folder
-            and state.selected_folder == default_folder
-            and default_folder_guid
-        )
+        and not (default_folder and state.selected_folder == default_folder and default_folder_guid)
     )
     if not needs_folder:
         return None
@@ -1790,9 +1751,7 @@ def register_request_company_tool(
         )
         if error_response is not None:
             return error_response
-        assert state is not None, (
-            "State must be available when no error response is returned."
-        )
+        assert state is not None, "State must be available when no error response is returned."
 
         log_event(
             logger,
@@ -1804,10 +1763,7 @@ def register_request_company_tool(
         )
 
         needs_folder_for_dry_run = (
-            dry_run
-            and state.remaining_domains
-            and state.selected_folder
-            and not state.folder_guid
+            dry_run and state.remaining_domains and state.selected_folder and not state.folder_guid
         )
         if needs_folder_for_dry_run:
             folder_error = await _maybe_resolve_request_company_folder(
@@ -1861,9 +1817,7 @@ def register_request_company_tool(
             result=result,
         ).to_payload()
 
-    return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(
-        request_company
-    )
+    return business_server.tool(output_schema=REQUEST_COMPANY_OUTPUT_SCHEMA)(request_company)
 
 
 def _build_subscription_payload(
@@ -1922,9 +1876,7 @@ def _build_manage_subscriptions_success_response(
         folder_created=folder_state.folder_created or None,
         summary=summary_model,
         guidance=ManageSubscriptionsGuidance(
-            next_steps=(
-                "Run `get_company_rating` for a sample GUID to verify post-change access."
-            )
+            next_steps=("Run `get_company_rating` for a sample GUID to verify post-change access.")
         ),
     ).to_payload()
 
@@ -2042,9 +1994,7 @@ async def _perform_manage_subscriptions_bulk(
     except Exception as exc:
         await ctx.error(f"Subscription management failed: {exc}")
         logger_obj = getattr(logger, "_logger", None)
-        exc_info = (
-            exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
-        )
+        exc_info = exc if logger_obj and logger_obj.isEnabledFor(logging.DEBUG) else False
         logger.error(
             "manage_subscriptions.failed",
             action=action,
@@ -2173,12 +2123,10 @@ def register_manage_subscriptions_tool(
         }
         """
 
-        normalized_action, guid_list, error_payload = (
-            _validate_manage_subscriptions_inputs(
-                action,
-                guids,
-                default_type=default_type,
-            )
+        normalized_action, guid_list, error_payload = _validate_manage_subscriptions_inputs(
+            action,
+            guids,
+            default_type=default_type,
         )
         if error_payload is not None or normalized_action is None:
             return (

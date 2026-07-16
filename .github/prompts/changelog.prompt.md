@@ -2,28 +2,8 @@
 name: changelog
 description: Draft and insert a CHANGELOG entry from recent changes
 argument-hint: Create CHANGELOG entry, provide version (4.0.0-alpha.3) and/or date (YYYY-MM-DD)
-agent: git
-tools: [
-  'edit/editFiles',
-  'runCommands',
-  'search',
-  'crash/*',
-  'github/github-mcp-server/get_commit',
-  'github/github-mcp-server/get_file_contents',
-  'github/github-mcp-server/get_label',
-  'github/github-mcp-server/get_latest_release',
-  'github/github-mcp-server/get_release_by_tag',
-  'github/github-mcp-server/get_tag',
-  'github/github-mcp-server/list_branches',
-  'github/github-mcp-server/list_commits',
-  'github/github-mcp-server/list_pull_requests',
-  'github/github-mcp-server/list_releases',
-  'github/github-mcp-server/list_tags',
-  'github/github-mcp-server/pull_request_read',
-  'github/github-mcp-server/search_pull_requests',
-  'changes',
-  'todos'
-]
+agent: agent
+tools: [vscode/askQuestions, vscode/toolSearch, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/terminalLastCommand, read/problems, read/readFile, edit/editFiles, search, github/get_commit, github/get_file_contents, github/get_label, github/get_latest_release, github/get_release_by_tag, github/get_tag, github/list_branches, github/list_commits, github/list_pull_requests, github/list_releases, github/list_tags, github/pull_request_read, github/search_pull_requests, vscodeTasks/problems, vscodeGeneral/toolSearch, todo]
 ---
 
 ## Goal
